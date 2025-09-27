@@ -105,13 +105,14 @@ const {
   saveStatusMessage,
   acr,
   obfus,
+  saveDatabase,
   ephoto,
   loadBlacklist,
   handleChatbot,
   initializeDatabase,
   delay,
   recordError,
-  shouldLogError } = require('../vinic')  // Changed from './vinic' to '../vinic'
+  shouldLogError } = require('../vinic')  // use functions in vinicjs
 const {fetchReactionImage} = require('./lib/reaction')
 const { toAudio } = require('./lib/converter');
 const { jadibot, stopjadibot, listjadibot } = require('./jadibot')
@@ -122,7 +123,7 @@ conn.sendMessage(jidss, { react: { text: emoji, key: m.key } })
 //====FUNCTION FOR SPORT MENU
 async function formatStandings(leagueCode, leagueName, { m, reply }) {
   try {
-    const apiUrl = `${global.mess.api}/football?code=${leagueCode}&query=standings`;
+    const apiUrl = `${global.api}/football?code=${leagueCode}&query=standings`;
     const response = await fetch(apiUrl);
     const data = await response.json();
 
@@ -164,7 +165,7 @@ async function formatStandings(leagueCode, leagueName, { m, reply }) {
 
 async function formatMatches(leagueCode, leagueName, { m, reply }) {
   try {
-    const apiUrl = `${global.mess.api}/football?code=${leagueCode}&query=matches`;
+    const apiUrl = `${global.api}/football?code=${leagueCode}&query=matches`;
     const response = await fetch(apiUrl);
     const data = await response.json();
 
@@ -275,7 +276,7 @@ function buildOtherMatchesSection(otherMatches, liveMatches, finishedMatches) {
 
 async function formatTopScorers(leagueCode, leagueName, { m, reply }) {
   try {
-    const apiUrl = `${global.mess. api}/football?code=${leagueCode}&query=scorers`;
+    const apiUrl = `${global.api}/football?code=${leagueCode}&query=scorers`;
     const response = await fetch(apiUrl);
     const data = await response.json();
 
@@ -303,7 +304,7 @@ async function formatTopScorers(leagueCode, leagueName, { m, reply }) {
 
 async function formatUpcomingMatches(leagueCode, leagueName, { m, reply }) {
   try {
-    const apiUrl = `${global.mess.api}/football?code=${leagueCode}&query=upcoming`;
+    const apiUrl = `${global.api}/football?code=${leagueCode}&query=upcoming`;
     const response = await fetch(apiUrl);
     const data = await response.json();
 
@@ -1710,6 +1711,40 @@ case "addsudo": {
   }  
 }
 break
+case "setownernumber": {
+if (!Access) return reply(mess.owner);
+if (args.length < 1) return reply(`Example: ${prefix + command} 256xxxxxxxx\n\nThis will change the owner's number in the database`);
+
+let newNumber = args[0].replace(/\D/g, '');
+
+if (newNumber.startsWith('0')) {
+  return reply("⚠️ Phone numbers should not start with *0*. Use the full international format (e.g., *256...* instead of *07...*)");
+}
+
+if (newNumber.length < 5 || newNumber.length > 15) {
+  return reply("⚠️ Please provide a valid phone number (5-15 digits)");
+}
+
+// Fix: Use setting.config structure
+if (!global.db.data.settings) global.db.data.settings = {};
+if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+let setting = global.db.data.settings[botNumber];
+
+// Initialize config if it doesn't exist
+if (!setting.config) setting.config = {};
+
+// Set the owner number in config
+setting.config.ownernumber = newNumber;
+
+// Also update the global variable if it exists
+if (global.ownernumber) {
+  global.ownernumber = newNumber;
+}
+await saveDatabase();
+
+reply(`✅ Owner number changed to *${newNumber}* successfully.`);
+}
+break
 case 'delsudo': {
   if (!Access) return reply(mess.owner);
   
@@ -2600,25 +2635,40 @@ if (!Access) return reply(mess.owner);
     reply(mess.done);
 }
 break
-case 'antidelete': {
-  const mode = args[1]?.toLowerCase();
-  
-  if (!mode || (mode !== 'on' && mode !== 'off' && mode !== 'private')) {
-    const currentMode = global.antidelete || 'off';
-    return reply(`🚨 Anti-Delete Settings\n\nCurrent mode: ${currentMode}\n\nUsage:\n- *${prefix}antidelete on* - Enable in current chat\n- *${prefix}antidelete private* - Send to bot owner only\n- *${prefix}antidelete off* - Disable anti-delete`);
-  }
-  
-  if (mode === 'on') {
-    global.antidelete = m.chat; // Store the chat ID where it should work
-    reply('✅ Anti-delete enabled in this chat. Deleted messages will be shown here.');
-  } else if (mode === 'private') {
-    global.antidelete = 'private'; // Set to private mode
-    reply('✅ Anti-delete set to private mode. Deleted messages will be sent to bot owner only.');
-  } else if (mode === 'off') {
-    global.antidelete = 'off'; // Disable anti-delete
-    reply('❌ Anti-delete disabled.');
-  }
-  
+case "antidelete": {
+if (!Access) return reply(mess.owner);
+if (args.length < 2) return reply(`Example: ${prefix + command} private on/off\nOr: ${prefix + command} chat on/off`);
+
+const validTypes = ["private", "chat"];
+const validOptions = ["on", "off"];
+
+const type = args[0].toLowerCase();
+const option = args[1].toLowerCase();
+
+if (!validTypes.includes(type)) return reply("Invalid type. Use 'private' or 'chat'");
+if (!validOptions.includes(option)) return reply("Invalid option. Use 'on' or 'off'");
+
+// Fix: Properly get setting from global database
+if (!global.db.data.settings) global.db.data.settings = {};
+if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+let setting = global.db.data.settings[botNumber];
+
+// Initialize config if it doesn't exist
+if (!setting.config) setting.config = {};
+
+// Set the anti-delete configuration based on type
+if (type === "private") {
+    setting.config.statusantidelete = option === "on" ? "private" : false;
+} else if (type === "chat") {
+    setting.config.statusantidelete = option === "on" ? "chat" : false;
+}
+
+// Also update the global antidelete variable
+global.antidelete = setting.config.statusantidelete;
+
+await saveDatabase();
+
+reply(`Anti-delete ${type} mode ${option === "on" ? "enabled" : "disabled"} successfully`);
 }
 break
 case "anticall": {
@@ -2637,24 +2687,6 @@ case "anticall": {
     // For now, we'll just use the global variable
     
     reply(`Anti-call set to *${option}* successfully.`);
-}
-break
-case "antidelete": {
-    if (!Access) return reply(mess.owner);
-    if (args.length < 1) return reply(`Example: ${prefix + command} chat/inbox/off\n\nchat - Sends deleted messages in chat\ninbox - Sends deleted messages to inbox\noff - Disables antidelete`);
-
-    const validOptions = ["chat", "private", "off"];
-    const option = args[0].toLowerCase();
-
-    if (!validOptions.includes(option)) return reply(`Invalid option; type *${prefix}antidelete* to see available options!`);
-
-    // Update global antidelete setting
-    global.antidelete = option;
-    
-    // Save to settings if you have a settings system
-    // For now, we'll just use the global variable
-    
-    reply(`Anti-delete set to *${option}* successfully.`);
 }
 break
 case 'chatbot': {
@@ -2741,21 +2773,44 @@ case "getpp": {
 }
 break 
 case "setprefix": {
-if (!Access) return reply(mess.owner);
-    if (args.length < 1) return reply(`Example: ${prefix + command} !\n\n- This will change the bot prefix to *!*\n\nUse *${prefix + command} none* to use the bot without prefix`);
+    if (!Access) return reply(mess.owner);
+    if (args.length < 1) return reply(`Example: ${prefix + command} .\nOr: ${prefix + command} /`);
 
     let newPrefix = args[0];
-
-    if (newPrefix.toLowerCase() === "none" || newPrefix.toLowerCase() === "noprefix") {
-      newPrefix = "";
-    } else if (newPrefix.length > 3) {
-      return reply("⚠️ Prefix should be 1-3 characters long.");
+    
+    // Validate prefix length
+    if (newPrefix.length > 3) {
+        return reply("❌ Prefix cannot be longer than 3 characters.");
+    }
+    
+    // Check if prefix contains only allowed characters
+    if (!/^[.!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~]/.test(newPrefix)) {
+        return reply("❌ Prefix must be a symbol character (e.g., . ! @ # $ etc.)");
     }
 
-    db.settings.prefix = newPrefix;
-    reply(`✅ Prefix changed to *${newPrefix || "No Prefix"}* successfully.`);
+    // Use setting.config structure
+    if (!global.db.data.settings) global.db.data.settings = {};
+    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+    let setting = global.db.data.settings[botNumber];
+
+    // Initialize config if it doesn't exist
+    if (!setting.config) setting.config = {};
+
+    // Store the old prefix for the message
+    const oldPrefix = setting.config.prefix || prefix;
+
+    // Set the new prefix in config
+    setting.config.prefix = newPrefix;
+
+    // Also update the global prefix variable if it exists
+    if (global.prefix) {
+        global.prefix = newPrefix;
+    }
+
+    reply(`✅ Prefix changed from *"${oldPrefix}"* to *"${newPrefix}"* successfully.\n\nNow you can use commands like: *${newPrefix}menu*`);
 
     await saveDatabase();
+    
 }
 break
 case "setownername": {
@@ -3054,59 +3109,49 @@ case "autorecording": {
            }
 }
 break
-case "autoreact": {
-if (!Access) return reply(mess.owner)
-if (args.length < 1) return reply(`*Example ${prefix + command} on/off`)
-if (q=== 'on') {
-autoreact = true
-reply(`*Successfully enabled autoreact*`)
-      } else if (q=== 'off')
-      autoreact = false
-      reply(`*Successfully disabled autoreact*`)
-}
-break
 case "autoviewstatus": {
-if (!Access) return reply(mess.owner)
-if (args.length < 1) return reply(`* Example ${prefix + command} on/off`)
-if (q === 'on') {
-autoviewstatus = true
- reply(`*Successfully enabled autoviewstatus*`)
-         } else if (q === 'off')
-         autoviewstatus = false
-         reply(`*Successfully disabled autoviewstatus*`)
-}
-break
-case "autoreactstatus": {
-if (!Access) return reply(mess.owner)
-if (args.length < 1) return reply(`*Example ${prefix + command} on/off*`)
-if (q === 'on') {
-autoreactstatus = true 
-reply(`*Successfully enabled autoreactstatus*`)
-         } else if (q === 'off')
-         autoreactstatus = false
-         reply(`*Successfully disabled autoreactstatus*`)
+    if (!Access) return reply(mess.owner);
+    if (args.length < 1) return reply(`Example: ${prefix + command} on/off`);
+
+    const validOptions = ["on", "off"];
+    const option = args[0].toLowerCase();
+
+    if (!validOptions.includes(option)) return reply("Invalid option");
+
+    if (!global.db.data.settings) global.db.data.settings = {};
+    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+    let setting = global.db.data.settings[botNumber];
+    
+    // Initialize config if it doesn't exist
+    if (!setting.config) setting.config = {};
+    
+    // Set the autoviewstatus setting
+    setting.config.autoviewstatus = option === "on";
+
+    await saveDatabase();
+
+    reply(`Auto view status ${option === "on" ? "enabled" : "disabled"} successfully`);
 }
 break
 case "welcome": {
-if (!Access) return reply(mess.owner)
-if (args.length < 1) return reply(`*Example ${prefix + command} on/off`)
-if (q=== 'on') {
-welcome = true 
-reply(`*Successfully Changed welcome to ${q}*`)
-           } else if (q==='off')
-           welcome =false
-       reply(`*Successfully Changed welcome to ${q}*`)
-  }
-break
-case "autoread": {
-if (!Access) return reply(mess.owner)
-if (args.length < 1) return reply(`Example ${prefix + command} on/off`)
-if (q==='on') {
-autoread = true
-    } else if (q==='off') {
-    autoread = off
- reply(`*Successfully Changed autoread to ${q}`)
-    }
+    if (!Access) return reply(mess.owner);
+    if (args.length < 1) return reply(`Example: ${prefix + command} on/off`);
+
+    const validOptions = ["on", "off"];
+    const option = args[0].toLowerCase();
+
+    if (!validOptions.includes(option)) return reply("Invalid option");
+
+    // Fix: Ensure the chat exists in the database first
+    if (!global.db.data.chats) global.db.data.chats = {};
+    if (!global.db.data.chats[m.chat]) global.db.data.chats[m.chat] = {};
+    
+    // Set the welcome setting
+    global.db.data.chats[m.chat].welcome = option === "on";
+
+    await saveDatabase();
+
+    reply(`Welcome and left messages ${option === "on" ? "enabled" : "disabled"} successfully for this group`);
 }
 break
 case 'delpp': {
@@ -3240,10 +3285,10 @@ https://github.com/${repoOwner}/${repoName}
     
     // Fallback response when GitHub API fails
     const fallbackInfo = `
-    *🔹 BOT REPOSITORY 🔹*
+    * BOT REPOSITORY *
     
-🔸 *Name:* Vinic-Xmd
-🔸 *GitHub Link:* 
+ *Name:* Vinic-Xmd
+ *GitHub Link:* 
 https://github.com/Kevintech-hub/Vinic-Xmd-
 
 @${m.sender.split("@")[0]}👋, Visit the repository for more info!`;
@@ -3381,15 +3426,11 @@ case 'botinfo': {
   
   // Array of audio URLs
   const audioUrls = [
-      "https://files.catbox.moe/tsuw7i.mp3",
       "https://files.catbox.moe/gttyv1.mp3",
-      "https://files.catbox.moe/yny58w.mp3",
-      "https://files.catbox.moe/9cigm5.mp3",
-      "https://files.catbox.moe/oi4sby.mp3",
-      "https://files.catbox.moe/eh9t80.mp3",
-      " https://files.catbox.moe/ckie6b.m4a",
-      "https://files.catbox.moe/vfuid0.mp3",
-      "https://files.catbox.moe/udhdrf.mp3"
+        "https://files.catbox.moe/9cigm5.mp3",
+        "https://files.catbox.moe/yny58w.mp3",
+        "https://files.catbox.moe/ckie6b.m4a",
+        "https://files.catbox.moe/zhr5m2.mp3"
   ];
   
   // Randomly select an audio URL
@@ -3488,19 +3529,19 @@ const used = process.memoryUsage();
       const uptime = runtime(process.uptime());
 
       const response = `
-      *🔹 BOT STATUS 🔹*
+      * BOT STATUS *
 
-🔸 *Ping:* ${ping}
-🔸 *Uptime:* ${uptime}
-🔸 *RAM Usage:* ${ramUsage}
-🔸 *Free RAM:* ${freeRam}
-🔸 *Disk Usage:* ${formatSize(disk.size - disk.free)} / ${formatSize(disk.size)}
-🔸 *Free Disk:* ${formatSize(disk.free)}
-🔸 *Platform:* ${os.platform()}
-🔸 *NodeJS Version:* ${process.version}
-🔸 *CPU Model:* ${os.cpus()[0].model}
-🔸 *Downloaded:* ${download}
-🔸 *Uploaded:* ${upload}
+ *Ping:* ${ping}
+ *Uptime:* ${uptime}
+ *RAM Usage:* ${ramUsage}
+ *Free RAM:* ${freeRam}
+ *Disk Usage:* ${formatSize(disk.size - disk.free)} / ${formatSize(disk.size)}
+ *Free Disk:* ${formatSize(disk.free)}
+ *Platform:* ${os.platform()}
+ *NodeJS Version:* ${process.version}
+ *CPU Model:* ${os.cpus()[0].model}
+ *Downloaded:* ${download}
+ *Uploaded:* ${upload}
 `;
 
       conn.sendMessage(m.chat, { text: response.trim() }, { quoted: m });
@@ -7803,8 +7844,8 @@ if (!text) return reply("Provide a location.");
       }
 }
 break
-case "Shazam": {
-const quoted = m.quoted ? m.quoted : null || m.msg ;
+case "shazam": {
+ const quoted = m.quoted ? m.quoted : null || m.msg ;
  const mime = quoted?.mimetype || ""; 
       if (!quoted || !/audio|video/.test(mime)) return reply("Reply to an audio or video to identify music.");
       
@@ -9606,46 +9647,60 @@ if (!Access) return reply(mess.owner);
 }
 break
 case "antilink": {
-    if (!Access) return reply(mess.owner);
+    if (!m.isGroup) return reply('❌ This command can only be used in groups.');
+    if (!isAdmins && !Access) return reply('❌ You need to be an admin to use this command.');
     
-    try {
-        // Initialize anti-link setting if not exists
-        if (!global.antilink) {
-            global.antilink = {
-                enabled: false,
-                action: "delete" // delete or warn
-            };
-        }
-        
-        if (!text || text.toLowerCase() === 'status') {
-            return reply(`*AntiLink Status:* ${global.antilink.enabled ? '✅ ON' : '❌ OFF'}\n\n*Current Action:* ${global.antilink.action}\n\nUsage:\n• ${prefix}antilink on - Enable\n• ${prefix}antilink off - Disable\n• ${prefix}antilink action delete/warn - Set action`);
-        }
-        
-        const action = text.toLowerCase().trim();
-        
-        if (action === 'on') {
-            global.antilink.enabled = true;
-            return reply('✅ Anti-link has been enabled. I will now detect and handle links in this group.');
-        } 
-        else if (action === 'off') {
-            global.antilink.enabled = false;
-            return reply('❌ Anti-link has been disabled.');
-        }
-        else if (action === 'action delete') {
-            global.antilink.action = "delete";
-            return reply('✅ Anti-link action set to DELETE. Links will be automatically deleted.');
-        }
-        else if (action === 'action warn') {
-            global.antilink.action = "warn";
-            return reply('✅ Anti-link action set to WARN. Users will be warned about links.');
-        }
-        else {
-            return reply('Invalid command. Usage:\n• .antilink on\n• .antilink off\n• .antilink action delete\n• .antilink action warn\n• .antilink status');
-        }
-    } catch (e) {
-        console.error("Error in antilink command:", e);
-        return reply("An error occurred while processing your request.");
+    if (args.length < 2) return reply(`Example: 
+${prefix + command} delete on/off
+${prefix + command} warn on/off  
+${prefix + command} kick on/off
+${prefix + command} status`);
+
+    const actionType = args[0].toLowerCase();
+    const option = args[1] ? args[1].toLowerCase() : 'status';
+
+    // Use setting.config structure for group settings
+    if (!global.db.data.settings) global.db.data.settings = {};
+    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+    let setting = global.db.data.settings[botNumber];
+    if (!setting.config) setting.config = {};
+
+    // Initialize group-specific settings in config
+    if (!setting.config.groupSettings) setting.config.groupSettings = {};
+    if (!setting.config.groupSettings[m.chat]) setting.config.groupSettings[m.chat] = {};
+
+    let groupSettings = setting.config.groupSettings[m.chat];
+
+    if (option === "status") {
+        const status = groupSettings.antilink ? "Enabled" : "Disabled";
+        const action = groupSettings.antilinkaction || "delete";
+        reply(`🔗 Anti-link Status:
+• Status: ${status}
+• Action: ${action}
+• Group: ${(await conn.groupMetadata(m.chat)).subject}`);
+        return;
     }
+
+    if (option !== "on" && option !== "off") {
+        return reply('❌ Invalid option. Use "on" or "off"');
+    }
+
+    const validActions = ["delete", "warn", "kick"];
+    if (!validActions.includes(actionType)) {
+        return reply('❌ Invalid action. Use: delete, warn, or kick');
+    }
+
+    if (option === "on") {
+        groupSettings.antilink = true;
+        groupSettings.antilinkaction = actionType;
+        reply(`✅ Anti-link ${actionType} mode enabled!`);
+    } else {
+        groupSettings.antilink = false;
+        reply(`✅ Anti-link disabled!`);
+    }
+
+    await saveDatabase();
+    
 }
 break
 case "setgroupname": {
