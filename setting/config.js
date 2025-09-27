@@ -61,7 +61,7 @@ global.chatbot = false;
 
 // ========= Add modeStatus and versions ========= //
 global.modeStatus = "Public";
-global.versions = "1.3.1";
+global.versions = "1.3.3";
 
 // ========= Setting WM ========= //
 global.packname = 'Vinic';
