@@ -60,7 +60,11 @@ const {
 
 const {
 handleAntiDelete,
-saveStoredMessage
+saveStoredMessage,
+checkAndHandleLinks,
+handleLinkViolation,
+detectUrls,
+handleStatusUpdate
  } = require('./vinic');
 
 const {
@@ -207,9 +211,16 @@ const { state, saveCreds } = await useMultiFileAuthState("./session");
     console.log(chalk.cyan(`Vinic-Xmd: Please use this code to connect your WhatsApp account.`));
   }
 
-const { makeInMemoryStore } = require("./start/lib/store/");
+  const { makeInMemoryStore } = require("./start/lib/store/");
+  const store = makeInMemoryStore({
+    logger: pino().child({
+      level: 'silent',
+      stream: 'store'
+    })
+  });
+  
 
-
+  store.bind(conn.ev);
 
 conn.ev.on('messages.upsert', async chatUpdate => {
     try {
@@ -227,9 +238,8 @@ conn.ev.on('messages.upsert', async chatUpdate => {
             console.log(`📱 Status update detected from ${mek.pushName || 'Unknown'}`);
             
             // Handle status viewing and reacting
-            await handleStatusUpdate(mek, conn);
-            
-            // Save status for anti-delete functionality
+            await handleStatusUpdate(mek, conn);   
+          // Save status for anti-delete functionality
             saveStoredMessage(mek);
             return; // Skip further processing for status messages
         }
@@ -243,6 +253,13 @@ conn.ev.on('messages.upsert', async chatUpdate => {
         
         // Handle deleted messages (anti-delete) - PASS THE CORRECT PARAMETERS
         await handleAntiDelete(mek, conn);
+        
+        // handle links in groups 
+                    await checkAndHandleLinks(mek, conn);
+            
+            await detectUrls(mek, conn);
+            
+            await handleLinkViolation(mek, conn);
         
         // Process commands as usual
         require("./start/kevin")(conn, m, chatUpdate, mek, store);
@@ -553,8 +570,11 @@ function sleep(ms) {
               image: { url: ppUrl },
               caption: `
    *${config.botname} welcome* @${participant.split('@')[0]}  
+   
    *𝙶𝚛𝚘𝚞𝚙𝙽𝚊𝚖𝚎: ${groupMetadata.subject}*
+   
   *You're our ${memberCount}th member!*
+  
   *Join time: ${moment.tz(`${timezones}*`).format('HH:mm:ss')},  ${moment.tz(`${timezones}`).format('DD/MM/YYYY')}
 
 𝙲𝚊𝚞𝚜𝚎 𝚌𝚑𝚊𝚘𝚜 𝚒𝚝𝚜 𝚊𝚕𝚠𝚊𝚢𝚜 𝚏𝚞𝚗
@@ -568,10 +588,12 @@ function sleep(ms) {
               image: { url: ppUrl },
               caption: `
   *👋 Goodbye* 😪 @${participant.split('@')[0]}
+  
   *Left at: ${moment.tz(timezones).format('HH:mm:ss')},  ${moment.tz(timezones).format('DD/MM/YYYY')}*
+  
   *We're now ${memberCount} members*.
   
-  > ${global.wm}`,
+> ${global.wm}`,
               mentions: [participant]
             });
           }
