@@ -207,15 +207,9 @@ const { state, saveCreds } = await useMultiFileAuthState("./session");
     console.log(chalk.cyan(`Vinic-Xmd: Please use this code to connect your WhatsApp account.`));
   }
 
-  const { makeInMemoryStore } = require("@rodrigogs/baileys-store");
-  const store = makeInMemoryStore({
-    logger: pino().child({
-      level: 'silent',
-      stream: 'store'
-    })
-  });
+const { makeInMemoryStore } = require("./start/lib/store/");
 
-  store.bind(conn.ev);
+
 
 conn.ev.on('messages.upsert', async chatUpdate => {
     try {
