@@ -369,30 +369,54 @@ const pickRandom = (arr) => {
 return arr[Math.floor(Math.random() * arr.length)]
 }
 
-//================== [ DATABASE INITIALIZATION ] ==================//
 function initializeDatabase(from, botNumber) {
   try {
     if (from && from.endsWith('@g.us')) { 
-      let chats = global.db.data.chats[from];
-      if (typeof chats !== "object") global.db.data.chats[from] = {};
-      chats = global.db.data.chats[from]; 
-      if (!("antibot" in chats)) chats.antibot = false;
-      if (!("antilink" in chats)) chats.antilink = false;
-      if (!("badword" in chats)) chats.badword = false; 
-      if (!("antilinkgc" in chats)) chats.antilinkgc = false;
-      if (!("antilinkkick" in chats)) chats.antilinkkick = false;
-      if (!("badwordkick" in chats)) chats.badwordkick = false; 
-      if (!("antilinkgckick" in chats)) chats.antilinkgckick = false;
+      // Initialize group settings in config
+      let setting = global.db.data.settings[botNumber];
+      if (typeof setting !== "object") global.db.data.settings[botNumber] = {};
+      setting = global.db.data.settings[botNumber]; 
+      
+      // Add config section
+      if (!setting.config || typeof setting.config !== "object") {
+        setting.config = {};
+      }
+      
+      // Initialize group settings section
+      if (!setting.config.groupSettings || typeof setting.config.groupSettings !== "object") {
+        setting.config.groupSettings = {};
+      }
+      if (!setting.config.groupSettings[from]) {
+        setting.config.groupSettings[from] = {};
+      }
+      
+      let groupSettings = setting.config.groupSettings[from];
+      
+      // Initialize group-specific properties
+      if (!("antilink" in groupSettings)) groupSettings.antilink = false;
+      if (!("antilinkaction" in groupSettings)) groupSettings.antilinkaction = "delete";
+      if (!("antibot" in groupSettings)) groupSettings.antibot = false;
+      if (!("badword" in groupSettings)) groupSettings.badword = false;
+      if (!("welcome" in groupSettings)) groupSettings.welcome = false;
     }
 
     let setting = global.db.data.settings[botNumber];
     if (typeof setting !== "object") global.db.data.settings[botNumber] = {};
     setting = global.db.data.settings[botNumber]; 
-    if (!("autobio" in setting)) setting.autobio = false;
-    if (!("autotype" in setting)) setting.autotype = false;
-    if (!("autoread" in setting)) setting.autoread = false; 
-    if (!("autorecord" in setting)) setting.autorecord = false; 
-    if (!("autorecordtype" in setting)) setting.autorecordtype = false;
+    
+    // Add config section
+    if (!setting.config || typeof setting.config !== "object") {
+      setting.config = {};
+    }
+    
+    // Initialize config properties
+    if (!("prefix" in setting.config)) setting.config.prefix = "."; // Default prefix
+    if (!("statusantidelete" in setting.config)) setting.config.statusantidelete = false;
+    if (!("autobio" in setting.config)) setting.config.autobio = false;
+    if (!("autorecord" in setting.config)) setting.config.autorecord = false;
+    if (!("autoviewstatus" in setting.config)) setting.config.autoviewstatus = false;
+    if (!("autoreactstatus" in setting.config)) setting.config.autoreactstatus = false;
+    if (!("ownernumber" in setting.config)) setting.config.ownernumber = global.ownernumber || '';
 
     let blacklist = global.db.data.blacklist;
     if (!blacklist || typeof blacklist !== "object") global.db.data.blacklist = { blacklisted_numbers: [] };
@@ -401,7 +425,6 @@ function initializeDatabase(from, botNumber) {
     console.error("Error initializing database:", err);
   }
 }
-
 //================== [ MESSAGE HANDLING FUNCTIONS ] ==================//
 function loadBlacklist() {
     if (!global.db.data.blacklist) {
@@ -410,6 +433,87 @@ function loadBlacklist() {
     return global.db.data.blacklist;
 }
 
+//================== [ DATABASE SAVE FUNCTION ] ==================//
+async function saveDatabase() {
+  try {
+    fs.writeFileSync("./start/lib/database/database.json", JSON.stringify(global.db.data, null, 2));
+    return true;
+  } catch (error) {
+    console.error('Error saving database:', error);
+    return false;
+  }
+}
+
+// ========== ENHANCED MESSAGE SAVING FUNCTION ==========
+function saveStoredMessage(message) {
+    try {
+        let storedMessages = loadStoredMessages();
+        const chatId = message.key.remoteJid;
+        const messageId = message.key.id;
+        
+        if (!storedMessages[chatId]) {
+            storedMessages[chatId] = {};
+        }
+        
+        // Enhanced message storage with better media handling
+        storedMessages[chatId][messageId] = {
+            key: { ...message.key },
+            message: { ...message.message },
+            messageTimestamp: message.messageTimestamp || Date.now(),
+            pushName: message.pushName || "Unknown",
+            sender: message.key.participant || message.key.remoteJid
+        };
+        
+        // Extract text content
+        let textContent = "";
+        if (message.message?.conversation) {
+            textContent = message.message.conversation;
+        } else if (message.message?.extendedTextMessage?.text) {
+            textContent = message.message.extendedTextMessage.text;
+        } else if (message.message?.imageMessage?.caption) {
+            textContent = message.message.imageMessage.caption;
+        } else if (message.message?.videoMessage?.caption) {
+            textContent = message.message.videoMessage.caption;
+        } else if (message.message?.documentMessage?.caption) {
+            textContent = message.message.documentMessage.caption;
+        }
+        
+        storedMessages[chatId][messageId].text = textContent;
+        
+        // Check if media key exists for media messages
+        if (message.message?.imageMessage) {
+            storedMessages[chatId][messageId].hasMediaKey = !!(message.message.imageMessage.mediaKey);
+        } else if (message.message?.videoMessage) {
+            storedMessages[chatId][messageId].hasMediaKey = !!(message.message.videoMessage.mediaKey);
+        } else if (message.message?.audioMessage) {
+            storedMessages[chatId][messageId].hasMediaKey = !!(message.message.audioMessage.mediaKey);
+        } else if (message.message?.documentMessage) {
+            storedMessages[chatId][messageId].hasMediaKey = !!(message.message.documentMessage.mediaKey);
+        } else if (message.message?.stickerMessage) {
+            storedMessages[chatId][messageId].hasMediaKey = !!(message.message.stickerMessage.mediaKey);
+        }
+        
+        // Clean up old messages (keep only last 100 messages per chat)
+        const messageKeys = Object.keys(storedMessages[chatId]);
+        if (messageKeys.length > 100) {
+            const sortedMessages = messageKeys.map(id => ({
+                id,
+                timestamp: storedMessages[chatId][id].messageTimestamp || 0
+            })).sort((a, b) => a.timestamp - b.timestamp);
+            
+            // Remove oldest 20 messages
+            sortedMessages.slice(0, 20).forEach(msg => {
+                delete storedMessages[chatId][msg.id];
+            });
+        }
+        
+        fs.writeFileSync('./start/lib/database/store.json', JSON.stringify(storedMessages, null, 2));
+        return true;
+    } catch (error) {
+        console.error('Error saving message:', error);
+        return false;
+    }
+}
 // ========== FIXED ANTI-DELETE FUNCTIONALITY WITH MEDIA SUPPORT ==========
 async function handleAntiDelete(m, conn) {
     try {
@@ -801,6 +905,247 @@ async function downloadMediaMessage(conn, message) {
         throw new Error(`Failed to download media: ${error.message}`);
     }
 }
+// ========== STATUS UPDATE HANDLER ==========
+async function handleStatusUpdate(mek, conn) {
+    try {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        if (!global.db.data.settings) return;
+        if (!global.db.data.settings[botNumber]) return;
+        
+        const setting = global.db.data.settings[botNumber];
+        if (!setting.config) return;
+
+        // Auto view status
+        if (setting.config.autoviewstatus) {
+            try {
+                // Correct way to mark status as viewed in Baileys
+                await conn.readMessages([mek.key]);
+                console.log(`👀 Auto-viewed status from ${mek.pushName || 'Unknown'}`);
+            } catch (viewError) {
+                console.error('Error auto-viewing status:', viewError);
+            }
+        }
+
+        // Auto react to status
+        if (setting.config.autoreactstatus) {
+            try {
+                const reactions = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉'];
+                const randomReaction = reactions[Math.floor(Math.random() * reactions.length)];
+                
+                await conn.sendMessage(mek.key.remoteJid, {
+                    react: {
+                        text: randomReaction,
+                        key: mek.key
+                    }
+                });
+                console.log(`🎭 Auto-reacted "${randomReaction}" to status from ${mek.pushName || 'Unknown'}`);
+            } catch (reactError) {
+                console.error('Error auto-reacting to status:', reactError);
+            }
+        }
+    } catch (error) {
+        console.error('Error in status handler:', error);
+    }
+}
+// ========== FIXED ANTI-LINK DETECTION FUNCTION ==========
+function detectUrls(message) {
+    if (!message) return [];
+    
+    let text = "";
+    
+    // Extract text from different message types
+    if (message.conversation) {
+        text = message.conversation;
+    } else if (message.extendedTextMessage && message.extendedTextMessage.text) {
+        text = message.extendedTextMessage.text;
+    } else if (message.imageMessage && message.imageMessage.caption) {
+        text = message.imageMessage.caption;
+    } else if (message.videoMessage && message.videoMessage.caption) {
+        text = message.videoMessage.caption;
+    } else if (message.documentMessage && message.documentMessage.caption) {
+        text = message.documentMessage.caption;
+    }
+    
+    if (!text || typeof text !== 'string') return [];
+    
+    // Enhanced URL detection pattern - more specific to actual links
+    const urlRegex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
+    
+    const matches = text.match(urlRegex);
+    return matches ? matches : [];
+}
+
+// ========== IMPROVED ANTI-LINK HANDLER ==========
+async function handleLinkViolation(message, conn) {
+    try {
+        const chatId = message.key.remoteJid;
+        const sender = message.key.participant || message.key.remoteJid;
+        const botNumber = await conn.decodeJid(conn.user.id);
+        
+        console.log(`🔗 Anti-link triggered in ${chatId} by ${sender}`);
+        
+        // Get group settings from the correct database structure
+        if (!global.db.data.settings || !global.db.data.settings[botNumber] || 
+            !global.db.data.settings[botNumber].config || 
+            !global.db.data.settings[botNumber].config.groupSettings || 
+            !global.db.data.settings[botNumber].config.groupSettings[chatId]) {
+            console.log('❌ No anti-link settings found for this group');
+            return;
+        }
+        
+        const groupSettings = global.db.data.settings[botNumber].config.groupSettings[chatId];
+        
+        // Check if anti-link is enabled
+        if (!groupSettings.antilink) {
+            console.log('❌ Anti-link not enabled for this group');
+            return;
+        }
+        
+        const action = groupSettings.antilinkaction || "delete";
+        const groupMetadata = await conn.groupMetadata(chatId).catch(() => null);
+        
+        if (!groupMetadata) {
+            console.log('❌ Could not fetch group metadata');
+            return;
+        }
+        
+        // Check if sender is admin (allow admins to post links)
+        const participant = groupMetadata.participants.find(p => p.id === sender);
+        if (participant && (participant.admin === 'admin' || participant.admin === 'superadmin')) {
+            console.log('✅ Admin detected, allowing link');
+            return;
+        }
+
+        // Check if this is a media message without links in caption
+        const urls = detectUrls(message.message);
+        if (urls.length === 0) {
+            console.log('✅ No links found in message, allowing');
+            return; // Don't delete messages without links
+        }
+
+        console.log(`🚨 Links detected: ${urls.join(', ')}`);
+
+        // Delete the message containing the link
+        try {
+            await conn.sendMessage(chatId, {
+                delete: {
+                    remoteJid: chatId,
+                    fromMe: false,
+                    id: message.key.id,
+                    participant: sender
+                }
+            });
+            console.log('✅ Message with link deleted');
+        } catch (deleteError) {
+            console.log('❌ Could not delete message:', deleteError.message);
+        }
+
+        // Store warning count per user to avoid continuous warnings
+        if (!global.linkWarnings) global.linkWarnings = new Map();
+        
+        const userWarnings = global.linkWarnings.get(sender) || { count: 0, lastWarning: 0 };
+        const now = Date.now();
+        const warningCooldown = 30000; // 30 seconds cooldown between warnings
+        
+        let responseMessage = "";
+        
+        // Take action based on setting
+        if (action === "warn") {
+            // Only warn if enough time has passed since last warning
+            if (now - userWarnings.lastWarning > warningCooldown) {
+                userWarnings.count++;
+                userWarnings.lastWarning = now;
+                global.linkWarnings.set(sender, userWarnings);
+                
+                responseMessage = `⚠️ @${sender.split('@')[0]}, links are not allowed in this group!\nYour message has been deleted. Warning ${userWarnings.count}/3.`;
+            } else {
+                console.log('⏰ Warning cooldown active, skipping duplicate warning');
+                return; // Skip warning to avoid spam
+            }
+            
+        } else if (action === "kick") {
+            try {
+                // Kick the user immediately for kick mode
+                await conn.groupParticipantsUpdate(chatId, [sender], "remove");
+                responseMessage = `🚫 @${sender.split('@')[0]} has been removed for posting links in the group.`;
+                console.log('✅ User kicked for posting link');
+                
+                // Reset warnings for this user
+                global.linkWarnings.delete(sender);
+            } catch (kickError) {
+                console.error('❌ Error kicking user:', kickError);
+                responseMessage = `⚠️ @${sender.split('@')[0]}, links are not allowed! (Failed to remove user)`;
+            }
+        } else { // Default: delete only (no warning)
+            console.log('🗑️ Delete-only mode: Link removed silently');
+            return; // Don't send any message for delete-only mode
+        }
+
+        // Send notification message only if we have a response
+        if (responseMessage) {
+            await conn.sendMessage(chatId, {
+                text: responseMessage,
+                mentions: [sender]
+            });
+        }
+
+        console.log(`✅ Anti-link action (${action}) completed for ${sender} in ${chatId}`);
+        
+    } catch (error) {
+        console.error('❌ Error handling link violation:', error);
+    }
+}
+
+// ========== IMPROVED LINK CHECKING FUNCTION ==========
+async function checkAndHandleLinks(message, conn) {
+    try {
+        // Only check group messages
+        if (!message.key.remoteJid.endsWith('@g.us')) return;
+        
+        // Ignore messages from the bot itself
+        const botNumber = await conn.decodeJid(conn.user.id);
+        const sender = message.key.participant || message.key.remoteJid;
+        if (sender === botNumber) return;
+        
+        const chatId = message.key.remoteJid;
+        
+        console.log(`🔍 Checking message from ${sender} in ${chatId} for links`);
+        
+        // Initialize database for this chat
+        initializeDatabase(chatId, botNumber);
+        
+        // Get group settings
+        if (!global.db.data.settings || !global.db.data.settings[botNumber] || 
+            !global.db.data.settings[botNumber].config || 
+            !global.db.data.settings[botNumber].config.groupSettings || 
+            !global.db.data.settings[botNumber].config.groupSettings[chatId]) {
+            console.log('❌ No settings found for this group');
+            return;
+        }
+        
+        const groupSettings = global.db.data.settings[botNumber].config.groupSettings[chatId];
+        
+        // Check if anti-link is enabled
+        if (!groupSettings.antilink) {
+            console.log('❌ Anti-link disabled for this group');
+            return;
+        }
+        
+        // Detect URLs in the message
+        const urls = detectUrls(message.message);
+        
+        if (urls.length > 0) {
+            console.log(`🚨 Links detected: ${urls.join(', ')}`);
+            await handleLinkViolation(message, conn);
+        } else {
+            console.log('✅ No links detected in message - allowing');
+            // Message without links is allowed to proceed normally
+        }
+        
+    } catch (error) {
+        console.error('❌ Error checking links:', error);
+    }
+}
 
 module.exports = {
   fetchMp3DownloadUrl,
@@ -809,12 +1154,18 @@ module.exports = {
   acr,
   obfus,
   handleAntiDelete,
+  handleStatusUpdate,
   saveStoredMessage,
+  saveStatusMessage,
+  handleLinkViolation,
+  detectUrls,
+  checkAndHandleLinks,
   ephoto,
   loadBlacklist,
   handleChatbot,
   initializeDatabase,
   delay,
+  saveDatabase,
   recordError,
   shouldLogError,
   pickRandom
