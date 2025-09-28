@@ -106,6 +106,7 @@ const {
   acr,
   obfus,
   saveDatabase,
+  getActiveUsers,
   ephoto,
   loadBlacklist,
   handleChatbot,
@@ -2501,7 +2502,7 @@ if (!Access) return reply(mess.owner);
         { quoted: m }
       );
     } else if (/video/.test(mime)) {
-      const anuanuan = await Cypher.downloadAndSaveMediaMessage(quoted);
+      const anuanuan = await conn.downloadAndSaveMediaMessage(quoted);
       conn.sendMessage(
         m.chat,
         {
@@ -2669,6 +2670,33 @@ global.antidelete = setting.config.statusantidelete;
 await saveDatabase();
 
 reply(`Anti-delete ${type} mode ${option === "on" ? "enabled" : "disabled"} successfully`);
+}
+break
+case "autoreact": {
+    if (!Access) return reply(mess.owner);
+       
+    // Initialize settings if not exists
+    if (!global.db.data.settings[botNumber]) {
+        global.db.data.settings[botNumber] = {};
+    }
+    if (!global.db.data.settings[botNumber].config) {
+        global.db.data.settings[botNumber].config = {};
+    }
+    
+    const currentStatus = global.db.data.settings[botNumber].config.autoreact || false;
+    
+    if (args[0] === 'on') {
+        global.db.data.settings[botNumber].config.autoreact = true;
+        reply('✅ Auto-react enabled! The bot will now react to all messages.');
+    } else if (args[0] === 'off') {
+        global.db.data.settings[botNumber].config.autoreact = false;
+        reply('❌ Auto-react disabled!');
+    } else {
+        reply(`🔄 Auto-react is currently: ${currentStatus ? 'ENABLED ✅' : 'DISABLED ❌'}\n\nUse: ${prefix}autoreact on/off`);
+    }
+    
+    await saveDatabase();
+    
 }
 break
 case "anticall": {
@@ -3064,7 +3092,7 @@ case "groupid": {
     let coded = linkRegex.split("https://chat.whatsapp.com/")[1];
     if (!coded) return reply("Link Invalid");
 
-    Cypher.query({
+    conn.query({
       tag: "iq",
       attrs: {
         type: "get",
@@ -7849,51 +7877,29 @@ case "shazam": {
  const mime = quoted?.mimetype || ""; 
       if (!quoted || !/audio|video/.test(mime)) return reply("Reply to an audio or video to identify music.");
       
-      try {
-        const media = await m.quoted.download();
-        const filePath = `./tmp/${m.sender}.${mime.split('/')[1]}`;
-        fs.writeFileSync(filePath, media);
+try {
+    const media = await m.quoted.download();
+    const filePath = `./tmp/${m.sender}.${mime.split('/')[1]}`;
+    fs.writeFileSync(filePath, media);
+    const res = await acr.identify(fs.readFileSync(filePath));
+    if (res.status.code != 0) throw new Error(res.status.msg);
 
-        const res = await acr.identify(fs.readFileSync(filePath));
-        if (res.status.code !== 0) throw new Error(res.status.msg);
+    //  this check before accessing music[0]
+    if (!res.metadata?.music || res.metadata.music.length === 0) {
+        return reply("No music identified in this audio/video.");
+    }
 
-        const { title, artists, album, release_date } = res.metadata.music[0];
-        const resultText = `🎵 *Music Identified!*\n\n*Title:* ${title}\n*Artist(s):* ${artists.map(v => v.name).join(', ')}\n`
-          + `*Album:* ${album.name || 'Unknown'}\n*Release Date:* ${release_date || 'Unknown'}`;
-
-        fs.unlinkSync(filePath);
-        reply(resultText);
-      } catch (error) {
-      console.error('Shazam command failed:', error);
-        reply("❌ Unable to identify the music.");
+    const { title, artists, album, release_date } = res.metadata.music[0];
+    const resultText = `  *Music Identified!*\n\n*Title:* ${title}\n*Artist(s):* ${artists.map(v => v.name).join(', ')}\n*Album:* ${album?.name || 'Unknown'}\n*Release Date:* ${release_date || 'Unknown'}`;
+    
+    reply(resultText);
+} catch (error) {
+    console.error(error);
+    reply("Error identifying music: " + error.message);
       }
 }
 break
-case " ytsearch": {
-const quoted = m.quoted ? m.quoted : null || m.msg ;
- const mime = quoted?.mimetype || ""; 
-      if (!quoted || !/audio|video/.test(mime)) return reply("Reply to an audio or video to identify music.");
-      
-      try {
-        const media = await m.quoted.download();
-        const filePath = `./tmp/${m.sender}.${mime.split('/')[1]}`;
-        fs.writeFileSync(filePath, media);
-
-        const res = await acr.identify(fs.readFileSync(filePath));
-        if (res.status.code !== 0) throw new Error(res.status.msg);
-
-        const { title, artists, album, release_date } = res.metadata.music[0];
-        const resultText = `🎵 *Music Identified!*\n\n*Title:* ${title}\n*Artist(s):* ${artists.map(v => v.name).join(', ')}\n`
-          + `*Album:* ${album.name || 'Unknown'}\n*Release Date:* ${release_date || 'Unknown'}`;
-
-        fs.unlinkSync(filePath);
-        reply(resultText);
-      } catch (error) {
-        reply("❌ Unable to identify the music.");
-      }
-}
 //=====[FUN MENU CMDS]======
-break
 case 'chord':
 case 'cr': {
   if(!text) return m.reply(`*query input*`);
@@ -8541,34 +8547,15 @@ conn.sendMessage(m.chat, {text : q ? q : 'Jexploit Is Always Here', mentions: me
 }
 break
 case "listactive": {
-    if (!m.isGroup) return reply(mess.group);
-    
-    try {
-        // Check if GroupDB.getActiveUsers function exists
-        if (typeof GroupDB.getActiveUsers !== 'function') {
-            throw new Error('GroupDB.getActiveUsers is not a function');
-        }
-        
-        const activeUsers = await GroupDB.getActiveUsers(from);
-        
-        if (!activeUsers || !Array.isArray(activeUsers) || !activeUsers.length) {
-            return reply('No active users found in this group.');
-        }
+if (!m.isGroup) return reply(mess.group);
 
-        let message = `\n*Active Users in Group*\n\n`;
-        message += activeUsers.map((user, i) =>
-            `${i + 1}. @${user?.jid?.split('@')[0] || 'unknown'} - *${user?.count || 0} messages*`
-        ).join('\n');
+const activeUsers = await getActiveUsers(from);
+if (!activeUsers.length) return reply('*No active users found in this group.*');
 
-        conn.sendMessage(m.chat, {
-            text: message,
-            mentions: activeUsers.map(user => user.jid).filter(jid => jid)
-        }, {quoted: m});
-        
-    } catch (error) {
-        console.error('Error in listactive command:', error);
-        reply('Error retrieving active users. Please try again later.');
-    }
+let message = `📊 *Active Users in Group*\n\n`;
+message += activeUsers.map((user, i) => `🔹 ${i + 1}. @${user.jid.split('@')[0]} - *${user.count} messages*`).join('\n');
+
+await conn.sendMessage(m.chat, { text: message, mentions: activeUsers.map(u => u.jid) }, { quoted: m });
 }
 break
 // Add companion command for top chatters
@@ -8875,7 +8862,7 @@ case "tagall": {
 break
 case "close": {
   if (!m.isGroup) return reply(mess.group);
-        if (!isAdmins && !isCreator) return reply(mess.notadmin);
+        if (!isAdmins && !Access) return reply(mess.notadmin);
         if (!isBotAdmins) return reply(mess.admin);
 
         conn.groupSettingUpdate(m.chat, "announcement");
@@ -8934,40 +8921,6 @@ try {
     } catch (err) {
         reply(err.toString());
     }
-}
-break
-        case 'setppgroup': {
-if (!isGroup) return reply('Only Group')
-if (!isAdmins) return reply('*Only Admin*')
-if (!isBotAdmins) return reply('make bot an admin in this group first idiot')
-if (!quoted) return reply(`*Where is the picture?*`)
-if (!/image/.test(mime)) return reply(`\`\`\`Send/Reply Image With Caption\`\`\` *${prefix + command}*`)
-if (/webp/.test(mime)) return reply(`\`\`\`Send/Reply Image With Caption\`\`\` *${prefix + command}*`)
-var mediz = await conn.downloadAndSaveMediaMessage(quoted, 'ppgc.jpeg')
-if (args[0] == `full`) {
-var { img } = await generateProfilePicture(mediz)
-await conn.query({
-tag: 'iq',
-attrs: {
-to: m.chat,
-type:'set',
-xmlns: 'w:profile:picture'
-},
-content: [
-{
-tag: 'picture',
-attrs: { type: 'image' },
-content: img
-}
-]
-})
-fs.unlinkSync(mediz)
-reply(`*Success Beb✅*`)
-} else {
-var memeg = await conn.updateProfilePicture(m.chat, { url: mediz })
-fs.unlinkSync(mediz)
-reply(`*Success Beb✅*`)
-}
 }
 break
 case 'approve': case 'approve-all': {
@@ -9530,7 +9483,7 @@ try {
 break
 case "closetime": {
     if (!m.isGroup) return reply(mess.group);
-    if (!isAdmins && !isCreator) return reply(mess.notadmin);
+    if (!isAdmins && !Access) return reply(mess.notadmin);
     if (!isBotAdmins) return reply(mess.admin);
 
     // Check if both arguments are provided
@@ -9705,12 +9658,50 @@ ${prefix + command} status`);
 break
 case "setgroupname": {
 if (!m.isGroup) return reply(mess.group);
-        if (!isAdmins && !isGroupOwner && !isCreator) return reply(mess.admin);
+        if (!isAdmins && !isGroupOwner && !Access) return reply(mess.admin);
         if (!isBotAdmins) return reply(mess.admin);
         if (!text) return reply("*Desired groupname?*");
 
         await conn.groupUpdateSubject(m.chat, text);
         reply(mess.done);
+}
+break 
+case "setgrouppp":
+case "setppgroup": {
+if (!m.isGroup) return reply(mess.group);
+    if (!isAdmins && !Access) return reply(mess.notadmin);
+    if (!isBotAdmins) return reply(mess.admin);
+    if (!quoted) return reply(`*Send or reply to an image with the caption ${prefix + command}*`);
+    if (!/image/.test(mime)) return reply(`*Send or reply to an image with the caption ${prefix + command}*`);
+    if (/webp/.test(mime)) return reply(`*Send or reply to an image with the caption ${prefix + command}*`);
+
+    const medis = await conn.downloadAndSaveMediaMessage(quoted, "ppbot.jpeg");
+    if (args[0] === "full") {
+      const { img } = await generateProfilePicture(medis);
+      await conn.query({
+        tag: "iq",
+        attrs: {
+          to: m.chat,
+          type: "set",
+          xmlns: "w:profile:picture",
+        },
+        content: [
+          {
+            tag: "picture",
+            attrs: {
+              type: "image",
+            },
+            content: img,
+          },
+        ],
+      });
+      fs.unlinkSync(medis);
+      reply("Group profile picture has been successfully set.");
+    } else {
+      await conn.updateProfilePicture(m.chat, { url: medis });
+      fs.unlinkSync(medis);
+      reply("Group profile picture has been successfully updated.");
+    }
 }
 break
 case "tagadmin2": {
