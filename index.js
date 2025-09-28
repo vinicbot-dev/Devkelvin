@@ -61,6 +61,7 @@ const {
 const {
 handleAntiDelete,
 saveStoredMessage,
+handleAutoReact,
 checkAndHandleLinks,
 handleLinkViolation,
 detectUrls,
@@ -256,6 +257,8 @@ conn.ev.on('messages.upsert', async chatUpdate => {
         
         // handle links in groups 
                     await checkAndHandleLinks(mek, conn);
+                   
+                    await handleAutoReact(m, conn);
             
             await detectUrls(mek, conn);
             
@@ -531,6 +534,45 @@ conn.downloadAndSaveMediaMessage = async (message, filename, attachExtension = t
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
+// some added functions 
+function createTmpFolder() {
+const folderName = "tmp";
+const folderPath = path.join(__dirname, folderName);
+
+if (!fs.existsSync(folderPath)) {
+fs.mkdirSync(folderPath);
+   }
+ }
+ 
+createTmpFolder();
+
+setInterval(() => {
+let directoryPath = path.join();
+fs.readdir(directoryPath, async function (err, files) {
+var filteredArray = await files.filter(item =>
+item.endsWith("gif") ||
+item.endsWith("png") || 
+item.endsWith("mp3") ||
+item.endsWith("mp4") || 
+item.endsWith("opus") || 
+item.endsWith("jpg") ||
+item.endsWith("webp") ||
+item.endsWith("webm") ||
+item.endsWith("zip") 
+)
+if(filteredArray.length > 0){
+let teks =`Detected ${filteredArray.length} junk files,\nJunk files have been deleted🚮`
+conn.sendMessage(conn.user.id, {text : teks })
+setInterval(() => {
+if(filteredArray.length == 0) return console.log("Junk files cleared")
+filteredArray.forEach(function (file) {
+let sampah = fs.existsSync(file)
+if(sampah) fs.unlinkSync(file)
+})
+}, 15_000)
+}
+});
+}, 30_000)
 
   function getTypeMessage(message) {
     if (!message) return 'unknown';
