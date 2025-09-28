@@ -277,7 +277,34 @@ async function ephoto(url, texk) {
       );
       return build_server + data.image;
  }
- 
+// function for getting activeusers in groups 
+async function getActiveUsers(groupId) {
+    try {
+        const timePeriod = 24 * 60 * 60 * 1000; // Last 24 hours
+        const cutoffTime = Date.now() - timePeriod;
+        
+        // Get all messages from your messages array/object
+        const allMessages = await getMessages(); // Your function to get messages
+        
+        const userCounts = {};
+        
+        // Filter messages for this group and time period, then count
+        allMessages
+            .filter(msg => msg.groupId === groupId && msg.timestamp >= cutoffTime)
+            .forEach(msg => {
+                userCounts[msg.sender] = (userCounts[msg.sender] || 0) + 1;
+            });
+        
+        // Convert to array and sort
+        return Object.entries(userCounts)
+            .map(([jid, count]) => ({ jid, count }))
+            .sort((a, b) => b.count - a.count);
+        
+    } catch (error) {
+        console.error('Error getting active users:', error);
+        return [];
+    }
+}
 //================== [ CHATBOT FUNCTION ] ==================//
 async function handleChatbot(m, conn, Access, command) {
     if (
@@ -372,32 +399,7 @@ return arr[Math.floor(Math.random() * arr.length)]
 function initializeDatabase(from, botNumber) {
   try {
     if (from && from.endsWith('@g.us')) { 
-      // Initialize group settings in config
-      let setting = global.db.data.settings[botNumber];
-      if (typeof setting !== "object") global.db.data.settings[botNumber] = {};
-      setting = global.db.data.settings[botNumber]; 
-      
-      // Add config section
-      if (!setting.config || typeof setting.config !== "object") {
-        setting.config = {};
-      }
-      
-      // Initialize group settings section
-      if (!setting.config.groupSettings || typeof setting.config.groupSettings !== "object") {
-        setting.config.groupSettings = {};
-      }
-      if (!setting.config.groupSettings[from]) {
-        setting.config.groupSettings[from] = {};
-      }
-      
-      let groupSettings = setting.config.groupSettings[from];
-      
-      // Initialize group-specific properties
-      if (!("antilink" in groupSettings)) groupSettings.antilink = false;
-      if (!("antilinkaction" in groupSettings)) groupSettings.antilinkaction = "delete";
-      if (!("antibot" in groupSettings)) groupSettings.antibot = false;
-      if (!("badword" in groupSettings)) groupSettings.badword = false;
-      if (!("welcome" in groupSettings)) groupSettings.welcome = false;
+      // ... existing group settings code ...
     }
 
     let setting = global.db.data.settings[botNumber];
@@ -409,13 +411,14 @@ function initializeDatabase(from, botNumber) {
       setting.config = {};
     }
     
-    // Initialize config properties
+    // Initialize config properties - ADD AUTOREACT HERE
     if (!("prefix" in setting.config)) setting.config.prefix = "."; // Default prefix
     if (!("statusantidelete" in setting.config)) setting.config.statusantidelete = false;
     if (!("autobio" in setting.config)) setting.config.autobio = false;
     if (!("autorecord" in setting.config)) setting.config.autorecord = false;
     if (!("autoviewstatus" in setting.config)) setting.config.autoviewstatus = false;
     if (!("autoreactstatus" in setting.config)) setting.config.autoreactstatus = false;
+    if (!("autoreact" in setting.config)) setting.config.autoreact = false; 
     if (!("ownernumber" in setting.config)) setting.config.ownernumber = global.ownernumber || '';
 
     let blacklist = global.db.data.blacklist;
@@ -1147,6 +1150,42 @@ async function checkAndHandleLinks(message, conn) {
     }
 }
 
+// ========== AUTO-REACT FUNCTION ==========
+async function handleAutoReact(m, conn) {
+    try {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        
+        // Check if auto-react is enabled in settings
+        if (!global.db.data.settings || !global.db.data.settings[botNumber]) return;
+        
+        const setting = global.db.data.settings[botNumber];
+        if (!setting.config || !setting.config.autoreact) return;
+        
+        // Don't react to bot's own messages
+        const sender = m.key.participant || m.key.remoteJid;
+        if (sender === botNumber) return;
+        
+        // List of common emoji reactions
+        const reactions = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉', '🤩', '🙏', '💯', '👀', '✨', '🥳', '😎'];
+        
+        // Pick a random reaction
+        const randomReaction = reactions[Math.floor(Math.random() * reactions.length)];
+        
+        // Send the reaction
+        await conn.sendMessage(m.key.remoteJid, {
+            react: {
+                text: randomReaction,
+                key: m.key
+            }
+        });
+        
+        console.log(`🎭 Auto-reacted "${randomReaction}" to message from ${m.pushName || 'Unknown'}`);
+        
+    } catch (error) {
+        console.error('❌ Error in auto-react:', error);
+    }
+}
+
 module.exports = {
   fetchMp3DownloadUrl,
   fetchVideoDownloadUrl,
@@ -1156,6 +1195,7 @@ module.exports = {
   handleAntiDelete,
   handleStatusUpdate,
   saveStoredMessage,
+  handleAutoReact,
   saveStatusMessage,
   handleLinkViolation,
   detectUrls,
@@ -1163,6 +1203,7 @@ module.exports = {
   ephoto,
   loadBlacklist,
   handleChatbot,
+  getActiveUsers,
   initializeDatabase,
   delay,
   saveDatabase,
