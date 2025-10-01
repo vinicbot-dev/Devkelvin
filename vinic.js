@@ -3,6 +3,7 @@ const {
   generateWAMessageFromContent,
   proto,
   downloadContentFromMessage,
+  downloadMedaiMesaage
 } = require("@whiskeysockets/baileys");
 const { exec, spawn, execSync } = require("child_process")
 const util = require('util')
@@ -305,65 +306,92 @@ async function getActiveUsers(groupId) {
         return [];
     }
 }
-//================== [ CHATBOT FUNCTION ] ==================//
-async function handleChatbot(m, conn, Access, command) {
-    if (
-        global.chatbot && global.chatbot === 'true' && 
-        (m.message.extendedTextMessage?.text || m.message.conversation) && 
-        !isCreator && !m.isGroup && !command
-    ) {
-        try {
-            const userId = m.sender; 
-            const userMessage = m.message.extendedTextMessage?.text || m.message.conversation || ''; 
+//================== [ ENHANCED CHATBOT FUNCTION ] ==================//
+async function handleChatbot(m, conn) {
+    try {
+        // Check if chatbot is enabled and this is a text message in private chat
+        if (!global.chatbot || global.chatbot !== 'true') return;
+        if (m.key.remoteJid.endsWith('@g.us')) return; // Skip group chats
+        
+        const userMessage = m.message?.extendedTextMessage?.text || m.message?.conversation;
+        if (!userMessage || !userMessage.trim()) return;
 
-            if (!userMessage.trim()) {
-                return; 
-            }
-
-            await conn.sendPresenceUpdate('composing', m.chat);
-
-            const callFallbackAPI = async () => {
-                const apiUrl = `https://bk9.fun/ai/GPT4o`;
-                const params = {
-                    q: userMessage.trim(),
-                    userId: userId,
-                };
-                return axios.get(apiUrl, { params });
-            };
-
-            const callPrimaryAPI = async () => {
-                const apiUrl = `https://bk9.fun/ai/Llama3`;
-                const params = {
-                    q: userMessage.trim(),
-                    userId: userId,
-                };
-                return axios.get(apiUrl, { params });
-            };
-
-            try {
-                const response = await callPrimaryAPI();
-                const botResponse = response.data?.BK9;
-
-                if (botResponse) {
-                    await conn.sendMessage(m.chat, { text: `${botResponse}` }, { quoted: m });
-                }
-            } catch (primaryError) {
-                console.error('Primary API request failed:', primaryError);
-
-                try {
-                    const response = await callFallbackAPI();
-                    const botResponse = response.data?.BK9;
-
-                    if (botResponse) {
-                        await conn.sendMessage(m.chat, { text: `${botResponse}` }, { quoted: m });
-                    }
-                } catch (fallbackError) {
-                    console.error('Fallback API request failed:', fallbackError); 
-                }
-            }
-        } catch (err) {
-            console.error('Error processing chatbot request:', err);
+        // Don't respond to commands
+        if (userMessage.startsWith('.') || userMessage.startsWith('!') || userMessage.startsWith('/')) {
+            return;
         }
+
+        console.log('🤖 Chatbot processing message:', userMessage);
+        await conn.sendPresenceUpdate('composing', m.chat);
+
+        const callZenxzzAPI = async () => {
+            const apiUrl = `https://api.zenzxz.my.id/api/llama-4`;
+            try {
+                const response = await axios.get(apiUrl, {
+                    params: {
+                        query: userMessage.trim()
+                    },
+                    timeout: 30000
+                });
+                
+                return response.data?.response || 
+                       response.data?.result || 
+                       response.data?.answer || 
+                       response.data?.message ||
+                       response.data?.data;
+            } catch (error) {
+                console.error('Zenxzz API error:', error.message);
+                throw error;
+            }
+        };
+
+        const callFallbackAPI = async () => {
+            const apiUrl = `https://bk9.fun/ai/GPT4o`;
+            try {
+                const response = await axios.get(apiUrl, {
+                    params: {
+                        q: userMessage.trim(),
+                        userId: m.sender,
+                    },
+                    timeout: 30000
+                });
+                return response.data?.BK9;
+            } catch (error) {
+                console.error('Fallback API error:', error.message);
+                throw error;
+            }
+        };
+
+        let botResponse = null;
+
+        // Try Zenxzz API first
+        try {
+            botResponse = await callZenxzzAPI();
+        } catch (zenError) {
+            console.log('Zenxzz API failed, trying fallback...');
+            
+            // Try fallback API
+            try {
+                botResponse = await callFallbackAPI();
+            } catch (fallbackError) {
+                console.error('All APIs failed:', fallbackError.message);
+            }
+        }
+
+        // Send response
+        if (botResponse && typeof botResponse === 'string' && botResponse.trim()) {
+            await conn.sendMessage(m.chat, { 
+                text: botResponse.trim() 
+            }, { quoted: m });
+            console.log('✅ Chatbot response sent');
+        } else {
+            await conn.sendMessage(m.chat, { 
+                text: "I'm here to help! Feel free to ask me anything. 🤖" 
+            }, { quoted: m });
+        }
+
+    } catch (err) {
+        console.error('Error in chatbot handler:', err);
     }
 }
 //obfuscator 
@@ -580,191 +608,199 @@ async function handleAntiDelete(m, conn) {
             .tz(timezones || "Africa/Kampala")
             .format("DD/MM/YYYY");
 
-        let messageContent = "";
-        let messageType = "Unknown";
-        let mediaData = null;
-        let hasMediaKey = false;
-        
-        // Extract message content and prepare media data
-        if (deletedMsg.message?.conversation) {
-            messageContent = deletedMsg.message.conversation;
-            messageType = "Text";
-        } else if (deletedMsg.message?.extendedTextMessage?.text) {
-            messageContent = deletedMsg.message.extendedTextMessage.text;
-            messageType = "Text";
-        } else if (deletedMsg.message?.imageMessage) {
-            messageContent = deletedMsg.message.imageMessage.caption || "[Image Message]";
-            messageType = "Image";
-            mediaData = deletedMsg.message.imageMessage;
-            hasMediaKey = !!(mediaData.mediaKey || mediaData.url || mediaData.directPath);
-        } else if (deletedMsg.message?.videoMessage) {
-            messageContent = deletedMsg.message.videoMessage.caption || "[Video Message]";
-            messageType = "Video";
-            mediaData = deletedMsg.message.videoMessage;
-            hasMediaKey = !!(mediaData.mediaKey || mediaData.url || mediaData.directPath);
-        } else if (deletedMsg.message?.audioMessage) {
-            const audioMsg = deletedMsg.message.audioMessage;
-            const duration = audioMsg.seconds ? ` (${Math.round(audioMsg.seconds)} seconds)` : '';
-            messageContent = `🔊 Audio Message${duration}`;
-            messageType = "Audio";
-            mediaData = deletedMsg.message.audioMessage;
-            hasMediaKey = !!(mediaData.mediaKey || mediaData.url || mediaData.directPath);
-        } else if (deletedMsg.message?.documentMessage) {
-            const docMsg = deletedMsg.message.documentMessage;
-            messageContent = docMsg.fileName || "[Document]";
-            messageType = "Document";
-            if (docMsg.fileLength) {
-                messageContent += ` (${formatSize(docMsg.fileLength)})`;
-            }
-            mediaData = deletedMsg.message.documentMessage;
-            hasMediaKey = !!(mediaData.mediaKey || mediaData.url || mediaData.directPath);
-        } else if (deletedMsg.message?.stickerMessage) {
-            messageContent = "[Sticker]";
-            messageType = "Sticker";
-            mediaData = deletedMsg.message.stickerMessage;
-            hasMediaKey = !!(mediaData.mediaKey || mediaData.url || mediaData.directPath);
-        } else {
-            messageContent = "[Media Message]";
-            messageType = "Media";
-        }
-
-        const senderMention = sender ? `@${sender.split('@')[0]}` : 'Unknown';
-        const deletedByMention = deletedBy ? `@${deletedBy.split('@')[0]}` : 'Unknown';
-
-        const replyText = `🚨 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙼𝙴𝚂𝚂𝙰𝙶𝙴!* 🚨
-${readmore}
-𝙲𝙷𝙰𝚃: ${chatName}
-𝚃𝚈𝙿𝙴: ${messageType}
-𝚂𝙴𝙽𝚃 𝙱𝚈: ${senderMention}
-𝚃𝙸𝙼𝙴 𝚂𝙴𝙽𝚃: ${xtipes}
-𝙳𝙰𝚃𝙴 𝚂𝙴𝙽𝚃: ${xdptes}
-𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙱𝚈: ${deletedByMention}
-
-📝 *𝙲𝙾𝙽𝚃𝙴𝙽𝚃*:
-${messageContent}`;
-
-        const mentions = [sender, deletedBy].filter(Boolean);
-
-        // Send the notification message first
-        await conn.sendMessage(
-            targetChat,
-            { 
-                text: replyText, 
-                mentions: mentions
-            }
-        );
-
-        // Now handle media message recovery and resend - ONLY IF MEDIA KEY EXISTS
-        if (mediaData && messageType !== "Text" && hasMediaKey) {
+        // Check if it's a media message first
+        if (deletedMsg.message?.imageMessage || 
+            deletedMsg.message?.videoMessage || 
+            deletedMsg.message?.audioMessage || 
+            deletedMsg.message?.documentMessage || 
+            deletedMsg.message?.stickerMessage) {
+            
+            // Handle media message recovery
             try {
-                console.log(`🔄 Attempting to recover ${messageType} message...`);
+                console.log(`🔄 Attempting to recover media message...`);
                 
                 let mediaBuffer;
-                let mediaOptions = {};
+                let mediaType = "Unknown";
+                let caption = "";
                 
-                // Download the media with proper error handling
+                // Determine media type and prepare for download
+                if (deletedMsg.message?.imageMessage) {
+                    mediaType = "Image";
+                    caption = deletedMsg.message.imageMessage.caption || "";
+                } else if (deletedMsg.message?.videoMessage) {
+                    mediaType = "Video";
+                    caption = deletedMsg.message.videoMessage.caption || "";
+                } else if (deletedMsg.message?.audioMessage) {
+                    mediaType = "Audio";
+                } else if (deletedMsg.message?.documentMessage) {
+                    mediaType = "Document";
+                    caption = deletedMsg.message.documentMessage.caption || "";
+                } else if (deletedMsg.message?.stickerMessage) {
+                    mediaType = "Sticker";
+                }
+
+                // Download the media
                 try {
-                    // Create a proper message object for downloading
-                    const downloadMessage = {
+                    mediaBuffer = await downloadMediaMessage(conn, {
                         key: deletedMsg.key,
                         message: deletedMsg.message
-                    };
-                    
-                    mediaBuffer = await downloadMediaMessage(conn, downloadMessage);
-                    console.log(`✅ Successfully downloaded ${messageType}`);
+                    });
+                    console.log(`✅ Successfully downloaded ${mediaType}`);
                     
                 } catch (downloadError) {
-                    console.error(`❌ Failed to download ${messageType}:`, downloadError.message);
-                    // Send fallback message
+                    console.error(`❌ Failed to download ${mediaType}:`, downloadError.message);
+                    // Send fallback message for failed media recovery
+                    const mediaInfo = `🚨 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙼𝙴𝙳𝙸𝙰!* 🚨
+${readmore}
+𝙲𝙷𝙰𝚃: ${chatName}
+𝚃𝚈𝙿𝙴: ${mediaType}
+𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]}
+𝚃𝙸𝙼𝙴: ${xtipes}
+𝙳𝙰𝚃𝙴: ${xdptes}
+𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙱𝚈: @${deletedBy.split('@')[0]}
+${caption ? `📝 𝙲𝙰𝙿𝚃𝙸𝙾𝙽: ${caption}` : ''}
+
+❌ Could not recover the deleted ${mediaType.toLowerCase()}.`;
+
                     await conn.sendMessage(
                         targetChat,
                         { 
-                            text: `⚠️ Could not recover the deleted ${messageType.toLowerCase()}.\n` +
-                                  `Media may have expired or been removed from server.\n` +
-                                  `Original caption: ${messageContent}`
+                            text: mediaInfo, 
+                            mentions: [sender, deletedBy] 
                         }
                     );
                     return;
                 }
 
-                // Prepare media options based on type
-                if (messageType === "Image") {
-                    const caption = messageContent && messageContent !== "[Image Message]" 
-                        ? `📸 Deleted Image Recovery\nCaption: ${messageContent}`
-                        : "📸 Deleted Image Recovery";
-                    
+                // Prepare media info text
+                const mediaInfo = `🚨 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙼𝙴𝙳𝙸𝙰!* 🚨
+${readmore}
+𝙲𝙷𝙰𝚃: ${chatName}
+𝚃𝚈𝙿𝙴: ${mediaType}
+𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]}
+𝚃𝙸𝙼𝙴: ${xtipes}
+𝙳𝙰𝚃𝙴: ${xdptes}
+𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙱𝚈: @${deletedBy.split('@')[0]}`;
+
+                // Send recovered media with info
+                if (mediaType === "Image") {
                     await conn.sendMessage(targetChat, { 
                         image: mediaBuffer, 
-                        caption: caption 
+                        caption: mediaInfo,
+                        mentions: [sender, deletedBy]
                     });
                     
-                } else if (messageType === "Video") {
-                    const caption = messageContent && messageContent !== "[Video Message]" 
-                        ? `🎥 Deleted Video Recovery\nCaption: ${messageContent}`
-                        : "🎥 Deleted Video Recovery";
-                    
+                } else if (mediaType === "Video") {
                     await conn.sendMessage(targetChat, { 
                         video: mediaBuffer, 
-                        caption: caption 
+                        caption: mediaInfo,
+                        mentions: [sender, deletedBy]
                     });
                     
-                } else if (messageType === "Audio") {
+                } else if (mediaType === "Audio") {
                     // Check if it's voice note or regular audio
-                    if (mediaData.ptt) {
+                    const audioMsg = deletedMsg.message.audioMessage;
+                    if (audioMsg.ptt) {
                         await conn.sendMessage(targetChat, { 
                             audio: mediaBuffer, 
                             ptt: true,
                             mimetype: 'audio/ogg; codecs=opus'
                         });
+                        // Send info separately for voice notes
+                        await conn.sendMessage(targetChat, {
+                            text: mediaInfo,
+                            mentions: [sender, deletedBy]
+                        });
                     } else {
                         await conn.sendMessage(targetChat, { 
                             audio: mediaBuffer,
-                            mimetype: mediaData.mimetype || 'audio/mpeg'
+                            mimetype: audioMsg.mimetype || 'audio/mpeg'
+                        });
+                        // Send info separately for audio files
+                        await conn.sendMessage(targetChat, {
+                            text: mediaInfo,
+                            mentions: [sender, deletedBy]
                         });
                     }
                     
-                } else if (messageType === "Document") {
-                    mediaOptions.fileName = mediaData.fileName || "recovered-file";
-                    mediaOptions.mimetype = mediaData.mimetype || 'application/octet-stream';
-                    
+                } else if (mediaType === "Document") {
+                    const docMsg = deletedMsg.message.documentMessage;
                     await conn.sendMessage(targetChat, { 
-                        document: mediaBuffer, 
-                        ...mediaOptions 
+                        document: mediaBuffer,
+                        fileName: docMsg.fileName || "recovered-file",
+                        mimetype: docMsg.mimetype || 'application/octet-stream'
+                    });
+                    // Send info separately for documents
+                    await conn.sendMessage(targetChat, {
+                        text: mediaInfo,
+                        mentions: [sender, deletedBy]
                     });
                     
-                } else if (messageType === "Sticker") {
+                } else if (mediaType === "Sticker") {
                     await conn.sendMessage(targetChat, { 
                         sticker: mediaBuffer 
                     });
+                    // Send info separately for stickers
+                    await conn.sendMessage(targetChat, {
+                        text: mediaInfo,
+                        mentions: [sender, deletedBy]
+                    });
                 }
                 
-                console.log(`✅ Successfully recovered and resent ${messageType}`);
+                console.log(`✅ Successfully recovered and resent ${mediaType}`);
                 
             } catch (mediaError) {
-                console.error(`❌ Error recovering ${messageType}:`, mediaError);
+                console.error(`❌ Error recovering media:`, mediaError);
                 // Send error notification
                 await conn.sendMessage(
                     targetChat,
                     { 
-                        text: `❌ Failed to recover the deleted ${messageType.toLowerCase()}.\n` +
-                              `Error: ${mediaError.message}`
+                        text: `❌ Failed to recover the deleted media.\nError: ${mediaError.message}`,
+                        mentions: [sender, deletedBy]
                     }
                 );
             }
-        } else if (mediaData && !hasMediaKey) {
-            // Media exists but no valid media key
-            console.log(`⚠️ Media ${messageType} found but no valid media key for recovery`);
+            
+        } else {
+            // Handle text message (second part)
+            let messageContent = "";
+            let messageType = "Text";
+            
+            // Extract text content
+            if (deletedMsg.message?.conversation) {
+                messageContent = deletedMsg.message.conversation;
+            } else if (deletedMsg.message?.extendedTextMessage?.text) {
+                messageContent = deletedMsg.message.extendedTextMessage.text;
+            } else {
+                messageContent = "[Unsupported message type]";
+            }
+
+            const replyText = `🚨 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙼𝙴𝚂𝚂𝙰𝙶𝙴!* 🚨
+${readmore}
+𝙲𝙷𝙰𝚃: ${chatName}
+𝚃𝚈𝙿𝙴: ${messageType}
+𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]}
+𝚃𝙸𝙼𝙴 𝚂𝙴𝙽𝚃: ${xtipes}
+𝙳𝙰𝚃𝙴 𝚂𝙴𝙽𝚃: ${xdptes}
+𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙱𝚈: @${deletedBy.split('@')[0]}
+
+📝 *𝙲𝙾𝙽𝚃𝙴𝙽𝚃*:
+${messageContent}`;
+
+            const mentions = [sender, deletedBy].filter(Boolean);
+
+            // Send the text message notification
             await conn.sendMessage(
                 targetChat,
                 { 
-                    text: `⚠️ Could not recover the deleted ${messageType.toLowerCase()}.\n` +
-                          `Media key is missing or expired.\n` +
-                          `Original caption: ${messageContent}`
+                    text: replyText, 
+                    mentions: mentions
                 }
             );
+
+            console.log(`✅ Anti-delete triggered for ${messageType} message ${messageId} in ${chatName}`);
         }
 
-        console.log(`✅ Anti-delete triggered for ${messageType} message ${messageId} in ${chatName}`);
         console.log(`📍 Notification sent to: ${targetChat === botNumber ? 'Private' : 'Same Chat'}`);
 
     } catch (err) {
@@ -863,51 +899,6 @@ function loadStoredMessages() {
     return {};
 }
 
-// ========== FIXED MEDIA DOWNLOAD FUNCTION ==========
-async function downloadMediaMessage(conn, message) {
-    try {
-        let mime = '';
-        let messageType = '';
-        
-        // Determine message type and mime type
-        if (message.message?.imageMessage) {
-            mime = message.message.imageMessage.mimetype || 'image/jpeg';
-            messageType = 'image';
-        } else if (message.message?.videoMessage) {
-            mime = message.message.videoMessage.mimetype || 'video/mp4';
-            messageType = 'video';
-        } else if (message.message?.audioMessage) {
-            mime = message.message.audioMessage.mimetype || 'audio/mpeg';
-            messageType = 'audio';
-        } else if (message.message?.documentMessage) {
-            mime = message.message.documentMessage.mimetype || 'application/octet-stream';
-            messageType = 'document';
-        } else if (message.message?.stickerMessage) {
-            mime = message.message.stickerMessage.mimetype || 'image/webp';
-            messageType = 'sticker';
-        } else {
-            throw new Error('Unsupported media type');
-        }
-
-        // Use the proper download function from baileys
-        const stream = await downloadContentFromMessage(message, messageType);
-        let buffer = Buffer.from([]);
-        
-        for await (const chunk of stream) {
-            buffer = Buffer.concat([buffer, chunk]);
-        }
-        
-        if (buffer.length === 0) {
-            throw new Error('Downloaded media is empty');
-        }
-        
-        return buffer;
-        
-    } catch (error) {
-        console.error('Error in downloadMediaMessage:', error);
-        throw new Error(`Failed to download media: ${error.message}`);
-    }
-}
 // ========== STATUS UPDATE HANDLER ==========
 async function handleStatusUpdate(mek, conn) {
     try {
@@ -971,62 +962,59 @@ function detectUrls(message) {
     
     if (!text || typeof text !== 'string') return [];
     
-    // Enhanced URL detection pattern - more specific to actual links
+    // Enhanced URL detection pattern
     const urlRegex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
     
     const matches = text.match(urlRegex);
     return matches ? matches : [];
 }
 
-// ========== IMPROVED ANTI-LINK HANDLER ==========
+// ========== ADMIN-ONLY ANTI-LINK HANDLER ==========
 async function handleLinkViolation(message, conn) {
     try {
         const chatId = message.key.remoteJid;
         const sender = message.key.participant || message.key.remoteJid;
         const botNumber = await conn.decodeJid(conn.user.id);
-        
-        console.log(`🔗 Anti-link triggered in ${chatId} by ${sender}`);
-        
-        // Get group settings from the correct database structure
+
+        // Get group settings
         if (!global.db.data.settings || !global.db.data.settings[botNumber] || 
-            !global.db.data.settings[botNumber].config || 
-            !global.db.data.settings[botNumber].config.groupSettings || 
-            !global.db.data.settings[botNumber].config.groupSettings[chatId]) {
-            console.log('❌ No anti-link settings found for this group');
+            !global.db.data.settings[botNumber].config) {
             return;
         }
         
-        const groupSettings = global.db.data.settings[botNumber].config.groupSettings[chatId];
+        const config = global.db.data.settings[botNumber].config;
         
-        // Check if anti-link is enabled
-        if (!groupSettings.antilink) {
-            console.log('❌ Anti-link not enabled for this group');
+        // Check if group settings exist and anti-link is enabled
+        if (!config.groupSettings || !config.groupSettings[chatId] || !config.groupSettings[chatId].antilink) {
             return;
         }
         
+        const groupSettings = config.groupSettings[chatId];
         const action = groupSettings.antilinkaction || "delete";
-        const groupMetadata = await conn.groupMetadata(chatId).catch(() => null);
-        
-        if (!groupMetadata) {
-            console.log('❌ Could not fetch group metadata');
-            return;
-        }
-        
-        // Check if sender is admin (allow admins to post links)
-        const participant = groupMetadata.participants.find(p => p.id === sender);
-        if (participant && (participant.admin === 'admin' || participant.admin === 'superadmin')) {
-            console.log('✅ Admin detected, allowing link');
-            return;
-        }
 
         // Check if this is a media message without links in caption
         const urls = detectUrls(message.message);
         if (urls.length === 0) {
-            console.log('✅ No links found in message, allowing');
-            return; // Don't delete messages without links
+            return; // Don't process messages without links
         }
 
-        console.log(`🚨 Links detected: ${urls.join(', ')}`);
+        // Get group metadata to check admin status
+        const groupMetadata = await conn.groupMetadata(chatId).catch(() => null);
+        if (!groupMetadata) {
+            return; // Can't get group info
+        }
+
+        // Check if sender is admin (allow admins to post links)
+        const participant = groupMetadata.participants.find(p => p.id === sender);
+        if (participant && (participant.admin === 'admin' || participant.admin === 'superadmin')) {
+            return; // Allow admins to post links - NO ACTION TAKEN
+        }
+
+        // If we reach here, it means:
+        // 1. Anti-link is enabled for this group
+        // 2. Message contains URLs
+        // 3. Sender is NOT an admin
+        // So we take action against regular members
 
         // Delete the message containing the link
         try {
@@ -1038,31 +1026,39 @@ async function handleLinkViolation(message, conn) {
                     participant: sender
                 }
             });
-            console.log('✅ Message with link deleted');
         } catch (deleteError) {
-            console.log('❌ Could not delete message:', deleteError.message);
+            // Silently handle delete errors
         }
 
-        // Store warning count per user to avoid continuous warnings
+        // Store warning count per user
         if (!global.linkWarnings) global.linkWarnings = new Map();
         
         const userWarnings = global.linkWarnings.get(sender) || { count: 0, lastWarning: 0 };
         const now = Date.now();
-        const warningCooldown = 30000; // 30 seconds cooldown between warnings
+        const warningCooldown = 30000;
         
         let responseMessage = "";
         
         // Take action based on setting
         if (action === "warn") {
-            // Only warn if enough time has passed since last warning
             if (now - userWarnings.lastWarning > warningCooldown) {
                 userWarnings.count++;
                 userWarnings.lastWarning = now;
                 global.linkWarnings.set(sender, userWarnings);
                 
-                responseMessage = `⚠️ @${sender.split('@')[0]}, links are not allowed in this group!\nYour message has been deleted. Warning ${userWarnings.count}/3.`;
+                responseMessage = `⚠️ @${sender.split('@')[0]}, only admins are allowed to send links in this group!\nYour message has been deleted. Warning ${userWarnings.count}/3.`;
+                
+                // Auto-kick after 3 warnings
+                if (userWarnings.count >= 3) {
+                    try {
+                        await conn.groupParticipantsUpdate(chatId, [sender], "remove");
+                        responseMessage = `🚫 @${sender.split('@')[0]} has been removed for repeatedly posting links.`;
+                        global.linkWarnings.delete(sender);
+                    } catch (kickError) {
+                        responseMessage = `⚠️ @${sender.split('@')[0]}, links are not allowed! (Failed to remove user after 3 warnings)`;
+                    }
+                }
             } else {
-                console.log('⏰ Warning cooldown active, skipping duplicate warning');
                 return; // Skip warning to avoid spam
             }
             
@@ -1070,36 +1066,32 @@ async function handleLinkViolation(message, conn) {
             try {
                 // Kick the user immediately for kick mode
                 await conn.groupParticipantsUpdate(chatId, [sender], "remove");
-                responseMessage = `🚫 @${sender.split('@')[0]} has been removed for posting links in the group.`;
-                console.log('✅ User kicked for posting link');
+                responseMessage = `🚫 @${sender.split('@')[0]} has been removed for posting links in the group. Only admins can share links.`;
                 
                 // Reset warnings for this user
                 global.linkWarnings.delete(sender);
             } catch (kickError) {
-                console.error('❌ Error kicking user:', kickError);
-                responseMessage = `⚠️ @${sender.split('@')[0]}, links are not allowed! (Failed to remove user)`;
+                responseMessage = `⚠️ @${sender.split('@')[0]}, only admins can send links! (Failed to remove user)`;
             }
-        } else { // Default: delete only (no warning)
-            console.log('🗑️ Delete-only mode: Link removed silently');
+        } else {
+            // Default: delete only (no warning)
             return; // Don't send any message for delete-only mode
         }
 
-        // Send notification message only if we have a response
+        // Send notification message
         if (responseMessage) {
             await conn.sendMessage(chatId, {
                 text: responseMessage,
                 mentions: [sender]
             });
         }
-
-        console.log(`✅ Anti-link action (${action}) completed for ${sender} in ${chatId}`);
         
     } catch (error) {
-        console.error('❌ Error handling link violation:', error);
+        // Silently handle errors
     }
 }
 
-// ========== IMPROVED LINK CHECKING FUNCTION ==========
+// ========== SIMPLIFIED LINK CHECKING FUNCTION ==========
 async function checkAndHandleLinks(message, conn) {
     try {
         // Only check group messages
@@ -1112,44 +1104,20 @@ async function checkAndHandleLinks(message, conn) {
         
         const chatId = message.key.remoteJid;
         
-        console.log(`🔍 Checking message from ${sender} in ${chatId} for links`);
-        
         // Initialize database for this chat
         initializeDatabase(chatId, botNumber);
         
-        // Get group settings
-        if (!global.db.data.settings || !global.db.data.settings[botNumber] || 
-            !global.db.data.settings[botNumber].config || 
-            !global.db.data.settings[botNumber].config.groupSettings || 
-            !global.db.data.settings[botNumber].config.groupSettings[chatId]) {
-            console.log('❌ No settings found for this group');
-            return;
-        }
-        
-        const groupSettings = global.db.data.settings[botNumber].config.groupSettings[chatId];
-        
-        // Check if anti-link is enabled
-        if (!groupSettings.antilink) {
-            console.log('❌ Anti-link disabled for this group');
-            return;
-        }
-        
-        // Detect URLs in the message
+        // Detect URLs in the message first (for efficiency)
         const urls = detectUrls(message.message);
+        if (urls.length === 0) return;
         
-        if (urls.length > 0) {
-            console.log(`🚨 Links detected: ${urls.join(', ')}`);
-            await handleLinkViolation(message, conn);
-        } else {
-            console.log('✅ No links detected in message - allowing');
-            // Message without links is allowed to proceed normally
-        }
+        // Now check anti-link settings
+        await handleLinkViolation(message, conn);
         
     } catch (error) {
-        console.error('❌ Error checking links:', error);
+        // Silently handle errors
     }
 }
-
 // ========== AUTO-REACT FUNCTION ==========
 async function handleAutoReact(m, conn) {
     try {
