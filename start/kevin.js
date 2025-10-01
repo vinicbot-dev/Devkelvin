@@ -99,6 +99,7 @@ const { smsg, sendGmail, formatSize, isUrl, generateMessageTag, CheckBandwidth, 
 const { obfuscateJS } = require("./lib/encapsulation");  // Fixed line 102
 const { handleMediaUpload } = require('./lib/catbox');
 const {styletext, remind, Wikimedia, wallpaper} = require('./lib/scraper')
+const { Remini } =require('./lib/remini')
 const {
  fetchMp3DownloadUrl,
   fetchVideoDownloadUrl,
@@ -1242,7 +1243,7 @@ const systemUsedMemory = totalMemory - freeMemory;
                 },
                 image: {
                 title: ' *IMAGE MENU*',
-                commands: ['wallapaper'],
+                commands: ['wallapaper', 'remini'],
                 },
                 reaction: {
                 title: ' *REACTION MENU*',
@@ -1266,7 +1267,7 @@ const systemUsedMemory = totalMemory - freeMemory;
                 },
                 other: {
                     title: ' *OTHER MENU*',
-                    commands: ['time', 'calculate',  'owner', 'dev', 'fliptext', 'translate', 'ss2', 'sswebpc', 'kevinfarm', 'say', 'getdevice', 'ss','userinfo', 'npm', 'footballhelp', 'gsmarena', 'obfuscate', 'getabout', 'tinylink', 'vcc', 'getbussiness', 'listpc', 'sswebpc'],
+                    commands: ['time', 'calculate',  'owner', 'dev', 'fliptext', 'translate', 'ss2', 'sswebpc', 'kevinfarm', 'say', 'getdevice', 'ss','userinfo', 'npm', 'checkapi', 'footballhelp', 'gsmarena', 'removebg', 'obfuscate', 'getabout', 'tinylink', 'vcc', 'getbussiness', 'listpc', 'sswebpc'],
                 },
                 helpers: {
                 title: ' *SUPPORT MENU*',
@@ -1354,7 +1355,7 @@ const formatMenu = () => {
     await conn.sendMessage(m.chat, {
         audio: { url: randomAudio },
         mimetype: 'audio/mpeg',
-        ptt: true,
+        mp3: true,
     });
 
 } catch (error) {
@@ -3432,7 +3433,7 @@ case "alive": {
         m.chat,
         {
             audio: { url: randomAudioUrl },
-            ptt: true,
+            mp3: true,
             mimetype: 'audio/mp4'
         },
         { quoted: m }
@@ -3479,7 +3480,7 @@ case 'botinfo': {
       m.chat,
       {
           audio: { url: randomAudioUrl },
-          ptt: true,
+          mp3: true,
           mimetype: 'audio/mp4'
       },
       { quoted: m }
@@ -4919,63 +4920,46 @@ ${json.data.tafsir.id}`;
 }
 //===[DOWNLOAD MENU CMDS]===
 break
-case "play":
-case "song": {
-  if (!text) return reply(`*Example*: ${prefix + command} Wrong places by joshua baraka `);
-  
-  try {
-    // Search for the song using Nekolabs API
-    const searchResponse = await fetch(`https://api.nekolabs.my.id/api/music/search?q=${encodeURIComponent(text)}`);
-    if (!searchResponse.ok) return res('Failed to search for music');
-    
-    const searchData = await searchResponse.json();
-    if (!searchData.status || !searchData.result || searchData.result.length === 0) {
-      return reply('No results found for your search');
+case 'play':
+case 'song': {
+    if (!text) return reply(`Provide song name`);
+
+    // Mengambil gambar thumbnail dari URL yang sudah disesuaikan
+    let imageUrl = "https://endpoint.web.id/server/file/l75yVFzs2UbSEIm.png";
+    let response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+    let jpegThumbnail = Buffer.from(response.data, 'binary');
+
+    SyafiraLD();
+    await sleep(200);
+
+    let audioInfo;
+    try {
+        let yts = require('yt-search');
+        let search = await yts(`${text}`);
+        let res = search.all; // Ambil semua hasil pencarian
+
+        if (res.length === 0) throw new Error('couldnt fetch');
+
+        audioInfo = res[Math.floor(Math.random() * res.length)];
+        console.log(`module yts error`)
+    } catch (error) {
+        // Jika terjadi error, gunakan API alternatif
+        let altResponse = await axios.get(`https://api.nyxs.pw/dl/yt-search?title=${text}`);
+        if (!altResponse.data.status || altResponse.data.result.length === 0) {
+            return m.reply('*No results found from alternative API*');
+        }
+
+        audioInfo = altResponse.data.result[Math.floor(Math.random() * altResponse.data.result.length)];
+        console.log(audioInfo)
     }
-    
-    const firstResult = searchData.result[0];
-    
-    // Send song info with thumbnail
-    let body = `
-━✦ 𝐓𝐢𝐭𝐥𝐞 : *${firstResult.title || 'Unknown'}*
-━✦ 𝐀𝐫𝐭𝐢𝐬𝐭 : *${firstResult.artist || 'Unknown'}*
-━✦ 𝐃𝐮𝐫𝐚𝐭𝐢𝐨𝐧 : *${firstResult.duration || 'Unknown'}*`;
-    
-    if (firstResult.thumbnail) {
-      conn.sendMessage(m.chat, { 
-        image: { url: firstResult.thumbnail }, 
-        caption: body 
-      }, { quoted: m });
-    } else {
-      conn.sendMessage(m.chat, { 
-        text: body 
-      }, { quoted: m });
-    }
-    
-    // Get the MP3 download URL
-    const playResponse = await fetch(`https://api.nekolabs.my.id/api/music/download?id=${firstResult.id}`);
-    if (!playResponse.ok) return reply('Failed to get download URL');
-    
-    const playData = await playResponse.json();
-    if (!playData.status || !playData.result || !playData.result.audio) {
-      return res('Could not get audio download link');
-    }
-    
-    const audioUrl = playData.result.audio;
-    
-    // Send the audio file
-    await conn.sendMessage(m.chat, {
-      audio: { url: audioUrl },
-      mimetype: 'audio/mpeg',
-      fileName: `${firstResult.title}.mp3`.replace(/[^\w\s.-]/gi, ''),
-      ptt: false,
-    }, { quoted: m });
-    
-  } catch (e) {
-    console.error('Play command error:', e);
-    res('An error occurred while processing your request');
-  }
-  
+
+    m.reply(audioInfo.url)
+    let procees = await (await fetch(`https://api.maelyn.tech/api/youtube/audio?url=${audioInfo.url}&apikey=wyq3Zrsd53`)).json();
+    console.log(procees)
+    // Pilih audio dengan kualitas 128kbps
+    let audioUrl = procees.result.url
+
+conn.sendMessage(m.chat, { audio: { url: audioUrl }, mimetype: 'audio/mp4' }, { quoted: m });
 }
 break
 case "ringtone": {
@@ -5264,95 +5248,105 @@ case "video2": {
     }
 }
 break
-case "'ytmp4'": {
-    try { 
-        if (!q) return await reply("Please provide a YouTube URL or song name.");
+case 'ytmp4':
+case 'video': {
+    if (!text) return reply(`Usage: ${prefix}ytmp4 <youtube_url>`);
+    
+    try {
+        await conn.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
         
-        const yt = await ytsearch(q);
-        if (yt.results.length < 1) return reply("No results found!");
+        const encoded_url = encodeURIComponent(text);
+        const apiUrl = `https://api.giftedtech.co.ke/api/download/ytmp4?apikey=gifted&url=${encoded_url}`;
         
-        let yts = yt.results[0];  
-        let apiUrl = `https://apis.davidcyriltech.my.id/download/ytmp4?url=${encodeURIComponent(yts.url)}`;
+        console.log('Fetching from API:', apiUrl);
         
-        let response = await fetch(apiUrl);
-        let data = await response.json();
+        const response = await fetch(apiUrl);
         
-        if (data.status !== 200 || !data.success || !data.result.download_url) {
-            return reply("Failed to fetch the video. Please try again later.");
+        if (!response.ok) {
+            throw new Error(`API response: ${response.status}`);
+        }
+        
+        const apiData = await response.json();
+        console.log('API Response:', apiData);
+        
+        if (!apiData || !apiData.url) {
+            return reply('❌ API returned no video URL');
         }
 
-        let ytmsg = `📹 *Video Details*
-🎬 *Title:* ${yts.title}
-⏳ *Duration:* ${yts.timestamp}
-👀 *Views:* ${yts.views}
-👤 *Author:* ${yts.author.name}
-🔗 *Link:* ${yts.url}
+        console.log('Downloading video from:', apiData.url);
+        const videoBuffer = await getBuffer(apiData.url);
+        
+        if (!videoBuffer || videoBuffer.length === 0) {
+            return reply('❌ Video buffer is empty');
+        }
+        
+        await conn.sendMessage(m.chat, {
+            video: videoBuffer,
+            caption: `🎬 YouTube Video\nDownloaded by ${pushname}`
+        }, { quoted: m });
 
-*Choose download format:*
-1. 📄 Document (no preview)
-2. ▶️ Normal Video (with preview)
-
-_Reply to this message with 1 or 2 to download._`;
-
-        let contextInfo = {
-            mentionedJid: [m.sender],
-            forwardingScore: 999,
-            isForwarded: true,
-            forwardedNewsletterMessageInfo: {
-                newsletterJid: '120363401548261516@newsletter',
-                newsletterName: 'Vinic-Xmd',
-                serverMessageId: 143
-            }
-        };
-
-        // Send thumbnail with options
-        const videoMsg = await conn.sendMessage(from, { image: { url: yts.thumbnail }, caption: ytmsg, contextInfo }, { quoted: mek });
-
-        conn.ev.on("messages.upsert", async (msgUpdate) => {
-            const replyMsg = msgUpdate.messages[0];
-            if (!replyMsg.message || !replyMsg.message.extendedTextMessage) return;
-
-            const selected = replyMsg.message.extendedTextMessage.text.trim();
-
-            if (
-                replyMsg.message.extendedTextMessage.contextInfo &&
-                replyMsg.message.extendedTextMessage.contextInfo.stanzaId === videoMsg.key.id
-            ) {
-                await conn.sendMessage(from, { react: { text: "⬇️", key: replyMsg.key } });
-
-                switch (selected) {
-                    case "1":
-                        await conn.sendMessage(from, {
-                            document: { url: data.result.download_url },
-                            mimetype: "video/mp4",
-                            fileName: `${yts.title}.mp4`,
-                            contextInfo
-                        }, { quoted: replyMsg });
-                        break;
-
-                    case "2":
-                        await conn.sendMessage(from, {
-                            video: { url: data.result.download_url },
-                            mimetype: "video/mp4",
-                            contextInfo
-                        }, { quoted: replyMsg });
-                        break;
-
-                    default:
-                        await conn.sendMessage(
-                            from,
-                            { text: "*Please Reply with ( 1 , 2 or 3) ❤️" },
-                            { quoted: replyMsg }
-                        );
-                        break;
-                }
-            }
-        });
-
-    } catch (e) {
-        console.log(e);
-        reply("An error occurred. Please try again later.");
+        await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+        
+    } catch (error) {
+        console.error('Ytmp4 Error:', error);
+        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+        reply(`❌ Download failed: ${error.message}`);
     }
+    
+}
+break
+case 'checkapi': {
+    if (!text) return reply(`Usage: ${prefix}checkapi <url>`);
+    
+    try {
+        await conn.sendMessage(m.chat, { react: { text: "🔍", key: m.key } });
+        
+        let apiUrl = text.trim();
+        if (!apiUrl.startsWith('http')) {
+            apiUrl = 'https://' + apiUrl;
+        }
+        
+        const startTime = Date.now();
+        const response = await fetch(apiUrl);
+        const responseTime = Date.now() - startTime;
+        
+        const apiData = await response.json();
+        
+        // Simple status check
+        const statusEmoji = response.status === 200 && apiData.success ? '🟢' : '🔴';
+        const statusText = response.status === 200 && apiData.success ? 'ONLINE' : 'ISSUES';
+        
+        const statusMessage = `
+${statusEmoji} *API STATUS CHECK*
+
+📡 *URL:* ${apiUrl}
+⏱️ *Response Time:* ${responseTime}ms
+🔢 *HTTP Status:* ${response.status}
+✅ *API Success:* ${apiData.success ? 'Yes' : 'No'}
+👤 *Creator:* ${apiData.creator || 'N/A'}
+
+${statusEmoji} *OVERALL STATUS:* ${statusText}
+        `.trim();
+        
+        await reply(statusMessage);
+        await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+        
+    } catch (error) {
+        console.error('CheckAPI Error:', error);
+        
+        const errorMessage = `
+🔴 *API CHECK FAILED*
+
+📡 *URL:* ${text}
+💥 *Error:* ${error.message}
+
+❌ *STATUS:* OFFLINE OR INACCESSIBLE
+        `.trim();
+        
+        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+        reply(errorMessage);
+    }
+    
 }
 break
 case "ytstalk": {
@@ -6321,7 +6315,7 @@ if (!text) return reply("📌 *Enter a search query.*");
       }
 }
 break
-case " remini": {
+case "remini": {
 const quoted = m.quoted ? m.quoted : null || m.msg ;
       const mime = quoted?.mimetype || "";
 
@@ -7187,6 +7181,77 @@ console.log('Quoted Key:', m.quoted?.key);
     }
 }
 break
+case 'removebg':
+case 'nobg':
+case 'rmbg': {
+    if (!text && !(m.quoted && (m.quoted.mtype === 'imageMessage' || m.quoted.mtype === 'stickerMessage'))) {
+        return reply(`Usage: ${prefix}removebg <image_url> or reply to an image with ${prefix}removebg`);
+    }
+    
+    try {
+        await conn.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
+        
+        let imageUrl = text ? text.trim() : '';
+        
+        // Handle quoted image
+        if (m.quoted && (m.quoted.mtype === 'imageMessage' || m.quoted.mtype === 'stickerMessage')) {
+            try {
+                const media = await m.quoted.download();
+                // Convert to base64 and upload to Telegra.ph
+                const base64Image = media.toString('base64');
+                const telegraphResponse = await fetch('https://telegra.ph/upload', {
+                    method: 'POST',
+                    body: JSON.stringify({ data: base64Image }),
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const telegraphData = await telegraphResponse.json();
+                if (telegraphData[0] && telegraphData[0].src) {
+                    imageUrl = 'https://telegra.ph' + telegraphData[0].src;
+                } else {
+                    throw new Error('Telegra.ph upload failed');
+                }
+            } catch (uploadError) {
+                console.error('Upload error:', uploadError);
+                return reply('❌ Failed to upload image. Please provide a direct image URL instead.');
+            }
+        }
+        
+        // Validate URL
+        if (!imageUrl.startsWith('http')) {
+            return reply('❌ Please provide a valid image URL');
+        }
+        
+        const apiUrl = `https://api.giftedtech.co.ke/api/tools/removebg?apikey=gifted&url=${encodeURIComponent(imageUrl)}`;
+        
+        console.log('Processing image:', imageUrl);
+        
+        const response = await fetch(apiUrl);
+        const apiData = await response.json();
+        
+        if (!apiData.success || !apiData.result?.image_url) {
+            return reply('❌ Background removal failed. Make sure the image URL is accessible.');
+        }
+
+        const result = apiData.result;
+        const imageBuffer = await getBuffer(result.image_url);
+        
+        await conn.sendMessage(m.chat, {
+            image: imageBuffer,
+            caption: `✅ *Background Removed*\n\n📁 Size: ${result.size || 'N/A'}\n👤 By: ${pushname}`,
+            mentions: [m.sender]
+        }, { quoted: m });
+
+        await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+        
+    } catch (error) {
+        console.error('RemoveBG Error:', error);
+        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+        reply(`❌ Error: ${error.message}`);
+    }
+    
+}
+break
 case "styletext": {
 if (!text) return reply('*Enter a text!*');
     
@@ -7812,45 +7877,39 @@ try {
     }
 }
 break
-case "define": {
+case 'define': {
+    if (!text) return reply(`Usage: ${prefix}define <word>`);
+    
     try {
-        if (!q) return reply("Please provide a word to define. Example: .define technology");
-        
-        const apiUrl = `https://api.giftedtech.co.ke/api/tools/define?apikey=gifted&term=${encodeURIComponent(q)}`;
-        
-        // Fetch response from API
+        const apiUrl = `https://api.giftedtech.co.ke/api/tools/define?apikey=gifted&term=${encodeURIComponent(text)}`;
         const response = await fetch(apiUrl);
-        const result = await response.json();
+        const data = await response.json();
         
-        // Format the definition results
-        let defineText;
-        if (result.status && result.data) {
-            if (typeof result.data === 'string') {
-                defineText = result.data;
-            } else if (result.data.definition) {
-                defineText = `📚 *Definition of ${q}* 📚\n\n` +
-                           `📖 *Definition:* ${result.data.definition || 'No definition available'}\n` +
-                           `💬 *Example:* ${result.data.example || 'No example available'}\n` +
-                           `🏷️ *Part of Speech:* ${result.data.partOfSpeech || 'Unknown'}\n` +
-                           `🔊 *Pronunciation:* ${result.data.pronunciation || 'Not available'}`;
+        console.log('API Response:', data); // Check what's actually being returned
+        
+        // Based on your screenshot, the response might have different structure
+        if (data.success && data.results && data.results[0]) {
+            const result = data.results[0];
+            
+            // Check what fields are available
+            console.log('Available fields:', Object.keys(result));
+            
+            // Try common definition fields
+            if (result.definition) {
+                reply(result.definition);
+            } else if (result.meaning) {
+                reply(result.meaning);
             } else {
-                defineText = `📚 Definition:\n${JSON.stringify(result.data, null, 2)}`;
+                reply('❌ Definition field not found. Available fields: ' + Object.keys(result).join(', '));
             }
-        } else if (result.result) {
-            defineText = typeof result.result === 'string' ? result.result : JSON.stringify(result.result, null, 2);
         } else {
-            defineText = `📚 No definition found for "${q}".`;
+            reply('❌ No definition found for: ' + text);
         }
-        
-        // Ensure it's a string and not too long
-        const safeText = String(defineText || `📚 No definition found for "${q}".`).substring(0, 4000);
-        
-        reply(safeText);
-        
     } catch (error) {
-        console.error('Error fetching definition:', error);
-        reply("❌ Error fetching definition. Please try again later.");
+        console.error('Define Error:', error);
+        reply('❌ Error: ' + error.message);
     }
+    
 }
 break
 case "weather": {
