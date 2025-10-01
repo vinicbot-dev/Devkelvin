@@ -61,6 +61,7 @@ const {
 const {
 handleAntiDelete,
 saveStoredMessage,
+handleChatbot,
 handleAutoReact,
 checkAndHandleLinks,
 handleLinkViolation,
@@ -263,6 +264,9 @@ conn.ev.on('messages.upsert', async chatUpdate => {
             await detectUrls(mek, conn);
             
             await handleLinkViolation(mek, conn);
+            
+              // Handle chatbot - ADD THIS LINE
+        await handleChatbot(mek, conn);
         
         // Process commands as usual
         require("./start/kevin")(conn, m, chatUpdate, mek, store);
