@@ -27,7 +27,6 @@ global.autoread = false;
 global.autoreact = false;
 global.antibug = true;
 global.autobio = false;
-global.chatbot = false;
 global.autoTyping = false;
 global.autorecording = false;
 global.prefixz = '.';
@@ -57,7 +56,7 @@ global.antilinkkick = false;
 // ========= Other Global Settings ========= //
 global.welcome = true;
 global.adminevent = true;
-global.chatbot = false;
+global.AI_Chat = "true", // Set to "true" to enable AI chatbot by default
 
 // ========= Add modeStatus and versions ========= //
 global.modeStatus = "Public";
