@@ -4007,7 +4007,7 @@ let text = args.join(" ");
           {
             audio: fs.readFileSync(mergedFile),
             mimetype: "audio/mp4",
-            ptt: true,
+            mp3: true,
             fileName: "tts_audio.mp3",
           },
           { quoted: m }
@@ -6736,26 +6736,40 @@ if (!text) return reply(global.mess.notext);
     }
 }
 break
-case "gpt2": {
-    if (!text) return reply(global.mess.notext);
+case 'gpt2':
+case 'ai':
+case 'chatgpt': {
+    if (!text) return reply(`Please provide a query/question\n\nExample: ${prefix + command} what is artificial intelligence?`);
     
     try {
-        let res = await fetch(`https://api.giftedtech.com/?apikey=gifted&q=${encodeURIComponent(text)}`);
+        // Send "typing..." indicator
+        await conn.sendPresenceUpdate('composing', m.chat);
         
-        if (!res.ok) {
-            throw new Error(`API request failed with status ${res.status}`);
-        }
+        // Encode the query for the API
+        const query = encodeURIComponent(text);
+        const apiUrl = `https://api.giftedtech.co.ke/api/ai/ai?apikey=gifted&q=${query}`;
         
-        let json = await res.json();
+        // Fetch response from API
+        const { data } = await axios.get(apiUrl);
         
-        if (json && json.success && json.result) {
-            reply(json.result);
+        let response;
+        
+        if (data && data.result) {
+            response = data.result;
+        } else if (data && data.message) {
+            response = data.message;
         } else {
-            throw new Error('Invalid API response structure');
+            response = "❌ Sorry, I couldn't process your request at the moment. Please try again later.";
         }
+        
+        // Format the response
+        const finalResponse = `🤖 *GPT RESPONSE*\n\n${response}\n\n*Powered by Vinic-Xmd AI*`;
+        
+        await reply(finalResponse);
+        
     } catch (error) {
-        console.error('Error fetching from GPT API:', error);
-        reply(global.mess.error);
+        console.error('GPT Command Error:', error);
+        reply('❌ An error occurred while processing your request. Please try again later.');
     }
 }
 break
@@ -6964,7 +6978,7 @@ case 'myip':
     conn.sendMessage(m.chat, {
       audio: buffer,
       mimetype: "audio/mpeg",
-      ptt: true
+      mp3: true
     })
   } catch (err) {
     console.log(err);
@@ -7229,6 +7243,105 @@ const quoted = m.quoted ? m.quoted : null;
   conn.sendMessage(from, { text: `❌ *Error:* ${error.message}` }, { quoted: m });
         } 
 
+}
+break
+case 'obfuscate2':
+case 'obfus':
+case 'encrypt': {
+    if (!text) return reply(`*Usage:* ${prefix}obfuscate <code>\n*Example:* ${prefix}obfuscate console.log("Hello World")`);
+    
+    try {
+        // Send loading reaction
+        await conn.sendMessage(m.chat, {
+            react: {
+                text: "⏳",
+                key: m.key
+            }
+        });
+
+        // Encode the code for the URL
+        const encodedCode = encodeURIComponent(text);
+        
+        // API endpoint
+        const apiUrl = `https://api.giftedtech.co.ke/api/tools/encryptv2?apikey=gifted&code=${encodedCode}`;
+        
+        console.log("Obfuscate: Making API request to:", apiUrl);
+        
+        // Fetch the obfuscated code
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        
+        console.log("Obfuscate: API Response:", JSON.stringify(data, null, 2));
+        
+        let obfuscatedCode = '';
+        
+        // FIX: Properly handle different response formats
+        if (data && typeof data === 'object') {
+            if (data.result && typeof data.result === 'string') {
+                obfuscatedCode = data.result;
+            } else if (data.encrypted && typeof data.encrypted === 'string') {
+                obfuscatedCode = data.encrypted;
+            } else if (data.code && typeof data.code === 'string') {
+                obfuscatedCode = data.code;
+            } else if (data.data && typeof data.data === 'string') {
+                obfuscatedCode = data.data;
+            } else if (data.message && typeof data.message === 'string') {
+                obfuscatedCode = data.message;
+            } else {
+                // If we get an object but can't find the string, try to stringify it
+                obfuscatedCode = JSON.stringify(data, null, 2);
+                console.warn("Obfuscate: Unexpected response format, using JSON stringify");
+            }
+        } else if (typeof data === 'string') {
+            obfuscatedCode = data;
+        } else {
+            throw new Error('Unexpected response format from API');
+        }
+        
+        // Validate that we actually got obfuscated code
+        if (!obfuscatedCode || obfuscatedCode.trim() === '') {
+            throw new Error('API returned empty result');
+        }
+        
+        // Success reaction
+        await conn.sendMessage(m.chat, {
+            react: {
+                text: "✅",
+                key: m.key
+            }
+        });
+        
+        // Truncate long code for display
+        const displayOriginal = text.length > 500 ? text.substring(0, 500) + '...' : text;
+        const displayObfuscated = obfuscatedCode.length > 1500 ? obfuscatedCode.substring(0, 1500) + '...' : obfuscatedCode;
+        
+        // Send the obfuscated code
+        await conn.sendMessage(m.chat, {
+            text: `*🔒 OBFUSCATED CODE*\n\n*Original Code:*\n\`\`\`javascript\n${displayOriginal}\n\`\`\`\n\n*Obfuscated Code:*\n\`\`\`javascript\n${displayObfuscated}\n\`\`\`\n\n*📝 Note:* Code has been obfuscated successfully!`,
+            contextInfo: {
+                mentionedJid: [m.sender],
+                externalAdReply: {
+                    title: "🔒 Code Obfuscator",
+                    body: "Powered by GiftedTech API",
+                    thumbnail: peler,
+                    sourceUrl: 'https://api.giftedtech.co.ke'
+                }
+            }
+        }, { quoted: m });
+        
+    } catch (error) {
+        console.error('Obfuscate Error:', error);
+        
+        // Error reaction
+        await conn.sendMessage(m.chat, {
+            react: {
+                text: "❌",
+                key: m.key
+            }
+        });
+        
+        reply(`❌ *Failed to obfuscate code!*\nError: ${error.message}\n\nPlease try again with different code or try later.`);
+    }
 }
 break
 case 'tiktokstalk':
