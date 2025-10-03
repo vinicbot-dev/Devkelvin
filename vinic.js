@@ -306,94 +306,7 @@ async function getActiveUsers(groupId) {
         return [];
     }
 }
-//================== [ ENHANCED CHATBOT FUNCTION ] ==================//
-async function handleChatbot(m, conn) {
-    try {
-        // Check if chatbot is enabled and this is a text message in private chat
-        if (!global.chatbot || global.chatbot !== 'true') return;
-        if (m.key.remoteJid.endsWith('@g.us')) return; // Skip group chats
-        
-        const userMessage = m.message?.extendedTextMessage?.text || m.message?.conversation;
-        if (!userMessage || !userMessage.trim()) return;
 
-        // Don't respond to commands
-        if (userMessage.startsWith('.') || userMessage.startsWith('!') || userMessage.startsWith('/')) {
-            return;
-        }
-
-        console.log('🤖 Chatbot processing message:', userMessage);
-        await conn.sendPresenceUpdate('composing', m.chat);
-
-        const callZenxzzAPI = async () => {
-            const apiUrl = `https://api.zenzxz.my.id/api/llama-4`;
-            try {
-                const response = await axios.get(apiUrl, {
-                    params: {
-                        query: userMessage.trim()
-                    },
-                    timeout: 30000
-                });
-                
-                return response.data?.response || 
-                       response.data?.result || 
-                       response.data?.answer || 
-                       response.data?.message ||
-                       response.data?.data;
-            } catch (error) {
-                console.error('Zenxzz API error:', error.message);
-                throw error;
-            }
-        };
-
-        const callFallbackAPI = async () => {
-            const apiUrl = `https://bk9.fun/ai/GPT4o`;
-            try {
-                const response = await axios.get(apiUrl, {
-                    params: {
-                        q: userMessage.trim(),
-                        userId: m.sender,
-                    },
-                    timeout: 30000
-                });
-                return response.data?.BK9;
-            } catch (error) {
-                console.error('Fallback API error:', error.message);
-                throw error;
-            }
-        };
-
-        let botResponse = null;
-
-        // Try Zenxzz API first
-        try {
-            botResponse = await callZenxzzAPI();
-        } catch (zenError) {
-            console.log('Zenxzz API failed, trying fallback...');
-            
-            // Try fallback API
-            try {
-                botResponse = await callFallbackAPI();
-            } catch (fallbackError) {
-                console.error('All APIs failed:', fallbackError.message);
-            }
-        }
-
-        // Send response
-        if (botResponse && typeof botResponse === 'string' && botResponse.trim()) {
-            await conn.sendMessage(m.chat, { 
-                text: botResponse.trim() 
-            }, { quoted: m });
-            console.log('✅ Chatbot response sent');
-        } else {
-            await conn.sendMessage(m.chat, { 
-                text: "I'm here to help! Feel free to ask me anything. 🤖" 
-            }, { quoted: m });
-        }
-
-    } catch (err) {
-        console.error('Error in chatbot handler:', err);
-    }
-}
 //obfuscator 
 async function obfus(query) {
       return new Promise((resolve, reject) => {
@@ -1170,7 +1083,6 @@ module.exports = {
   checkAndHandleLinks,
   ephoto,
   loadBlacklist,
-  handleChatbot,
   getActiveUsers,
   initializeDatabase,
   delay,
