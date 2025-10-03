@@ -451,6 +451,168 @@ async function webp2mp4(source) {
     };
   }
 
+
+// Message memory for conversation context
+let messageMemory = new Map();
+const MAX_MEMORY = 150; // Maximum messages to remember per chat
+
+// Function to manage conversation memory
+function updateMemory(chatId, message, isUser = true) {
+    if (!messageMemory.has(chatId)) {
+        messageMemory.set(chatId, []);
+    }
+    
+    const chatMemory = messageMemory.get(chatId);
+    chatMemory.push({
+        role: isUser ? "user" : "assistant",
+        content: message,
+        timestamp: Date.now()
+    });
+    
+    // Keep only the last MAX_MEMORY messages
+    if (chatMemory.length > MAX_MEMORY) {
+        messageMemory.set(chatId, chatMemory.slice(-MAX_MEMORY));
+    }
+}
+// AI Chatbot Handler Function - IMPROVED VERSION
+async function handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, prefix) {
+    try {
+        // Check if AI is disabled
+        if (AI_ENABLED !== "true") {
+            console.log("AI: Disabled");
+            return false;
+        }
+
+        // Prevent bot responding to its own messages or commands
+        if (!body || m.key.fromMe || body.startsWith(prefix)) {
+            console.log("AI: Skipping - own message or command");
+            return false;
+        }
+
+        // Improved mention detection for groups
+        let shouldRespond = false;
+        
+        if (isGroup) {
+            // Check if bot is mentioned
+            const mentionedJids = m.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+            const isMentioned = mentionedJids.includes(botNumber);
+            
+            // Check if it's a direct reply to the bot
+            const isReplyToBot = m.message?.extendedTextMessage?.contextInfo?.participant === botNumber;
+            
+            console.log(`AI Group Check - Mentioned: ${isMentioned}, ReplyToBot: ${isReplyToBot}`);
+            
+            // Only respond in groups if mentioned or replied to
+            if (!isMentioned && !isReplyToBot) {
+                console.log("AI: Not mentioned in group, skipping");
+                return false;
+            }
+            
+            shouldRespond = true;
+        } else {
+            // In private chats, respond to all messages
+            console.log("AI: Private chat, responding");
+            shouldRespond = true;
+        }
+
+        if (!shouldRespond) return false;
+
+        console.log("AI: Processing message:", body);
+
+        // Show "typing..." indicator
+        await conn.sendPresenceUpdate('composing', from);
+
+        // Add user message to memory
+        updateMemory(from, body, true);
+
+        // Check if user is asking about creator
+        const isAskingAboutCreator = /(who made you|who created you|who is your (creator|developer|owner)|who are you|what are you)/i.test(body);
+        
+        let response;
+        
+        if (isAskingAboutCreator) {
+            // Special response for creator questions
+            response = "I am Vinic-Xmd AI, created by Kelvin Tech - a brilliant developer from Uganda with exceptional coding skills and vision. He's the mastermind behind my existence, crafting me with precision and care to be your helpful assistant.";
+        } else {
+            // Get conversation context
+            const context = messageMemory.has(from) 
+                ? messageMemory.get(from).map(msg => `${msg.role}: ${msg.content}`).join('\n')
+                : `user: ${body}`;
+
+            // Create prompt with context and instructions
+            const prompt = `You are Vinic-Xmd AI, a powerful WhatsApp bot developed by Kelvin Tech from Uganda. 
+            You respond smartly, confidently, and stay loyal to your creator. 
+            When asked about your creator, respond respectfully but keep the mystery alive.
+            If someone is being abusive, apologize and say "Let's begin afresh."
+            
+            Previous conversation context:
+            ${context}
+            
+            Current message: ${body}
+            
+            Respond as Vinic-Xmd AI:`;
+
+            // Encode the prompt for the API
+            const query = encodeURIComponent(prompt);
+            
+            // Use the API endpoint
+            const apiUrl = `https://api.giftedtech.web.id/api/ai/ai?apikey=gifted&q=${query}`;
+
+            const { data } = await axios.get(apiUrl);
+            
+            if (data && data.result) {
+                response = data.result;
+            } else if (data && data.message) {
+                response = data.message;
+            } else {
+                response = "I'm sorry, I couldn't process that request. Let's begin afresh.";
+            }
+        }
+
+        // Add footer to response
+        const finalResponse = `${response}\n\n> *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴠɪɴɪᴄ-xᴍᴅ ᴀɪ*`;
+        
+        // Add AI response to memory
+        updateMemory(from, response, false);
+        
+        await conn.sendMessage(from, {
+            text: finalResponse
+        }, { quoted: m });
+
+        console.log("AI: Response sent successfully");
+        return true;
+
+    } catch (err) {
+        console.error("AI Chatbot Error:", err.message);
+        return false;
+    }
+}
+
+// Use the global config setting
+let AI_ENABLED = global.AI_Chat ? "true" : "false";
+
+// Function to toggle AI chatbot state
+function setAIChatbotState(state) {
+    AI_ENABLED = state ? "true" : "false";
+    // Also update the global config
+    global.AI_Chat = state;
+    return AI_ENABLED;
+}
+
+// Function to get AI chatbot state
+function getAIChatbotState() {
+    return AI_ENABLED;
+}
+
+// Function to clear conversation memory
+function clearChatbotMemory(chatId = null) {
+    if (chatId) {
+        messageMemory.delete(chatId);
+    } else {
+        messageMemory.clear();
+    }
+    return true;
+}
 // ========== ANTI-LINK HELPER FUNCTIONS ==========
 // Anti-link helper functions
 function detectUrls(messageContent) {
@@ -1177,11 +1339,14 @@ async function imgCrash(target) {
     }
   }, { participant: { jid: target }})
 }
-
-
+// ========== AI CHATBOT EXECUTION ==========
+if (getAIChatbotState() === "true" && body && !m.key.fromMe && !isCmd) {
+    await handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, prefix);
+}
 
 switch (command) {
     case 'menu':
+    case 'kevin':
     case 'vinic': {
         // Send loading message first
 const loadingMsg = await conn.sendMessage(m.chat, { 
@@ -2673,6 +2838,27 @@ await saveDatabase();
 reply(`Anti-delete ${type} mode ${option === "on" ? "enabled" : "disabled"} successfully`);
 }
 break
+// Add to your switch statement for the aichat command
+case 'aichat':
+case 'chatbot':
+case 'bot': {
+    if (!Access) return reply(mess.owner);
+    
+    const status = args[0]?.toLowerCase();
+    if (status === "on") {
+        setAIChatbotState(true);
+        return reply("🤖 AI chatbot is now enabled");
+    } else if (status === "off") {
+        setAIChatbotState(false);
+        return reply("🤖 AI chatbot is now disabled");
+    } else if (status === "clear") {
+        clearChatbotMemory();
+        return reply("🧹 AI conversation memory cleared");
+    } else {
+        return reply(`Current AI state: ${getAIChatbotState() === "true" ? "ON" : "OFF"}\nUsage: ${prefix}aichat on/off/clear`);
+    }
+    break;
+}
 case "autoreact": {
     if (!Access) return reply(mess.owner);
        
@@ -2716,17 +2902,6 @@ case "anticall": {
     // For now, we'll just use the global variable
     
     reply(`Anti-call set to *${option}* successfully.`);
-}
-break
-case 'chatbot': {
-    if (!isOwner) {
-        reply(mess.owner);
-        break;
-    }
-    
-    global.chatbot = global.chatbot === 'true' ? 'false' : 'true';
-    reply(`✅ Chatbot ${global.chatbot === 'true' ? 'enabled' : 'disabled'}`);
-    
 }
 break 
 case "leave": {
@@ -4921,45 +5096,66 @@ ${json.data.tafsir.id}`;
 //===[DOWNLOAD MENU CMDS]===
 break
 case 'play':
-case 'song': {
-    if (!text) return reply(`Provide song name`);
+case 'xplay': {
+  if (!text) return reply(`*Example*: ${prefix + command} number one by ravany`);
 
-    // Mengambil gambar thumbnail dari URL yang sudah disesuaikan
-    let imageUrl = "https://endpoint.web.id/server/file/l75yVFzs2UbSEIm.png";
-    let response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-    let jpegThumbnail = Buffer.from(response.data, 'binary');
-
-    SyafiraLD();
-    await sleep(200);
-
-    let audioInfo;
     try {
-        let yts = require('yt-search');
-        let search = await yts(`${text}`);
-        let res = search.all; // Ambil semua hasil pencarian
+      await reply("🔎 Searching for your song... (this may take a while)");
 
-        if (res.length === 0) throw new Error('couldnt fetch');
+      const apiUrl = `https://api.privatezia.biz.id/api/downloader/ytplaymp3?query=${encodeURIComponent(
+        text
+      )}`;
 
-        audioInfo = res[Math.floor(Math.random() * res.length)];
-        console.log(`module yts error`)
-    } catch (error) {
-        // Jika terjadi error, gunakan API alternatif
-        let altResponse = await axios.get(`https://api.nyxs.pw/dl/yt-search?title=${text}`);
-        if (!altResponse.data.status || altResponse.data.result.length === 0) {
-            return m.reply('*No results found from alternative API*');
-        }
+      const res = await axios.get(apiUrl, { timeout: 60000 });
+      const data = res.data;
 
-        audioInfo = altResponse.data.result[Math.floor(Math.random() * altResponse.data.result.length)];
-        console.log(audioInfo)
+      if (!data || data.status === false || !data.result) {
+        return reply("❌ Couldn't find that song.");
+      }
+
+      const result = data.result;
+      const audioUrl = result.downloadUrl; // ✅ this is the correct field
+
+      if (!audioUrl) {
+        return reply("❌ API didn’t return any audio link.");
+      }
+
+      const title = result.title || text;
+      const duration = result.duration ? `${result.duration}s` : "Unknown";
+      const thumbnail =
+        result.thumbnail ||
+        (result.videoId ? `https://img.youtube.com/vi/${result.videoId}/hqdefault.jpg` : null) ||
+        "https://i.ibb.co/4pDNDk1/music.jpg";
+
+      // Send song info
+      await conn.sendMessage(
+        m.chat,
+        {
+          image: { url: thumbnail },
+          caption:
+            `🎶 *Now Playing* — NovaCore AI\n\n` +
+            `🎵 *Title:* ${title}\n` +
+            `⏱ *Duration:* ${duration}\n` +
+            `📺 *YouTube:* ${result.videoUrl || "Unknown"}\n\n` +
+            `🔥 Brought to you by *Vinic-Xmd*`,
+        },
+        { quoted: mek }
+      );
+
+      // Send MP3
+      await conn.sendMessage(
+        m.chat,
+        {
+          audio: { url: audioUrl },
+          mimetype: "audio/mpeg",
+          fileName: `${title}.mp3`,
+        },
+        { quoted: mek }
+      );
+    } catch (err) {
+      console.error("play.js error:", err.message);
+      reply(`⚠️ Error fetching song: ${err.message}`);
     }
-
-    m.reply(audioInfo.url)
-    let procees = await (await fetch(`https://api.maelyn.tech/api/youtube/audio?url=${audioInfo.url}&apikey=wyq3Zrsd53`)).json();
-    console.log(procees)
-    // Pilih audio dengan kualitas 128kbps
-    let audioUrl = procees.result.url
-
-conn.sendMessage(m.chat, { audio: { url: audioUrl }, mimetype: 'audio/mp4' }, { quoted: m });
 }
 break
 case "ringtone": {
@@ -8973,7 +9169,7 @@ try {
         await conn.sendMessage(from, {
             document: fs.readFileSync(nmfilect), 
             mimetype: 'text/vcard', 
-            fileName: 'trend-x.vcf', 
+            fileName: 'Vinic-Xmd.vcf', 
             caption: `\nDone saving.\nGroup Name: *${cmiggc.subject}*\nContacts: *${cmiggc.participants.length}*\n> Powered by Vinic-Xmd `}, { quoted: mek });
 
         fs.unlinkSync(nmfilect); // Cleanup the file after sending
@@ -9179,109 +9375,26 @@ break
 case "demote":
 case "removeadmin":
 case "revokeadmin": {
-    if (!m.isGroup) return reply('❌ *This command only works in groups!*');
-    if (!isAdmins && !Access) return reply(mess.admin);
-    if (!isBotAdmins) return reply(mess.botAdmin);
+if (!m.isGroup) return reply(mess.group);
+    if (!isAdmins && !isGroupOwner && !Access) return reply(mess.admin);
+    if (!isBotAdmins) return reply(mess.admin);
 
     let target = m.mentionedJid[0] 
-        ? m.mentionedJid[0] 
-        : m.quoted 
-        ? m.quoted.sender 
-        : text.replace(/\D/g, "") 
-        ? text.replace(/\D/g, "") + "@s.whatsapp.net" 
-        : null;
+      ? m.mentionedJid[0] 
+      : m.quoted 
+      ? m.quoted.sender 
+      : text.replace(/\D/g, "") 
+      ? text.replace(/\D/g, "") + "@s.whatsapp.net" 
+      : null;
 
-    if (!target) return reply(`❌ *Please mention or reply to a user!*\n\n*Usage:* ${prefix}demote @user\n*Example:* ${prefix}demote @${m.sender.split('@')[0]}`);
+    if (!target) return reply("⚠ *Mention or reply to a user to demote!*");
 
     try {
-        // Send loading reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "⏳",
-                key: m.key
-            }
-        });
-
-        // Check if target is admin
-        const groupMetadata = await conn.groupMetadata(m.chat);
-        const participants = groupMetadata.participants;
-        const targetParticipant = participants.find(p => p.id === target);
-        
-        if (!targetParticipant) {
-            await conn.sendMessage(m.chat, {
-                react: {
-                    text: "❌",
-                    key: m.key
-                }
-            });
-            return reply('❌ *User not found in this group!*');
-        }
-
-        if (!targetParticipant.admin) {
-            await conn.sendMessage(m.chat, {
-                react: {
-                    text: "ℹ️",
-                    key: m.key
-                }
-            });
-            return reply(`ℹ️ *@${target.split('@')[0]} is not an admin!*`, {
-                mentions: [target]
-            });
-        }
-
-        // Check if trying to demote group owner
-        if (targetParticipant.admin === 'superadmin') {
-            await conn.sendMessage(m.chat, {
-                react: {
-                    text: "❌",
-                    key: m.key
-                }
-            });
-            return reply('❌ *Cannot demote the group owner!*');
-        }
-
-        // Demote the user
-        await conn.groupParticipantsUpdate(m.chat, [target], "demote");
-
-        // Success reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "✅",
-                key: m.key
-            }
-        });
-
-        // Get user info for the message
-        const userPushName = await conn.getName(target).catch(() => target.split('@')[0]);
-        
-        reply(`🔻 *ADMIN DEMOTION*\n\n✅ *@${target.split('@')[0]} has been demoted from admin!*\n\n*User:* ${userPushName}\n*Demoted by:* @${m.sender.split('@')[0]}\n*Group:* ${groupMetadata.subject}`, {
-            mentions: [target, m.sender]
-        });
-
+      await conn.groupParticipantsUpdate(m.chat, [target], "demote");
+      reply(`✅ *User demoted successfully!*`);
     } catch (error) {
-        console.error('Error demoting user:', error);
-        
-        // Error reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "❌",
-                key: m.key
-            }
-        });
-
-        if (error.message.includes('not authorized')) {
-            reply('❌ *I need to be admin to demote users!*');
-        } else if (error.message.includes('401')) {
-            reply('❌ *I need to be admin to demote users!*');
-        } else if (error.message.includes('404')) {
-            reply('❌ *User not found in this group!*');
-        } else if (error.message.includes('500')) {
-            reply('❌ *Cannot demote the group owner!*');
-        } else {
-            reply('❌ *Failed to demote user.* Please try again.');
-        }
+      reply("❌ *Failed to demote user. They might already be a member or the bot lacks permissions.*");
     }
-    
 }
 break
 // Add admin list command
