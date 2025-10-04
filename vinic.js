@@ -360,6 +360,7 @@ function initializeDatabase(from, botNumber) {
     if (!("autoviewstatus" in setting.config)) setting.config.autoviewstatus = false;
     if (!("autoreactstatus" in setting.config)) setting.config.autoreactstatus = false;
     if (!("antiedit" in setting.config)) setting.config.antiedit = false;
+    if (!("anticall" in setting.config)) setting.config.anticall = false; // false, "decline", or "block"
     if (!("ownernumber" in setting.config)) setting.config.ownernumber = global.ownernumber || '';
 
     let blacklist = global.db.data.blacklist;
