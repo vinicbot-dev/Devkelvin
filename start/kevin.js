@@ -671,13 +671,13 @@ const timez = moment(Date.now()).tz(`${timezones}`).locale('en').format('HH:mm:s
 const datez = moment(Date.now()).tz(`${timezones}`).format("DD/MM/YYYY");
 
 if (m.message) {
-  lolcatjs.fromString(chalk.cyan.bold(`┏━━━━━━━━━━━━━『 🌟 VINIC-XMD 🌟 』━━━━━━━━━━━━━─`));
-  lolcatjs.fromString(chalk.yellow(`» 📅 Sent Time: ${dayz}, ${timez}`));
-  lolcatjs.fromString(chalk.green(`» 📩 Message Type: ${m.mtype}`));
-  lolcatjs.fromString(chalk.magenta(`» 👤 Sender Name: ${pushname || 'N/A'}`));
-  lolcatjs.fromString(chalk.blue(`» 💬 Chat ID: ${m.chat.split('@')[0]}`));
-  lolcatjs.fromString(chalk.white(`» ✉️ Message: ${budy || 'N/A'}`));
-  lolcatjs.fromString(chalk.cyan.bold('┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━─ ⳹\n\n'));
+  lolcatjs.fromString(chalk.hex('#FF6B9D').bold(`┏━━━━━━━━━━━━━『 🌟 VINIC-XMD 🌟 』━━━━━━━━━━━━━─`));
+  lolcatjs.fromString(chalk.hex('#A78BFA')(`» 📅 Sent Time: ${dayz}, ${timez}`));
+  lolcatjs.fromString(chalk.hex('#4ADE80')(`» 📩 Message Type: ${m.mtype}`));
+  lolcatjs.fromString(chalk.hex('#F59E0B')(`» 👤 Sender Name: ${pushname || 'N/A'}`));
+  lolcatjs.fromString(chalk.hex('#38BDF8')(`» 💬 Chat ID: ${m.chat.split('@')[0]}`));
+  lolcatjs.fromString(chalk.hex('#E5E7EB')(`» ✉️ Message: ${budy || 'N/A'}`));
+  lolcatjs.fromString(chalk.hex('#FF6B9D').bold('┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━─ ⳹\n\n'));
 }
 //<================================================>//
 if (autoread) {
@@ -1386,7 +1386,7 @@ const systemUsedMemory = totalMemory - freeMemory;
                         '𝖠𝖽𝖽𝗉𝗋𝖾𝗆 <number>', 'd𝖾𝗅𝗉𝗋𝖾𝗆 <number>', '𝖯𝗎𝖻𝗅𝗂𝖼', 'private', 'clearallprem', 'delpremmulti',
                         '𝙸𝚍𝚌𝚑', '𝙲𝚛𝚎𝚊𝚝𝚎𝚌𝚑', 'creategroup',
                         'antidelete', 'del', 'setpp', 'delpp', 'lastseen', 'setprefix', 'groupid', 'readreceipts', 'reportbug', 'clearchat', 'hack', 'groupjids', 'broadcast', 'disappear', 'disappearstatus','clearchat', 'react', 'chatbot',
-                        'listblocked', 'online', 'join', 'leave', 'setbio', 'backup', 'reqeust', 'block', 'gpass','toviewonce', 'setownername', 'autoviewstatus', 'unblock', 'unblockall', 'gcaddprivacy', 'ppprivancy', 'tostatus',
+                        'listblocked', 'online', 'join', 'leave', 'setbio', 'backup', 'reqeust', 'block', 'gpass','toviewonce', 'setownername', 'autoviewstatus', 'autoreactstatus', 'antiedit', 'unblock', 'unblockall', 'gcaddprivacy', 'ppprivancy', 'tostatus',
                         'anticall', 'antibug', 'vv', 'vv2', 'idch','autorecording', 'autotyping', 'getpp',
                     ],
                 },
@@ -3335,6 +3335,63 @@ case "autoviewstatus": {
     await saveDatabase();
 
     reply(`Auto view status ${option === "on" ? "enabled" : "disabled"} successfully`);
+}
+break
+case "autoreactstatus": {
+    if (!Access) return reply(mess.owner);
+    if (args.length < 1) return reply(`Example: ${prefix + command} on/off`);
+
+    const validOptions = ["on", "off"];
+    const option = args[0].toLowerCase();
+
+    if (!validOptions.includes(option)) return reply("Invalid option");
+
+    if (!global.db.data.settings) global.db.data.settings = {};
+    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+    let setting = global.db.data.settings[botNumber];
+    
+    // Initialize config if it doesn't exist
+    if (!setting.config) setting.config = {};
+    
+    // Set the autoreactstatus setting
+    setting.config.autoreactstatus = option === "on";
+
+    await saveDatabase();
+
+    reply(`Auto react status ${option === "on" ? "enabled" : "disabled"} successfully`);
+}
+break
+case "antiedit": {
+if (!Access) return reply(mess.owner);
+if (args.length < 2) return reply(`Example: ${prefix + command} private on/off\nOr: ${prefix + command} chat on/off`);
+
+const validTypes = ["private", "chat"];
+const validOptions = ["on", "off"];
+
+const type = args[0].toLowerCase();
+const option = args[1].toLowerCase();
+
+if (!validTypes.includes(type)) return reply("Invalid type. Use 'private' or 'chat'");
+if (!validOptions.includes(option)) return reply("Invalid option. Use 'on' or 'off'");
+
+// Fix: Properly get setting from global database
+if (!global.db.data.settings) global.db.data.settings = {};
+if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+let setting = global.db.data.settings[botNumber];
+
+// Initialize config if it doesn't exist
+if (!setting.config) setting.config = {};
+
+// Set the anti-edit configuration based on type
+if (type === "private") {
+    setting.config.antiedit = option === "on" ? "private" : false;
+} else if (type === "chat") {
+    setting.config.antiedit = option === "on" ? "chat" : false;
+}
+
+await saveDatabase();
+
+reply(`Anti-edit ${type} mode ${option === "on" ? "enabled" : "disabled"} successfully`);
 }
 break
 case "welcome": {
