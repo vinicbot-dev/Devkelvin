@@ -27,6 +27,7 @@ global.autoread = false;
 global.autoreact = false;
 global.antibug = true;
 global.autobio = false;
+global.chatbot = false;
 global.autoTyping = false;
 global.autorecording = false;
 global.prefixz = '.';
@@ -56,7 +57,7 @@ global.antilinkkick = false;
 // ========= Other Global Settings ========= //
 global.welcome = true;
 global.adminevent = true;
-global.AI_Chat = "true", // Set to "true" to enable AI chatbot by default
+global.AI_CHAT = "true", // Set to "true" to enable AI chatbot by default
 
 // ========= Add modeStatus and versions ========= //
 global.modeStatus = "Public";
@@ -65,7 +66,7 @@ global.versions = "1.3.4";
 // ========= Setting WM ========= //
 global.packname = 'Vinic';
 global.author = 'Xmd';
-global.wm = 'Vinic-Xmd is awesome 🔥';
+global.wm = '©Vinic-Xmd is awesome 🔥';
 global.api = "https://myapi-f721d1db95e9.herokuapp.com";
 global.gcount = {
   prem: 500,
@@ -93,13 +94,24 @@ global.mess = {
  siputzx: "https://api.siputzx.my.id"
 };
 
+// ========= Feature Status Command ========= //
+global.features = {
+  welcome: true,
+  adminevent: true,
+  antiedit: 'private',
+  antidelete: 'private',
+  autoreact: false,
+  autobio: false,
+  chatbot: false
+};
+
 // Export all global settings for use in other modules
 module.exports = {
   owner: global.owner,
   ownername: global.ownername,
   botname: global.botname,
   namasaluran: global.namachannel,
-  idchannel: global.idsaluran,
+  idchannel: global.idchannel,
   linkchannel: global.linkchannel,
   SESSION_ID: global.SESSION_ID,
   autostatus: global.autostatus,
@@ -123,7 +135,8 @@ module.exports = {
   author: global.author,
   gcount: global.gcount,
   limitCount: global.limitCount,
-  mess: global.mess
+  mess: global.mess,
+  features: global.features
 };
 
 let file = require.resolve(__filename);
