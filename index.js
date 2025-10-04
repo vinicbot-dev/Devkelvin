@@ -60,6 +60,7 @@ const {
 
 const {
 handleAntiDelete,
+handleAntiEdit,
 saveStoredMessage,
 handleAutoReact,
 checkAndHandleLinks,
@@ -206,7 +207,7 @@ const { state, saveCreds } = await useMultiFileAuthState("./session");
   });
 
   if (!sessionExists && !conn.authState.creds.registered) {
-    const phoneNumber = await question(chalk.blue.bold(`Thanks for choosing Vinic-Xmd. Please provide your number start with 256xxx:\n`));
+    const phoneNumber = await question(chalk.greenBright(`Thanks for choosing Vinic-Xmd. Please provide your number start with 256xxx:\n`));
     const code = await conn.requestPairingCode(phoneNumber.trim());
     console.log(chalk.cyan(`Code: ${code}`));
     console.log(chalk.cyan(`Vinic-Xmd: Please use this code to connect your WhatsApp account.`));
@@ -254,6 +255,10 @@ conn.ev.on('messages.upsert', async chatUpdate => {
         
         // Handle deleted messages (anti-delete) - PASS THE CORRECT PARAMETERS
         await handleAntiDelete(mek, conn);
+        
+        // handleAntiEdit messages 
+        await handleAntiEdit(mek, conn);
+        
         
         // handle links in groups 
                     await checkAndHandleLinks(mek, conn);
