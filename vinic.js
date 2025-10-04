@@ -359,7 +359,7 @@ function initializeDatabase(from, botNumber) {
     if (!("autorecord" in setting.config)) setting.config.autorecord = false;
     if (!("autoviewstatus" in setting.config)) setting.config.autoviewstatus = false;
     if (!("autoreactstatus" in setting.config)) setting.config.autoreactstatus = false;
-    if (!("autoreact" in setting.config)) setting.config.autoreact = false; 
+    if (!("antiedit" in setting.config)) setting.config.antiedit = false;
     if (!("ownernumber" in setting.config)) setting.config.ownernumber = global.ownernumber || '';
 
     let blacklist = global.db.data.blacklist;
@@ -387,8 +387,7 @@ async function saveDatabase() {
     return false;
   }
 }
-
-// ========== ENHANCED MESSAGE SAVING FUNCTION ==========
+//========[ FUNCTION FOR SAVED MESSAGES]=========
 function saveStoredMessage(message) {
     try {
         let storedMessages = loadStoredMessages();
@@ -399,43 +398,17 @@ function saveStoredMessage(message) {
             storedMessages[chatId] = {};
         }
         
-        // Enhanced message storage with better media handling
+        // Enhanced message storage with edit tracking
         storedMessages[chatId][messageId] = {
             key: { ...message.key },
             message: { ...message.message },
             messageTimestamp: message.messageTimestamp || Date.now(),
             pushName: message.pushName || "Unknown",
-            sender: message.key.participant || message.key.remoteJid
+            sender: message.key.participant || message.key.remoteJid,
+            text: extractMessageText(message.message), // Extract text for easy access
+            hasMedia: hasMediaMessage(message.message), // Check if media message
+            storedAt: Date.now() // Track when message was stored
         };
-        
-        // Extract text content
-        let textContent = "";
-        if (message.message?.conversation) {
-            textContent = message.message.conversation;
-        } else if (message.message?.extendedTextMessage?.text) {
-            textContent = message.message.extendedTextMessage.text;
-        } else if (message.message?.imageMessage?.caption) {
-            textContent = message.message.imageMessage.caption;
-        } else if (message.message?.videoMessage?.caption) {
-            textContent = message.message.videoMessage.caption;
-        } else if (message.message?.documentMessage?.caption) {
-            textContent = message.message.documentMessage.caption;
-        }
-        
-        storedMessages[chatId][messageId].text = textContent;
-        
-        // Check if media key exists for media messages
-        if (message.message?.imageMessage) {
-            storedMessages[chatId][messageId].hasMediaKey = !!(message.message.imageMessage.mediaKey);
-        } else if (message.message?.videoMessage) {
-            storedMessages[chatId][messageId].hasMediaKey = !!(message.message.videoMessage.mediaKey);
-        } else if (message.message?.audioMessage) {
-            storedMessages[chatId][messageId].hasMediaKey = !!(message.message.audioMessage.mediaKey);
-        } else if (message.message?.documentMessage) {
-            storedMessages[chatId][messageId].hasMediaKey = !!(message.message.documentMessage.mediaKey);
-        } else if (message.message?.stickerMessage) {
-            storedMessages[chatId][messageId].hasMediaKey = !!(message.message.stickerMessage.mediaKey);
-        }
         
         // Clean up old messages (keep only last 100 messages per chat)
         const messageKeys = Object.keys(storedMessages[chatId]);
@@ -456,6 +429,170 @@ function saveStoredMessage(message) {
     } catch (error) {
         console.error('Error saving message:', error);
         return false;
+    }
+}
+
+// Helper function to extract text from message
+function extractMessageText(message) {
+    if (!message) return "";
+    
+    if (message.conversation) {
+        return message.conversation;
+    } else if (message.extendedTextMessage?.text) {
+        return message.extendedTextMessage.text;
+    } else if (message.imageMessage?.caption) {
+        return message.imageMessage.caption;
+    } else if (message.videoMessage?.caption) {
+        return message.videoMessage.caption;
+    } else if (message.documentMessage?.caption) {
+        return message.documentMessage.caption;
+    }
+    return "";
+}
+
+// Helper function to check if message has media
+function hasMediaMessage(message) {
+    return !!(message?.imageMessage || message?.videoMessage || message?.audioMessage || 
+              message?.documentMessage || message?.stickerMessage);
+}
+// ========== ENHANCED ANTI-EDIT HANDLER ==========
+async function handleAntiEdit(m, conn) {
+    try {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        
+        // Check if anti-edit is enabled
+        if (!global.db.data.settings || !global.db.data.settings[botNumber] || 
+            !global.db.data.settings[botNumber].config || 
+            !global.db.data.settings[botNumber].config.antiedit) {
+            return;
+        }
+
+        const config = global.db.data.settings[botNumber].config;
+
+        // Check if this is an edited message
+        if (!m.message?.protocolMessage || 
+            m.message.protocolMessage.type !== 14) { // Type 14 = message edit
+            return;
+        }
+
+        const editData = m.message.protocolMessage;
+        if (!editData.key) return;
+
+        const messageId = editData.key.id;
+        const chatId = m.key.remoteJid;
+        const editedBy = m.key.participant || m.key.remoteJid;
+
+        console.log(`✏️ Processing edit for message ${messageId} in ${chatId}`);
+
+        // Load stored messages
+        const storedMessages = loadStoredMessages();
+        const originalMsg = storedMessages[chatId]?.[messageId];
+
+        if (!originalMsg) {
+            console.log("⚠️ Original message not found for edit detection");
+            return;
+        }
+
+        // Get original text
+        const originalText = originalMsg.text || "[No text content]";
+        const newText = extractMessageText(editData.editedMessage) || "[No text content]";
+
+        // Don't process if text hasn't actually changed
+        if (originalText === newText) {
+            return;
+        }
+
+        const sender = originalMsg.sender;
+        let chatName = "Unknown Chat";
+
+        if (chatId === 'status@broadcast') {
+            chatName = "Status Update";
+        } else if (chatId.endsWith('@g.us')) {
+            try {
+                const groupInfo = await conn.groupMetadata(chatId).catch(() => null);
+                chatName = groupInfo?.subject || "Group Chat";
+            } catch {
+                chatName = "Group Chat";
+            }
+        } else {
+            chatName = originalMsg.pushName || "Private Chat";
+        }
+
+        const originalTime = moment((originalMsg.messageTimestamp || Date.now()) * 1000)
+            .tz(timezones || "Africa/Kampala")
+            .format('HH:mm');
+            
+        const editTime = moment(Date.now())
+            .tz(timezones || "Africa/Kampala")
+            .format('HH:mm');
+
+        const mentions = [sender, editedBy].filter(Boolean);
+
+        // DETERMINE WHERE TO SEND NOTIFICATION BASED ON SETTING
+        let targetChat;
+        let notificationType = "";
+
+        // Check if private mode is enabled for anti-edit
+        if (config.antieditprivate) {
+            // OPTION 1: Send to your inbox (private mode)
+            targetChat = botNumber; // Send to bot owner's inbox
+            notificationType = "Private Inbox";
+            
+            // Enhanced private notification with more details
+            const privateEditNotification = `🚨 *𝙴𝙳𝙸𝚃 𝙳𝙴𝚃𝙴𝙲𝚃𝙴𝙳 - 𝙿𝚁𝙸𝚅𝙰𝚃𝙴 𝙼𝙾𝙳𝙴* 🚨
+${readmore}
+💬 𝙲𝙷𝙰𝚃: ${chatName}
+👤 𝙾𝚁𝙸𝙶𝙸𝙽𝙰𝙻 𝚂𝙴𝙽𝙳𝙴𝚁: ${sender.split('@')[0]}
+✏️ 𝙴𝙳𝙸𝚃𝙴𝙳 𝙱𝚈: ${editedBy.split('@')[0]}
+📱 𝙲𝙷𝙰𝚃 𝙸𝙳: ${chatId}
+⏰ 𝙾𝚁𝙸𝙶𝙸𝙽𝙰𝙻 𝚃𝙸𝙼𝙴: ${originalTime}
+🕒 𝙴𝙳𝙸𝚃 𝚃𝙸𝙼𝙴: ${editTime}
+
+📝 *𝙾𝚁𝙸𝙶𝙸𝙽𝙰𝙻 𝙼𝙴𝚂𝚂𝙰𝙶𝙴*:
+${originalText}
+
+✏️ *𝙴𝙳𝙸𝚃𝙴𝙳 𝙼𝙴𝚂𝚂𝙰𝙶𝙴*:
+${newText}`;
+
+            await conn.sendMessage(
+                targetChat,
+                { 
+                    text: privateEditNotification
+                }
+            );
+        } else {
+            // OPTION 2: Send to same chat (chat mode)
+            targetChat = chatId; // Send to same chat where edit occurred
+            notificationType = "Same Chat";
+            
+            const editNotification = `🚨 *𝙴𝙳𝙸𝚃𝙴𝙳 𝙼𝙴𝚂𝚂𝙰𝙶𝙴!* 🚨
+${readmore}
+𝙲𝙷𝙰𝚃: ${chatName}
+𝙾𝚁𝙸𝙶𝙸𝙽𝙰𝙻 𝚂𝙴𝙽𝙳𝙴𝚁: @${sender.split('@')[0]}
+𝙴𝙳𝙸𝚃𝙴𝙳 𝙱𝚈: @${editedBy.split('@')[0]}
+𝙾𝚁𝙸𝙶𝙸𝙽𝙰𝙻 𝚃𝙸𝙼𝙴: ${originalTime}
+𝙴𝙳𝙸𝚃 𝚃𝙸𝙼𝙴: ${editTime}
+
+📝 *𝙾𝚁𝙸𝙶𝙸𝙽𝙰𝙻 𝙼𝙴𝚂𝚂𝙰𝙶𝙴*:
+${originalText}
+
+✏️ *𝙴𝙳𝙸𝚃𝙴𝙳 𝙼𝙴𝚂𝚂𝙰𝙶𝙴*:
+${newText}`;
+
+            await conn.sendMessage(
+                targetChat,
+                { 
+                    text: editNotification, 
+                    mentions: mentions
+                }
+            );
+        }
+
+        console.log(`✅ Anti-edit triggered for message ${messageId} in ${chatName}`);
+        console.log(`📍 ${notificationType}: ${targetChat === botNumber ? 'Owner Inbox' : 'Same Chat'}`);
+
+    } catch (err) {
+        console.error("❌ Error processing edited message:", err);
     }
 }
 // ========== FIXED ANTI-DELETE FUNCTIONALITY WITH MEDIA SUPPORT ==========
@@ -812,12 +949,11 @@ function loadStoredMessages() {
     return {};
 }
 
-// ========== STATUS UPDATE HANDLER ==========
+// ========== FIXED STATUS UPDATE HANDLER ==========
 async function handleStatusUpdate(mek, conn) {
     try {
         const botNumber = await conn.decodeJid(conn.user.id);
-        if (!global.db.data.settings) return;
-        if (!global.db.data.settings[botNumber]) return;
+        if (!global.db.data.settings || !global.db.data.settings[botNumber]) return;
         
         const setting = global.db.data.settings[botNumber];
         if (!setting.config) return;
@@ -833,21 +969,33 @@ async function handleStatusUpdate(mek, conn) {
             }
         }
 
-        // Auto react to status
+        // Auto react to status - FIXED VERSION
         if (setting.config.autoreactstatus) {
             try {
                 const reactions = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉'];
                 const randomReaction = reactions[Math.floor(Math.random() * reactions.length)];
                 
-                await conn.sendMessage(mek.key.remoteJid, {
-                    react: {
-                        text: randomReaction,
-                        key: mek.key
-                    }
-                });
-                console.log(`🎭 Auto-reacted "${randomReaction}" to status from ${mek.pushName || 'Unknown'}`);
+                // For status updates, we need to use the correct key format
+                // Status messages are broadcast messages, so we need to handle them differently
+                if (mek.key && mek.key.remoteJid === 'status@broadcast') {
+                    // Create a proper reaction for status
+                    await conn.sendMessage(mek.key.remoteJid, {
+                        react: {
+                            text: randomReaction,
+                            key: mek.key
+                        }
+                    });
+                    
+                    console.log(`🎭 Auto-reacted "${randomReaction}" to status from ${mek.pushName || 'Unknown'}`);
+                }
             } catch (reactError) {
                 console.error('Error auto-reacting to status:', reactError);
+                // Log more details for debugging
+                console.log('Status message structure:', {
+                    key: mek.key,
+                    remoteJid: mek.key?.remoteJid,
+                    id: mek.key?.id
+                });
             }
         }
     } catch (error) {
@@ -1074,6 +1222,7 @@ module.exports = {
   acr,
   obfus,
   handleAntiDelete,
+  handleAntiEdit,
   handleStatusUpdate,
   saveStoredMessage,
   handleAutoReact,
