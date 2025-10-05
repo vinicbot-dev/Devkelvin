@@ -1103,11 +1103,11 @@ const systemUsedMemory = totalMemory - freeMemory;
                 owner: {
                     title: ' *OWNER MENU*',
                     commands: [
-                        '𝖠𝖽𝖽𝗉𝗋𝖾𝗆 <number>', 'd𝖾𝗅𝗉𝗋𝖾𝗆 <number>', '𝖯𝗎𝖻𝗅𝗂𝖼', 'private', 'clearallprem', 'delpremmulti',
+                        'addowner',
                         '𝙸𝚍𝚌𝚑', '𝙲𝚛𝚎𝚊𝚝𝚎𝚌𝚑', 'creategroup',
-                        'antidelete', 'del', 'setpp', 'delpp', 'lastseen', 'setprefix', 'groupid', 'readreceipts', 'reportbug', 'clearchat', 'hack', 'groupjids', 'broadcast', 'disappear', 'disappearstatus','clearchat', 'react', 'chatbot', 'welcome', 'adminevent', 'features',
-                        'listblocked', 'online', 'join', 'leave', 'setbio', 'backup', 'reqeust', 'block', 'gpass','toviewonce', 'setownername', 'autoviewstatus', 'autoreactstatus', 'antiedit', 'unblock', 'unblockall', 'gcaddprivacy', 'ppprivancy', 'tostatus',
-                        'anticall', 'antibug', 'vv', 'vv2', 'idch','autorecording', 'autotyping', 'getpp',
+                         'del', 'setpp', 'delpp', 'lastseen', 'setprefix', 'groupid', 'readreceipts', 'reportbug', 'clearchat', 'hack', 'groupjids', 'broadcast', 'disappear', 'disappearstatus','clearchat', 'react',  'features',
+                        'listblocked', 'online', 'join', 'leave', 'setbio', 'backup', 'reqeust', 'block', 'gpass','toviewonce', 'setownername',   'unblock', 'unblockall', 'gcaddprivacy', 'ppprivancy', 'tostatus',
+                          'vv', 'vv2', 'idch', 'getpp',
                     ],
                 },
                 group: {
@@ -1134,6 +1134,10 @@ const systemUsedMemory = totalMemory - freeMemory;
                 title: ' *REACTION MENU*',
                 commands: ['kiss', 'blush', 'kick', 'slap', 'dance', 'bully', 'kill', 'hug', 'happy', 'cry'],
                 },
+                features: {
+                title: ' *FEATURES MENU*',
+                commands: ['antidelete', 'anticall', 'autorecording', 'autotyping', 'welcome', 'chatbot', 'autoread', 'adminevent', 'autoviewstatus', 'autoreactstatus', 'antiedit'],
+                },
                 download: {
                     title: ' *DOWNLOAD MENU* ',
                     commands: ['play', 'play2', 'song', 'song2', 'gitclone', 'ringtone', 'download', 'pinterest', 'mediafire', 'itunes', 'ytmp4', 'ytstalk', 'apk', 'gdrive', 'playdoc', 'tiktok', 'tiktok2', 'instagram', 'video', 'video2', 'tiktokaudio', 'save', 'facebook'],
@@ -1147,11 +1151,11 @@ const systemUsedMemory = totalMemory - freeMemory;
                     commands: ['toaudio', 'toimage', 'url', 'tovideo', 'topdf', 'sticker'],
                 },
                 cmdTool: {
-                    title: ' *TOOLS MENU* ',
+                    title: ' *BOTSTATUS MENU* ',
                     commands: ['ping', 'bothosting', 'repo', 'botstatus', 'botinfo', 'sc', 'serverinfo', 'alive'],
                 },
                 other: {
-                    title: ' *OTHER MENU*',
+                    title: ' *TOOLS MENU*',
                     commands: ['time', 'calculate',  'owner', 'dev', 'fliptext', 'translate', 'ss2', 'sswebpc', 'kevinfarm', 'say', 'getdevice', 'ss','userinfo', 'npm', 'checkapi', 'footballhelp', 'gsmarena', 'removebg', 'obfuscate', 'getabout', 'tinylink', 'vcc', 'getbussiness', 'listpc', 'sswebpc'],
                 },
                 helpers: {
@@ -2520,6 +2524,32 @@ if (!Access) return reply(mess.owner);
     const userId = m.mentionedJid[0] || m.quoted?.sender || text.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
     await conn.updateBlockStatus(userId, "unblock");
     reply(mess.done);
+}
+break
+case "restart":
+case "reboot": {
+    if (!Access) return reply(mess.owner);
+    
+    try {
+        await reply("🔄 *Restarting Vinic-Xmd Bot...*\n\nPlease wait 10-15 seconds for the bot to restart.");
+        
+        // A small delay to ensure the message is sent
+        await sleep(2000);
+        
+        // Close the connection gracefully first
+        if (conn && typeof conn.end === 'function') {
+            await conn.end();
+        }
+        
+        console.log(chalk.yellow.bold(`🔄 Bot restart initiated by ${pushname} (${m.sender})`));
+        
+        // Restart the process
+        process.exit(0);
+        
+    } catch (error) {
+        console.error('Error during restart:', error);
+        reply('❌ *Failed to restart bot.* Please restart manually.');
+    }
 }
 break
 case "antidelete": {
