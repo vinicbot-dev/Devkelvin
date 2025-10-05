@@ -828,6 +828,41 @@ conn.ev.on('call', async (callData) => {
   }
 });
 
+conn.getFile = async (PATH, returnAsFilename) => {
+    let res, filename;
+    const data = Buffer.isBuffer(PATH) 
+        ? PATH 
+        : /^data:.*?\/.*?;base64,/i.test(PATH) 
+        ? Buffer.from(PATH.split`, `[1], 'base64') 
+        : /^https?:\/\//.test(PATH) 
+        ? await (res = await fetch(PATH)).buffer() 
+        : fs.existsSync(PATH) 
+        ? (filename = PATH, fs.readFileSync(PATH)) 
+        : typeof PATH === 'string' 
+        ? PATH 
+        : Buffer.alloc(0);
+
+    if (!Buffer.isBuffer(data)) throw new TypeError('Result is not a buffer');
+    
+    const type = await FileType.fromBuffer(data) || { mime: 'application/octet-stream', ext: '.bin' };
+    
+    if (returnAsFilename && !filename) {
+        filename = path.join(__dirname, './tmp/' + new Date() * 1 + '.' + type.ext);
+        await fs.promises.writeFile(filename, data);
+    }
+    
+    const deleteFile = async () => {
+        if (filename && fs.existsSync(filename)) {
+            await fs.promises.unlink(filename).catch(() => {}); 
+        }
+    };
+
+    setImmediate(deleteFile);
+    data.fill(0); 
+    
+    return { res, filename, ...type, data, deleteFile };
+};
+
 conn.downloadAndSaveMediaMessage = async (message, filename, attachExtension = true) => {
     let quoted = message.msg ? message.msg : message;
     let mime = (message.msg || message).mimetype || '';
