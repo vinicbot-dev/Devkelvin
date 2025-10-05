@@ -123,6 +123,7 @@ const {
   shouldLogError } = require('../vinic')  // use functions in vinicjs
 const {fetchReactionImage} = require('./lib/reaction')
 const { toAudio } = require('./lib/converter');
+const { remini } = require('./lib/remini')
 const { jadibot, stopjadibot, listjadibot } = require('./jadibot')
 const reaction = async (jidss, emoji) => {
 conn.sendMessage(jidss, { react: { text: emoji, key: m.key } })
@@ -1105,8 +1106,8 @@ const systemUsedMemory = totalMemory - freeMemory;
                     commands: [
                         'addowner',
                         '𝙸𝚍𝚌𝚑', '𝙲𝚛𝚎𝚊𝚝𝚎𝚌𝚑', 'creategroup',
-                         'del', 'setpp', 'delpp', 'lastseen', 'setprefix', 'groupid', 'readreceipts', 'reportbug', 'clearchat', 'hack', 'groupjids', 'broadcast', 'disappear', 'disappearstatus','clearchat', 'react',  'features',
-                        'listblocked', 'online', 'join', 'leave', 'setbio', 'backup', 'reqeust', 'block', 'gpass','toviewonce', 'setownername',   'unblock', 'unblockall', 'gcaddprivacy', 'ppprivancy', 'tostatus',
+                         'del', 'setpp', 'delpp', 'lastseen', 'setprefix', 'groupid', 'readreceipts', 'reportbug', 'clearchat', 'hack', 'groupjids', 'broadcast', 'disappear', 'disappearstatus','clearchat', 'react', 'restart', 'addignorelist', 'delignorelist', 'deljunk', 'features',
+                        'listblocked', 'listignored', 'online', 'join', 'leave', 'setbio', 'backup', 'reqeust', 'block', 'gpass','toviewonce', 'setownername',   'unblock', 'unblockall', 'gcaddprivacy', 'ppprivancy', 'tostatus',
                           'vv', 'vv2', 'idch', 'getpp',
                     ],
                 },
@@ -1156,7 +1157,7 @@ const systemUsedMemory = totalMemory - freeMemory;
                 },
                 other: {
                     title: ' *TOOLS MENU*',
-                    commands: ['time', 'calculate',  'owner', 'dev', 'fliptext', 'translate', 'ss2', 'sswebpc', 'kevinfarm', 'say', 'getdevice', 'ss','userinfo', 'npm', 'checkapi', 'footballhelp', 'gsmarena', 'removebg', 'obfuscate', 'getabout', 'tinylink', 'vcc', 'getbussiness', 'listpc', 'sswebpc'],
+                    commands: ['time', 'calculate',  'owner', 'dev', 'fliptext', 'translate', 'ss2', 'sswebpc', 'kevinfarm', 'say', 'getdevice', 'ss','userinfo', 'npm', 'take', 'checkapi', 'footballhelp', 'qrcode', 'gsmarena', 'removebg', 'obfuscate', 'getabout', 'tinylink', 'vcc', 'getbussiness', 'listpc', 'sswebpc'],
                 },
                 helpers: {
                 title: ' *SUPPORT MENU*',
@@ -2550,6 +2551,106 @@ case "reboot": {
         console.error('Error during restart:', error);
         reply('❌ *Failed to restart bot.* Please restart manually.');
     }
+}
+break
+case "addignorelist": {
+if (!Access) return reply(mess.owner);
+
+    let mentionedUser = m.mentionedJid && m.mentionedJid[0];
+    let quotedUser = m.quoted && m.quoted.sender;
+    let userToAdd = mentionedUser || quotedUser || m.chat;
+
+    if (!userToAdd) return reply('Mention a user, reply to their message, or provide a phone number to ignore.');
+
+    let blacklist = loadBlacklist();
+    if (!blacklist.blacklisted_numbers.includes(userToAdd)) {
+        blacklist.blacklisted_numbers.push(userToAdd);
+        reply(`${userToAdd} added to the ignore list.`);
+    } else {
+        reply(`${userToAdd} is already ignored.`);
+    }
+}
+break
+case "delignorelist": {
+    if (!Access) return reply(mess.owner);
+
+    let mentionedUser = m.mentionedJid && m.mentionedJid[0];
+    let quotedUser = m.quoted && m.quoted.sender;
+    let userToRemove = mentionedUser || quotedUser || m.chat;
+
+    if (!userToRemove) return reply('Mention a user, reply to their message, or provide a phone number to remove from the ignore list.');
+
+    let blacklist = loadBlacklist();
+    let index = blacklist.blacklisted_numbers.indexOf(userToRemove);
+    if (index !== -1) {
+        blacklist.blacklisted_numbers.splice(index, 1);
+        reply(`${userToRemove} removed from the ignore list.`);
+    } else {
+        reply(`${userToRemove} is not in the ignore list.`);
+    }
+}
+break
+case "listignored": {
+let blacklist = loadBlacklist();
+    if (blacklist.blacklisted_numbers.length === 0) {
+        reply('The ignore list is empty.');
+    } else {
+        reply(`Ignored users/chats:\n${blacklist.blacklisted_numbers.join('\n')}`);
+    }
+}
+break
+case "deletejunk": 
+case "deljunk": {
+if (!Access) return reply(mess.owner);
+    fsp.readdir("./session", async function (err, files) {
+      if (err) {
+        console.log("Unable to scan directory: " + err);
+        return reply("Unable to scan directory: " + err);
+      }
+      let filteredArray = await files.filter(
+        (item) =>
+          item.startsWith("pre-key") ||
+          item.startsWith("sender-key") ||
+          item.startsWith("session-") ||
+          item.startsWith("app-state")
+      );
+      console.log(filteredArray.length);
+      await sleep(2000);
+      reply(`*Clearing ${filteredArray.length} junk files in the session folder...*`);
+      await filteredArray.forEach(function (file) {
+        fs.unlinkSync(`./session/${file}`);
+      });
+      await sleep(2000);
+      reply("*Successfully cleared all the junk files in the session's folder*");
+    });
+
+    const tmpDir = path.resolve("./tmp");
+    fsp.readdir(tmpDir, async function (err, files) {
+      if (err) {
+        console.log("Unable to scan directory: " + err);
+        return reply("Unable to scan directory: " + err);
+      }
+      let junkFiles = files.filter(
+        (item) =>
+          item.endsWith("gif") ||
+          item.endsWith("png") || 
+          item.endsWith("mp3") ||
+          item.endsWith("mp4") || 
+          item.endsWith("opus") || 
+          item.endsWith("jpg") ||
+          item.endsWith("webp") ||
+          item.endsWith("webm") ||
+          item.endsWith("zip")
+      );
+      console.log(junkFiles.length);
+      await sleep(2000);
+      reply(`*Clearing ${junkFiles.length} junk files in the tmp folder...*`);
+      await junkFiles.forEach(function (file) {
+        fs.unlinkSync(`${tmpDir}/${file}`);
+      });
+      await sleep(2000);
+      reply("*Successfully cleared all the junk files in the tmp folder*");
+    });
 }
 break
 case "antidelete": {
@@ -7367,6 +7468,56 @@ case "fliptext": {
     reply(`Normal:\n${quere}\nFlip:\n${flipe}`);
 }
 break
+case "take":
+case "wm":
+case "steal": {
+if (!m.quoted) return reply('*Please reply to a sticker to add watermark or metadata.*');
+
+    try {
+      let stick = args.join(" ").split("|");
+      let packName = stick[0] && stick[0].trim() !== "" ? stick[0] : pushname || global.packname;
+      let authorName = stick[1] ? stick[1].trim() : "";
+      let mime = m.quoted.mimetype || '';
+      if (!/webp/.test(mime)) return reply('Please reply to a sticker.');
+
+      let stickerBuffer = await m.quoted.download();
+      if (!stickerBuffer) return reply('Failed to download the sticker. Please try again.');
+
+      let stickerWithExif = await addExif(stickerBuffer, packName, authorName);
+
+      if (stickerWithExif) {
+        await conn.sendFile(
+          m.chat,
+          stickerWithExif,
+          'sticker.webp',
+          '',
+          m,
+          null,
+          { mentions: [m.sender] }
+        );
+      } else {
+        throw new Error('Failed to process the sticker with metadata.');
+      }
+    } catch (error) {
+      console.error('Error in watermark/sticker metadata plugin:', error);
+      reply('An error occurred while processing the sticker.');
+    }
+}
+break
+case "qrcode": {
+if (!text) return reply("Enter text or URL");
+
+    try {
+      let res = await fetch(`https://api.qrserver.com/v1/create-qr-code/?data=${text}&size=200x200`);
+      let qrCodeUrl = res.url;
+
+      await conn.sendMessage(m.chat, { image: { url: qrCodeUrl } }, { quoted: m });
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+      reply('An error occurred while generating the QR code.');
+    }
+}
+break
 case "getdevice": {
    if (!m.quoted) {
       return reply('*Please quote a message to use this command!*');
@@ -9132,9 +9283,9 @@ case "tagall": {
 }
 break
 case "close": {
-  if (!m.isGroup) return reply(mess.group);
-        if (!isAdmins && !Access) return reply(mess.notadmin);
-        if (!isBotAdmins) return reply(mess.admin);
+  if (!m.isGroup) return reply('❌ This command can only be used in groups.');
+    if (!isAdmins && !Access) return reply('❌ You need to be an admin to use this command.');
+    
 
         conn.groupSettingUpdate(m.chat, "announcement");
         reply("Group closed by admin. Only admins can send messages.");
@@ -9670,9 +9821,9 @@ try {
 }
 break
 case "closetime": {
-    if (!m.isGroup) return reply(mess.group);
-    if (!isAdmins && !Access) return reply(mess.notadmin);
-    if (!isBotAdmins) return reply(mess.admin);
+if (!m.isGroup) return reply('❌ This command can only be used in groups.');
+    if (!isAdmins && !Access) return reply('❌ You need to be an admin to use this command.');
+    
 
     // Check if both arguments are provided
     if (!args[0] || !args[1]) {
