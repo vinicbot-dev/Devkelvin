@@ -600,6 +600,8 @@ if(sampah) fs.unlinkSync(file)
   });
   
 
+// ... existing code ...
+
 conn.ev.on('group-participants.update', async (anu) => {
     try {
         const botNumber = await conn.decodeJid(conn.user.id);
@@ -667,24 +669,60 @@ conn.ev.on('group-participants.update', async (anu) => {
                 try {
                     let metadata = await conn.groupMetadata(anu.id);
                     let participants = anu.participants;
+                    
                     for (let num of participants) {
                         let check = anu.author !== num && anu.author && anu.author.length > 1;
                         let tag = check ? [anu.author, num] : [num];
                         let ppuser;
+                        
                         try {
                             ppuser = await conn.profilePictureUrl(num, 'image');
                         } catch {
                             ppuser = 'https://telegra.ph/file/de7c8230aff02d7bd1a93.jpg';
                         }
+                        
                         if (anu.action == "promote") {
-                            conn.sendMessage(anu.id, {
-                                text: `*@${anu.author.split("@")[0]} Has promoted  @${num.split("@")[0]} As admin*`,
+                            // Get usernames for promoted users
+                            let promotedUsernames = [];
+                            for (let participant of participants) {
+                                let name = await conn.getName(participant) || participant.split('@')[0];
+                                promotedUsernames.push(name);
+                            }
+                            
+                            // Get admin name who performed the action
+                            let adminName = await conn.getName(anu.author) || anu.author.split('@')[0];
+                            
+                            const promotionMessage = `*『 GROUP PROMOTION 』*\n\n` +
+                                `👤 *Promoted User${participants.length > 1 ? 's' : ''}:*\n` +
+                                `${promotedUsernames.map(name => `• ${name}`).join('\n')}\n\n` +
+                                `👑 *Promoted By:* ${adminName}\n\n` +
+                                `📅 *Date:* ${new Date().toLocaleString()}`;
+                            
+                            await conn.sendMessage(anu.id, {
+                                text: promotionMessage,
                                 mentions: tag
                             });
                         }
+                        
                         if (anu.action == "demote") {
-                            conn.sendMessage(anu.id, {
-                                text: `@${anu.author.split("@")[0]} *Has demoted @${num.split("@")[0]} *Has admin*`,
+                            // Get usernames for demoted users
+                            let demotedUsernames = [];
+                            for (let participant of participants) {
+                                let name = await conn.getName(participant) || participant.split('@')[0];
+                                demotedUsernames.push(name);
+                            }
+                            
+                            // Get admin name who performed the action
+                            let adminName = await conn.getName(anu.author) || anu.author.split('@')[0];
+                            
+                            const demotionMessage = `*『 GROUP DEMOTION 』*\n\n` +
+                                `👤 *Demoted User${participants.length > 1 ? 's' : ''}:*\n` +
+                                `${demotedUsernames.map(name => `• ${name}`).join('\n')}\n\n` +
+                                `👑 *Demoted By:* ${adminName}\n\n` +
+                                `📅 *Date:* ${new Date().toLocaleString()}`;
+                            
+                            await conn.sendMessage(anu.id, {
+                                text: demotionMessage,
                                 mentions: tag
                             });
                         }
@@ -692,12 +730,12 @@ conn.ev.on('group-participants.update', async (anu) => {
                 } catch (err) {
                     console.log('Error in admin event feature:', err);
                 }
-            }
-        }
-    } catch (err) {
-        console.error('Error in group-participants.update:', err);
+            } 
+        } 
+    } catch (error) {
+        console.error('Error in group-participants.update:', error);
     }
-});
+}); 
 // Initialize global variables for anticall feature
 if (!global.recentCallers) {
   global.recentCallers = new Map();
