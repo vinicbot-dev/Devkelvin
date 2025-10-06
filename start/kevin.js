@@ -1121,7 +1121,7 @@ const systemUsedMemory = totalMemory - freeMemory;
                 },
                 ai: {
                 title: ' *AI MENU*',
-                commands: ['generate', 'flux', 'gpt'],
+                commands: ['generate', 'deepseek', 'flux', 'gpt'],
                 },
                 audio: {
                 title: ' *AUDIO MENU*',
@@ -5215,122 +5215,158 @@ if (!text) return reply('*Please provide a song name!*');
 }
 break;
 case "play2": {
-try { 
-        if (!q) return await reply("Please provide a YouTube URL or song name.");
-        
-        const yt = await ytsearch(q);
-        if (yt.results.length < 1) return reply("No results found!");
-        
-        let yts = yt.results[0];  
-        let apiUrl = `https://apis.davidcyriltech.my.id/youtube/mp3?url=${encodeURIComponent(yts.url)}`;
-        
-        let response = await fetch(apiUrl);
-        let data = await response.json();
-        
-        if (data.status !== 200 || !data.success || !data.result.downloadUrl) {
-            return reply("Failed to fetch the audio. Please try again later.");
-        }
-        
-        let ytmsg = `🎵 *Song Details*
-🎶 *Title:* ${yts.title}
-⏳ *Duration:* ${yts.timestamp}
-👀 *Views:* ${yts.views}
-👤 *Author:* ${yts.author.name}
-🔗 *Link:* ${yts.url}
-
-*Choose download format:*
-1. 📄 MP3 as Document
-2. 🎧 MP3 as Audio (Play)
-3. 🎙️ MP3 as Voice Note (PTT)
-
-_Reply with 1, 2 or 3 to this message to download the format you prefer._`;
-        
-        let contextInfo = {
-            mentionedJid: [m.sender],
-            forwardingScore: 999,
-            isForwarded: true,
-            forwardedNewsletterMessageInfo: {
-                newsletterJid: '120363401548261516@newsletter',
-                newsletterName: 'Vinic-Xmd',
-                serverMessageId: 143
-            }
-        };
-        
-        // Send thumbnail with caption only
-  const songmsg = await conn.sendMessage(from, { image: { url: yts.thumbnail }, caption: ytmsg, contextInfo }, { quoted: mek });
-
-  
-     
-                     conn.ev.on("messages.upsert", async (msgUpdate) => {
-        
-
-                const mp3msg = msgUpdate.messages[0];
-                if (!mp3msg.message || !mp3msg.message.extendedTextMessage) return;
-
-                const selectedOption = mp3msg.message.extendedTextMessage.text.trim();
-
-                if (
-                    mp3msg.message.extendedTextMessage.contextInfo &&
-                    mp3msg.message.extendedTextMessage.contextInfo.stanzaId === songmsg.key.id
-                ) {
-                
-                            
-                   await conn.sendMessage(from, { react: { text: "⬇️", key: mp3msg.key } });
-
-                    switch (selectedOption) {
-case "1":   
-
-      
-      
-   await conn.sendMessage(from, { document: { url: data.result.downloadUrl }, mimetype: "audio/mpeg", fileName: `${yts.title}.mp3`, contextInfo }, { quoted: mp3msg });   
-      
-      
-break;
-case "2":   
-await conn.sendMessage(from, { audio: { url: data.result.downloadUrl }, mimetype: "audio/mpeg", contextInfo }, { quoted: mp3msg });
-break;
-case "3":   
-await conn.sendMessage(from, { audio: { url: data.result.downloadUrl }, mimetype: "audio/mpeg", ptt: true, contextInfo }, { quoted: mp3msg });
-break;
-
-
-default:
-                            await conn.sendMessage(
-                                from,
-                                {
-                                    text: "*invalid selection please select between ( 1 or 2 or 3) 🔴*",
-                                },
-                                { quoted: mp3msg }
-                            );
-             }}});
-           
-    } catch (e) {
-        console.log(e);
-        reply("An error occurred. Please try again later.");
-    }
-}
-
-break
-case "song2": {
-if (!text) return reply('*Please provide a song name!*');
+    if (!text) return reply("❌ *Please provide a song name!*\nExample: `.play2 despacito`");
 
     try {
-      const search = await yts(text);
-      if (!search || search.all.length === 0) return reply('*The song you are looking for was not found.*');
+        const searchQuery = text.trim();
+        
+        if (!searchQuery) {
+            return reply("❌ *Please provide a song name!*\nExample: `.play2 despacito`");
+        }
 
-      const video = search.all[0];
-      const downloadUrl = await fetchMp3DownloadUrl(video.url);
+        // Search YouTube
+        const { videos } = await yts(searchQuery);
+        if (!videos || videos.length === 0) {
+            return reply("⚠️ *No results found for your query!*");
+        }
 
-      await conn.sendMessage(m.chat, {
-        audio: { url: downloadUrl },
-        mimetype: 'audio/mpeg',
-        fileName: `${video.title}.mp3`
-      }, { quoted: m });
+        // Use first video
+        const video = videos[0];
+        const videoUrl = video.url;
+
+        // Send video info before download
+        await reply("⏳ *Searching and downloading audio... Please wait*");
+        
+        await conn.sendMessage(m.chat, {
+            image: { url: video.thumbnail },
+            caption: `🎵 *${video.title}*\n⏱ *Duration:* ${video.timestamp}\n👁 *Views:* ${video.views.toLocaleString()}\n\n⏳ *Downloading audio...*`
+        }, { quoted: m });
+
+        // Call the API with ?url= style
+        const apiUrl = `https://yt-dl.officialhectormanuel.workers.dev/?url=${encodeURIComponent(videoUrl)}`;
+        const response = await axios.get(apiUrl);
+        const data = response.data;
+
+        if (!data?.status) {
+            return reply("🚫 *Failed to fetch audio from API. Try again later.*");
+        }
+
+        // The API returns fields: title, thumbnail, audio, videos, etc.
+        const audioUrl = data.audio;
+        const title = data.title || video.title;
+
+        if (!audioUrl) {
+            return reply("🚫 *No audio URL found in the response.*");
+        }
+
+        // Send the audio file
+        await conn.sendMessage(m.chat, {
+            audio: { url: audioUrl },
+            mimetype: "audio/mpeg",
+            fileName: `${title.replace(/[^\w\s]/gi, '')}.mp3`,
+            ptt: false
+        }, { quoted: m });
 
     } catch (error) {
-      console.error('play command failed:', error);
-      reply(`Error: ${error.message}`);
+        console.error('Error in play2 command:', error);
+        reply("❌ *Download failed. Please try again later.*");
     }
+    
+}
+break
+case "song":
+case "song2": {
+    if (!text) return reply(global.mess.notext);
+
+    try {
+        const searchQuery = text.split(' ').slice(1).join(' ').trim();
+        
+        if (!searchQuery) {
+            await conn.sendMessage(m.chat, { 
+                text: "❌ Please provide a song name!\nExample: `.song Lilly Alan Walker`"
+            }, { quoted: m });
+
+            // React ❌ when no query
+            await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key }});
+            return;
+        }
+
+        // React 🔎 while searching
+        await conn.sendMessage(m.chat, { react: { text: "🔎", key: m.key }});
+
+        // Search YouTube
+        const { videos } = await yts(searchQuery);
+        if (!videos || videos.length === 0) {
+            await conn.sendMessage(m.chat, { 
+                text: "⚠️ No results found for your query!"
+            }, { quoted: m });
+
+            // React ⚠️ when no results
+            await conn.sendMessage(m.chat, { react: { text: "⚠️", key: m.key }});
+            return;
+        }
+
+        // Use first video
+        const video = videos[0];
+        const videoUrl = video.url;
+
+        // Send video info before download
+        await conn.sendMessage(m.chat, {
+            image: { url: video.thumbnail },
+            caption: `🎵 *${video.title}*\n\n𝘿𝙤𝙬𝙣𝙡𝙤𝙖𝙙𝙞𝙣𝙜... 🎶\n\n> KELVIN DEV`
+        }, { quoted: m });
+
+        // React ⏳ while downloading
+        await conn.sendMessage(m.chat, { react: { text: "⏳", key: m.key }});
+
+        // Call the new API with ?url= style
+        const apiUrl = `https://yt-dl.officialhectormanuel.workers.dev/?url=${encodeURIComponent(videoUrl)}`;
+        const response = await axios.get(apiUrl);
+        const data = response.data;
+
+        if (!data?.status) {
+            await conn.sendMessage(m.chat, {
+                text: "🚫 Failed to fetch from new endpoint. Try again later."
+            }, { quoted: m });
+
+            // React 🚫 if API fails
+            await conn.sendMessage(m.chat, { react: { text: "🚫", key: m.key }});
+            return;
+        }
+
+        const audioUrl = data.audio;
+        const title = data.title || video.title;
+
+        if (!audioUrl) {
+            await conn.sendMessage(m.chat, {
+                text: "🚫 No audio URL in the response. Can't send audio."
+            }, { quoted: m });
+
+            // React ❌ if audio not found
+            await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key }});
+            return;
+        }
+
+        // Send the audio file
+        await conn.sendMessage(m.chat, {
+            audio: { url: audioUrl },
+            mimetype: "audio/mpeg",
+            fileName: `${title}.mp3`
+        }, { quoted: m });
+
+        // React ✅ on success
+        await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key }});
+
+    } catch (error) {
+        console.error('Error in songCommand:', error);
+        await conn.sendMessage(m.chat, {
+            text: "❌ Download failed. Please try again later."
+        }, { quoted: m });
+
+        // React ❌ on error
+        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key }});
+    }
+    
 }
 break
 case "video": {
@@ -6718,6 +6754,31 @@ if (!text) return reply(global.mess.notext);
     } catch (error) {
       console.error('Error generating image:', error);
       reply(global.mess.error);
+    }
+}
+break
+case "deepseek": {
+if (!text) return reply(global.mess.notext);
+
+        try {
+        // React with 🤖 while processing
+        await conn.sendMessage(chatId, {
+            react: { text: "🤖", key: message.key }
+        });
+
+        const apiUrl = `https://all-in-1-ais.officialhectormanuel.workers.dev/?query=${encodeURIComponent(query)}&model=deepseek`;
+
+        const response = await axios.get(apiUrl);
+
+        if (response.data && response.data.success && response.data.message?.content) {
+            const answer = response.data.message.content;
+            await conn.sendMessage(chatId, { text: answer }, { quoted: message });
+        } else {
+            throw new Error("Invalid Deepseek response");
+        }
+    } catch (error) {
+        console.error("Deepseek API Error:", error.message);
+        await conn.sendMessage(chatId, { text: "❌ Deepseek failed. Try again later." }, { quoted: message });
     }
 }
 break
@@ -9433,135 +9494,259 @@ case "disappear": {
 }
 break
 case "promote":
-case "admin":
-case "makeadmin": {
-    if (!m.isGroup) return reply('❌ *This command only works in groups!*');
-    if (!isAdmins && !Access) return reply(mess.admin);
-    if (!isBotAdmins) return reply(mess.botAdmin);
-
-    let target = m.mentionedJid[0] 
-        ? m.mentionedJid[0] 
-        : m.quoted 
-        ? m.quoted.sender 
-        : text.replace(/\D/g, "") 
-        ? text.replace(/\D/g, "") + "@s.whatsapp.net" 
-        : null;
-
-    if (!target) return reply(`❌ *Please mention or reply to a user!*\n\n*Usage:* ${prefix}promote @user\n*Example:* ${prefix}promote @${m.sender.split('@')[0]}`);
-
+case "upgrade": {
     try {
-        // Send loading reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "⏳",
-                key: m.key
-            }
-        });
+        const quoted = m.quoted ? m.quoted : m;
+        const mentionedJids = m.mentionedJid || [];
+        
+        // Check if it's a group
+        if (!m.chat.endsWith('@g.us')) {
+            return reply('❌ *This command can only be used in groups!*');
+        }
 
-        // Check if target is already admin
+        let usersToPromote = [];
+
+        // Check for mentioned users
+        if (mentionedJids.length > 0) {
+            usersToPromote = mentionedJids;
+        }
+        // Check for replied message
+        else if (quoted.sender && quoted.sender !== m.sender) {
+            usersToPromote = [quoted.sender];
+        }
+        // Check if user provided phone number in command
+        else if (args[0] && args[0].match(/\d+/g)) {
+            let number = args[0].replace(/[^0-9]/g, '');
+            if (number.startsWith('0')) number = '256' + number.substring(1);
+            usersToPromote = [number + '@s.whatsapp.net'];
+        }
+        
+        // If no user specified
+        if (usersToPromote.length === 0) {
+            return reply(`❌ *Please specify user(s) to promote!*\n\n` +
+                        `*Usage:*\n` +
+                        `• ${prefix}promote @user\n` +
+                        `• ${prefix}promote 256xxxxxxxxx\n` +
+                        `• Reply to user's message with ${prefix}promote`);
+        }
+
+        // Check if trying to promote self
+        if (usersToPromote.includes(m.sender)) {
+            return reply('❌ *You cannot promote yourself!*');
+        }
+
+        // Check admin status
         const groupMetadata = await conn.groupMetadata(m.chat);
-        const participants = groupMetadata.participants;
-        const targetParticipant = participants.find(p => p.id === target);
+        const botJid = conn.decodeJid(conn.user.id);
         
-        if (!targetParticipant) {
-            await conn.sendMessage(m.chat, {
-                react: {
-                    text: "❌",
-                    key: m.key
-                }
-            });
-            return reply('❌ *User not found in this group!*');
+        // Verify sender is admin
+        const senderIsAdmin = groupMetadata.participants.find(p => p.id === m.sender)?.admin === 'admin' || 
+                             groupMetadata.participants.find(p => p.id === m.sender)?.admin === 'superadmin';
+
+        if (!senderIsAdmin) {
+            return reply('❌ *Only group admins can use this command!*');
         }
 
-        if (targetParticipant.admin) {
-            await conn.sendMessage(m.chat, {
-                react: {
-                    text: "ℹ️",
-                    key: m.key
-                }
-            });
-            return reply(`ℹ️ *@${target.split('@')[0]} is already an admin!*`, {
-                mentions: [target]
-            });
+        // Verify bot is admin
+        const botIsAdmin = groupMetadata.participants.find(p => p.id === botJid)?.admin === 'admin' || 
+                          groupMetadata.participants.find(p => p.id === botJid)?.admin === 'superadmin';
+
+        if (!botIsAdmin) {
+            return reply('❌ *Please make me an admin first to use this command!*');
         }
 
-        // Promote the user
-        await conn.groupParticipantsUpdate(m.chat, [target], "promote");
-
-        // Success reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "✅",
-                key: m.key
+        // Filter out users who are already admins
+        const validUsersToPromote = [];
+        const alreadyAdmins = [];
+        
+        for (const userJid of usersToPromote) {
+            const user = groupMetadata.participants.find(p => p.id === userJid);
+            if (user) {
+                if (user.admin === 'admin' || user.admin === 'superadmin') {
+                    alreadyAdmins.push(userJid);
+                } else {
+                    validUsersToPromote.push(userJid);
+                }
             }
-        });
+        }
 
-        // Get user info for the message
-        const userPushName = await conn.getName(target).catch(() => target.split('@')[0]);
-        
-        reply(`🎉 *ADMIN PROMOTION*\n\n✅ *@${target.split('@')[0]} has been promoted to admin!*\n\n*User:* ${userPushName}\n*Promoted by:* @${m.sender.split('@')[0]}\n*Group:* ${groupMetadata.subject}`, {
-            mentions: [target, m.sender]
-        });
+        if (validUsersToPromote.length === 0) {
+            if (alreadyAdmins.length > 0) {
+                return reply('❌ *The specified user(s) are already admins!*');
+            }
+            return reply('❌ *No valid users found to promote!*');
+        }
 
-        // Optional: Send notification to the promoted user
-        try {
-            await conn.sendMessage(target, {
-                text: `🎉 *You've been promoted to admin!*\n\n*Group:* ${groupMetadata.subject}\n*Promoted by:* @${m.sender.split('@')[0]}\n\nCongratulations! 🎊`,
-                mentions: [m.sender]
+        // Send processing message
+        await reply('🔄 *Processing promotion...*');
+
+        // Promote users - the admin event in index.js will handle the message
+        const promoteResult = await conn.groupParticipantsUpdate(m.chat, validUsersToPromote, "promote")
+            .catch(error => {
+                console.error('Promote error:', error);
+                return null;
             });
-        } catch (notifyError) {
-            console.log('Could not send promotion notification to user');
+
+        if (!promoteResult) {
+            return reply('❌ *Failed to promote user(s). Please check my admin permissions.*');
+        }
+
+        // Success message without the promotion format (since index.js handles it)
+        await reply('✅ *Promotion successful!*');
+
+        // Notify about users who were already admins
+        if (alreadyAdmins.length > 0) {
+            const alreadyAdminNames = await Promise.all(alreadyAdmins.map(async jid => {
+                try {
+                    const name = await conn.getName(jid);
+                    return `@${jid.split('@')[0]} (${name})`;
+                } catch {
+                    return `@${jid.split('@')[0]}`;
+                }
+            }));
+
+            await conn.sendMessage(m.chat, {
+                text: `ℹ️ *Note:* The following users were already admins:\n${alreadyAdminNames.join(', ')}`,
+                mentions: alreadyAdmins
+            }, { quoted: m });
         }
 
     } catch (error) {
-        console.error('Error promoting user:', error);
-        
-        // Error reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "❌",
-                key: m.key
-            }
-        });
-
-        if (error.message.includes('not authorized')) {
-            reply('❌ *I need to be admin to promote users!*');
-        } else if (error.message.includes('401')) {
-            reply('❌ *I need to be admin to promote users!*');
-        } else if (error.message.includes('404')) {
-            reply('❌ *User not found in this group!*');
-        } else if (error.message.includes('500')) {
-            reply('❌ *Cannot promote the group owner!*');
-        } else {
-            reply('❌ *Failed to promote user.* Please try again.');
-        }
+        console.error('Promote command error:', error);
+        reply('❌ *An error occurred while trying to promote. Please try again.*');
     }
     
 }
 break
 case "demote":
-case "removeadmin":
-case "revokeadmin": {
-if (!m.isGroup) return reply(mess.group);
-    if (!isAdmins && !isGroupOwner && !Access) return reply(mess.admin);
-    if (!isBotAdmins) return reply(mess.admin);
-
-    let target = m.mentionedJid[0] 
-      ? m.mentionedJid[0] 
-      : m.quoted 
-      ? m.quoted.sender 
-      : text.replace(/\D/g, "") 
-      ? text.replace(/\D/g, "") + "@s.whatsapp.net" 
-      : null;
-
-    if (!target) return reply("⚠ *Mention or reply to a user to demote!*");
-
+case "downgrade": {
     try {
-      await conn.groupParticipantsUpdate(m.chat, [target], "demote");
-      reply(`✅ *User demoted successfully!*`);
+        const quoted = m.quoted ? m.quoted : m;
+        const mentionedJids = m.mentionedJid || [];
+        
+        // Check if it's a group
+        if (!m.chat.endsWith('@g.us')) {
+            return reply('❌ *This command can only be used in groups!*');
+        }
+
+        let usersToDemote = [];
+
+        // Check for mentioned users
+        if (mentionedJids.length > 0) {
+            usersToDemote = mentionedJids;
+        }
+        // Check for replied message
+        else if (quoted.sender && quoted.sender !== m.sender) {
+            usersToDemote = [quoted.sender];
+        }
+        // Check if user provided phone number in command
+        else if (args[0] && args[0].match(/\d+/g)) {
+            let number = args[0].replace(/[^0-9]/g, '');
+            if (number.startsWith('0')) number = '256' + number.substring(1);
+            usersToDemote = [number + '@s.whatsapp.net'];
+        }
+        
+        // If no user specified
+        if (usersToDemote.length === 0) {
+            return reply(`❌ *Please specify user(s) to demote!*\n\n` +
+                        `*Usage:*\n` +
+                        `• ${prefix}demote @user\n` +
+                        `• ${prefix}demote 256xxxxxxxxx\n` +
+                        `• Reply to user's message with ${prefix}demote`);
+        }
+
+        // Check if trying to demote self
+        if (usersToDemote.includes(m.sender)) {
+            return reply('❌ *You cannot demote yourself!*');
+        }
+
+        // Check if trying to demote bot
+        const botJid = conn.decodeJid(conn.user.id);
+        if (usersToDemote.includes(botJid)) {
+            return reply('❌ *I cannot demote myself!*');
+        }
+
+        // Check admin status
+        const groupMetadata = await conn.groupMetadata(m.chat);
+        const participant = await conn.groupParticipantsUpdate(m.chat, [m.sender], "demote").catch(() => null);
+        
+        // Verify sender is admin
+        const senderIsAdmin = groupMetadata.participants.find(p => p.id === m.sender)?.admin === 'admin' || 
+                             groupMetadata.participants.find(p => p.id === m.sender)?.admin === 'superadmin';
+
+        if (!senderIsAdmin) {
+            return reply('❌ *Only group admins can use this command!*');
+        }
+
+        // Verify bot is admin
+        const botIsAdmin = groupMetadata.participants.find(p => p.id === botJid)?.admin === 'admin' || 
+                          groupMetadata.participants.find(p => p.id === botJid)?.admin === 'superadmin';
+
+        if (!botIsAdmin) {
+            return reply('❌ *Please make me an admin first to use this command!*');
+        }
+
+        // Filter out users who are not admins
+        const validUsersToDemote = [];
+        const alreadyRegularUsers = [];
+        
+        for (const userJid of usersToDemote) {
+            const user = groupMetadata.participants.find(p => p.id === userJid);
+            if (user) {
+                if (user.admin === 'admin' || user.admin === 'superadmin') {
+                    validUsersToDemote.push(userJid);
+                } else {
+                    alreadyRegularUsers.push(userJid);
+                }
+            }
+        }
+
+        if (validUsersToDemote.length === 0) {
+            if (alreadyRegularUsers.length > 0) {
+                return reply('❌ *The specified user(s) are not admins!*');
+            }
+            return reply('❌ *No valid users found to demote!*');
+        }
+
+        // Send processing message
+        await reply('🔄 *Processing demotion...*');
+
+        // Demote users - the admin event in index.js will handle the message
+        const demoteResult = await conn.groupParticipantsUpdate(m.chat, validUsersToDemote, "demote")
+            .catch(error => {
+                console.error('Demote error:', error);
+                return null;
+            });
+
+        if (!demoteResult) {
+            return reply('❌ *Failed to demote user(s). Please check my admin permissions.*');
+        }
+
+        // Success message without the demotion format (since index.js handles it)
+        await reply('✅ *Demotion successful!*');
+
+        // Notify about users who were already regular members
+        if (alreadyRegularUsers.length > 0) {
+            const alreadyRegularNames = await Promise.all(alreadyRegularUsers.map(async jid => {
+                try {
+                    const name = await conn.getName(jid);
+                    return `@${jid.split('@')[0]} (${name})`;
+                } catch {
+                    return `@${jid.split('@')[0]}`;
+                }
+            }));
+
+            await conn.sendMessage(m.chat, {
+                text: `ℹ️ *Note:* The following users were already regular members:\n${alreadyRegularNames.join(', ')}`,
+                mentions: alreadyRegularUsers
+            }, { quoted: m });
+        }
+
     } catch (error) {
-      reply("❌ *Failed to demote user. They might already be a member or the bot lacks permissions.*");
+        console.error('Demote command error:', error);
+        reply('❌ *An error occurred while trying to demote. Please try again.*');
     }
+    
 }
 break
 // Add admin list command
