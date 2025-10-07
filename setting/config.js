@@ -14,7 +14,7 @@ global.owner = ["256742932677"];
 global.sudo = ["256742932677", "256755585369"];// Type additional allowed users here
 //NB: They'll be able to use every functions of the bot without restrictions.
 global.ownername = "KELVIN TECH";  
-global.botname = "VINIC XMD";  
+global.botname = "ᴠɪɴɪᴄ-xᴍᴅ";  
 
 // ========= Setting Channel ========= //
 global.namachannel = "KEVIN";
