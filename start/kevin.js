@@ -116,7 +116,6 @@ const {
   getActiveUsers,
   ephoto,
   loadBlacklist,
-  handleChatbot,
   initializeDatabase,
   delay,
   recordError,
@@ -629,84 +628,285 @@ function clearChatbotMemory(chatId = null) {
     }
     return true;
 }
-// ========== ANTI-LINK HELPER FUNCTIONS ==========
-// Anti-link helper functions
-function detectUrls(messageContent) {
-    if (!messageContent) return [];
-    
-    const text = messageContent.conversation || 
-                (messageContent.extendedTextMessage && messageContent.extendedTextMessage.text) || 
-                (messageContent.imageMessage && messageContent.imageMessage.caption) || 
-                (messageContent.videoMessage && messageContent.videoMessage.caption) || '';
-    
-    // Detect URLs with common domains
-    const urlRegex = /(https?:\/\/)?(www\.)?([a-zA-Z0-9-]+\.)?(whatsapp\.com|chat\.whatsapp\.com|facebook\.com|fb\.com|instagram\.com|twitter\.com|x\.com|t\.me|telegram\.me|telegram\.org|youtube\.com|youtu\.be|tiktok\.com|discord\.gg|discord\.com|snapchat\.com|reddit\.com|linkedin\.com)/gi;
-    const matches = text.match(urlRegex);
-    return matches ? matches : [];
-}
+// ========== ANTI-BUG DETECTION SYSTEM ==========
+const bugAttempts = new Map();
+const BUG_ATTEMPT_LIMIT = 2;
+const BUG_RESET_TIME = 10 * 60 * 1000;
 
-async function handleLinkViolation(message, urls) {
+// Check if anti-bug is enabled
+function isAntiBugEnabled() {
     try {
-        const sender = message.key.participant || message.key.remoteJid;
-        const groupMetadata = await conn.groupMetadata(message.key.remoteJid).catch(() => null);
+        if (!global.db.data.settings) return false;
         
-        if (!groupMetadata) return;
+        // Get all bot numbers from settings
+        const botNumbers = Object.keys(global.db.data.settings);
+        if (botNumbers.length === 0) return false;
         
-        const isAdmin = groupMetadata.participants.find(p => p.id === sender)?.admin;
-
-        // Allow admins to post links
-        if (isAdmin) return;
-
-        // Delete the message for everyone
-        await conn.sendMessage(message.key.remoteJid, {
-            delete: {
-                remoteJid: message.key.remoteJid,
-                fromMe: false,
-                id: message.key.id,
-                participant: sender
+        // Check if any bot has antibug enabled
+        for (const botNumber of botNumbers) {
+            const setting = global.db.data.settings[botNumber];
+            if (setting && setting.config && setting.config.antibug === true) {
+                return true;
             }
-        }).catch(() => {});
-
-        // Warn the user and notify group
-        await conn.sendMessage(message.key.remoteJid, {
-            text: `⚠️ @${sender.split('@')[0]}, links are not allowed in this group!\nYour message containing a link has been deleted.`,
-            mentions: [sender]
-        }, { quoted: null });
-
-        // Log the violation
-        console.log(`Deleted link from ${sender} in ${message.key.remoteJid}`);
+        }
         
+        return false;
     } catch (error) {
-        console.error('Error handling link violation:', error);
+        console.error('Error checking anti-bug status:', error);
+        return false;
     }
 }
-// ========== END ANTI-LINK HELPER FUNCTIONS ==========
+
+// Validate connection object
+function isValidConn(conn) {
+    return conn && 
+           typeof conn === 'object' && 
+           typeof conn.sendMessage === 'function' &&
+           typeof conn.decodeJid === 'function' &&
+           conn.user && 
+           conn.user.id;
+}
+
+// Detect bug attempts in messages
+function detectBugAttempt(m) {
+    // Check if anti-bug is enabled globally first
+    if (!isAntiBugEnabled()) {
+        return { isBug: false, attempts: 0 };
+    }
+    
+    const sender = m.sender || (m.key && m.key.participant) || (m.key && m.key.remoteJid);
+    if (!sender) {
+        return { isBug: false, attempts: 0 };
+    }
+    
+    const currentTime = Date.now();
+    
+    // Reset attempts after timeout
+    if (bugAttempts.has(sender)) {
+        const userData = bugAttempts.get(sender);
+        if (currentTime - userData.lastAttempt > BUG_RESET_TIME) {
+            bugAttempts.delete(sender);
+            console.log(`🔄 Reset bug attempts for ${sender}`);
+        }
+    }
+
+    // Bug patterns that can crash WhatsApp
+    const bugPatterns = [
+        /(.{100,})\1{10,}/, // Long repeated strings
+        /@\d{10,}/, // Excessive mentions
+        /data:[^;]{1000,}/, // Large data URIs
+        /\{.*\{.*\{.*\{.*\{/s, // JSON bombs
+        /\[.*\[.*\[.*\[.*\[/s, // Array bombs
+        /[\u0000-\u0008\u000B-\u001F\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2060-\u206F]/, // Crash chars
+        /\b\w{100,}\b/, // Very long words
+        /(.)\1{50,}/ // Excessive repeats
+    ];
+
+    // Extract message content safely
+    let messageContent = '';
+    if (m.text) {
+        messageContent = m.text;
+    } else if (m.message) {
+        if (m.message.conversation) {
+            messageContent = m.message.conversation;
+        } else if (m.message.extendedTextMessage && m.message.extendedTextMessage.text) {
+            messageContent = m.message.extendedTextMessage.text;
+        } else if (m.message.imageMessage && m.message.imageMessage.caption) {
+            messageContent = m.message.imageMessage.caption;
+        } else if (m.message.videoMessage && m.message.videoMessage.caption) {
+            messageContent = m.message.videoMessage.caption;
+        } else if (m.message.documentMessage && m.message.documentMessage.caption) {
+            messageContent = m.message.documentMessage.caption;
+        }
+    }
+    
+    if (!messageContent || typeof messageContent !== 'string') {
+        return { isBug: false, attempts: 0 };
+    }
+
+    // Check each pattern
+    for (const pattern of bugPatterns) {
+        if (pattern.test(messageContent)) {
+            const userData = bugAttempts.get(sender) || { count: 0, lastAttempt: currentTime };
+            userData.count++;
+            userData.lastAttempt = currentTime;
+            bugAttempts.set(sender, userData);
+            
+            console.log(`🚨 Bug detected from ${sender}: ${pattern.toString().slice(0, 50)}...`);
+            
+            return {
+                isBug: true,
+                pattern: pattern.toString(),
+                attempts: userData.count
+            };
+        }
+    }
+
+    return { isBug: false, attempts: 0 };
+}
+
+// Handle bug violators
+async function handleBugViolation(m, conn, detection) {
+    try {
+        // Check if anti-bug is enabled globally
+        if (!isAntiBugEnabled()) {
+            console.log('Anti-bug not enabled, skipping');
+            return false;
+        }
+        
+        // Validate connection object
+        if (!isValidConn(conn)) {
+            console.error('❌ Invalid connection object in handleBugViolation');
+            return false;
+        }
+        
+        const sender = m.sender || (m.key && m.key.participant) || (m.key && m.key.remoteJid);
+        if (!sender) {
+            console.error('❌ No sender found in message');
+            return false;
+        }
+        
+        // Check if detection object is valid
+        if (!detection || typeof detection !== 'object') {
+            console.error('❌ Invalid detection object');
+            return false;
+        }
+        
+        const attempts = detection.attempts || 0;
+        const chatId = m.chat || (m.key && m.key.remoteJid);
+        const isGroup = chatId && chatId.endsWith('@g.us');
+
+        console.log(`🐛 Bug violation detected from ${sender}, attempts: ${attempts}`);
+
+        // Delete malicious message if possible
+        if (m.key && m.key.id && chatId) {
+            try {
+                await conn.sendMessage(chatId, {
+                    delete: {
+                        remoteJid: chatId,
+                        fromMe: false,
+                        id: m.key.id,
+                        participant: sender
+                    }
+                });
+                console.log('✅ Malicious message deleted');
+            } catch (deleteError) {
+                console.log('⚠️ Could not delete message (may not have permission)');
+            }
+        }
+
+        // Warn on first attempt
+        if (attempts === 1) {
+            try {
+                await conn.sendMessage(chatId, {
+                    text: `⚠️ *CRASH ATTEMPT DETECTED!*\n\n@${sender.split('@')[0]}, crash attempt detected. First warning!\nNext attempt = BLOCK.`,
+                    mentions: [sender]
+                });
+                console.log('✅ First warning sent');
+            } catch (sendError) {
+                console.error('❌ Failed to send warning:', sendError.message);
+            }
+        }
+        
+        // Block on second attempt
+        else if (attempts >= BUG_ATTEMPT_LIMIT) {
+            console.log(`🚫 Blocking user ${sender} for crash attempts`);
+            
+            // Block user if function exists
+            if (typeof conn.updateBlockStatus === 'function') {
+                try {
+                    await conn.updateBlockStatus(sender, "block");
+                    console.log('✅ User blocked successfully');
+                } catch (blockError) {
+                    console.error('❌ Failed to block user:', blockError.message);
+                }
+            } else {
+                console.log('⚠️ updateBlockStatus not available, skipping block');
+            }
+            
+            // Send block notification
+            try {
+                const blockMessage = `🚫 *USER BLOCKED*\n\n@${sender.split('@')[0]} has been blocked for repeated crash attempts.`;
+                
+                if (isGroup) {
+                    await conn.sendMessage(chatId, {
+                        text: blockMessage,
+                        mentions: [sender]
+                    });
+                }
+                
+                console.log('✅ Block notification sent');
+            } catch (notifyError) {
+                console.error('❌ Failed to send block notification:', notifyError.message);
+            }
+            
+            // Notify owner
+            try {
+                if (global.owner && global.owner[0]) {
+                    await conn.sendMessage(global.owner[0] + '@s.whatsapp.net', {
+                        text: `🔒 AUTO-BLOCK\nUser: ${sender}\nReason: Crash attempts (${attempts})\nTime: ${new Date().toLocaleString()}\nPattern: ${detection.pattern || 'Unknown'}`
+                    });
+                    console.log('✅ Owner notified');
+                }
+            } catch (ownerError) {
+                console.error('❌ Failed to notify owner:', ownerError.message);
+            }
+            
+            // Clear from attempts tracking
+            bugAttempts.delete(sender);
+        }
+
+        return true;
+        
+    } catch (error) {
+        console.error('❌ Critical error in handleBugViolation:', error);
+        return false;
+    }
+}
+
+// ========== ANTI-BUG SECURITY CHECK ==========
+const bugDetection = detectBugAttempt(m);
+if (bugDetection.isBug) {
+    await handleBugViolation(m, conn, bugDetection);
+    return; // CRITICAL: Stop further execution if bug is detected
+}
 //================== [ CONSOLE LOG] ==================//
 const dayz = moment(Date.now()).tz(`${timezones}`).locale('en').format('dddd');
 const timez = moment(Date.now()).tz(`${timezones}`).locale('en').format('HH:mm:ss z');
 const datez = moment(Date.now()).tz(`${timezones}`).format("DD/MM/YYYY");
 
 if (m.message) {
-  lolcatjs.fromString(chalk.hex('#FF6B9D').bold(`┏━━━━━━━━━━━━━『 🌟 VINIC-XMD 🌟 』━━━━━━━━━━━━━─`));
-  lolcatjs.fromString(chalk.hex('#A78BFA')(`» 📅 Sent Time: ${dayz}, ${timez}`));
-  lolcatjs.fromString(chalk.hex('#4ADE80')(`» 📩 Message Type: ${m.mtype}`));
-  lolcatjs.fromString(chalk.hex('#F59E0B')(`» 👤 Sender Name: ${pushname || 'N/A'}`));
-  lolcatjs.fromString(chalk.hex('#38BDF8')(`» 💬 Chat ID: ${m.chat.split('@')[0]}`));
-  lolcatjs.fromString(chalk.hex('#E5E7EB')(`» ✉️ Message: ${budy || 'N/A'}`));
-  lolcatjs.fromString(chalk.hex('#FF6B9D').bold('┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━─ ⳹\n\n'));
+  console.log(chalk.red.bold(`┏━━━━━━━━━━━━━『 🌟 VINIC-XMD 🌟 』━━━━━━━━━━━━━─`));
+  console.log(chalk.yellow.bold(`» 📅 Sent Time: ${dayz}, ${timez}`));
+  console.log(chalk.green.bold(`» 📩 Message Type: ${m.mtype}`));
+  console.log(chalk.blue.bold(`» 👤 Sender Name: ${pushname || 'N/A'}`));
+  console.log(chalk.magenta.bold(`» 💬 Chat ID: ${m.chat.split('@')[0]}`));
+  console.log(chalk.cyan.bold(`» ✉️ Message: ${budy || 'N/A'}`));
+  console.log(chalk.white.bold('┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━─ ⳹\n\n'));
 }
 //<================================================>//
-if (autoread) {
-            conn.readMessages([m.key])
-        }
-        
-        if (global.autoTyping) {
-        conn.sendPresenceUpdate('composing', from)
-        }
+//====[ AUTO-READ MESSAGE HANDLER ]====//
+if (global.autoread) {
+    try {
+        await conn.readMessages([m.key]);
+        await sleep(100);
+    } catch (error) {
+        console.error('Auto-read error:', error);
+    }
+}
 
-        if (global.autoRecording) {
-        conn.sendPresenceUpdate('recording', from)
-        }
+if (autoread) {
+    conn.readMessages([m.key])
+}
+
+if (global.autoTyping) {
+    conn.sendPresenceUpdate('composing', from)
+}
+
+if (global.autoRecording) {
+    conn.sendPresenceUpdate('recording', from)
+}
+//<================================================>//
         conn.sendPresenceUpdate('uavailable', from)
                 if (autobio) {
             conn.updateProfileStatus(`24/7 𝗩𝗶𝗻𝗶𝗰-𝗫𝗺𝗱 𝗼𝗻𝗹𝗶𝗻𝗲 𝗽𝗼𝘄𝗲𝗿𝗲𝗱 𝗯𝘆 ༒𝗞𝗲𝘃𝗶𝗻 𝘁𝗲𝗰𝗵༒`).catch(_ => _)
@@ -1060,6 +1260,7 @@ async function IosCrashX(target) {
   });
   console.log(chalk.blue.bold("Sending vampire Brutality bug"))
 }
+
 // ========== AI CHATBOT EXECUTION ==========
 if (getAIChatbotState() === "true" && body && !m.key.fromMe && !isCmd) {
     await handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, prefix);
@@ -1084,8 +1285,8 @@ const systemUsedMemory = totalMemory - freeMemory;
             header: {
                 title: '🔥ᴠɪɴɪᴄ xᴍᴅ🔮',
                 content: [
-                    `👤 ᴜsᴇʀ: ${pushname || 'Unknown'}`,
-                        `🤖 ʙᴏᴛɴᴀᴍᴇ: ᴠɪɴɪᴄ xᴍᴅ`,
+                    `👤 ᴜsᴇʀ: ${global.ownername}`,
+                        `🤖 ʙᴏᴛɴᴀᴍᴇ: ${global.botname}`,
                         `🌍 ᴍᴏᴅᴇ: ${conn.public ? 'ᴘᴜʙʟɪᴄ' : 'ᴘʀɪᴠᴀᴛᴇ'}`,
                         `🛠️ ᴘʀᴇғɪx: [ ${prefix} ]`,
                         `📈 ᴄᴍᴅs: 100+`, // Replace with actual command count if available
@@ -1107,7 +1308,7 @@ const systemUsedMemory = totalMemory - freeMemory;
                         'addowner',
                         '𝙸𝚍𝚌𝚑', '𝙲𝚛𝚎𝚊𝚝𝚎𝚌𝚑', 'creategroup',
                          'del', 'setpp', 'delpp', 'lastseen', 'setprefix', 'groupid', 'readreceipts', 'reportbug', 'clearchat', 'hack', 'groupjids', 'broadcast', 'disappear', 'disappearstatus','clearchat', 'react', 'restart', 'addignorelist', 'delignorelist', 'deljunk', 'features',
-                        'listblocked', 'listignored', 'online', 'join', 'leave', 'setbio', 'backup', 'reqeust', 'block', 'gpass','toviewonce', 'setownername',   'unblock', 'unblockall', 'gcaddprivacy', 'ppprivancy', 'tostatus',
+                        'listblocked', 'listignored', 'online', 'join', 'leave', 'setbio', 'backup', 'reqeust', 'block', 'gpass','toviewonce', 'setownername', 'setownername', 'setbotname', 'unblock', 'unblockall', 'gcaddprivacy', 'ppprivancy', 'tostatus',
                           'vv', 'vv2', 'idch', 'getpp',
                     ],
                 },
@@ -1635,6 +1836,180 @@ if (global.ownernumber) {
 await saveDatabase();
 
 reply(`✅ Owner number changed to *${newNumber}* successfully.`);
+}
+break
+case "setownername": {
+    if (!Access) return reply(mess.owner);
+    
+    if (!text) {
+        return reply(`👑 *SET OWNER NAME*\n\n*Usage:* ${prefix}setownername [new owner name]\n*Example:* ${prefix}setownername Kelvin Tech\n\n*Current owner name:* ${global.ownername || 'Not set'}`);
+    }
+
+    try {
+        // Validate name length
+        if (text.length > 30) {
+            return reply('❌ *Owner name too long!* Maximum 30 characters allowed.');
+        }
+        
+        if (text.length < 2) {
+            return reply('❌ *Owner name too short!* Minimum 2 characters required.');
+        }
+
+        // Send loading reaction
+        await conn.sendMessage(m.chat, {
+            react: {
+                text: "⏳",
+                key: m.key
+            }
+        });
+
+        // Fix: Use setting.config structure
+        if (!global.db.data.settings) global.db.data.settings = {};
+        if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+        let setting = global.db.data.settings[botNumber];
+
+        // Initialize config if it doesn't exist
+        if (!setting.config) setting.config = {};
+
+        // Store the old name for comparison
+        const oldName = setting.config.ownername || global.ownername || 'Kelvin Tech';
+
+        // Set the new owner name in config
+        setting.config.ownername = text.trim();
+
+        // Also update the global variable
+        global.ownername = text.trim();
+
+        // Save to database
+        await saveDatabase();
+
+        // Success reaction
+        await conn.sendMessage(m.chat, {
+            react: {
+                text: "✅",
+                key: m.key
+            }
+        });
+
+        // Success message
+        const successMessage = `✅ *OWNER NAME UPDATED SUCCESSFULLY!*\n\n` +
+            `*Old Name:* ${oldName}\n` +
+            `*New Name:* ${text.trim()}\n\n` +
+            `The owner name has been updated across all systems and will be displayed in bot information.`;
+
+        await reply(successMessage);
+
+        // Optional: Update bot's "about" info with new owner name
+        try {
+            const aboutText = `🤖 ${global.botname || 'Vinic-Xmd'} | 👑 ${text.trim()}`;
+            await conn.updateProfileStatus(aboutText);
+            await reply('📝 *Bot about info also updated!*');
+        } catch (aboutError) {
+            console.log('Note: Could not update bot about info:', aboutError.message);
+            // This is not critical, so we don't show error to user
+        }
+
+    } catch (error) {
+        console.error('Error in setownername command:', error);
+        
+        // Error reaction
+        await conn.sendMessage(m.chat, {
+            react: {
+                text: "❌",
+                key: m.key
+            }
+        });
+        
+        reply('❌ *Failed to update owner name.* Please try again.');
+    }
+    
+}
+break
+case "setbotname":
+case "setbotname": {
+    if (!Access) return reply(mess.owner);
+    
+    if (!text) {
+        return reply(`🤖 *SET BOT NAME*\n\n*Usage:* ${prefix}setbotname [new name]\n*Example:* ${prefix}setbotname Vinic-Xmd Pro\n\n*Current bot name:* ${global.botname || 'Not set'}`);
+    }
+
+    try {
+        // Validate name length
+        if (text.length > 25) {
+            return reply('❌ *Bot name too long!* Maximum 25 characters allowed.');
+        }
+        
+        if (text.length < 2) {
+            return reply('❌ *Bot name too short!* Minimum 2 characters required.');
+        }
+
+        // Send loading reaction
+        await conn.sendMessage(m.chat, {
+            react: {
+                text: "⏳",
+                key: m.key
+            }
+        });
+
+        // Fix: Use setting.config structure
+        if (!global.db.data.settings) global.db.data.settings = {};
+        if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+        let setting = global.db.data.settings[botNumber];
+
+        // Initialize config if it doesn't exist
+        if (!setting.config) setting.config = {};
+
+        // Store the old name for comparison
+        const oldName = setting.config.botname || global.botname || 'Vinic-Xmd';
+
+        // Set the new bot name in config
+        setting.config.botname = text.trim();
+
+        // Also update the global variable
+        global.botname = text.trim();
+
+        // Save to database
+        await saveDatabase();
+
+        // Success reaction
+        await conn.sendMessage(m.chat, {
+            react: {
+                text: "✅",
+                key: m.key
+            }
+        });
+
+        // Success message
+        const successMessage = `✅ *BOT NAME UPDATED SUCCESSFULLY!*\n\n` +
+            `*Old Name:* ${oldName}\n` +
+            `*New Name:* ${text.trim()}\n\n` +
+            `The bot name has been updated across all systems.`;
+
+        await reply(successMessage);
+
+        // Optional: Update bot's profile name on WhatsApp
+        try {
+            await conn.updateProfileName(text.trim());
+            await reply('📝 *WhatsApp profile name also updated!*');
+        } catch (profileError) {
+            console.log('Note: Could not update WhatsApp profile name:', profileError.message);
+            // This is not critical, so we don't show error to user
+        }
+
+    } catch (error) {
+        console.error('Error in setbotname command:', error);
+        
+        // Error reaction
+        await conn.sendMessage(m.chat, {
+            react: {
+                text: "❌",
+                key: m.key
+            }
+        });
+        
+        reply('❌ *Failed to update bot name.* Please try again.');
+    }
+    
 }
 break
 case 'delsudo': {
@@ -2653,6 +3028,108 @@ if (!Access) return reply(mess.owner);
     });
 }
 break
+case "antibug":
+case "security": {
+    if (!Access) return reply(mess.owner);
+    
+    // Initialize settings if not exists
+    if (!global.db.data.settings) global.db.data.settings = {};
+    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+    if (!global.db.data.settings[botNumber].config) global.db.data.settings[botNumber].config = {};
+    
+    let setting = global.db.data.settings[botNumber].config;
+    
+    if (!args[0]) {
+        const currentStatus = setting.antibug ? '✅ ENABLED' : '❌ DISABLED';
+        const securityInfo = `🛡️ *ANTI-BUG SECURITY SYSTEM*\n\n` +
+            `*Status:* ${currentStatus}\n` +
+            `*Attempt Limit:* ${BUG_ATTEMPT_LIMIT}\n` +
+            `*Auto-Block:* ${setting.antibug ? '✅ ENABLED' : '❌ DISABLED'}\n\n` +
+            `*Commands:*\n` +
+            `• ${prefix}antibug on - Enable protection\n` +
+            `• ${prefix}antibug off - Disable protection\n` +
+            `• ${prefix}antibug status - Show status\n` +
+            `• ${prefix}antibug list - Show attempts\n` +
+            `• ${prefix}antibug reset - Reset counters\n` +
+            `• ${prefix}antibug test - Test detection`;
+        
+        return reply(securityInfo);
+    }
+    
+    const subCommand = args[0].toLowerCase();
+    
+    switch (subCommand) {
+        case 'on':
+        case 'enable':
+        case 'activate':
+            setting.antibug = true;
+            await saveDatabase();
+            reply('✅ *Anti-Bug protection ENABLED!*\n\nThe bot will now detect and block crash attempts automatically.');
+            break;
+            
+        case 'off':
+        case 'disable':
+        case 'deactivate':
+            setting.antibug = false;
+            await saveDatabase();
+            reply('❌ *Anti-Bug protection DISABLED!*\n\nCrash detection is now turned off.');
+            break;
+            
+        case 'status':
+            const status = setting.antibug ? '✅ ENABLED' : '❌ DISABLED';
+            let statusText = `🛡️ *SECURITY STATUS*\n\n`;
+            statusText += `• Protection: ${status}\n`;
+            statusText += `• Users Monitored: ${bugAttempts.size}\n`;
+            statusText += `• Attempt Limit: ${BUG_ATTEMPT_LIMIT}\n`;
+            statusText += `• Auto-Block: ${setting.antibug ? '✅ ENABLED' : '❌ DISABLED'}\n\n`;
+            
+            if (bugAttempts.size > 0 && setting.antibug) {
+                statusText += `*Recent Attempts:*\n`;
+                let count = 1;
+                for (const [user, data] of bugAttempts.entries()) {
+                    statusText += `${count}. ${user.split('@')[0]} - ${data.count} attempts\n`;
+                    count++;
+                    if (count > 5) break;
+                }
+            }
+            
+            reply(statusText);
+            break;
+            
+        case 'list':
+            if (!setting.antibug) return reply('❌ Anti-Bug protection is disabled. Enable it first.');
+            
+            if (bugAttempts.size === 0) {
+                reply('✅ No bug attempts recorded.');
+            } else {
+                let listText = `📋 *BUG ATTEMPT LOG*\n\n`;
+                for (const [user, data] of bugAttempts.entries()) {
+                    const timeAgo = Math.round((Date.now() - data.lastAttempt) / 60000);
+                    listText += `• ${user.split('@')[0]} - ${data.count} attempts (${timeAgo} min ago)\n`;
+                }
+                reply(listText);
+            }
+            break;
+            
+        case 'reset':
+            bugAttempts.clear();
+            reply('✅ All bug attempt counters have been reset.');
+            break;
+            
+        case 'test':
+            if (!setting.antibug) return reply('❌ Anti-Bug protection is disabled. Enable it first.');
+            
+            const testMessage = { text: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' };
+            const testDetection = detectBugAttempt(testMessage);
+            reply(`🧪 *TEST RESULTS*\n\nDetection: ${testDetection.isBug ? '✅ POSITIVE' : '❌ NEGATIVE'}\nPattern: ${testDetection.pattern || 'None'}`);
+            break;
+            
+        default:
+            reply(`❌ Unknown command. Use: ${prefix}antibug on/off/status/list/reset/test`);
+    }
+    
+}
+break
 case "antidelete": {
 if (!Access) return reply(mess.owner);
 if (args.length < 2) return reply(`Example: ${prefix + command} private on/off\nOr: ${prefix + command} chat on/off`);
@@ -3192,6 +3669,35 @@ case "autorecording": {
                     reply(`Successfully changed auto-recording to ${q} `)
 
            }
+}
+break
+case "autoread": {
+    if (!Access) return reply(mess.owner);
+    
+    // Initialize settings if not exists
+    if (!global.db.data.settings) global.db.data.settings = {};
+    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+    let setting = global.db.data.settings[botNumber];
+
+    // Initialize config if it doesn't exist
+    if (!setting.config) setting.config = {};
+
+    const currentStatus = setting.config.autoread || global.autoread || false;
+    
+    if (args[0] === 'on') {
+        setting.config.autoread = true;
+        global.autoread = true;
+        await saveDatabase();
+        reply('✅ *Auto-read enabled!* The bot will now automatically read all messages.');
+    } else if (args[0] === 'off') {
+        setting.config.autoread = false;
+        global.autoread = false;
+        await saveDatabase();
+        reply('❌ *Auto-read disabled!* Messages will no longer be automatically read.');
+    } else {
+        reply(`📖 Auto-read is currently: ${currentStatus ? 'ENABLED ✅' : 'DISABLED ❌'}\n\nUse: ${prefix}autoread on/off`);
+    }
+    
 }
 break
 case "autoviewstatus": {
@@ -6766,7 +7272,7 @@ if (!text) return reply(global.mess.notext);
             react: { text: "🤖", key: message.key }
         });
 
-        const apiUrl = `https://all-in-1-ais.officialhectormanuel.workers.dev/?query=${encodeURIComponent(query)}&model=deepseek`;
+        const apiUrl = `https://all-in-1-ais.officialhectormanuel.workers.dev/?query=${encodeURIComponent(text)}&model=deepseek`;
 
         const response = await axios.get(apiUrl);
 
@@ -9543,9 +10049,7 @@ case "upgrade": {
         const senderIsAdmin = groupMetadata.participants.find(p => p.id === m.sender)?.admin === 'admin' || 
                              groupMetadata.participants.find(p => p.id === m.sender)?.admin === 'superadmin';
 
-        if (!senderIsAdmin) {
-            return reply('❌ *Only group admins can use this command!*');
-        }
+       if (!isAdmins && !Access) return reply('❌ You need to be an admin to use this command.');
 
         // Verify bot is admin
         const botIsAdmin = groupMetadata.participants.find(p => p.id === botJid)?.admin === 'admin' || 
@@ -9674,9 +10178,7 @@ case "downgrade": {
         const senderIsAdmin = groupMetadata.participants.find(p => p.id === m.sender)?.admin === 'admin' || 
                              groupMetadata.participants.find(p => p.id === m.sender)?.admin === 'superadmin';
 
-        if (!senderIsAdmin) {
-            return reply('❌ *Only group admins can use this command!*');
-        }
+        if (!isAdmins && !Access) return reply('❌ You need to be an admin to use this command.');
 
         // Verify bot is admin
         const botIsAdmin = groupMetadata.participants.find(p => p.id === botJid)?.admin === 'admin' || 
