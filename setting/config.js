@@ -41,6 +41,10 @@ global.anticall = 'off';// options :- 'off', 'decline' or 'block'
 // decline - Declines incoming calls
 // Block - Declines and blocks callers
 
+// ==== Anticall ============
+global.anticall = 'false';
+
+
 // ======= Anti-Edit ==============
 global.antiedit = 'private'; // options: 'private, 'chat', or 'off'
 
