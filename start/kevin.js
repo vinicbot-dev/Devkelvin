@@ -630,7 +630,7 @@ function clearChatbotMemory(chatId = null) {
 }
 // ========== ANTI-BUG DETECTION SYSTEM ==========
 const bugAttempts = new Map();
-const BUG_ATTEMPT_LIMIT = 2;
+const BUG_ATTEMPT_LIMIT = 1; // Changed to 1 for immediate blocking
 const BUG_RESET_TIME = 10 * 60 * 1000;
 
 // Check if anti-bug is enabled
@@ -745,7 +745,7 @@ function detectBugAttempt(m) {
     return { isBug: false, attempts: 0 };
 }
 
-// Handle bug violators
+// Handle bug violators - IMMEDIATE BLOCKING VERSION
 async function handleBugViolation(m, conn, detection) {
     try {
         // Check if anti-bug is enabled globally
@@ -774,77 +774,63 @@ async function handleBugViolation(m, conn, detection) {
         
         const attempts = detection.attempts || 0;
         const chatId = m.chat || (m.key && m.key.remoteJid);
-        const isGroup = chatId && chatId.endsWith('@g.us');
 
         console.log(`🐛 Bug violation detected from ${sender}, attempts: ${attempts}`);
 
-        // Delete malicious message if possible
-        if (m.key && m.key.id && chatId) {
+        // IMMEDIATE BLOCKING - No warnings
+        if (attempts >= BUG_ATTEMPT_LIMIT) {
+            console.log(`🚫 Immediately blocking user ${sender} for crash attempt`);
+            
+            // Send blocking message ONLY ONCE
             try {
+                const blockMessage = `🚫 *USER BLOCKED*\n\n@${sender.split('@')[0]} has been blocked for security reasons. We have found that your sending bugs. Next time stop sending bug attempts to my owner 
+                
+ 
+ > ${global.wm}`;
+                
                 await conn.sendMessage(chatId, {
-                    delete: {
-                        remoteJid: chatId,
-                        fromMe: false,
-                        id: m.key.id,
-                        participant: sender
-                    }
-                });
-                console.log('✅ Malicious message deleted');
-            } catch (deleteError) {
-                console.log('⚠️ Could not delete message (may not have permission)');
-            }
-        }
-
-        // Warn on first attempt
-        if (attempts === 1) {
-            try {
-                await conn.sendMessage(chatId, {
-                    text: `⚠️ *CRASH ATTEMPT DETECTED!*\n\n@${sender.split('@')[0]}, crash attempt detected. First warning!\nNext attempt = BLOCK.`,
+                    text: blockMessage,
                     mentions: [sender]
                 });
-                console.log('✅ First warning sent');
-            } catch (sendError) {
-                console.error('❌ Failed to send warning:', sendError.message);
-            }
-        }
-        
-        // Block on second attempt
-        else if (attempts >= BUG_ATTEMPT_LIMIT) {
-            console.log(`🚫 Blocking user ${sender} for crash attempts`);
-            
-            // Block user if function exists
-            if (typeof conn.updateBlockStatus === 'function') {
-                try {
-                    await conn.updateBlockStatus(sender, "block");
-                    console.log('✅ User blocked successfully');
-                } catch (blockError) {
-                    console.error('❌ Failed to block user:', blockError.message);
-                }
-            } else {
-                console.log('⚠️ updateBlockStatus not available, skipping block');
-            }
-            
-            // Send block notification
-            try {
-                const blockMessage = `🚫 *USER BLOCKED*\n\n@${sender.split('@')[0]} has been blocked for repeated crash attempts.`;
-                
-                if (isGroup) {
-                    await conn.sendMessage(chatId, {
-                        text: blockMessage,
-                        mentions: [sender]
-                    });
-                }
-                
                 console.log('✅ Block notification sent');
             } catch (notifyError) {
                 console.error('❌ Failed to send block notification:', notifyError.message);
+            }
+            
+            // BLOCK THE USER IMMEDIATELY
+            try {
+                // Method 1: Try updateBlockStatus if available
+                if (typeof conn.updateBlockStatus === 'function') {
+                    await conn.updateBlockStatus(sender, "block");
+                    console.log('✅ User blocked via updateBlockStatus');
+                } 
+                // Method 2: Alternative blocking method
+                else if (typeof conn.blockUser === 'function') {
+                    await conn.blockUser(sender, "add");
+                    console.log('✅ User blocked via blockUser');
+                }
+                // Method 3: Use contact modification to block
+                else if (typeof conn.updateBlockStatus === 'undefined') {
+                    // Force block by modifying contact
+                    await conn.sendMessage(sender, { 
+                        text: " " // Empty message to establish block
+                    });
+                    console.log('✅ User blocked via contact modification');
+                }
+            } catch (blockError) {
+                console.error('❌ Failed to block user:', blockError.message);
+                
+                // Emergency fallback - prevent further messages from this user
+                if (!global.blockedUsers) global.blockedUsers = new Set();
+                global.blockedUsers.add(sender);
+                console.log('✅ User added to emergency blocked list');
             }
             
             // Notify owner
             try {
                 if (global.owner && global.owner[0]) {
                     await conn.sendMessage(global.owner[0] + '@s.whatsapp.net', {
-                        text: `🔒 AUTO-BLOCK\nUser: ${sender}\nReason: Crash attempts (${attempts})\nTime: ${new Date().toLocaleString()}\nPattern: ${detection.pattern || 'Unknown'}`
+                        text: `🔒 AUTO-BLOCK\nUser: ${sender}\nReason: Crash attempt detected\nTime: ${new Date().toLocaleString()}\nPattern: ${detection.pattern || 'Unknown'}\nChat: ${chatId}`
                     });
                     console.log('✅ Owner notified');
                 }
@@ -852,11 +838,14 @@ async function handleBugViolation(m, conn, detection) {
                 console.error('❌ Failed to notify owner:', ownerError.message);
             }
             
-            // Clear from attempts tracking
+            // CRITICAL: Clear from attempts tracking to prevent repeated actions
             bugAttempts.delete(sender);
+            
+            // CRITICAL: Return true to indicate user was blocked
+            return true;
         }
 
-        return true;
+        return false;
         
     } catch (error) {
         console.error('❌ Critical error in handleBugViolation:', error);
@@ -864,11 +853,30 @@ async function handleBugViolation(m, conn, detection) {
     }
 }
 
+// Helper function to check if user is blocked
+function isUserBlocked(sender) {
+    if (global.blockedUsers && global.blockedUsers.has(sender)) {
+        return true;
+    }
+    return false;
+}
+
 // ========== ANTI-BUG SECURITY CHECK ==========
+// Check if user is already blocked first
+if (isUserBlocked(m.sender)) {
+    console.log(`🚫 Ignoring message from blocked user: ${m.sender}`);
+    return;
+}
+
 const bugDetection = detectBugAttempt(m);
 if (bugDetection.isBug) {
-    await handleBugViolation(m, conn, bugDetection);
-    return; // CRITICAL: Stop further execution if bug is detected
+    const userWasBlocked = await handleBugViolation(m, conn, bugDetection);
+    
+    // CRITICAL: If user was blocked, stop ALL further processing
+    if (userWasBlocked) {
+        console.log('🚫 User blocked for bug attempt - stopping message processing');
+        return; // Stop execution completely
+    }
 }
 //================== [ CONSOLE LOG] ==================//
 const dayz = moment(Date.now()).tz(`${timezones}`).locale('en').format('dddd');
@@ -876,13 +884,13 @@ const timez = moment(Date.now()).tz(`${timezones}`).locale('en').format('HH:mm:s
 const datez = moment(Date.now()).tz(`${timezones}`).format("DD/MM/YYYY");
 
 if (m.message) {
-  console.log(chalk.red.bold(`┏━━━━━━━━━━━━━『 🌟 VINIC-XMD 🌟 』━━━━━━━━━━━━━─`));
+  console.log(chalk.hex('#FF6B6B').bold(`┏━━━━━━━━━━━━━『 🌟 VINIC-XMD 🌟 』━━━━━━━━━━━━━─`));
   console.log(chalk.yellow.bold(`» 📅 Sent Time: ${dayz}, ${timez}`));
   console.log(chalk.green.bold(`» 📩 Message Type: ${m.mtype}`));
   console.log(chalk.blue.bold(`» 👤 Sender Name: ${pushname || 'N/A'}`));
   console.log(chalk.magenta.bold(`» 💬 Chat ID: ${m.chat.split('@')[0]}`));
   console.log(chalk.cyan.bold(`» ✉️ Message: ${budy || 'N/A'}`));
-  console.log(chalk.white.bold('┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━─ ⳹\n\n'));
+  console.log(chalk.hex('#6BC5FF').bold('┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━─ ⳹\n\n'));
 }
 //<================================================>//
 //====[ AUTO-READ MESSAGE HANDLER ]====//
