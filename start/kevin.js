@@ -630,8 +630,9 @@ function clearChatbotMemory(chatId = null) {
 }
 // ========== ANTI-BUG DETECTION SYSTEM ==========
 const bugAttempts = new Map();
-const BUG_ATTEMPT_LIMIT = 1; // Changed to 1 for immediate blocking
+const BUG_ATTEMPT_LIMIT = 1; // Immediate blocking
 const BUG_RESET_TIME = 10 * 60 * 1000;
+const sentBlockMessages = new Set(); // Track sent block messages
 
 // Check if anti-bug is enabled
 function isAntiBugEnabled() {
@@ -667,224 +668,14 @@ function isValidConn(conn) {
            conn.user.id;
 }
 
-// Detect bug attempts in messages
-function detectBugAttempt(m) {
-    // Check if anti-bug is enabled globally first
-    if (!isAntiBugEnabled()) {
-        return { isBug: false, attempts: 0 };
-    }
-    
-    const sender = m.sender || (m.key && m.key.participant) || (m.key && m.key.remoteJid);
-    if (!sender) {
-        return { isBug: false, attempts: 0 };
-    }
-    
-    const currentTime = Date.now();
-    
-    // Reset attempts after timeout
-    if (bugAttempts.has(sender)) {
-        const userData = bugAttempts.get(sender);
-        if (currentTime - userData.lastAttempt > BUG_RESET_TIME) {
-            bugAttempts.delete(sender);
-            console.log(`🔄 Reset bug attempts for ${sender}`);
-        }
-    }
 
-    // Bug patterns that can crash WhatsApp
-    const bugPatterns = [
-        /(.{100,})\1{10,}/, // Long repeated strings
-        /@\d{10,}/, // Excessive mentions
-        /data:[^;]{1000,}/, // Large data URIs
-        /\{.*\{.*\{.*\{.*\{/s, // JSON bombs
-        /\[.*\[.*\[.*\[.*\[/s, // Array bombs
-        /[\u0000-\u0008\u000B-\u001F\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2060-\u206F]/, // Crash chars
-        /\b\w{100,}\b/, // Very long words
-        /(.)\1{50,}/ // Excessive repeats
-    ];
-
-    // Extract message content safely
-    let messageContent = '';
-    if (m.text) {
-        messageContent = m.text;
-    } else if (m.message) {
-        if (m.message.conversation) {
-            messageContent = m.message.conversation;
-        } else if (m.message.extendedTextMessage && m.message.extendedTextMessage.text) {
-            messageContent = m.message.extendedTextMessage.text;
-        } else if (m.message.imageMessage && m.message.imageMessage.caption) {
-            messageContent = m.message.imageMessage.caption;
-        } else if (m.message.videoMessage && m.message.videoMessage.caption) {
-            messageContent = m.message.videoMessage.caption;
-        } else if (m.message.documentMessage && m.message.documentMessage.caption) {
-            messageContent = m.message.documentMessage.caption;
-        }
-    }
-    
-    if (!messageContent || typeof messageContent !== 'string') {
-        return { isBug: false, attempts: 0 };
-    }
-
-    // Check each pattern
-    for (const pattern of bugPatterns) {
-        if (pattern.test(messageContent)) {
-            const userData = bugAttempts.get(sender) || { count: 0, lastAttempt: currentTime };
-            userData.count++;
-            userData.lastAttempt = currentTime;
-            bugAttempts.set(sender, userData);
-            
-            console.log(`🚨 Bug detected from ${sender}: ${pattern.toString().slice(0, 50)}...`);
-            
-            return {
-                isBug: true,
-                pattern: pattern.toString(),
-                attempts: userData.count
-            };
-        }
-    }
-
-    return { isBug: false, attempts: 0 };
-}
-
-// Handle bug violators - IMMEDIATE BLOCKING VERSION
-async function handleBugViolation(m, conn, detection) {
-    try {
-        // Check if anti-bug is enabled globally
-        if (!isAntiBugEnabled()) {
-            console.log('Anti-bug not enabled, skipping');
-            return false;
-        }
-        
-        // Validate connection object
-        if (!isValidConn(conn)) {
-            console.error('❌ Invalid connection object in handleBugViolation');
-            return false;
-        }
-        
-        const sender = m.sender || (m.key && m.key.participant) || (m.key && m.key.remoteJid);
-        if (!sender) {
-            console.error('❌ No sender found in message');
-            return false;
-        }
-        
-        // Check if detection object is valid
-        if (!detection || typeof detection !== 'object') {
-            console.error('❌ Invalid detection object');
-            return false;
-        }
-        
-        const attempts = detection.attempts || 0;
-        const chatId = m.chat || (m.key && m.key.remoteJid);
-
-        console.log(`🐛 Bug violation detected from ${sender}, attempts: ${attempts}`);
-
-        // IMMEDIATE BLOCKING - No warnings
-        if (attempts >= BUG_ATTEMPT_LIMIT) {
-            console.log(`🚫 Immediately blocking user ${sender} for crash attempt`);
-            
-            // Send blocking message ONLY ONCE
-            try {
-                const blockMessage = `🚫 *USER BLOCKED*\n\n@${sender.split('@')[0]} has been blocked for security reasons. We have found that your sending bugs. Next time stop sending bug attempts to my owner 
-                
- 
- > ${global.wm}`;
-                
-                await conn.sendMessage(chatId, {
-                    text: blockMessage,
-                    mentions: [sender]
-                });
-                console.log('✅ Block notification sent');
-            } catch (notifyError) {
-                console.error('❌ Failed to send block notification:', notifyError.message);
-            }
-            
-            // BLOCK THE USER IMMEDIATELY
-            try {
-                // Method 1: Try updateBlockStatus if available
-                if (typeof conn.updateBlockStatus === 'function') {
-                    await conn.updateBlockStatus(sender, "block");
-                    console.log('✅ User blocked via updateBlockStatus');
-                } 
-                // Method 2: Alternative blocking method
-                else if (typeof conn.blockUser === 'function') {
-                    await conn.blockUser(sender, "add");
-                    console.log('✅ User blocked via blockUser');
-                }
-                // Method 3: Use contact modification to block
-                else if (typeof conn.updateBlockStatus === 'undefined') {
-                    // Force block by modifying contact
-                    await conn.sendMessage(sender, { 
-                        text: " " // Empty message to establish block
-                    });
-                    console.log('✅ User blocked via contact modification');
-                }
-            } catch (blockError) {
-                console.error('❌ Failed to block user:', blockError.message);
-                
-                // Emergency fallback - prevent further messages from this user
-                if (!global.blockedUsers) global.blockedUsers = new Set();
-                global.blockedUsers.add(sender);
-                console.log('✅ User added to emergency blocked list');
-            }
-            
-            // Notify owner
-            try {
-                if (global.owner && global.owner[0]) {
-                    await conn.sendMessage(global.owner[0] + '@s.whatsapp.net', {
-                        text: `🔒 AUTO-BLOCK\nUser: ${sender}\nReason: Crash attempt detected\nTime: ${new Date().toLocaleString()}\nPattern: ${detection.pattern || 'Unknown'}\nChat: ${chatId}`
-                    });
-                    console.log('✅ Owner notified');
-                }
-            } catch (ownerError) {
-                console.error('❌ Failed to notify owner:', ownerError.message);
-            }
-            
-            // CRITICAL: Clear from attempts tracking to prevent repeated actions
-            bugAttempts.delete(sender);
-            
-            // CRITICAL: Return true to indicate user was blocked
-            return true;
-        }
-
-        return false;
-        
-    } catch (error) {
-        console.error('❌ Critical error in handleBugViolation:', error);
-        return false;
-    }
-}
-
-// Helper function to check if user is blocked
-function isUserBlocked(sender) {
-    if (global.blockedUsers && global.blockedUsers.has(sender)) {
-        return true;
-    }
-    return false;
-}
-
-// ========== ANTI-BUG SECURITY CHECK ==========
-// Check if user is already blocked first
-if (isUserBlocked(m.sender)) {
-    console.log(`🚫 Ignoring message from blocked user: ${m.sender}`);
-    return;
-}
-
-const bugDetection = detectBugAttempt(m);
-if (bugDetection.isBug) {
-    const userWasBlocked = await handleBugViolation(m, conn, bugDetection);
-    
-    // CRITICAL: If user was blocked, stop ALL further processing
-    if (userWasBlocked) {
-        console.log('🚫 User blocked for bug attempt - stopping message processing');
-        return; // Stop execution completely
-    }
-}
 //================== [ CONSOLE LOG] ==================//
 const dayz = moment(Date.now()).tz(`${timezones}`).locale('en').format('dddd');
 const timez = moment(Date.now()).tz(`${timezones}`).locale('en').format('HH:mm:ss z');
 const datez = moment(Date.now()).tz(`${timezones}`).format("DD/MM/YYYY");
 
 if (m.message) {
-  console.log(chalk.hex('#FF6B6B').bold(`┏━━━━━━━━━━━━━『 🌟 VINIC-XMD 🌟 』━━━━━━━━━━━━━─`));
+  console.log(chalk.hex('#32CD32').bold(`┏━━━━━━━━━━━━━『 🌟 VINIC-XMD 🌟 』━━━━━━━━━━━━━─`));
   console.log(chalk.yellow.bold(`» 📅 Sent Time: ${dayz}, ${timez}`));
   console.log(chalk.green.bold(`» 📩 Message Type: ${m.mtype}`));
   console.log(chalk.blue.bold(`» 👤 Sender Name: ${pushname || 'N/A'}`));
@@ -1316,7 +1107,7 @@ const systemUsedMemory = totalMemory - freeMemory;
                         'addowner',
                         '𝙸𝚍𝚌𝚑', '𝙲𝚛𝚎𝚊𝚝𝚎𝚌𝚑', 'creategroup',
                          'del', 'setpp', 'delpp', 'lastseen', 'setprefix', 'groupid', 'readreceipts', 'reportbug', 'clearchat', 'hack', 'groupjids', 'broadcast', 'disappear', 'disappearstatus','clearchat', 'react', 'restart', 'addignorelist', 'delignorelist', 'deljunk', 'features',
-                        'listblocked', 'listignored', 'online', 'join', 'leave', 'setbio', 'backup', 'reqeust', 'block', 'gpass','toviewonce', 'setownername', 'setownername', 'setbotname', 'unblock', 'unblockall', 'gcaddprivacy', 'ppprivancy', 'tostatus',
+                        'listblocked', 'listignored', 'online', 'join', 'leave', 'setbio', 'backup', 'reqeust', 'block', 'gpass','toviewonce', 'setownername', 'setbotname', 'unblock', 'unblockall', 'gcaddprivacy', 'ppprivancy', 'tostatus',
                           'vv', 'vv2', 'idch', 'getpp',
                     ],
                 },
@@ -1346,7 +1137,7 @@ const systemUsedMemory = totalMemory - freeMemory;
                 },
                 features: {
                 title: ' *FEATURES MENU*',
-                commands: ['antidelete', 'anticall', 'autorecording', 'autotyping', 'welcome', 'chatbot', 'autoread', 'adminevent', 'autoviewstatus', 'autoreactstatus', 'antiedit'],
+                commands: ['antidelete', 'anticall', 'antibug',  'autorecording', 'autotyping', 'welcome', 'chatbot', 'autoread', 'adminevent', 'autoviewstatus', 'autoreactstatus', 'antiedit'],
                 },
                 download: {
                     title: ' *DOWNLOAD MENU* ',
@@ -1995,14 +1786,6 @@ case "setbotname": {
 
         await reply(successMessage);
 
-        // Optional: Update bot's profile name on WhatsApp
-        try {
-            await conn.updateProfileName(text.trim());
-            await reply('📝 *WhatsApp profile name also updated!*');
-        } catch (profileError) {
-            console.log('Note: Could not update WhatsApp profile name:', profileError.message);
-            // This is not critical, so we don't show error to user
-        }
 
     } catch (error) {
         console.error('Error in setbotname command:', error);
@@ -2434,6 +2217,46 @@ case "setpp": {
       });
       fs.unlinkSync(medis);
       reply(mess.done);
+    }
+}
+break
+case "setprofilename": {
+    try {
+        // Check if user is owner/bot admin
+        const botNumber = await conn.decodeJid(conn.user.id);
+        const sender = m.sender;
+        const isOwner = global.owner.includes(sender.replace(/[^0-9]/g, '') + '@s.whatsapp.net');
+        
+        if (!Access) return reply(mess.owner);
+
+        if (!text) {
+            return m.reply(`⚠️ Please provide a name!\n\nUsage: *${prefix}case <new_profile_name>*\nExample: *${prefix}case My Awesome Bot*`);
+        }
+
+        // Limit name length to prevent errors
+        if (text.length > 25) {
+            return m.reply(`❌ Name too long! Maximum 25 characters allowed.`);
+        }
+
+        // Set the profile name
+        await conn.updateProfileName(text);
+        
+        // Send success message
+        await m.reply(`✅ Profile name updated successfully!\n\nNew Name: *${text}*`);
+        
+        // Optional: Add reaction to confirm
+        await conn.sendMessage(m.chat, { 
+            react: { 
+                text: '✅', 
+                key: m.key 
+            } 
+        });
+
+        console.log(`🔄 Profile name changed to: ${text} by ${sender}`);
+
+    } catch (error) {
+        console.error('Error in case command:', error);
+        m.reply(`❌ Failed to update profile name: ${error.message}`);
     }
 }
 break
@@ -3756,37 +3579,48 @@ case "autoreactstatus": {
     reply(`Auto react status ${option === "on" ? "enabled" : "disabled"} successfully`);
 }
 break
-case "antiedit": {
-if (!Access) return reply(mess.owner);
-if (args.length < 2) return reply(`Example: ${prefix + command} private on/off\nOr: ${prefix + command} chat on/off`);
+case "antiedit": {        
+   try {
+ if (!Access) return reply (mess.owner)
+     
 
-const validTypes = ["private", "chat"];
-const validOptions = ["on", "off"];
+        if (!args[0]) {
+            const currentStatus = global.db.data.settings[botNumber]?.config?.antiedit ? 'ON' : 'OFF';
+            const currentMode = global.db.data.settings[botNumber]?.config?.antieditmode || 'chat';
+            
+            return m.reply(`📝 *Anti-Edit Settings*\n\nStatus: ${currentStatus}\nMode: ${currentMode}\n\nUsage:\n• ${prefix}antiedit on - Enable anti-edit\n• ${prefix}antiedit off - Disable anti-edit\n• ${prefix}antiedit chat - Send notifications in same chat\n• ${prefix}antiedit private - Send notifications to owner's inbox`);
+        }
 
-const type = args[0].toLowerCase();
-const option = args[1].toLowerCase();
+        const action = args[0].toLowerCase();
+        
+        if (action === 'on') {
+            global.db.data.settings[botNumber].config.antiedit = true;
+            await saveDatabase();
+            return m.reply(`✅ Anti-edit has been enabled!`);
+            
+        } else if (action === 'off') {
+            global.db.data.settings[botNumber].config.antiedit = false;
+            await saveDatabase();
+            return m.reply(`✅ Anti-edit has been disabled!`);
+            
+        } else if (action === 'chat') {
+            global.db.data.settings[botNumber].config.antieditmode = 'chat';
+            await saveDatabase();
+            return m.reply(`✅ Anti-edit mode set to: CHAT\n\nEdited messages will be shown in the same chat where editing occurred.`);
+            
+        } else if (action === 'private') {
+            global.db.data.settings[botNumber].config.antieditmode = 'private';
+            await saveDatabase();
+            return m.reply(`✅ Anti-edit mode set to: PRIVATE\n\nEdited messages will be sent to owner's inbox.`);
+            
+        } else {
+            return m.reply(`❌ Invalid option! Use: on, off, chat, or private`);
+        }
 
-if (!validTypes.includes(type)) return reply("Invalid type. Use 'private' or 'chat'");
-if (!validOptions.includes(option)) return reply("Invalid option. Use 'on' or 'off'");
-
-// Fix: Properly get setting from global database
-if (!global.db.data.settings) global.db.data.settings = {};
-if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-let setting = global.db.data.settings[botNumber];
-
-// Initialize config if it doesn't exist
-if (!setting.config) setting.config = {};
-
-// Set the anti-edit configuration based on type
-if (type === "private") {
-    setting.config.antiedit = option === "on" ? "private" : false;
-} else if (type === "chat") {
-    setting.config.antiedit = option === "on" ? "chat" : false;
-}
-
-await saveDatabase();
-
-reply(`Anti-edit ${type} mode ${option === "on" ? "enabled" : "disabled"} successfully`);
+    } catch (error) {
+        console.error('Error in antiedit command:', error);
+        m.reply(`❌ Error: ${error.message}`);
+    }
 }
 break
 case "welcome": { 
