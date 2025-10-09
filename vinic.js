@@ -361,6 +361,7 @@ function initializeDatabase(from, botNumber) {
     if (!("autoreactstatus" in setting.config)) setting.config.autoreactstatus = false;
     if (!("antiedit" in setting.config)) setting.config.antiedit = false;
     if (!("anticall" in setting.config)) setting.config.anticall = false; // false, "decline", or "block"
+    if (!("antibug" in setting.config)) setting.config.antibug = false;
     if (!("ownernumber" in setting.config)) setting.config.ownernumber = global.ownernumber || '';
 
     let blacklist = global.db.data.blacklist;
@@ -377,7 +378,56 @@ function loadBlacklist() {
     }
     return global.db.data.blacklist;
 }
+// ========== HELPER FUNCTIONS ==========
 
+// Helper function to extract text from message
+function extractMessageText(message) {
+    if (!message) return "";
+    
+    if (message.conversation) {
+        return message.conversation;
+    } else if (message.extendedTextMessage?.text) {
+        return message.extendedTextMessage.text;
+    } else if (message.imageMessage?.caption) {
+        return message.imageMessage.caption;
+    } else if (message.videoMessage?.caption) {
+        return message.videoMessage.caption;
+    } else if (message.documentMessage?.caption) {
+        return message.documentMessage.caption;
+    } else if (message.protocolMessage?.editedMessage) {
+        // Handle edited messages recursively
+        return extractMessageText(message.protocolMessage.editedMessage);
+    }
+    return "";
+}
+
+// Helper function to check if message has media
+function hasMediaMessage(message) {
+    return !!(message?.imageMessage || message?.videoMessage || message?.audioMessage || 
+              message?.documentMessage || message?.stickerMessage);
+}
+
+// Helper function to download media messages
+async function downloadMediaMessage(conn, message) {
+    try {
+        const stream = await downloadContentFromMessage(message.message, 
+            message.message.imageMessage ? 'image' : 
+            message.message.videoMessage ? 'video' : 
+            message.message.audioMessage ? 'audio' : 
+            message.message.documentMessage ? 'document' : 
+            message.message.stickerMessage ? 'sticker' : 'image'
+        );
+        
+        let buffer = Buffer.from([]);
+        for await (const chunk of stream) {
+            buffer = Buffer.concat([buffer, chunk]);
+        }
+        return buffer;
+    } catch (error) {
+        console.error('Error downloading media:', error);
+        throw error;
+    }
+}
 //================== [ DATABASE SAVE FUNCTION ] ==================//
 async function saveDatabase() {
   try {
@@ -433,29 +483,6 @@ function saveStoredMessage(message) {
     }
 }
 
-// Helper function to extract text from message
-function extractMessageText(message) {
-    if (!message) return "";
-    
-    if (message.conversation) {
-        return message.conversation;
-    } else if (message.extendedTextMessage?.text) {
-        return message.extendedTextMessage.text;
-    } else if (message.imageMessage?.caption) {
-        return message.imageMessage.caption;
-    } else if (message.videoMessage?.caption) {
-        return message.videoMessage.caption;
-    } else if (message.documentMessage?.caption) {
-        return message.documentMessage.caption;
-    }
-    return "";
-}
-
-// Helper function to check if message has media
-function hasMediaMessage(message) {
-    return !!(message?.imageMessage || message?.videoMessage || message?.audioMessage || 
-              message?.documentMessage || message?.stickerMessage);
-}
 // ========== ENHANCED ANTI-EDIT HANDLER ==========
 async function handleAntiEdit(m, conn) {
     try {
@@ -533,13 +560,12 @@ async function handleAntiEdit(m, conn) {
         let targetChat;
         let notificationType = "";
 
-        // Check if private mode is enabled for anti-edit
-        if (config.antieditprivate) {
-            // OPTION 1: Send to your inbox (private mode)
+        // Check the mode setting - FIXED LOGIC
+        if (config.antieditmode === 'private') {
+            // OPTION 1: Send to owner's inbox (private mode)
             targetChat = botNumber; // Send to bot owner's inbox
             notificationType = "Private Inbox";
             
-            // Enhanced private notification with more details
             const privateEditNotification = `🚨 *𝙴𝙳𝙸𝚃 𝙳𝙴𝚃𝙴𝙲𝚃𝙴𝙳 - 𝙿𝚁𝙸𝚅𝙰𝚃𝙴 𝙼𝙾𝙳𝙴* 🚨
 ${readmore}
 💬 𝙲𝙷𝙰𝚃: ${chatName}
@@ -562,7 +588,7 @@ ${newText}`;
                 }
             );
         } else {
-            // OPTION 2: Send to same chat (chat mode)
+            // OPTION 2: Send to same chat (chat mode) - DEFAULT
             targetChat = chatId; // Send to same chat where edit occurred
             notificationType = "Same Chat";
             
@@ -976,18 +1002,24 @@ async function handleStatusUpdate(mek, conn) {
                 const reactions = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉'];
                 const randomReaction = reactions[Math.floor(Math.random() * reactions.length)];
                 
-                // For status updates, we need to use the correct key format
-                // Status messages are broadcast messages, so we need to handle them differently
+                // For status updates, we need to use the correct approach
+                // Status messages are broadcast messages with special handling
                 if (mek.key && mek.key.remoteJid === 'status@broadcast') {
-                    // Create a proper reaction for status
-                    await conn.sendMessage(mek.key.remoteJid, {
+                    // Create a proper reaction for status using the status message key
+                    const reactionMessage = {
                         react: {
                             text: randomReaction,
                             key: mek.key
                         }
-                    });
+                    };
+                    
+                    // Send reaction to the status
+                    await conn.sendMessage(mek.key.remoteJid, reactionMessage);
                     
                     console.log(`🎭 Auto-reacted "${randomReaction}" to status from ${mek.pushName || 'Unknown'}`);
+                    
+                    // Add a small delay to avoid rate limiting
+                    await delay(1000);
                 }
             } catch (reactError) {
                 console.error('Error auto-reacting to status:', reactError);
@@ -995,7 +1027,8 @@ async function handleStatusUpdate(mek, conn) {
                 console.log('Status message structure:', {
                     key: mek.key,
                     remoteJid: mek.key?.remoteJid,
-                    id: mek.key?.id
+                    id: mek.key?.id,
+                    participant: mek.key?.participant
                 });
             }
         }
@@ -1215,6 +1248,7 @@ async function handleAutoReact(m, conn) {
         console.error('❌ Error in auto-react:', error);
     }
 }
+
 
 module.exports = {
   fetchMp3DownloadUrl,
