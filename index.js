@@ -45,6 +45,9 @@ const PhoneNumber = require('awesome-phonenumber');
 const { File } = require('megajs');
 const { color } = require('./start/lib/color');
 
+const Database = require('better-sqlite3');
+const db = require('./start/lib/sqlite');
+
 const {
   smsg,
   sendGmail,
@@ -76,7 +79,6 @@ const {
   writeExifVid
 } = require('./start/lib/exif');
 
-// Define constants for session handling
 const SESSION_DIR = './session';
 const CREDS_PATH = `${SESSION_DIR}/creds.json`;
 
@@ -111,10 +113,8 @@ async function downloadSessionData() {
             console.info("[ ⏳ ] Decoding base64 session");
             const base64Data = settings.SESSION_ID.replace("starcore~", "");
             
-            // FIX: Clean the base64 data by removing invalid characters
             const cleanedBase64Data = base64Data.replace(/[^A-Za-z0-9+/=]/g, '');
             
-            // Check if I have valid base64 after cleaning
             if (!/^[A-Za-z0-9+/=]+$/.test(cleanedBase64Data)) {
                 throw new Error("Invalid base64 format after cleaning");
             }
@@ -152,17 +152,13 @@ async function downloadSessionData() {
     }
 }
 async function clientstart() {
-  // Ensure session directory exists
   if (!fs.existsSync(SESSION_DIR)) {
     fs.mkdirSync(SESSION_DIR);
   }
 
-  // Check and download session data
   const sessionExists = await downloadSessionData();
   
-
-
-const { state, saveCreds } = await useMultiFileAuthState("./session");
+  const { state, saveCreds } = await useMultiFileAuthState("./session");
   const conn = makeWASocket({
     printQRInTerminal: !usePairingCode,
     syncFullHistory: true,
@@ -221,7 +217,6 @@ const { state, saveCreds } = await useMultiFileAuthState("./session");
     })
   });
   
-
   store.bind(conn.ev);
 
 conn.ev.on('messages.upsert', async chatUpdate => {
@@ -230,48 +225,35 @@ conn.ev.on('messages.upsert', async chatUpdate => {
         if (!mek.message) return;
         mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message;
 
-        // ========== STATUS UPDATE HANDLING ==========
         if (mek.key && mek.key.remoteJid === 'status@broadcast') {
-            // Skip if this is a reaction or view confirmation (not an actual status update)
             if (mek.message?.reactionMessage || mek.message?.protocolMessage) {
                 return;
             }
             
             console.log(`📱 Status update detected from ${mek.pushName || 'Unknown'}`);
             
-            // Handle status viewing and reacting
             await handleStatusUpdate(mek, conn);   
-          // Save status for anti-delete functionality
             saveStoredMessage(mek);
-            return; // Skip further processing for status messages
+            return;
         }
 
         if (!conn.public && !mek.key.fromMe && chatUpdate.type === 'notify') return;
         let m = smsg(conn, mek, store);
         
-        // Save all incoming messages for anti-delete/anti-edit
         saveStoredMessage(mek);
         
-        
-        // Handle deleted messages (anti-delete) - PASS THE CORRECT PARAMETERS
         await handleAntiDelete(mek, conn);
         
-        // handleAntiEdit messages 
         await handleAntiEdit(mek, conn);
         
-        
-        // handle links in groups 
-                    await checkAndHandleLinks(mek, conn);
+        await checkAndHandleLinks(mek, conn);
                    
-                    await handleAutoReact(m, conn);
+        await handleAutoReact(m, conn);
             
-            await detectUrls(mek, conn);
+        await detectUrls(mek, conn);
             
-            await handleLinkViolation(mek, conn);
-            
-             
+        await handleLinkViolation(mek, conn);
         
-        // Process commands as usual
         require("./start/kevin")(conn, m, chatUpdate, mek, store);
     } catch (err) {
         console.log(chalk.yellow.bold("[ ERROR ] kevin.js :\n") + chalk.redBright(util.format(err)));
@@ -424,7 +406,7 @@ conn.ev.on('contacts.update', update => {
     }
     conn.sendMessage(jid, { contacts: { displayName: `${list.length} Contact`, contacts: list }, ...opts }, { quoted });
   };
-//. fixed line for conn
+
 conn.sendFile = async (jid, path, filename = '', caption = '', quoted, ptt = false, options = {}) => {
 let type = await conn.getFile(path, true)
 let { res, data: file, filename: pathFile } = type
@@ -481,7 +463,7 @@ conn.downloadAndSaveMediaMessage = async (message, filename, attachExtension = t
 
     let type = await FileType.fromBuffer(buffer);
     let trueFileName = attachExtension ? (filename + '.' + type.ext) : filename;
-    let savePath = path.join(__dirname, 'tmp', trueFileName); // Save to 'tmp' folder
+    let savePath = path.join(__dirname, 'tmp', trueFileName);
 
     await fs.writeFileSync(savePath, buffer);
 
@@ -490,7 +472,7 @@ conn.downloadAndSaveMediaMessage = async (message, filename, attachExtension = t
 
     return savePath;
 };
-// end of fixed line 
+
   conn.serializeM = (m) => smsg(conn, m, store);
 
   conn.copyNForward = async (jid, message, forceForward = false, options = {}) => {
@@ -541,7 +523,7 @@ conn.downloadAndSaveMediaMessage = async (message, filename, attachExtension = t
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
-// some added functions 
+
 function createTmpFolder() {
 const folderName = "tmp";
 const folderPath = path.join(__dirname, folderName);
@@ -590,7 +572,7 @@ if(sampah) fs.unlinkSync(file)
     return restype;
   }
 
-  conn.prefa = settings.prefa; // Use prefa from settings.js
+  conn.prefa = settings.prefa;
   conn.public = config.autoviewstatus || true;
   conn.serializeM = (m) => smsg(conn, m, store);
 
@@ -599,8 +581,6 @@ if(sampah) fs.unlinkSync(file)
     Connecting({ update, conn, Boom, DisconnectReason, sleep, color, clientstart });
   });
   
-
-// ... existing code ...
 
 conn.ev.on('group-participants.update', async (anu) => {
     try {
@@ -736,6 +716,7 @@ conn.ev.on('group-participants.update', async (anu) => {
         console.error('Error in group-participants.update:', error);
     }
 }); 
+
 // Initialize global variables for anticall feature
 if (!global.recentCallers) {
   global.recentCallers = new Map();
@@ -914,7 +895,7 @@ conn.downloadAndSaveMediaMessage = async (message, filename, attachExtension = t
 
     let type = await FileType.fromBuffer(buffer);
     let trueFileName = attachExtension ? (filename + '.' + type.ext) : filename;
-    let savePath = path.join(__dirname, 'tmp', trueFileName); // Save to 'tmp' folder
+    let savePath = path.join(__dirname, 'tmp', trueFileName);
 
     await fs.writeFileSync(savePath, buffer);
 
