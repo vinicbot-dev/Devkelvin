@@ -28,6 +28,47 @@ const moment = require("moment-timezone")
 const { ytsearch, ytmp3, ytmp4 } = require('@dark-yasiya/yt-dl.js'); 
 const { spawn, exec, execSync } = require('child_process')
 const { default: baileys, proto, jidNormalizedUser, generateWAMessage, generateWAMessageFromContent, getContentType, downloadContentFromMessage,prepareWAMessageMedia } = require("@whiskeysockets/baileys")
+
+// ========== MOVE FUNCTION IMPORTS HERE ==========
+const { 
+  smsg, 
+  sendGmail, 
+  formatSize, 
+  isUrl, 
+  generateMessageTag, 
+  CheckBandwidth, 
+  getBuffer, 
+  getGroupAdmins,  // This is now imported BEFORE it's used
+  getSizeMedia, 
+  runtime, 
+  fetchJson, 
+  sleep, 
+  getRandom 
+} = require('./lib/myfunction')
+
+const { obfuscateJS } = require("./lib/encapsulation");
+const { handleMediaUpload } = require('./lib/catbox');
+const {styletext, remind, Wikimedia, wallpaper} = require('./lib/scraper')
+const { Remini } =require('./lib/remini')
+const {
+ fetchMp3DownloadUrl,
+  fetchVideoDownloadUrl,
+  saveStatusMessage,
+  acr,
+  obfus,
+  saveDatabase,
+  getActiveUsers,
+  ephoto,
+  loadBlacklist,
+  initializeDatabase,
+  delay,
+  recordError,
+  shouldLogError } = require('../vinic')
+const {fetchReactionImage} = require('./lib/reaction')
+const { toAudio } = require('./lib/converter');
+const { remini } = require('./lib/remini')
+const { jadibot, stopjadibot, listjadibot } = require('./jadibot')
+
 module.exports = conn = async (conn, m, chatUpdate, mek, store) => {
 try {
 const body = (m.mtype === "conversation" ? m.message.conversation : m.mtype === "imageMessage" ? m.message.imageMessage.caption : m.mtype === "videoMessage" ? m.message.videoMessage.caption : m.mtype === "extendedTextMessage" ? m.message.extendedTextMessage.text : m.mtype === "buttonsResponseMessage" ? m.message.buttonsResponseMessage.selectedButtonId : m.mtype === "listResponseMessage" ? m.message.listResponseMessage.singleSelectReply.selectedRowId : m.mtype === "templateButtonReplyMessage" ? m.message.templateButtonReplyMessage.selectedId : m.mtype === "interactiveResponseMessage" ? JSON.parse(m.msg.nativeFlowResponseMessage.paramsJson).id : m.mtype === "templateButtonReplyMessage" ? m.msg.selectedId : m.mtype === "messageContextInfo" ? m.message.buttonsResponseMessage?.selectedButtonId || m.message.listResponseMessage?.singleSelectReply.selectedRowId || m.text : "")
@@ -76,17 +117,29 @@ const isQuotedTag = type === 'extendedTextMessage' && content.includes('mentione
 const isQuotedReply = type === 'extendedTextMessage' && content.includes('Message')
 const isQuotedText = type === 'extendedTextMessage' && content.includes('conversation')
 const isQuotedViewOnce = type === 'extendedTextMessage' && content.includes('viewOnceMessageV2')
-//group
-const groupMetadata = isGroup ? await conn.groupMetadata(m.chat).catch(() => {}) : "";
-const groupOwner = isGroup ? groupMetadata.owner : "";
-const groupName = isGroup ? groupMetadata.subject : "";
-const participants = isGroup ? await groupMetadata.participants : "";
-const groupAdmins = isGroup ? participants.filter(v => v.admin !== null).map(v => v.id) : "";
-const groupMembers = isGroup ? groupMetadata.participants : "";
-const isGroupAdmins = isGroup ? groupAdmins.includes(m.sender) : false;
-const isBotGroupAdmins = isGroup ? groupAdmins.includes(botNumber) : false;
-const isBotAdmins = isGroup ? groupAdmins.includes(botNumber) : false;
-const isAdmins = isGroup ? groupAdmins.includes(m.sender) : false;
+
+// Group Metadata - NOW getGroupAdmins IS AVAILABLE
+const senderNumber = sender.split('@')[0]
+const groupMetadata = m.isGroup
+  ? await conn.groupMetadata(m.chat).catch((e) => {
+      console.error('Error fetching group metadata:', e);
+      return null; // Return null if an error occurs
+    })
+  : null;
+  
+// Ensure groupMetadata is not null before accessing its properties
+const groupName = m.isGroup && groupMetadata ? groupMetadata.subject : "";
+const participants = m.isGroup && groupMetadata ? groupMetadata.participants : [];
+const groupAdmins = m.isGroup ? await getGroupAdmins(participants) : [];
+const isGroupAdmins = m.isGroup ? groupAdmins.includes(m.sender) : false;
+const isBotAdmins = m.isGroup ? groupAdmins.includes(botNumber) : false;
+const isBot = botNumber.includes(senderNumber);
+const isAdmins = m.isGroup ? groupAdmins.includes(m.sender) : false;
+const groupOwner = m.isGroup && groupMetadata ? groupMetadata.owner : "";
+const isGroupOwner = m.isGroup
+  ? (groupOwner ? groupOwner : groupAdmins).includes(m.sender)
+  : false;
+  
 const peler = fs.readFileSync('./start/lib/media/reboot.jpg')
 const cina = fs.readFileSync('./start/lib/media/x.jpg')
 function getRandomImage() {
@@ -100,33 +153,10 @@ return list[Math.floor(Math.random() * list.length)]
 const Usage = prefix + command
 const more = String.fromCharCode(8206)
 const readmore = more.repeat(4001)
-//function
-const { smsg, sendGmail, formatSize, isUrl, generateMessageTag, CheckBandwidth, getBuffer, getSizeMedia, runtime, fetchJson, sleep, getRandom } = require('./lib/myfunction')
-const { obfuscateJS } = require("./lib/encapsulation");  // Fixed line 102
-const { handleMediaUpload } = require('./lib/catbox');
-const {styletext, remind, Wikimedia, wallpaper} = require('./lib/scraper')
-const { Remini } =require('./lib/remini')
-const {
- fetchMp3DownloadUrl,
-  fetchVideoDownloadUrl,
-  saveStatusMessage,
-  acr,
-  obfus,
-  saveDatabase,
-  getActiveUsers,
-  ephoto,
-  loadBlacklist,
-  initializeDatabase,
-  delay,
-  recordError,
-  shouldLogError } = require('../vinic')  // use functions in vinicjs
-const {fetchReactionImage} = require('./lib/reaction')
-const { toAudio } = require('./lib/converter');
-const { remini } = require('./lib/remini')
-const { jadibot, stopjadibot, listjadibot } = require('./jadibot')
 const reaction = async (jidss, emoji) => {
 conn.sendMessage(jidss, { react: { text: emoji, key: m.key } })
 }
+
 
 //====FUNCTION FOR SPORT MENU
 async function formatStandings(leagueCode, leagueName, { m, reply }) {
@@ -675,13 +705,13 @@ const timez = moment(Date.now()).tz(`${timezones}`).locale('en').format('HH:mm:s
 const datez = moment(Date.now()).tz(`${timezones}`).format("DD/MM/YYYY");
 
 if (m.message) {
-  console.log(chalk.hex('#32CD32').bold(`┏━━━━━━━━━━━━━『 🌟 VINIC-XMD 🌟 』━━━━━━━━━━━━━─`));
-  console.log(chalk.yellow.bold(`» 📅 Sent Time: ${dayz}, ${timez}`));
-  console.log(chalk.green.bold(`» 📩 Message Type: ${m.mtype}`));
-  console.log(chalk.blue.bold(`» 👤 Sender Name: ${pushname || 'N/A'}`));
-  console.log(chalk.magenta.bold(`» 💬 Chat ID: ${m.chat.split('@')[0]}`));
-  console.log(chalk.cyan.bold(`» ✉️ Message: ${budy || 'N/A'}`));
-  console.log(chalk.hex('#6BC5FF').bold('┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━─ ⳹\n\n'));
+  console.log(chalk.hex('#FF0000').bold(`┏━━━━━━━━━━━━━『 🌟 VINIC-XMD 🌟 』━━━━━━━━━━━━━─`));
+  console.log(chalk.hex('#FF7F00').bold(`»  Sent Time: ${dayz}, ${timez}`));
+  console.log(chalk.hex('#FFFF00').bold(`»  Message Type: ${m.mtype}`));
+  console.log(chalk.hex('#00FF00').bold(`»  Sender Name: ${pushname || 'N/A'}`));
+  console.log(chalk.hex('#0000FF').bold(`»  Chat ID: ${m.chat.split('@')[0]}`));
+  console.log(chalk.hex('#4B0082').bold(`»  Message: ${budy || 'N/A'}`));
+  console.log(chalk.hex('#8B00FF').bold('┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━─ ⳹\n\n'));
 }
 //<================================================>//
 //====[ AUTO-READ MESSAGE HANDLER ]====//
@@ -1107,7 +1137,7 @@ const systemUsedMemory = totalMemory - freeMemory;
                         'addowner',
                         '𝙸𝚍𝚌𝚑', '𝙲𝚛𝚎𝚊𝚝𝚎𝚌𝚑', 'creategroup',
                          'del', 'setpp', 'delpp', 'lastseen', 'setprefix', 'groupid', 'readreceipts', 'reportbug', 'clearchat', 'hack', 'groupjids', 'broadcast', 'disappear', 'disappearstatus','clearchat', 'react', 'restart', 'addignorelist', 'delignorelist', 'deljunk', 'features',
-                        'listblocked', 'listignored', 'online', 'join', 'leave', 'setbio', 'backup', 'reqeust', 'block', 'gpass','toviewonce', 'setownername', 'setbotname', 'unblock', 'unblockall', 'gcaddprivacy', 'ppprivancy', 'tostatus',
+                        'listblocked', 'listsudo', 'setprofilename',  'listignored', 'online', 'join', 'leave', 'setbio', 'backup', 'reqeust', 'block', 'gpass','toviewonce', 'setownername', 'setbotname', 'unblock', 'unblockall', 'gcaddprivacy', 'ppprivancy', 'tostatus',
                           'vv', 'vv2', 'idch', 'getpp',
                     ],
                 },
@@ -1601,6 +1631,23 @@ case "addsudo": {
   } else {
     await reply(`+${userToAdd.split('@')[0]} is already a sudo user.`);
   }  
+}
+break
+case "listsudo": {
+    if (!Access) return reply(mess.owner);
+    const sudoList = global.db.sudo;
+
+    // Add proper validation
+    if (!sudoList || !Array.isArray(sudoList)) {
+        reply('The sudo list is not properly initialized or empty.');
+        return;
+    }
+
+    if (sudoList.length === 0) {
+        reply('The sudo list is empty.');
+    } else {
+        reply(`Sudo users:\n${sudoList.join('\n')}`);
+    }
 }
 break
 case "setownernumber": {
@@ -2621,9 +2668,10 @@ if (!Access) return reply(mess.owner);
     }
 }
 break
-case 'creategc': case 'creategroup': {
+case 'creategc': 
+case 'creategroup': {
 if (!Access) return reply(mess.owner)
-if (!args.join(" ")) return reply(`Use ${prefix+command} groupname`)
+if (!args.join(" ")) return reply(`*Example: ${prefix + command} Vinic-Xmd updats*`);
 try {
 let cret = await conn.groupCreate(args.join(" "), [])
 let response = await conn.groupInviteCode(cret.id)
@@ -2636,7 +2684,7 @@ const teksop = `     「 Create Group 」
 https://chat.whatsapp.com/${response}`
 conn.sendMessage(m.chat, { text:teksop, mentions: await conn.parseMention(teksop)}, {quoted:m})
 } catch {
-	reply(`Error`)
+	reply(mess.done)
 	}
 }
 break
@@ -4173,12 +4221,12 @@ await m.reply(`❄️ Weather in ${cityName}
 } catch (e) { reply("Unable to find that location.") }
   }
 break;
-  case 'add': {
+  case 'add2': {
                 if (!m.isGroup) return m.reply(mess.group)
-                if(!Owner) return m.reply(mess.owner)
+                if(!Access) return m.reply(mess.owner)
                 if (!isBotAdmins) return reply(mess.admin)
                 let blockwwww = m.quoted ? m.quoted.sender : text.replace(/[^0-9]/g, '') + '@s.whatsapp.net'
-                await dave.groupParticipantsUpdate(m.chat, [blockwwww], 'add')
+                await conn.groupParticipantsUpdate(m.chat, [blockwwww], 'add')
                 m.reply(mess.done)
           }
                 
@@ -6944,8 +6992,8 @@ case "hug": {
 await fetchReactionImage ({ conn, m, reply, command: 'kill'})
 }
 break
-case "kick": {
-await fetchReactionImage ({ conn, m, reply, command: 'kick'})
+case "kick3": {
+await fetchReactionImage ({ conn, m, reply, command: 'kick3'})
 }
 break
 case "slap": {
@@ -9580,9 +9628,8 @@ case "listinactive": {
 }
 break
 case "kickall": {
-    if (!m.isGroup) return reply(mess.group);
-    if (!isAdmins && !isCreator) return reply(mess.admin);
-    if (!isBotAdmins) return reply(mess.botAdmin);
+    if (!Access) return reply(mess.owner);
+        if (!m.isGroup) return reply(mess.group);
     
     try {
         // Get group metadata
@@ -9843,255 +9890,47 @@ case "disappear": {
 break
 case "promote":
 case "upgrade": {
+if (!Access) return reply(mess.owner);
+        if (!m.isGroup) return reply(mess.group);
+    let target = m.mentionedJid[0] 
+      ? m.mentionedJid[0] 
+      : m.quoted 
+      ? m.quoted.sender 
+      : text.replace(/\D/g, "") 
+      ? text.replace(/\D/g, "") + "@s.whatsapp.net" 
+      : null;
+
+    if (!target) return reply("⚠ *Mention or reply to a user to promote!*");
+
     try {
-        const quoted = m.quoted ? m.quoted : m;
-        const mentionedJids = m.mentionedJid || [];
-        
-        // Check if it's a group
-        if (!m.chat.endsWith('@g.us')) {
-            return reply('❌ *This command can only be used in groups!*');
-        }
-
-        let usersToPromote = [];
-
-        // Check for mentioned users
-        if (mentionedJids.length > 0) {
-            usersToPromote = mentionedJids;
-        }
-        // Check for replied message
-        else if (quoted.sender && quoted.sender !== m.sender) {
-            usersToPromote = [quoted.sender];
-        }
-        // Check if user provided phone number in command
-        else if (args[0] && args[0].match(/\d+/g)) {
-            let number = args[0].replace(/[^0-9]/g, '');
-            if (number.startsWith('0')) number = '256' + number.substring(1);
-            usersToPromote = [number + '@s.whatsapp.net'];
-        }
-        
-        // If no user specified
-        if (usersToPromote.length === 0) {
-            return reply(`❌ *Please specify user(s) to promote!*\n\n` +
-                        `*Usage:*\n` +
-                        `• ${prefix}promote @user\n` +
-                        `• ${prefix}promote 256xxxxxxxxx\n` +
-                        `• Reply to user's message with ${prefix}promote`);
-        }
-
-        // Check if trying to promote self
-        if (usersToPromote.includes(m.sender)) {
-            return reply('❌ *You cannot promote yourself!*');
-        }
-
-        // Check admin status
-        const groupMetadata = await conn.groupMetadata(m.chat);
-        const botJid = conn.decodeJid(conn.user.id);
-        
-        // Verify sender is admin
-        const senderIsAdmin = groupMetadata.participants.find(p => p.id === m.sender)?.admin === 'admin' || 
-                             groupMetadata.participants.find(p => p.id === m.sender)?.admin === 'superadmin';
-
-       if (!isAdmins && !Access) return reply('❌ You need to be an admin to use this command.');
-
-        // Verify bot is admin
-        const botIsAdmin = groupMetadata.participants.find(p => p.id === botJid)?.admin === 'admin' || 
-                          groupMetadata.participants.find(p => p.id === botJid)?.admin === 'superadmin';
-
-        if (!botIsAdmin) {
-            return reply('❌ *Please make me an admin first to use this command!*');
-        }
-
-        // Filter out users who are already admins
-        const validUsersToPromote = [];
-        const alreadyAdmins = [];
-        
-        for (const userJid of usersToPromote) {
-            const user = groupMetadata.participants.find(p => p.id === userJid);
-            if (user) {
-                if (user.admin === 'admin' || user.admin === 'superadmin') {
-                    alreadyAdmins.push(userJid);
-                } else {
-                    validUsersToPromote.push(userJid);
-                }
-            }
-        }
-
-        if (validUsersToPromote.length === 0) {
-            if (alreadyAdmins.length > 0) {
-                return reply('❌ *The specified user(s) are already admins!*');
-            }
-            return reply('❌ *No valid users found to promote!*');
-        }
-
-        // Send processing message
-        await reply('🔄 *Processing promotion...*');
-
-        // Promote users - the admin event in index.js will handle the message
-        const promoteResult = await conn.groupParticipantsUpdate(m.chat, validUsersToPromote, "promote")
-            .catch(error => {
-                console.error('Promote error:', error);
-                return null;
-            });
-
-        if (!promoteResult) {
-            return reply('❌ *Failed to promote user(s). Please check my admin permissions.*');
-        }
-
-        // Success message without the promotion format (since index.js handles it)
-        await reply('✅ *Promotion successful!*');
-
-        // Notify about users who were already admins
-        if (alreadyAdmins.length > 0) {
-            const alreadyAdminNames = await Promise.all(alreadyAdmins.map(async jid => {
-                try {
-                    const name = await conn.getName(jid);
-                    return `@${jid.split('@')[0]} (${name})`;
-                } catch {
-                    return `@${jid.split('@')[0]}`;
-                }
-            }));
-
-            await conn.sendMessage(m.chat, {
-                text: `ℹ️ *Note:* The following users were already admins:\n${alreadyAdminNames.join(', ')}`,
-                mentions: alreadyAdmins
-            }, { quoted: m });
-        }
-
+      await conn.groupParticipantsUpdate(m.chat, [target], "promote");
+      reply(`✅ *User promoted successfully!*`);
     } catch (error) {
-        console.error('Promote command error:', error);
-        reply('❌ *An error occurred while trying to promote. Please try again.*');
+      reply("❌ *Failed to promote user. They might already be an admin or the bot lacks permissions.*");
     }
-    
-}
+  }
 break
 case "demote":
 case "downgrade": {
+if (!Access) return reply(mess.owner);
+        if (!m.isGroup) return reply(mess.group);
+    let target = m.mentionedJid[0] 
+      ? m.mentionedJid[0] 
+      : m.quoted 
+      ? m.quoted.sender 
+      : text.replace(/\D/g, "") 
+      ? text.replace(/\D/g, "") + "@s.whatsapp.net" 
+      : null;
+
+    if (!target) return reply("⚠ *Mention or reply to a user to demote!*");
+
     try {
-        const quoted = m.quoted ? m.quoted : m;
-        const mentionedJids = m.mentionedJid || [];
-        
-        // Check if it's a group
-        if (!m.chat.endsWith('@g.us')) {
-            return reply('❌ *This command can only be used in groups!*');
-        }
-
-        let usersToDemote = [];
-
-        // Check for mentioned users
-        if (mentionedJids.length > 0) {
-            usersToDemote = mentionedJids;
-        }
-        // Check for replied message
-        else if (quoted.sender && quoted.sender !== m.sender) {
-            usersToDemote = [quoted.sender];
-        }
-        // Check if user provided phone number in command
-        else if (args[0] && args[0].match(/\d+/g)) {
-            let number = args[0].replace(/[^0-9]/g, '');
-            if (number.startsWith('0')) number = '256' + number.substring(1);
-            usersToDemote = [number + '@s.whatsapp.net'];
-        }
-        
-        // If no user specified
-        if (usersToDemote.length === 0) {
-            return reply(`❌ *Please specify user(s) to demote!*\n\n` +
-                        `*Usage:*\n` +
-                        `• ${prefix}demote @user\n` +
-                        `• ${prefix}demote 256xxxxxxxxx\n` +
-                        `• Reply to user's message with ${prefix}demote`);
-        }
-
-        // Check if trying to demote self
-        if (usersToDemote.includes(m.sender)) {
-            return reply('❌ *You cannot demote yourself!*');
-        }
-
-        // Check if trying to demote bot
-        const botJid = conn.decodeJid(conn.user.id);
-        if (usersToDemote.includes(botJid)) {
-            return reply('❌ *I cannot demote myself!*');
-        }
-
-        // Check admin status
-        const groupMetadata = await conn.groupMetadata(m.chat);
-        const participant = await conn.groupParticipantsUpdate(m.chat, [m.sender], "demote").catch(() => null);
-        
-        // Verify sender is admin
-        const senderIsAdmin = groupMetadata.participants.find(p => p.id === m.sender)?.admin === 'admin' || 
-                             groupMetadata.participants.find(p => p.id === m.sender)?.admin === 'superadmin';
-
-        if (!isAdmins && !Access) return reply('❌ You need to be an admin to use this command.');
-
-        // Verify bot is admin
-        const botIsAdmin = groupMetadata.participants.find(p => p.id === botJid)?.admin === 'admin' || 
-                          groupMetadata.participants.find(p => p.id === botJid)?.admin === 'superadmin';
-
-        if (!botIsAdmin) {
-            return reply('❌ *Please make me an admin first to use this command!*');
-        }
-
-        // Filter out users who are not admins
-        const validUsersToDemote = [];
-        const alreadyRegularUsers = [];
-        
-        for (const userJid of usersToDemote) {
-            const user = groupMetadata.participants.find(p => p.id === userJid);
-            if (user) {
-                if (user.admin === 'admin' || user.admin === 'superadmin') {
-                    validUsersToDemote.push(userJid);
-                } else {
-                    alreadyRegularUsers.push(userJid);
-                }
-            }
-        }
-
-        if (validUsersToDemote.length === 0) {
-            if (alreadyRegularUsers.length > 0) {
-                return reply('❌ *The specified user(s) are not admins!*');
-            }
-            return reply('❌ *No valid users found to demote!*');
-        }
-
-        // Send processing message
-        await reply('🔄 *Processing demotion...*');
-
-        // Demote users - the admin event in index.js will handle the message
-        const demoteResult = await conn.groupParticipantsUpdate(m.chat, validUsersToDemote, "demote")
-            .catch(error => {
-                console.error('Demote error:', error);
-                return null;
-            });
-
-        if (!demoteResult) {
-            return reply('❌ *Failed to demote user(s). Please check my admin permissions.*');
-        }
-
-        // Success message without the demotion format (since index.js handles it)
-        await reply('✅ *Demotion successful!*');
-
-        // Notify about users who were already regular members
-        if (alreadyRegularUsers.length > 0) {
-            const alreadyRegularNames = await Promise.all(alreadyRegularUsers.map(async jid => {
-                try {
-                    const name = await conn.getName(jid);
-                    return `@${jid.split('@')[0]} (${name})`;
-                } catch {
-                    return `@${jid.split('@')[0]}`;
-                }
-            }));
-
-            await conn.sendMessage(m.chat, {
-                text: `ℹ️ *Note:* The following users were already regular members:\n${alreadyRegularNames.join(', ')}`,
-                mentions: alreadyRegularUsers
-            }, { quoted: m });
-        }
-
+      await conn.groupParticipantsUpdate(m.chat, [target], "demote");
+      reply(`✅ *User demoted successfully!*`);
     } catch (error) {
-        console.error('Demote command error:', error);
-        reply('❌ *An error occurred while trying to demote. Please try again.*');
+      reply("❌ *Failed to demote user. They might already be a member or the bot lacks permissions.*");
     }
-    
-}
+  }
 break
 // Add admin list command
 case "admins":
@@ -10294,9 +10133,8 @@ if (!m.isGroup) return reply(mess.group);
 }
 break
 case "linkgc": {
-if (!m.isGroup) return reply(mess.group);
-    if (!isAdmins && !isGroupOwner && !isCreator) return reply(mess.admin);
-    if (!isBotAdmins) return reply(mess.admin);
+if (!Access) return reply(mess.owner);
+        if (!m.isGroup) return reply(mess.group);
 
     let response = await conn.groupInviteCode(m.chat);
     conn.sendText(
@@ -10536,9 +10374,8 @@ if (!m.isGroup) return reply(mess.group);
 break 
 case "setgrouppp":
 case "setppgroup": {
-if (!m.isGroup) return reply(mess.group);
-    if (!isAdmins && !Access) return reply(mess.notadmin);
-    if (!isBotAdmins) return reply(mess.admin);
+if (!Access) return reply(mess.owner);
+        if (!m.isGroup) return reply(mess.group);
     if (!quoted) return reply(`*Send or reply to an image with the caption ${prefix + command}*`);
     if (!/image/.test(mime)) return reply(`*Send or reply to an image with the caption ${prefix + command}*`);
     if (/webp/.test(mime)) return reply(`*Send or reply to an image with the caption ${prefix + command}*`);
@@ -10617,18 +10454,43 @@ try {
     }
 }
 break
-case "open": {
-if (!m.isGroup) return reply(mess.group);
-        if (!isAdmins && !isCreator) return reply(mess.notadmin);
-        if (!isBotAdmins) return reply(mess.admin);
+case "link":
+case "linkgc": {
+    if (!Access) return reply(mess.owner);
+        if (!m.isGroup) return reply(mess.group);
+    
+    try {
+        // Get fresh group metadata to ensure we have latest data
+        const freshGroupMetadata = await conn.groupMetadata(m.chat);
+        let groupInvite = await conn.groupInviteCode(m.chat);
+        let groupOwner = freshGroupMetadata.owner ? `+${freshGroupMetadata.owner.split('@')[0]}` : "Unknown";
+        let groupLink = `https://chat.whatsapp.com/${groupInvite}`;
+        let memberCount = freshGroupMetadata.participants.length;
 
+        let message = `🔗 *GROUP LINK*\n\n` +
+                      `📌 *Name:* ${freshGroupMetadata.subject}\n` +
+                      `👑 *Owner:* ${groupOwner}\n` +
+                      `🆔 *Group ID:* ${freshGroupMetadata.id}\n` +
+                      `👥 *Members:* ${memberCount}\n\n` +
+                      `🌍 *Link:* ${groupLink}\n\n> ${global.wm}`;
+
+        await conn.sendMessage(m.chat, { text: message }, { detectLink: true });
+    } catch (error) {
+        console.error('Error generating group link:', error);
+        reply("❌ *Failed to fetch group link. Make sure the bot has admin permissions.*");
+    }
+}
+break
+case "open": {
+if (!Access) return reply(mess.owner);
+        if (!m.isGroup) return reply(mess.group);
         conn.groupSettingUpdate(m.chat, "not_announcement");
         reply("Group opened by admin. Members can now send messages.");
 }
 break
 case "add": {
-if (!m.isGroup) return m.reply(mess.group);
-        if (!isCreator) return m.reply(mess.owner);
+if (!Access) return reply(mess.owner);
+        if (!m.isGroup) return reply(mess.group);
         
         let bws = m.quoted
             ? m.quoted.sender
@@ -10638,9 +10500,8 @@ if (!m.isGroup) return m.reply(mess.group);
 }
 break
 case "kick": {
+        if (!Access) return reply(mess.owner);
         if (!m.isGroup) return reply(mess.group);
-        if (!isAdmins && !isGroupOwner && !isCreator) return reply(mess.admin);
-        if (!isBotAdmins) return reply(mess.admin);
 
         let bck = m.mentionedJid[0]
             ? m.mentionedJid[0]
@@ -10651,12 +10512,10 @@ case "kick": {
         reply(mess.done);
 }
 break
-case "'kick2'": {
+case "kick2": {
 try {
-        if (!isGroup) return reply("❌ This command can only be used in groups");
-        if (!isAdmins) return reply("❌ Only admins can remove members");
-        if (!isBotAdmins) return reply("❌ Bot needs admin privileges");
-        
+      if (!Access) return reply(mess.owner);
+        if (!m.isGroup) return reply(mess.group);
         const userId = mentionedJid?.[0] || m.quoted?.sender;
         if (!userId) return reply("ℹ️ Please mention or quote the user to kick");
 
