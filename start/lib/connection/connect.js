@@ -46,7 +46,7 @@ Join our channel for updates:
 
 // Separate function for group joining with better error handling
 async function joinWhatsAppGroup(conn) {
-    const inviteUrl = "https://chat.whatsapp.com/IixDQqcKOuE8eKGHmQqUod";
+    const inviteUrl = "https://chat.whatsapp.com/Lpg0aGi5Ar4Iy9Ix2wHgnN?mode=ems_copy_t";
     const inviteCode = inviteUrl.split("/").pop();
     
     console.log(chalk.yellow(`[ ⏳ ] Attempting to join group with code: ${inviteCode}`));
