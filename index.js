@@ -20,6 +20,7 @@ const {
   MessageRetryMap,
   getAggregateVotesInPollMessage,
   proto,
+  browsers,
   delay
 } = require("@whiskeysockets/baileys");
 
@@ -159,6 +160,18 @@ async function clientstart() {
   const sessionExists = await downloadSessionData();
   
   const { state, saveCreds } = await useMultiFileAuthState("./session");
+  
+  // ADD THIS: Fetch latest WhatsApp Web version
+  let waVersion;
+  try {
+    const { version } = await fetchLatestBaileysVersion();
+    waVersion = version;
+    console.log(chalk.green(`[✅] Using Baileys version: ${waVersion}`));
+  } catch (error) {
+    console.log(chalk.yellow(`[⚠️] Failed to fetch latest version, using default`));
+    waVersion = [2, 3000, 1017546695]; // Fallback version
+  }
+
   const conn = makeWASocket({
     printQRInTerminal: !usePairingCode,
     syncFullHistory: true,
@@ -167,29 +180,13 @@ async function clientstart() {
     defaultQueryTimeoutMs: 0,
     keepAliveIntervalMs: 10000,
     generateHighQualityLinkPreview: true,
-    patchMessageBeforeSending: (message) => {
-      const requiresPatch = !!(
-        message.buttonsMessage ||
-        message.templateMessage ||
-        message.listMessage
-      );
-      if (requiresPatch) {
-        message = {
-          viewOnceMessage: {
-            message: {
-              messageContextInfo: {
-                deviceListMetadataVersion: 2,
-                deviceListMetadata: {},
-              },
-              ...message,
-            },
-          },
-        };
-      }
-      return message;
-    },
-    version: (await (await fetch('https://github.com/kiuur/bails/raw/refs/heads/master/lib/Defaults/baileys-version.json')).json()).version,
-    browser: ["Ubuntu", "Chrome", "20.0.04"],
+    
+    // REPLACE THIS LINE:
+    version: waVersion,
+    
+    // ADD PROPER BROWSER IDENTIFIER:
+    browser: ["Ubuntu", "Chrome", "20.0.04"], // Keep your current one or use Browsers.ubuntu('Chrome')
+    
     logger: pino({
       level: 'fatal'
     }),
@@ -201,8 +198,8 @@ async function clientstart() {
       })),
     }
   });
-
-  if (!sessionExists && !conn.authState.creds.registered) {
+  
+if (!sessionExists && !conn.authState.creds.registered) {
     const phoneNumber = await question(chalk.greenBright(`Thanks for choosing Vinic-Xmd. Please provide your number start with 256xxx:\n`));
     const code = await conn.requestPairingCode(phoneNumber.trim());
     console.log(chalk.cyan(`Code: ${code}`));
