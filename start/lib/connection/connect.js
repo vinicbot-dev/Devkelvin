@@ -1,5 +1,4 @@
-[file name]: connect.js
-[file content begin]
+
 const ascii = `💢 Vinic-Xmd 💪 its loading...... `;
 
 const chalk = require("chalk");
