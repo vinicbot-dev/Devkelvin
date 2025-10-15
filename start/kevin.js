@@ -1151,7 +1151,7 @@ const systemUsedMemory = totalMemory - freeMemory;
                 },
                 ai: {
                 title: ' *AI MENU*',
-                commands: ['generate', 'deepseek', 'flux', 'gpt'],
+                commands: ['generate', 'ai', 'copilot', 'deepseek', 'flux', 'gpt'],
                 },
                 audio: {
                 title: ' *AUDIO MENU*',
@@ -3814,7 +3814,7 @@ const startTime = performance.now();
       const latency = `${(endTime - startTime).toFixed(2)} ms`;
       
       await conn.sendMessage(m.chat, {
-        text: `*💯 ${botname} Speed:* ${latency}`,
+        text: `*🏓 ${botname} Speed:* ${latency}`,
         edit: sentMessage.key, 
         contextInfo: { quotedMessage: m.message }
       });
@@ -5670,8 +5670,7 @@ case "play2": {
     
 }
 break
-case "song":
-case "song2": {
+case "song": {
     if (!text) return reply(global.mess.notext);
 
     try {
@@ -5765,97 +5764,187 @@ case "song2": {
     
 }
 break
-case "video": {
-try { 
-        if (!q) return await reply("Please provide a YouTube URL or song name.");
-        
-        const yt = await ytsearch(q);
-        if (yt.results.length < 1) return reply("No results found!");
-        
-        let yts = yt.results[0];  
-        let apiUrl = `https://apis.davidcyriltech.my.id/download/ytmp4?url=${encodeURIComponent(yts.url)}`;
-        
-        let response = await fetch(apiUrl);
-        let data = await response.json();
-        
-        if (data.status !== 200 || !data.success || !data.result.download_url) {
-            return reply("Failed to fetch the video. Please try again later.");
+case "song2": {
+    if (!text) return reply("📘 Usage: play <song name>");
+
+    reply("🔍 Searching for the song...");
+
+    try {
+        // Step 1: Search YouTube for the song
+        const search = await yts(text);
+        if (!search || !search.videos.length) {
+            return reply("🚫 No song found.");
         }
 
-        let ytmsg = `📹 *Video Details*
-🎬 *Title:* ${yts.title}
-⏳ *Duration:* ${yts.timestamp}
-👀 *Views:* ${yts.views}
-👤 *Author:* ${yts.author.name}
-🔗 *Link:* ${yts.url}
+        const video = search.videos[0];
+        const videoUrl = video.url;
 
-*Choose download format:*
-1. 📄 Document (no preview)
-2. ▶️ Normal Video (with preview)
+        reply(`🎧 Found: *${video.title}*\n⏱ Duration: ${video.timestamp}`);
 
-_Reply to this message with 1 or 2 to download._`;
+        // Step 2: Use Izumi API to get download link
+        const apiUrl = `https://izumiiiiiiii.dpdns.org/downloader/youtube?url=${encodeURIComponent(videoUrl)}&format=mp3`;
 
-        let contextInfo = {
-            mentionedJid: [m.sender],
-            forwardingScore: 999,
-            isForwarded: true,
-            forwardedNewsletterMessageInfo: {
-                newsletterJid: '120363401548261516@newsletter',
-                newsletterName: 'Vinic-Xmd ',
-                serverMessageId: 143
+        const res = await axios.get(apiUrl, {
+            timeout: 30000,
+            headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            },
+        });
+
+        if (!res.data || !res.data.result || !res.data.result.download) {
+            return reply("🚫 Failed to fetch download link from Izumi API.");
+        }
+
+        const { download, title } = res.data.result;
+        const safeTitle = title.replace(/[<>:"/\\|?*]+/g, "_"); // sanitize filename
+        const audioPath = path.resolve(__dirname, `../temp/${safeTitle}.mp3`);
+
+        reply(`📥 Downloading audio: *${title}*`);
+
+        // Step 3: Download the MP3 file
+        const file = await axios.get(download, { responseType: "arraybuffer" });
+        fs.writeFileSync(audioPath, file.data);
+
+        // Step 4: Send the audio file as a document
+        await conn.sendMessage(m.chat, {
+            document: fs.readFileSync(audioPath),
+            fileName: `${safeTitle}.mp3`,
+            mimetype: 'audio/mpeg',
+            caption: `🎵 Title: *${title}*\n📺 Source: ${videoUrl}`
+        }, { quoted: m });
+
+        // Step 5: Clean up
+        fs.unlinkSync(audioPath);
+    } catch (error) {
+        console.error("❌ Error in play command:", error.message);
+        reply("🚫 An error occurred while processing your request.");
+    }
+    
+}
+break 
+case "spotify": {
+    if (!text) return reply("Example: spotify runtuh");
+
+    reply("🔍 Searching for the song on Spotify...");
+
+    try {
+        // Step 1: Search song on Spotify
+        const searchRes = await axios.get(`https://apidl.vercel.app/api/spotifysearch?q=${encodeURIComponent(text)}`);
+        const searchData = searchRes.data;
+
+        if (!searchData.status || searchData.result.length === 0) {
+            return reply("🚫 Song not found on Spotify.");
+        }
+
+        const firstResult = searchData.result[0];
+        const songLink = firstResult.link;
+
+        // Step 2: Download song from Spotify
+        reply(`🎧 Downloading audio from: ${firstResult.title} (${firstResult.artists})`);
+        const downloadRes = await axios.get(`https://apidl.vercel.app/api/spotifydl?url=${encodeURIComponent(songLink)}`);
+        const downloadData = downloadRes.data;
+
+        if (!downloadData.status) {
+            return reply("🚫 Failed to download audio from Spotify.");
+        }
+
+        const audioUrl = downloadData.result.download;
+        const audioTitle = downloadData.result.title;
+        const artists = downloadData.result.artist;
+
+        // Step 3: Download the audio file
+        const audioPath = path.resolve(__dirname, `../temp/${audioTitle.replace(/[^a-zA-Z0-9]/g, "_")}.mp3`);
+        const audioFile = await axios.get(audioUrl, { responseType: 'arraybuffer' });
+        fs.writeFileSync(audioPath, audioFile.data);
+
+        // Step 4: Send audio to user - FIXED: using m.chat and proper Baileys syntax
+        await client.sendMessage(m.chat, {
+            audio: fs.readFileSync(audioPath),
+            mimetype: 'audio/mpeg',
+            fileName: `${audioTitle}.mp3`,
+            caption: `🎵 Song: *${audioTitle}*\n👤 Artist: *${artists}*`
+        }, { quoted: m });
+
+        // Clean up
+        fs.unlinkSync(audioPath);
+    } catch (error) {
+        console.error(error);
+        reply("🚫 An error occurred while processing your request.");
+    }
+    
+}
+break
+case "video": {
+    try {
+        if (!text) return reply("⚠️ Please provide a YouTube link or search query.");
+
+        let videoUrl = "";
+        let videoTitle = "";
+
+        // Check if input is a URL
+        if (text.startsWith("http://") || text.startsWith("https://")) {
+            videoUrl = text;
+        } else {
+            // Search YouTube if not a URL
+            const { videos } = await yts(text);
+            if (!videos || videos.length === 0) return reply("🚫 No videos found!");
+            videoUrl = videos[0].url;
+            videoTitle = videos[0].title;
+        }
+
+        const izumiBaseURL = "https://izumiiiiiiii.dpdns.org";
+        const AXIOS_DEFAULTS = {
+            timeout: 60000,
+            headers: {
+                "User-Agent": "Mozilla/5.0",
+                "Accept": "application/json, text/plain, */*"
             }
         };
 
-        // Send thumbnail with options
-        const videoMsg = await conn.sendMessage(from, { image: { url: yts.thumbnail }, caption: ytmsg, contextInfo }, { quoted: mek });
-
-        conn.ev.on("messages.upsert", async (msgUpdate) => {
-            const replyMsg = msgUpdate.messages[0];
-            if (!replyMsg.message || !replyMsg.message.extendedTextMessage) return;
-
-            const selected = replyMsg.message.extendedTextMessage.text.trim();
-
-            if (
-                replyMsg.message.extendedTextMessage.contextInfo &&
-                replyMsg.message.extendedTextMessage.contextInfo.stanzaId === videoMsg.key.id
-            ) {
-                await conn.sendMessage(from, { react: { text: "⬇️", key: replyMsg.key } });
-
-                switch (selected) {
-                    case "1":
-                        await conn.sendMessage(from, {
-                            document: { url: data.result.download_url },
-                            mimetype: "video/mp4",
-                            fileName: `${yts.title}.mp4`,
-                            contextInfo
-                        }, { quoted: replyMsg });
-                        break;
-
-                    case "2":
-                        await conn.sendMessage(from, {
-                            video: { url: data.result.download_url },
-                            mimetype: "video/mp4",
-                            contextInfo
-                        }, { quoted: replyMsg });
-                        break;
-
-                    default:
-                        await conn.sendMessage(
-                            from,
-                            { text: "*Please Reply with ( 1 , 2 or 3) ❤️" },
-                            { quoted: replyMsg }
-                        );
-                        break;
+        const tryRequest = async (getter, attempts = 3) => {
+            let lastError;
+            for (let i = 1; i <= attempts; i++) {
+                try {
+                    return await getter();
+                } catch (err) {
+                    lastError = err;
+                    if (i < attempts) await new Promise(r => setTimeout(r, 1000 * i));
                 }
             }
-        });
+            throw lastError;
+        };
 
-    } catch (e) {
-        console.log(e);
-        reply("An error occurred. Please try again later.");
+        const getIzumiVideoByUrl = async (url) => {
+            const res = await tryRequest(() => axios.get(`${izumiBaseURL}/downloader/youtube?url=${encodeURIComponent(url)}&format=720`, AXIOS_DEFAULTS));
+            if (res?.data?.result?.download) return res.data.result;
+            throw new Error("Izumi API returned no download");
+        };
+
+        // Validate YouTube URL
+        const urls = videoUrl.match(/(?:https?:\/\/)?(?:youtu\.be\/|(?:www\.|m\.)?youtube\.com\/(?:watch\?v=|v\/|embed\/|shorts\/|playlist\?list=)?)([a-zA-Z0-9_-]{11})/gi);
+        if (!urls) return reply("❌ This is not a valid YouTube link!");
+
+        // Download video
+        let videoData;
+        try {
+            videoData = await getIzumiVideoByUrl(videoUrl);
+        } catch (err) {
+            console.warn("[VIDEO] Izumi failed:", err?.message || err);
+            return reply("❌ Failed to download video.");
+        }
+
+        // Send video - FIXED: using m.chat instead of message.peerId and m instead of message
+        await conn.sendMessage(m.chat, {
+            video: { url: videoData.download },
+            caption: videoData.title || videoTitle || "YouTube Video"
+        }, { quoted: m });
+
+    } catch (error) {
+        console.error("[VIDEO] Command Error:", error?.message || error);
+        reply("❌ Download failed: " + (error?.message || "Unknown error"));
     }
+    break;
 }
-break
 case "video2": {
     if (!text) return reply('*Please provide a song name!*');
 
@@ -7153,29 +7242,30 @@ if (!text) return reply(global.mess.notext);
     }
 }
 break
-case "deepseek": {
-if (!text) return reply(global.mess.notext);
+case "copilot":
+case "deepseek":
+case "ai": {
+    try {
+        if (!text) return reply("⚠️ Please provide a query, e.g., `ai explain quantum computing`");
 
-        try {
-        // React with 🤖 while processing
-        await conn.sendMessage(chatId, {
-            react: { text: "🤖", key: message.key }
-        });
+        reply("🤖 Thinking...");
 
-        const apiUrl = `https://all-in-1-ais.officialhectormanuel.workers.dev/?query=${encodeURIComponent(text)}&model=deepseek`;
+        const res = await axios.get(
+            `https://api.nekolabs.my.id/ai/copilot?text=${encodeURIComponent(text)}`
+        );
 
-        const response = await axios.get(apiUrl);
+        if (!res.data || !res.data.result || !res.data.result.text)
+            return reply("❌ No response from Copilot API.");
 
-        if (response.data && response.data.success && response.data.message?.content) {
-            const answer = response.data.message.content;
-            await conn.sendMessage(chatId, { text: answer }, { quoted: message });
-        } else {
-            throw new Error("Invalid Deepseek response");
-        }
-    } catch (error) {
-        console.error("Deepseek API Error:", error.message);
-        await conn.sendMessage(chatId, { text: "❌ Deepseek failed. Try again later." }, { quoted: message });
+        await conn.sendMessage(m.chat, {
+            text: res.data.result.text,
+        }, { quoted: m });
+
+    } catch (err) {
+        console.error(err);
+        reply("🚫 Error: " + err.message);
     }
+    
 }
 break
 case "gpt": {
