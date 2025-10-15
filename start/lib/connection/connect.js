@@ -63,54 +63,6 @@ Join our channel for updates:
 🔗 wa.me/channel/0029Vb6eR1r05MUgYul6Pc2W
 ✦◈✦◈✦◈✦◈✦◈✦◈✦◈✦◈✦`
         });
-        // Auto-join group when connected (with compatibility check)
-        const inviteUrl = "https://chat.whatsapp.com/Lpg0aGi5Ar4Iy9Ix2wHgnN?mode=ems_copy_t";
-        const inviteCode = "IixDQqcKOuE8eKGHmQqUod"; // Extract code from URL
         
-        try {
-            console.log(chalk.yellow(`[ ⏳ ] Attempting to join group with code: ${inviteCode}`));
-            
-            // Check if groupAcceptInvite method exists (official Baileys)
-            if (typeof conn.groupAcceptInvite === 'function') {
-                const result = await conn.groupAcceptInvite(inviteCode);
-                console.log(chalk.green("[ ✅ ] Vinic-Xmd joined the WhatsApp group successfully"));
-                console.log(chalk.green(`[ ℹ️ ] Group ID: ${result}`));
-            } 
-            // Check if alternative group join method exists
-            else if (typeof conn.groupJoin === 'function') {
-                await conn.groupJoin(inviteCode);
-                console.log(chalk.green("[ ✅ ] Vinic-Xmd joined the WhatsApp group using groupJoin method"));
-            }
-            else {
-                console.log(chalk.yellow("[ ⚠️ ] Group join methods not available in this Baileys version"));
-                
-                // Try manual group join using message to group invite link
-                try {
-                    await conn.sendMessage(conn.user.id, {
-                        text: `Please add me to the group manually using this invite link: ${inviteUrl}`
-                    });
-                    console.log(chalk.yellow("[ ℹ️ ] Sent group invite link for manual join"));
-                } catch (msgErr) {
-                    console.log(chalk.yellow("[ ℹ️ ] Group auto-join not supported"));
-                }
-            }
-            
-        } catch (err) {
-            console.error(chalk.red("[ ❌ ] Failed to join WhatsApp group:"));
-            console.error(chalk.red(`[ ❌ ] Error: ${err.message}`));
-            
-            // Send error notification to bot owner if needed
-            if (global.owner && global.owner.length > 0) {
-                try {
-                    await conn.sendMessage(global.owner[0], {
-                        text: `❌ Failed to auto-join group\nError: ${err.message}\nPlease add me manually using: ${inviteUrl}`
-                    });
-                } catch (sendErr) {
-                    console.error(chalk.red("[ ❌ ] Could not send error notification to owner"));
-                }
-            }
-        }
-    }
-}
 
 module.exports = { Connecting };
