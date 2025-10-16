@@ -1221,7 +1221,7 @@ const formatMenu = () => {
     for (const section of Object.values(menuSections).slice(1)) {
         // Format the title with the box style
         menu += `╭━◈${section.title.toUpperCase()} ◈\n`;
-        menu += section.commands.map(cmd => `│ ✦ ${prefix}${cmd}`).join('\n') + '\n';
+        menu += section.commands.map(cmd => `│ ➸ ${prefix}${cmd}`).join('\n') + '\n';
         menu += `┗▣\n\n`;
     }
          
