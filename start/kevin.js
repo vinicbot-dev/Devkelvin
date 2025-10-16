@@ -1124,13 +1124,7 @@ const systemUsedMemory = totalMemory - freeMemory;
                     `👤 ᴅᴇᴠ: ☘ ᴋᴇʟᴠɪɴ ᴛᴇᴄʜ ☘`,
                 ],
             },
-                bug: {
-                    title: ' *BUG MENU*',
-                    commands: [
-                        '𝖨𝗇𝗏𝗂𝗌', '𝖷𝖼𝗋𝖺𝗌𝗁', '𝖢𝗋𝖺𝗌𝗁', '𝖣𝖾𝗅𝖺𝗒',
-                        '𝙲𝚛𝚊𝚡', 'lonelysaam', 'ceo-venom', 'imgcrash', '𝖣𝗂𝗆', 'Vinic-crash', 'delaybug',
-                    ],
-                },
+            
                 owner: {
                     title: ' *OWNER MENU*',
                     commands: [
