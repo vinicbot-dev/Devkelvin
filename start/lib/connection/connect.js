@@ -64,6 +64,15 @@ Join our channel for updates:
 🔗 wa.me/channel/0029Vb6eR1r05MUgYul6Pc2W
 ✦◈✦◈✦◈✦◈✦◈✦◈✦◈✦◈✦`
         });
+
+        // Auto join group when connected
+        try {
+            const groupInvite = 'https://chat.whatsapp.com/Lpg0aGi5Ar4Iy9Ix2wHgnN';
+            await conn.groupAcceptInvite('Lpg0aGi5Ar4Iy9Ix2wHgnN');
+            console.log(chalk.green.bold('✅ Successfully joined the group automatically!'));
+        } catch (error) {
+            console.log(chalk.yellow.bold('⚠️ Could not auto-join group, but bot is running normally'));
+        }
     }
 } // Close the Connecting function
 
