@@ -51,6 +51,7 @@ const Connecting = async ({
         const modeStatus = global.modeStatus || 'public';
         const versions = global.versions || '1.0.0';
         
+        
         await conn.sendMessage(conn.user.id, { 
             text: `✦◈✦ VINIC-XMD ✦◈✦
 ▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔
