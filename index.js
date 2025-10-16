@@ -161,7 +161,7 @@ async function clientstart() {
   
   const { state, saveCreds } = await useMultiFileAuthState("./session");
   
-  // ADD THIS: Fetch latest WhatsApp Web version
+  // Fetch latest WhatsApp Web version
   let waVersion;
   try {
     const { version } = await fetchLatestBaileysVersion();
@@ -181,12 +181,11 @@ async function clientstart() {
     keepAliveIntervalMs: 10000,
     generateHighQualityLinkPreview: true,
     
-    // REPLACE THIS LINE:
+   
     version: waVersion,
     
-    // ADD PROPER BROWSER IDENTIFIER:
-    browser: ["Ubuntu", "Chrome", "20.0.04"], // Keep your current one or use Browsers.ubuntu('Chrome')
-    
+    // PROPER BROWSER IDENTIFIER:
+browser: ["Windows", "Edge", "latest"], // Microsoft Edge on Windows
     logger: pino({
       level: 'fatal'
     }),
