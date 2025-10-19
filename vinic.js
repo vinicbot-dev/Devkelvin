@@ -29,6 +29,8 @@ const latensi = speed() - timestampp
 
 const { smsg, sendGmail, formatSize, isUrl, generateMessageTag, CheckBandwidth, getBuffer, getSizeMedia, runtime, fetchJson, sleep, getRandom } = require('./start/lib/myfunction')
 
+const db = require('./start/lib/sqlite')
+
 //delay
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -80,67 +82,6 @@ if (global.db.data) {
   };
 }
 
-//================== [ FUNCTION ] ==================//
-async function setHerokuEnvVar(varName, varValue) {
-  const apiKey = process.env.HEROKU_API_KEY;
-  const appName = process.env.HEROKU_APP_NAME;
-  
-  try {
-    const response = await axios.patch(`https://api.heroku.com/apps/${appName}/config-vars`, {
-      [varName]: varValue
-    }, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/vnd.heroku+json; version=3',
-        'Authorization': `Bearer ${apiKey}`
-      }
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Error setting env var:', error);
-    throw new Error(`Failed to set environment variable, please make sure you've entered heroku api key and app name correctly.`);
-  }
-}
-
-async function getHerokuEnvVars() {
-  const apiKey = process.env.HEROKU_API_KEY;
-  const appName = process.env.HEROKU_APP_NAME;
-
-  try {
-    const response = await axios.get(`https://api.heroku.com/apps/${appName}/config-vars`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/vnd.heroku+json; version=3',
-        'Authorization': `Bearer ${apiKey}`
-      }
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Error getting env vars:', error);
-    throw new Error('Failed to get environment variables');
-  }
-}
-
-async function deleteHerokuEnvVar(varName) {
-  const apiKey = process.env.HEROKU_API_KEY;
-  const appName = process.env.HEROKU_APP_NAME;
-
-  try {
-    const response = await axios.patch(`https://api.heroku.com/apps/${appName}/config-vars`, {
-      [varName]: null
-    }, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/vnd.heroku+json; version=3',
-        'Authorization': `Bearer ${apiKey}`
-      }
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Error deleting env var:', error);
-    throw new Error(`Failed to set environment variable, please make sure you've entered heroku api key and app name correctly`); 
-  }
-}
 
 // Function to fetch MP3 download URL
 async function fetchMp3DownloadUrl(link) {
@@ -278,35 +219,39 @@ async function ephoto(url, texk) {
       );
       return build_server + data.image;
  }
-// function for getting activeusers in groups 
-async function getActiveUsers(groupId) {
+// ===== function for active members =====
+const GroupDB = {
+  addMessage: (groupJid, userJid) => {
     try {
-        const timePeriod = 24 * 60 * 60 * 1000; // Last 24 hours
-        const cutoffTime = Date.now() - timePeriod;
-        
-        // Get all messages from your messages array/object
-        const allMessages = await getMessages(); // Your function to get messages
-        
-        const userCounts = {};
-        
-        // Filter messages for this group and time period, then count
-        allMessages
-            .filter(msg => msg.groupId === groupId && msg.timestamp >= cutoffTime)
-            .forEach(msg => {
-                userCounts[msg.sender] = (userCounts[msg.sender] || 0) + 1;
-            });
-        
-        // Convert to array and sort
-        return Object.entries(userCounts)
-            .map(([jid, count]) => ({ jid, count }))
-            .sort((a, b) => b.count - a.count);
-        
-    } catch (error) {
-        console.error('Error getting active users:', error);
-        return [];
+      // Check if db is properly initialized
+      if (!db || typeof db.prepare !== 'function') {
+        console.error('❌ Database not properly initialized');
+        return;
+      }
+      
+      // Use the dedicated method from SQLiteDB class
+      db.addGroupMessage(groupJid, userJid);
+    } catch (err) {
+      console.error('Error inserting message:', err);
     }
-}
+  },
 
+  getActiveUsers: (groupJid) => {
+    try {
+      // Check if db is properly initialized
+      if (!db || typeof db.prepare !== 'function') {
+        console.error('❌ Database not properly initialized');
+        return [];
+      }
+      
+      // Use the dedicated method from SQLiteDB class
+      return db.getActiveUsers(groupJid);
+    } catch (err) {
+      console.error('Error getting active users:', err);
+      return [];
+    }
+  }
+};
 //obfuscator 
 async function obfus(query) {
       return new Promise((resolve, reject) => {
@@ -361,6 +306,7 @@ function initializeDatabase(from, botNumber) {
     if (!("autoreactstatus" in setting.config)) setting.config.autoreactstatus = false;
     if (!("antiedit" in setting.config)) setting.config.antiedit = false;
     if (!("anticall" in setting.config)) setting.config.anticall = false; // false, "decline", or "block"
+    if (!("AI_CHAT" in setting.config)) setting.config.AI_CHAT = false;
     if (!("antibug" in setting.config)) setting.config.antibug = false;
     if (!("ownernumber" in setting.config)) setting.config.ownernumber = global.ownernumber || '';
 
@@ -428,10 +374,21 @@ async function downloadMediaMessage(conn, message) {
         throw error;
     }
 }
-//================== [ DATABASE SAVE FUNCTION ] ==================//
 async function saveDatabase() {
   try {
+    // Save to JSON file for backup
     fs.writeFileSync("./start/lib/database/database.json", JSON.stringify(global.db.data, null, 2));
+    
+    // Save all settings to SQLite
+    if (global.db.data.settings) {
+      for (const [botNumber, settings] of Object.entries(global.db.data.settings)) {
+        if (settings.config) {
+          db.saveSettings(botNumber, settings.config);
+        }
+      }
+    }
+    
+    console.log('✅ Database saved successfully');
     return true;
   } catch (error) {
     console.error('Error saving database:', error);
@@ -1267,7 +1224,7 @@ module.exports = {
   checkAndHandleLinks,
   ephoto,
   loadBlacklist,
-  getActiveUsers,
+ GroupDB,
   initializeDatabase,
   delay,
   saveDatabase,
