@@ -10,6 +10,30 @@ class SQLiteDB {
         this.initTables();
     }
 
+    // ADD THESE METHODS TO PROXY THE DATABASE METHODS
+    prepare(sql) {
+        return this.db.prepare(sql);
+    }
+
+    exec(sql) {
+        return this.db.exec(sql);
+    }
+
+    all(sql, params = []) {
+        const stmt = this.db.prepare(sql);
+        return stmt.all(...params);
+    }
+
+    get(sql, params = []) {
+        const stmt = this.db.prepare(sql);
+        return stmt.get(...params);
+    }
+
+    run(sql, params = []) {
+        const stmt = this.db.prepare(sql);
+        return stmt.run(...params);
+    }
+
     ensureDBDir() {
         const dir = path.dirname(this.dbPath);
         if (!fs.existsSync(dir)) {
@@ -59,6 +83,17 @@ class SQLiteDB {
                 welcome_enabled INTEGER DEFAULT 1,
                 antilink_enabled INTEGER DEFAULT 0,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // ADD THIS TABLE FOR GROUP ACTIVITY TRACKING
+        this.db.exec(`
+            CREATE TABLE IF NOT EXISTS group_messages (
+                group_jid TEXT,
+                user_jid TEXT,
+                count INTEGER DEFAULT 0,
+                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (group_jid, user_jid)
             )
         `);
 
@@ -132,6 +167,27 @@ class SQLiteDB {
             VALUES (?, ?, ?, ?)
         `);
         stmt.run(jid, name, welcomeEnabled ? 1 : 0, antilinkEnabled ? 1 : 0);
+    }
+
+    // Group messages methods for activity tracking
+    addGroupMessage(groupJid, userJid) {
+        const stmt = this.db.prepare(`
+            INSERT INTO group_messages (group_jid, user_jid, count) 
+            VALUES (?, ?, 1) 
+            ON CONFLICT(group_jid, user_jid) 
+            DO UPDATE SET count = count + 1, last_updated = CURRENT_TIMESTAMP
+        `);
+        stmt.run(groupJid, userJid);
+    }
+
+    getActiveUsers(groupJid) {
+        const stmt = this.db.prepare(`
+            SELECT user_jid AS jid, count 
+            FROM group_messages 
+            WHERE group_jid = ? 
+            ORDER BY count DESC
+        `);
+        return stmt.all(groupJid);
     }
 
     // Close database connection
