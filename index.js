@@ -1,8 +1,27 @@
 console.clear();
 console.log('Starting Vinic-Xmd...');
+
+// Environment detection for cloud optimization
+const isProduction = process.env.NODE_ENV === 'production';
+const isLowMemory = process.env.MEMORY_LIMIT < 512 || isProduction;
+
+// Optimize memory usage
+if (isLowMemory) {
+  console.log('🚀 Running in optimized mode for cloud/low memory environment');
+}
+
 const settings = require('./settings');
 const config = require('./setting/config');
-process.on("uncaughtException", console.error);
+
+// Enhanced error handling for cloud stability
+process.on("uncaughtException", (error) => {
+  console.error('Uncaught Exception:', error);
+  // Don't exit in cloud environments
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
 
 const {
   default: makeWASocket,
@@ -59,7 +78,6 @@ const {
   getSizeMedia,
   runtime,
   fetchJson,
-  sleep
 } = require('./start/lib/myfunction');
 
 const {
@@ -70,6 +88,7 @@ handleAutoReact,
 checkAndHandleLinks,
 handleLinkViolation,
 detectUrls,
+saveDatabase,
 handleStatusUpdate
  } = require('./vinic');
 
@@ -82,6 +101,11 @@ const {
 
 const SESSION_DIR = './session';
 const CREDS_PATH = `${SESSION_DIR}/creds.json`;
+
+// Use system temp directory for cloud platforms
+const TMP_DIR = isProduction 
+  ? path.join(os.tmpdir(), 'vinic-bot-tmp')
+  : path.join(__dirname, 'tmp');
 
 const usePairingCode = true;
 
@@ -152,14 +176,107 @@ async function downloadSessionData() {
         return null;
     }
 }
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+// Enhanced cleanup function for cloud
+function cleanupTmpFiles() {
+  try {
+    if (fs.existsSync(TMP_DIR)) {
+      const files = fs.readdirSync(TMP_DIR);
+      let deletedCount = 0;
+      files.forEach(file => {
+        try {
+          const filePath = path.join(TMP_DIR, file);
+          const stats = fs.statSync(filePath);
+          // Delete files older than 30 minutes in production, 1 hour in development
+          const maxAge = isProduction ? 30 * 60 * 1000 : 60 * 60 * 1000;
+          if (Date.now() - stats.mtime.getTime() > maxAge) {
+            fs.unlinkSync(filePath);
+            deletedCount++;
+          }
+        } catch (e) {
+          // Ignore file errors during cleanup
+        }
+      });
+      if (deletedCount > 0) {
+        console.log(`🧹 Cleaned up ${deletedCount} temporary files`);
+      }
+    }
+  } catch (error) {
+    console.log('Cleanup error:', error.message);
+  }
+}
+
+// Memory monitoring
+function monitorResources() {
+  if (isLowMemory) {
+    const used = process.memoryUsage();
+    const memoryUsage = {
+      rss: Math.round(used.rss / 1024 / 1024 * 100) / 100,
+      heapTotal: Math.round(used.heapTotal / 1024 / 1024 * 100) / 100,
+      heapUsed: Math.round(used.heapUsed / 1024 / 1024 * 100) / 100,
+      external: Math.round(used.external / 1024 / 1024 * 100) / 100
+    };
+    
+    if (memoryUsage.heapUsed > 150) { // 150MB threshold for low memory
+      console.warn('⚠️ High memory usage:', memoryUsage);
+      if (global.gc) {
+        global.gc();
+        console.log('🗑️ Garbage collection triggered');
+      }
+    }
+  }
+}
+
+
+// Connection resilience for cloud
+let reconnectAttempts = 0;
+const maxReconnectAttempts = 10;
+
+async function handleReconnection() {
+  if (reconnectAttempts < maxReconnectAttempts) {
+    reconnectAttempts++;
+    console.log(`🔁 Reconnection attempt ${reconnectAttempts}/${maxReconnectAttempts}`);
+    await sleep(3000 * reconnectAttempts); // Exponential backoff
+    await clientstart();
+  } else {
+    console.error('❌ Max reconnection attempts reached');
+  }
+}
+
+// ... existing code ...
+
 async function clientstart() {
   if (!fs.existsSync(SESSION_DIR)) {
-    fs.mkdirSync(SESSION_DIR);
+    fs.mkdirSync(SESSION_DIR, { recursive: true });
+  }
+
+  // Create tmp directory
+  if (!fs.existsSync(TMP_DIR)) {
+    fs.mkdirSync(TMP_DIR, { recursive: true });
   }
 
   const sessionExists = await downloadSessionData();
   
-  const { state, saveCreds } = await useMultiFileAuthState("./session");
+  const { state, saveCreds } = await useMultiFileAuthState("./session", {
+    // Optimize session storage for cloud
+    saveCreds: async (creds) => {
+      const minimalCreds = {
+        noiseKey: creds.noiseKey,
+        signedIdentityKey: creds.signedIdentityKey,
+        signedPreKey: creds.signedPreKey,
+        registrationId: creds.registrationId,
+        advSecretKey: creds.advSecretKey,
+        processedHistoryMessages: creds.processedHistoryMessages,
+        nextPreKeyId: creds.nextPreKeyId,
+        firstUnuploadedPreKeyId: creds.firstUnuploadedPreKeyId,
+        accountSettings: creds.accountSettings
+      };
+      await fs.promises.writeFile(CREDS_PATH, JSON.stringify(minimalCreds, null, 2));
+    }
+  });
   
   // Fetch latest WhatsApp Web version
   let waVersion;
@@ -172,22 +289,22 @@ async function clientstart() {
     waVersion = [2, 3000, 1017546695]; // Fallback version
   }
 
+  // Optimized connection for cloud/low memory
   const conn = makeWASocket({
     printQRInTerminal: !usePairingCode,
-    syncFullHistory: true,
+    syncFullHistory: !isLowMemory, // Disable in low memory
     markOnlineOnConnect: true,
-    connectTimeoutMs: 60000,
-    defaultQueryTimeoutMs: 0,
-    keepAliveIntervalMs: 10000,
-    generateHighQualityLinkPreview: true,
+    connectTimeoutMs: isProduction ? 30000 : 60000, // Shorter timeout in production
+    defaultQueryTimeoutMs: 10000,
+    keepAliveIntervalMs: isProduction ? 20000 : 10000, // Less frequent in production
+    generateHighQualityLinkPreview: !isLowMemory, // Disable in low memory
     
-   
     version: waVersion,
     
-    // PROPER BROWSER IDENTIFIER:
-browser: ["Windows", "Edge", "latest"], // Microsoft Edge on Windows
+    // Lightweight browser identifier for cloud
+    browser: isProduction ? ["Ubuntu", "Chrome", "latest"] : ["Windows", "Edge", "latest"],
     logger: pino({
-      level: 'fatal'
+      level: isProduction ? 'silent' : 'fatal' // Less logging in production
     }),
     auth: {
       creds: state.creds,
@@ -197,14 +314,63 @@ browser: ["Windows", "Edge", "latest"], // Microsoft Edge on Windows
       })),
     }
   });
+
+  // Define decodeJid immediately after connection
+  conn.decodeJid = (jid) => {
+    if (!jid) return jid;
+    if (/:\d+@/gi.test(jid)) {
+      let decode = jidDecode(jid) || {};
+      return decode.user && decode.server && decode.user + '@' + decode.server || jid;
+    } else return jid;
+  };
+
+  // MOVE THE BOT NUMBER INITIALIZATION HERE - RIGHT AFTER CONN IS DEFINED
+  const botNumber = conn.decodeJid(conn.user?.id) || 'default'; // Add fallback
   
-if (!sessionExists && !conn.authState.creds.registered) {
+  // INITIALIZE DATABASE SETTINGS ON BOT START
+  // Load settings from SQLite database
+  try {
+    const savedSettings = db.getSettings(botNumber);
+    if (savedSettings) {
+      if (!global.db.data.settings) global.db.data.settings = {};
+      if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+      global.db.data.settings[botNumber].config = { ...savedSettings };
+      console.log('✅ Settings loaded from database');
+    } else {
+      // Initialize default settings if none exist
+      const { initializeDatabase } = require('./vinic');
+      initializeDatabase(null, botNumber);
+    }
+  } catch (error) {
+    console.error('Error loading settings:', error);
+    const { initializeDatabase } = require('./vinic');
+    initializeDatabase(null, botNumber);
+  }
+
+  // Auto-save database with cloud optimization
+setInterval(async () => {
+    try {
+        await saveDatabase();
+        console.log('🔄 Database auto-saved');
+    } catch (error) {
+        console.error('Auto-save error:', error);
+    }
+}, 5 * 60 * 1000); // 5 minutes
+
+// Run cleanup every 30 minutes
+setInterval(cleanupTmpFiles, 30 * 60 * 1000);
+
+// Monitor memory every 10 minutes
+setInterval(monitorResources, 10 * 60 * 1000);
+
+  
+  if (!sessionExists && !conn.authState.creds.registered) {
     const phoneNumber = await question(chalk.greenBright(`Thanks for choosing Vinic-Xmd. Please provide your number start with 256xxx:\n`));
     const code = await conn.requestPairingCode(phoneNumber.trim());
     console.log(chalk.cyan(`Code: ${code}`));
     console.log(chalk.cyan(`Vinic-Xmd: Please use this code to connect your WhatsApp account.`));
   }
-
+  
   const { makeInMemoryStore } = require("./start/lib/store/");
   const store = makeInMemoryStore({
     logger: pino().child({
@@ -215,7 +381,7 @@ if (!sessionExists && !conn.authState.creds.registered) {
   
   store.bind(conn.ev);
 
-conn.ev.on('messages.upsert', async chatUpdate => {
+  conn.ev.on('messages.upsert', async chatUpdate => {
     try {
         let mek = chatUpdate.messages[0];
         if (!mek.message) return;
@@ -238,30 +404,23 @@ conn.ev.on('messages.upsert', async chatUpdate => {
         
         saveStoredMessage(mek);
         
-        await handleAntiDelete(mek, conn);
-        
-        await handleAntiEdit(mek, conn);
-        
-        await checkAndHandleLinks(mek, conn);
-                   
-        await handleAutoReact(m, conn);
-            
-        await detectUrls(mek, conn);
-            
-        await handleLinkViolation(mek, conn);
+        // Conditionally enable features based on memory
+        if (!isLowMemory) {
+          await handleAntiDelete(mek, conn);
+          await handleAntiEdit(mek, conn);
+          await checkAndHandleLinks(mek, conn);
+          await handleAutoReact(m, conn);
+          await detectUrls(mek, conn);
+          await handleLinkViolation(mek, conn);
+        }
         
         require("./start/kevin")(conn, m, chatUpdate, mek, store);
     } catch (err) {
         console.log(chalk.yellow.bold("[ ERROR ] kevin.js :\n") + chalk.redBright(util.format(err)));
     }
-});
-  conn.decodeJid = (jid) => {
-    if (!jid) return jid;
-    if (/:\d+@/gi.test(jid)) {
-      let decode = jidDecode(jid) || {};
-      return decode.user && decode.server && decode.user + '@' + decode.server || jid;
-    } else return jid;
-  };
+  });
+
+  
 
 conn.ev.on('contacts.update', update => {
     for (let contact of update) {
@@ -282,7 +441,23 @@ conn.ev.on('contacts.update', update => {
       ...options,
     }, { quoted });
   };
+    
 
+  conn.sendTextWithMentions = async (jid, text, quoted, options = {}) => {
+    const mentionedJid = [...text.matchAll(/@(\d{0,16})/g)].map(
+      (v) => v[1] + "@s.whatsapp.net",
+    );
+    return conn.sendMessage(jid, {
+      text: text,
+      contextInfo: {
+        mentionedJid: mentionedJid,
+      },
+      ...options,
+    }, { quoted });
+  };
+
+  // Add all your other existing conn methods here...
+  // [Keep all your existing conn.sendImageAsSticker, conn.
   conn.sendImageAsSticker = async (jid, path, quoted, options = {}) => {
     let buff;
     try {
@@ -516,9 +691,6 @@ conn.downloadAndSaveMediaMessage = async (message, filename, attachExtension = t
     await conn.relayMessage(jid, waMessage.message, { messageId: waMessage.key.id });
     return waMessage;
   };
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 function createTmpFolder() {
 const folderName = "tmp";
