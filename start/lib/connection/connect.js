@@ -45,7 +45,7 @@ const Connecting = async ({
         console.log(chalk.blue.bold('Connecting. . .'));
     } else if (connection === "open") {
         console.log(`${ascii}`);
-        console.log(chalk.blue.bold('Connection Succesfull ✔︎'));
+        console.log('🌝🌝︎');
         
         // Use global variables with fallbacks
         const modeStatus = global.modeStatus || 'public';
