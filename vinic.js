@@ -388,7 +388,6 @@ async function saveDatabase() {
       }
     }
     
-    console.log('✅ Database saved successfully');
     return true;
   } catch (error) {
     console.error('Error saving database:', error);
@@ -517,8 +516,8 @@ async function handleAntiEdit(m, conn) {
         let targetChat;
         let notificationType = "";
 
-        // Check the mode setting - FIXED LOGIC
-        if (config.antieditmode === 'private') {
+        // Check the mode setting - UPDATED FOR NEW FORMAT
+        if (config.antiedit === 'private') {
             // OPTION 1: Send to owner's inbox (private mode)
             targetChat = botNumber; // Send to bot owner's inbox
             notificationType = "Private Inbox";
@@ -544,8 +543,8 @@ ${newText}`;
                     text: privateEditNotification
                 }
             );
-        } else {
-            // OPTION 2: Send to same chat (chat mode) - DEFAULT
+        } else if (config.antiedit === 'chat') {
+            // OPTION 2: Send to same chat (chat mode)
             targetChat = chatId; // Send to same chat where edit occurred
             notificationType = "Same Chat";
             
@@ -579,6 +578,7 @@ ${newText}`;
         console.error("❌ Error processing edited message:", err);
     }
 }
+
 // ========== FIXED ANTI-DELETE FUNCTIONALITY WITH MEDIA SUPPORT ==========
 async function handleAntiDelete(m, conn) {
     try {
