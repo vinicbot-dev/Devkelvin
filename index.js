@@ -82,7 +82,6 @@ const {
 
 const {
 handleAntiDelete,
-handleAntiEdit,
 saveStoredMessage,
 handleAutoReact,
 checkAndHandleLinks,
@@ -324,7 +323,6 @@ async function clientstart() {
     } else return jid;
   };
 
-  // MOVE THE BOT NUMBER INITIALIZATION HERE - RIGHT AFTER CONN IS DEFINED
   const botNumber = conn.decodeJid(conn.user?.id) || 'default'; // Add fallback
   
   // INITIALIZE DATABASE SETTINGS ON BOT START
@@ -351,7 +349,6 @@ async function clientstart() {
 setInterval(async () => {
     try {
         await saveDatabase();
-        console.log('🔄 Database auto-saved');
     } catch (error) {
         console.error('Auto-save error:', error);
     }
@@ -395,6 +392,8 @@ setInterval(monitorResources, 10 * 60 * 1000);
             console.log(`📱 Status update detected from ${mek.pushName || 'Unknown'}`);
             
             await handleStatusUpdate(mek, conn);   
+            
+           
             saveStoredMessage(mek);
             return;
         }
@@ -403,11 +402,12 @@ setInterval(monitorResources, 10 * 60 * 1000);
         let m = smsg(conn, mek, store);
         
         saveStoredMessage(mek);
+     
         
         // Conditionally enable features based on memory
         if (!isLowMemory) {
           await handleAntiDelete(mek, conn);
-          await handleAntiEdit(mek, conn);
+         
           await checkAndHandleLinks(mek, conn);
           await handleAutoReact(m, conn);
           await detectUrls(mek, conn);
