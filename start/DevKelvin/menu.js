@@ -92,14 +92,7 @@ async function generateMenu(conn, m, prefix, global) {
                       'apk', 'gdrive', 'playdoc', 'tiktok', 'tiktok2', 'instagram', 
                       'video', 'video2', 'tiktokaudio', 'save', 'facebook'],
         },
-        sport: {
-            title: ' *SPORT MENU*',
-            commands: ['worldcupmatches', 'elcmatches', 'europaleaguematches', 
-                      'ligue1matches', 'eplmatches', 'championsleaguematches', 
-                      'bundesligamatches', 'serieamatches', 'worldcupupcoming', 
-                      'ligue1upcoming', 'europaleagueupcoming', 'wrestlingevent', 
-                      'wwenews', 'wweschedule'],
-        },
+        
         convert: {
             title: ' *CONVERT MENU* ',
             commands: ['toaudio', 'toimage', 'url', 'tovideo', 'topdf', 'sticker'],
