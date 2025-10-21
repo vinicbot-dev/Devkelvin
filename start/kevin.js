@@ -8837,8 +8837,9 @@ if (!Access) return reply(mess.owner);
 break
 case "demote":
 case "downgrade": {
-if (!Access) return reply(mess.owner);
         if (!m.isGroup) return reply(mess.group);
+        if (!isgroupAdmins) return reply('❌ You need to be an admin to use this command.');
+    
     let target = m.mentionedJid[0] 
       ? m.mentionedJid[0] 
       : m.quoted 
@@ -9232,7 +9233,7 @@ if (!Access) return reply(mess.owner);
 break
 case "antilink": {
     if (!m.isGroup) return reply('❌ This command can only be used in groups.');
-    if (!isAdmins && !Access) return reply('❌ You need to be an admin to use this command.');
+    if (!isgroupAdmins) return reply('❌ You need to be an admin to use this command.');
     
     if (args.length < 2) return reply(`Example: 
 ${prefix + command} delete on/off
@@ -9425,8 +9426,10 @@ if (!Access) return reply(mess.owner);
 }
 break
 case "kick": {
-        if (!Access) return reply(mess.owner);
+        
         if (!m.isGroup) return reply(mess.group);
+        if (!isgroupAdmins) return reply('❌ You need to be an admin to use this command.');
+    
 
         let bck = m.mentionedJid[0]
             ? m.mentionedJid[0]
@@ -9439,8 +9442,10 @@ case "kick": {
 break
 case "kick2": {
 try {
-      if (!Access) return reply(mess.owner);
+      
         if (!m.isGroup) return reply(mess.group);
+        if (!isgroupAdmins) return reply('❌ You need to be an admin to use this command.');
+    
         const userId = mentionedJid?.[0] || m.quoted?.sender;
         if (!userId) return reply("ℹ️ Please mention or quote the user to kick");
 
