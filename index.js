@@ -362,7 +362,7 @@ setInterval(monitorResources, 10 * 60 * 1000);
 
   
   if (!sessionExists && !conn.authState.creds.registered) {
-    const phoneNumber = await question(chalk.greenBright(`Thanks for choosing Vinic-Xmd. Please provide your number start with 256xxx:\n`));
+    const phoneNumber = await question(chalk.greenBright(`Thanks for choosing ${global.botname} Please provide your number start with 256xxx:\n`));
     const code = await conn.requestPairingCode(phoneNumber.trim());
     console.log(chalk.cyan(`Code: ${code}`));
     console.log(chalk.cyan(`Vinic-Xmd: Please use this code to connect your WhatsApp account.`));
@@ -776,7 +776,7 @@ conn.ev.on('group-participants.update', async (anu) => {
                             await conn.sendMessage(anu.id, {
                                 image: { url: ppUrl },
                                 caption: `
-   *${config.botname} welcome* @${participant.split('@')[0]}  
+   *${global.botname} welcome* @${participant.split('@')[0]}  
    
    *𝙶𝚛𝚘𝚞𝚙𝙽𝚊𝚖𝚎: ${groupMetadata.subject}*
    
@@ -896,11 +896,11 @@ if (typeof global.anticall === 'undefined') {
 }
 
 if (!global.anticallMessage) {
-  global.anticallMessage = `🚫, *🌹Hi. I am 👑VINIC-XMD, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kelvin Tech.*
+  global.anticallMessage = `🚨 *𝙲𝙰𝙻𝙻 𝙳𝙴𝚃𝙴𝙲𝚃𝙴𝙳!* 🚨\n\n, *🌹Hi. I am 👑${global.botname}, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kelvin Tech.*
   
     *My owner cannot receive calls at this moment. Please avoid unnecessary calling.*
     
-  ${global.wm}`;
+> ${global.wm}`;
 }
 
 
@@ -984,7 +984,7 @@ conn.ev.on('call', async (callData) => {
           
     You have been blocked for calling. My owner does not accept calls.*
     
-  ${global.wm}  `;
+> ${global.wm}  `;
           await conn.sendMessage(from, { text: blockMessage });
           console.log(chalk.green(`[ANTICALL] Block warning sent to: ${from}`));
           
