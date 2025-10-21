@@ -356,10 +356,10 @@ async function handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, p
             Respond as Vinic-Xmd AI:`;
 
             // Encode the prompt for the API
-            const query = encodeURIComponent(prompt);
+            const text = encodeURIComponent(prompt);
             
             // Use the API endpoint
-            const apiUrl = `https://api.giftedtech.web.id/api/ai/ai?apikey=gifted&q=${query}`;
+            const apiUrl = `https://api.nekolabs.my.id/ai/ai4chat?text=${text}`;
 
             const { data } = await axios.get(apiUrl);
             
@@ -525,6 +525,8 @@ if (getAIChatbotState() === "true" && body && !m.key.fromMe && !isCmd) {
 }
 
 await handleAntiEdit(m, conn);
+// Before your command switch case, add this:
+
 
 switch (command) {
 case 'menu':
@@ -1984,15 +1986,10 @@ reply(`Anti-delete ${type} mode ${option === "on" ? "enabled" : "disabled"} succ
 }
 break
 case 'aichat':
-case "chatbot": {
+case 'chatbot':
+case 'bot': {
     if (!Access) return reply(mess.owner);
     
-    // Initialize settings
-    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-    if (!global.db.data.settings[botNumber].config) global.db.data.settings[botNumber].config = {};
-    
-    const current = global.db.data.settings[botNumber].config.AI_CHAT || false;
-      
     const status = args[0]?.toLowerCase();
     if (status === "on") {
         setAIChatbotState(true);
@@ -2006,9 +2003,8 @@ case "chatbot": {
     } else {
         return reply(`Current AI state: ${getAIChatbotState() === "true" ? "ON" : "OFF"}\nUsage: ${prefix}aichat on/off/clear`);
     }
-    await saveDatabase(); // THIS IS CRITICAL
+    break;
 }
-break
 case "autoreact": {
     if (!Access) return reply(mess.owner);
        
@@ -4170,6 +4166,89 @@ let q = args.join(" ");
     }
 }
 break
+case 'royal': {
+    if (!text) return reply(`*Example: ${prefix}royal Kelvin*`);
+    
+    try {
+        await reply('👑 Creating royal logo... Please wait ⏳');
+        
+        const apiUrl = `https://api.nekolabs.my.id/ephoto/royal-text?text=${encodeURIComponent(text)}`;
+        
+        // Send image directly from URL
+        await conn.sendMessage(m.chat, {
+            image: { url: apiUrl },
+            caption: `${global.wm}`
+        }, { quoted: m });
+        
+    } catch (error) {
+        console.error('Royal command error:', error);
+        reply('❌ Error generating logo. Please try again later.');
+    }
+}
+break;
+
+case 'bear': {
+    if (!text) return reply(`*Example: ${prefix}bear Kelvin*`);
+    
+    try {
+        await reply('🐻 Creating bear logo... Please wait ⏳');
+        
+        const apiUrl = `https://api.nekolabs.my.id/ephoto/bear-logo?text=${encodeURIComponent(text)}`;
+        
+        // Send image directly from URL
+        await conn.sendMessage(m.chat, {
+            image: { url: apiUrl },
+            caption: `${global.wm}`
+        }, { quoted: m });
+        
+    } catch (error) {
+        console.error('Bear command error:', error);
+        reply('❌ Error generating logo. Please try again later.');
+    }
+}
+break
+case 'papercut':
+case '3dpaper': {
+    if (!text) return reply(`*Example: ${prefix}papercut Kelvin*`);
+    
+    try {
+        await reply('✂️ Creating 3D paper cut style... Please wait ⏳');
+        
+        const apiUrl = `https://api.nekolabs.my.id/ephoto/3d-paper-cut-style?text=${encodeURIComponent(text)}`;
+        
+        // Send image directly from URL
+        await conn.sendMessage(m.chat, {
+            image: { url: apiUrl },
+            caption: `${global.wm}`
+        }, { quoted: m });
+        
+    } catch (error) {
+        console.error('Papercut command error:', error);
+        reply('❌ Error generating logo. Please try again later.');
+    }
+}
+break
+case 'hologram':
+case '3dhologram': {
+    if (!text) return reply(`*Example: ${prefix}hologram Kelvin*`);
+    
+    try {
+        await reply('✨ Creating 3D hologram text... Please wait ⏳');
+        
+        const apiUrl = `https://api.nekolabs.my.id/ephoto/3d-hologram-text?text=${encodeURIComponent(text)}`;
+        
+        // Send image directly from URL
+        await conn.sendMessage(m.chat, {
+            image: { url: apiUrl },
+            caption: `${global.wm}`
+        }, { quoted: m });
+        
+    } catch (error) {
+        console.error('Hologram command error:', error);
+        reply('❌ Error generating hologram. Please try again later.');
+    }
+}
+break
 case "1917style": {
 let q = args.join(" ");
     if (!q) {
@@ -4438,7 +4517,7 @@ ${json.data.tafsir.id}`;
 }
 //===[DOWNLOAD MENU CMDS]===
 break
-case 'play':
+case 'song':
 case 'xplay': {
   if (!text) return reply(`*Example*: ${prefix + command} number one by ravany`);
 
@@ -4499,6 +4578,109 @@ case 'xplay': {
       console.error("play.js error:", err.message);
       reply(`⚠️ Error fetching song: ${err.message}`);
     }
+}
+break
+case "play": {
+    if (!text) return reply('🎵 Please provide a song name or YouTube URL\nExample: .play shape of you');
+    
+    // Send initial processing message
+    await reply(`🔍 Searching for: ${text}\n⏳ Please wait...`);
+
+    try {
+        const apiUrl = `https://api.nekolabs.my.id/downloader/youtube/play/v1?q=${encodeURIComponent(text)}`;
+        
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+
+        if (data.success && data.result.downloadUrl) {
+            const { metadata, downloadUrl } = data.result;
+            
+            // Format selection menu
+            const formatMenu = `🎵 *${metadata.title}* - ${metadata.channel}
+⏱️ Duration: ${metadata.duration}
+
+*Choose download format:*
+1. 📄 MP3 as Document
+2. 🎧 MP3 as Audio (Play)
+3. 🎙️ MP3 as Voice Note (PTT)
+
+_Reply with 1, 2 or 3 to this message to download the format you prefer._`;
+            
+            // Send format selection menu
+            const songmsg = await conn.sendMessage(m.chat, { 
+                text: formatMenu 
+            }, { quoted: m });
+
+            // Listen for format selection
+            conn.ev.on("messages.upsert", async (msgUpdate) => {
+                const mp3msg = msgUpdate.messages[0];
+                if (!mp3msg.message || !mp3msg.message.extendedTextMessage) return;
+
+                const selectedOption = mp3msg.message.extendedTextMessage.text.trim();
+
+                if (
+                    mp3msg.message.extendedTextMessage.contextInfo &&
+                    mp3msg.message.extendedTextMessage.contextInfo.stanzaId === songmsg.key.id
+                ) {
+                    await conn.sendMessage(m.chat, { react: { text: "⬇️", key: mp3msg.key } });
+
+                    switch (selectedOption) {
+                        case "1":   
+                            await conn.sendMessage(m.chat, { 
+                                document: { url: downloadUrl }, 
+                                mimetype: "audio/mpeg", 
+                                fileName: `${metadata.title}.mp3`.replace(/[<>:"/\\|?*]/g, ''),
+                                caption: `🎵 *${metadata.title}*\n🎤 ${metadata.channel}\n⏱️ ${metadata.duration}`
+                            }, { quoted: mp3msg });   
+                            break;
+                            
+                        case "2":   
+                            await conn.sendMessage(m.chat, { 
+                                audio: { url: downloadUrl }, 
+                                mimetype: "audio/mp4",
+                                fileName: `${metadata.title}.mp3`.replace(/[<>:"/\\|?*]/g, ''),
+                                contextInfo: {
+                                    externalAdReply: {
+                                        title: metadata.title.slice(0, 60),
+                                        body: `By ${metadata.channel}`.slice(0, 30),
+                                        mediaType: 2,
+                                        thumbnailUrl: metadata.cover,
+                                        mediaUrl: metadata.url
+                                    }
+                                }
+                            }, { quoted: mp3msg });
+                            break;
+                            
+                        case "3":   
+                            await conn.sendMessage(m.chat, { 
+                                audio: { url: downloadUrl }, 
+                                mimetype: "audio/mp4", 
+                                ptt: true,
+                                fileName: `${metadata.title}.mp3`.replace(/[<>:"/\\|?*]/g, '')
+                            }, { quoted: mp3msg });
+                            break;
+
+                        default:
+                            await conn.sendMessage(
+                                m.chat,
+                                {
+                                    text: "*❌ Invalid selection! Please reply with 1, 2 or 3*",
+                                },
+                                { quoted: mp3msg }
+                            );
+                    }
+                }
+            });
+           
+        } else {
+            reply('❌ No results found or download failed. Please try another song.');
+        }
+        
+    } catch (error) {
+        console.error('Play command error:', error);
+        reply('❌ Error fetching audio. Please try again later.');
+    }
+    
 }
 break
 case "ringtone": {
@@ -4613,7 +4795,7 @@ case "play2": {
     
 }
 break
-case "song": {
+case "song2": {
     if (!text) return reply(global.mess.notext);
 
     try {
@@ -4703,64 +4885,6 @@ case "song": {
 
         // React ❌ on error
         await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key }});
-    }
-    
-}
-break
-case "song2": {
-    if (!text) return reply("📘 Usage: play <song name>");
-
-    reply("🔍 Searching for the song...");
-
-    try {
-        // Step 1: Search YouTube for the song
-        const search = await yts(text);
-        if (!search || !search.videos.length) {
-            return reply("🚫 No song found.");
-        }
-
-        const video = search.videos[0];
-        const videoUrl = video.url;
-
-        reply(`🎧 Found: *${video.title}*\n⏱ Duration: ${video.timestamp}`);
-
-        // Step 2: Use Izumi API to get download link
-        const apiUrl = `https://izumiiiiiiii.dpdns.org/downloader/youtube?url=${encodeURIComponent(videoUrl)}&format=mp3`;
-
-        const res = await axios.get(apiUrl, {
-            timeout: 30000,
-            headers: {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            },
-        });
-
-        if (!res.data || !res.data.result || !res.data.result.download) {
-            return reply("🚫 Failed to fetch download link from Izumi API.");
-        }
-
-        const { download, title } = res.data.result;
-        const safeTitle = title.replace(/[<>:"/\\|?*]+/g, "_"); // sanitize filename
-        const audioPath = path.resolve(__dirname, `../temp/${safeTitle}.mp3`);
-
-        reply(`📥 Downloading audio: *${title}*`);
-
-        // Step 3: Download the MP3 file
-        const file = await axios.get(download, { responseType: "arraybuffer" });
-        fs.writeFileSync(audioPath, file.data);
-
-        // Step 4: Send the audio file as a document
-        await conn.sendMessage(m.chat, {
-            document: fs.readFileSync(audioPath),
-            fileName: `${safeTitle}.mp3`,
-            mimetype: 'audio/mpeg',
-            caption: `🎵 Title: *${title}*\n📺 Source: ${videoUrl}`
-        }, { quoted: m });
-
-        // Step 5: Clean up
-        fs.unlinkSync(audioPath);
-    } catch (error) {
-        console.error("❌ Error in play command:", error.message);
-        reply("🚫 An error occurred while processing your request.");
     }
     
 }
@@ -4912,52 +5036,7 @@ case "video2": {
     }
 }
 break
-case 'ytmp4':
-case 'video': {
-    if (!text) return reply(`Usage: ${prefix}ytmp4 <youtube_url>`);
-    
-    try {
-        await conn.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
-        
-        const encoded_url = encodeURIComponent(text);
-        const apiUrl = `https://api.giftedtech.co.ke/api/download/ytmp4?apikey=gifted&url=${encoded_url}`;
-        
-        console.log('Fetching from API:', apiUrl);
-        
-        const response = await fetch(apiUrl);
-        
-        if (!response.ok) {
-            throw new Error(`API response: ${response.status}`);
-        }
-        
-        const apiData = await response.json();
-        console.log('API Response:', apiData);
-        
-        if (!apiData || !apiData.url) {
-            return reply('❌ API returned no video URL');
-        }
 
-        console.log('Downloading video from:', apiData.url);
-        const videoBuffer = await getBuffer(apiData.url);
-        
-        if (!videoBuffer || videoBuffer.length === 0) {
-            return reply('❌ Video buffer is empty');
-        }
-        
-        await conn.sendMessage(m.chat, {
-            video: videoBuffer,
-            caption: `🎬 YouTube Video\nDownloaded by ${pushname}`
-        }, { quoted: m });
-
-        await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
-        
-    } catch (error) {
-        console.error('Ytmp4 Error:', error);
-        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
-        reply(`❌ Download failed: ${error.message}`);
-    }
-    
-}
 break
 case 'checkapi': {
     if (!text) return reply(`Usage: ${prefix}checkapi <url>`);
@@ -7184,7 +7263,7 @@ const familyList = `
       *│  ◦* *▢➠ Dev sung*
       *│  ◦* *▢➠ Terri*
       *│  ◦* *▢➠ Trendx*
-      *│  ◦* *▢➠ Dave MD*
+      *│  ◦* *▢➠ Lord Voyage*
       *│  ◦* *▢➠ goodnesstech*
       *╰┈───────────────•*
         *•────────────•⟢*
