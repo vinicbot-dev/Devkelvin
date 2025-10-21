@@ -4249,6 +4249,81 @@ case '3dhologram': {
     }
 }
 break
+case 'balogo': {
+    try {
+        if (!text) {
+            return reply(`🍀 *Enter two texts for the logo! (separate with |)*\n\n✨ *Example: ${prefix}balogo SXZ|Archive*`);
+        }
+
+        let [textL, textR] = text.split('|');
+        if (!textL || !textR) {
+            return reply(`☘️ *Wrong format! Use: ${prefix}balogo LeftText|RightText*`);
+        }
+        
+        await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
+
+        let apiUrl = `https://api.nekolabs.my.id/canvas/ba-logo?textL=${encodeURIComponent(textL)}&textR=${encodeURIComponent(textR)}`;
+        let response = await fetch(apiUrl);
+        if (!response.ok) {
+            console.error('[ba-logo API Error]', response.status);
+            return reply('🍂 *Failed to connect to logo maker API!*');
+        }
+
+        let buffer = Buffer.from(await response.arrayBuffer());
+
+        await conn.sendMessage(
+            m.chat,
+            {
+                image: buffer,
+                caption: `${global.wm}`
+            },
+            { quoted: m }
+        );
+
+        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+    } catch (e) {
+        console.error('[ba-logo Handler Error]', e);
+        reply(`🍂 *Oops, failed to create logo!* \nDetail: ${e.message || e}`);
+        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+    }
+    
+}
+break
+case 'tattoo': {
+    try {
+        await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
+
+        // Direct image URL approach
+        let apiUrl = `https://api.nekolabs.my.id/random/nsfwhub/tattoo`;
+        let response = await fetch(apiUrl);
+        
+        if (!response.ok) {
+            console.error('[Tattoo API Error]', response.status);
+            return reply('❌ *Failed to fetch tattoo image from API!*');
+        }
+
+        let buffer = Buffer.from(await response.arrayBuffer());
+
+        await conn.sendMessage(
+            m.chat,
+            {
+                image: buffer,
+                caption: `${global.wm}`
+            },
+            { quoted: m }
+        );
+
+        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+    } catch (e) {
+        console.error('[Tattoo Handler Error]', e);
+        reply(`❌ *Oops, failed to generate tattoo!* \nError: ${e.message || e}`);
+        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+    }
+    
+}
+break
 case "1917style": {
 let q = args.join(" ");
     if (!q) {
