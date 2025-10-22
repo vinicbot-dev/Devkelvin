@@ -21,6 +21,8 @@ const fsp = fs.promises;
 const lolcatjs = require('lolcatjs')
 const speed = require('performance-now')
 const { performance } = require("perf_hooks")
+const more = String.fromCharCode(8206);
+const readmore = more.repeat(4001);
 const util = require("util")
 const timezones = global.timezones || "Africa/Kampala"; // Default to Uganda timezone
 const acrcloud = require ('acrcloud')
@@ -59,6 +61,9 @@ const {
   obfus,
   handleAntiEdit,
   saveDatabase,
+  loadStoredMessages,
+  saveStoredMessages,
+  storeMessage,
   GroupDB,
   ephoto,
   loadBlacklist,
@@ -73,12 +78,22 @@ const { jadibot, stopjadibot, listjadibot } = require('./jadibot')
 
 module.exports = conn = async (conn, m, chatUpdate, mek, store) => {
 try {
+// ========== MESSAGE PARSING ==========
 const body = (m.mtype === "conversation" ? m.message.conversation : m.mtype === "imageMessage" ? m.message.imageMessage.caption : m.mtype === "videoMessage" ? m.message.videoMessage.caption : m.mtype === "extendedTextMessage" ? m.message.extendedTextMessage.text : m.mtype === "buttonsResponseMessage" ? m.message.buttonsResponseMessage.selectedButtonId : m.mtype === "listResponseMessage" ? m.message.listResponseMessage.singleSelectReply.selectedRowId : m.mtype === "templateButtonReplyMessage" ? m.message.templateButtonReplyMessage.selectedId : m.mtype === "interactiveResponseMessage" ? JSON.parse(m.msg.nativeFlowResponseMessage.paramsJson).id : m.mtype === "templateButtonReplyMessage" ? m.msg.selectedId : m.mtype === "messageContextInfo" ? m.message.buttonsResponseMessage?.selectedButtonId || m.message.listResponseMessage?.singleSelectReply.selectedRowId || m.text : "")
 const budy = (typeof m.text === 'string' ? m.text : '')
 var textmessage = (m.mtype == 'listResponseMessage') ? m.message.listResponseMessage.singleSelectReply.selectedRowId : (m.mtype == 'messageContextInfo') ? (m.message.buttonsResponseMessage?.selectedButtonId || m.message.listResponseMessage?.singleSelectReply.selectedRowId || budy) : ""
 const content = JSON.stringify(mek.message)
 const type = Object.keys(mek.message)[0]
 if (m && type == "protocolMessage") conn.ev.emit("message.delete", m.message.protocolMessage.key)
+// ========== STORE MESSAGE FOR ANTI-DELETE ==========
+if (m.message && m.key && !m.key.fromMe) {
+    storeMessage(m.chat, m.key.id, {
+        key: m.key,
+        message: m.message,
+        messageTimestamp: m.messageTimestamp,
+        pushName: m.pushName || "Unknown"
+    });
+}
 const { sender } = m;
 const from = m.key.remoteJid;
 const isGroup = from.endsWith("@g.us")
@@ -96,6 +111,12 @@ if (global.db.data.settings && global.db.data.settings[botNumber] && global.db.d
     prefix = global.db.data.settings[botNumber].config.prefix || ".";
 }
 
+// ========== ANTI-DELETE CONFIGURATION ==========
+// Set anti-delete mode (add this)
+global.antidelete = 'private'; // Options: 'private', 'chat', or false to disable
+// 'private' - sends notifications to bot owner
+// 'chat' - sends notifications in same chat
+// false - disables anti-delete
 // Check if message starts with the actual prefix from config
 const isCmd = body.startsWith(prefix);
 const trimmedBody = isCmd ? body.slice(prefix.length).trimStart() : "";
@@ -244,7 +265,134 @@ async function webp2mp4(source) {
       upload: 'N/A'    // You can implement actual measurement here
     };
   }
+//*---------------------------------------------------------------*//
+// ========== ANTI-DELETE MESSAGE HANDLER ==========
+// Anti-Delete Handler Function
+async function handleAntiDelete(m, conn, from, isGroup, botNumber) {
+    try {
+        let messageId = m.message.protocolMessage.key.id;
+        let chatId = m.chat;
+        let deletedBy = m.sender;
 
+        let storedMessages = loadStoredMessages();
+        let deletedMsg = storedMessages[chatId]?.[messageId];
+
+        if (!deletedMsg) {
+            console.log("⚠️ Deleted message not found in database.");
+            return;
+        }
+
+        let sender = deletedMsg.key.participant || deletedMsg.key.remoteJid;
+
+        let chatName;
+        if (deletedMsg.key.remoteJid === 'status@broadcast') {
+            chatName = "Status Update";
+        } else if (m.isGroup) {
+            try {
+                const groupInfo = await conn.groupMetadata(m.chat);
+                chatName = groupInfo.subject || "Group Chat";
+            } catch {
+                chatName = "Group Chat";
+            }
+        } else {
+            chatName = deletedMsg.pushName || m.pushName || "Private Chat";
+        }
+
+        let xtipes = moment(deletedMsg.messageTimestamp * 1000).tz(`${timezones}`).locale('en').format('HH:mm z');
+        let xdptes = moment(deletedMsg.messageTimestamp * 1000).tz(`${timezones}`).format("DD/MM/YYYY");
+
+        if (!deletedMsg.message.conversation && !deletedMsg.message.extendedTextMessage) {
+            try {
+                let forwardedMsg = await conn.sendMessage(
+                    global.antidelete === 'private' ? conn.user.id : m.chat,
+                    { 
+                        forward: deletedMsg,
+                        contextInfo: { isForwarded: false }
+                    },
+                    { quoted: deletedMsg }
+                );
+                
+                let mediaInfo = `🚨 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙼𝙴𝙳𝙸𝙰!* 🚨
+${readmore}
+𝙲𝙷𝙰𝚃: ${chatName}
+𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]} 
+𝚃𝙸𝙼𝙴: ${xtipes}
+𝙳𝙰𝚃𝙴: ${xdptes}
+𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙱𝚈: @${deletedBy.split('@')[0]}`;
+
+                await conn.sendMessage(
+                    global.antidelete === 'private' ? conn.user.id : m.chat, 
+                    { text: mediaInfo, mentions: [sender, deletedBy] },
+                    { quoted: forwardedMsg }
+                );
+                
+            } catch (mediaErr) {
+                console.error("Media recovery failed:", mediaErr);
+                let replyText = `🚨 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙼𝙴𝚂𝚂𝙰𝙶𝙴!* 🚨
+${readmore}
+𝙲𝙷𝙰𝚃: ${chatName}
+𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]} 
+𝚃𝙸𝙼𝙴 𝚂𝙴𝙽𝚃: ${xtipes}
+𝙳𝙰𝚃𝙴 𝚂𝙴𝙽𝚃: ${xdptes}
+𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙱𝚈: @${deletedBy.split('@')[0]}
+
+𝙼𝙴𝚂𝚂𝙰𝙶𝙴: [Unsupported media content]`;
+
+                let quotedMessage = {
+                    key: {
+                        remoteJid: chatId,
+                        fromMe: sender === conn.user.id,
+                        id: messageId,
+                        participant: sender
+                    },
+                    message: { conversation: "Media recovery failed" }
+                };
+
+                await conn.sendMessage(
+                    global.antidelete === 'private' ? conn.user.id : m.chat,
+                    { text: replyText, mentions: [sender, deletedBy] },
+                    { quoted: quotedMessage }
+                );
+            }
+        } 
+        else {
+            let text = deletedMsg.message.conversation || 
+                      deletedMsg.message.extendedTextMessage?.text;
+
+            let replyText = `🚨 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙼𝙴𝚂𝚂𝙰𝙶𝙴!* 🚨
+${readmore}
+𝙲𝙷𝙰𝚃: ${chatName}
+𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]} 
+𝚃𝙸𝙼𝙴 𝚂𝙴𝙽𝚃: ${xtipes}
+𝙳𝙰𝚃𝙴 𝚂𝙴𝙽𝚃: ${xdptes}
+𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙱𝚈: @${deletedBy.split('@')[0]}
+
+𝙼𝙴𝚂𝚂𝙰𝙶𝙴: ${text}`;
+
+            let quotedMessage = {
+                key: {
+                    remoteJid: chatId,
+                    fromMe: sender === conn.user.id,
+                    id: messageId,
+                    participant: sender
+                },
+                message: {
+                    conversation: text 
+                }
+            };
+
+            await conn.sendMessage(
+                global.antidelete === 'private' ? conn.user.id : m.chat,
+                { text: replyText, mentions: [sender, deletedBy] },
+                { quoted: quotedMessage }
+            );
+        }
+
+    } catch (err) {
+        console.error("❌ Error processing deleted message:", err);
+    }
+}
+//<================================================>//
 
 // Message memory for conversation context
 let messageMemory = new Map();
@@ -356,7 +504,7 @@ async function handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, p
             Respond as Vinic-Xmd AI:`;
 
             // Encode the prompt for the API
-            const text = encodeURIComponent(prompt);
+            const text= encodeURIComponent(prompt);
             
             // Use the API endpoint
             const apiUrl = `https://api.nekolabs.my.id/ai/ai4chat?text=${text}`;
@@ -523,9 +671,15 @@ const reply = (teks) => {
 if (getAIChatbotState() === "true" && body && !m.key.fromMe && !isCmd) {
     await handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, prefix);
 }
+// ========== ANTI-DELETE EXECUTION ==========
+if (global.antidelete && m.message?.protocolMessage?.type === 0 && m.message?.protocolMessage?.key) {
+    await handleAntiDelete(m, conn, from, isGroup, botNumber);
+}
 
 await handleAntiEdit(m, conn);
 // Before your command switch case, add this:
+// ========== MESSAGE STORAGE FOR ANTI-DELETE ==========
+
 
 
 switch (command) {
