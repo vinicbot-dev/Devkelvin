@@ -347,33 +347,7 @@ function extractMessageText(message) {
     return "";
 }
 
-// Helper function to check if message has media
-function hasMediaMessage(message) {
-    return !!(message?.imageMessage || message?.videoMessage || message?.audioMessage || 
-              message?.documentMessage || message?.stickerMessage);
-}
 
-// Helper function to download media messages
-async function downloadMediaMessage(conn, message) {
-    try {
-        const stream = await downloadContentFromMessage(message.message, 
-            message.message.imageMessage ? 'image' : 
-            message.message.videoMessage ? 'video' : 
-            message.message.audioMessage ? 'audio' : 
-            message.message.documentMessage ? 'document' : 
-            message.message.stickerMessage ? 'sticker' : 'image'
-        );
-        
-        let buffer = Buffer.from([]);
-        for await (const chunk of stream) {
-            buffer = Buffer.concat([buffer, chunk]);
-        }
-        return buffer;
-    } catch (error) {
-        console.error('Error downloading media:', error);
-        throw error;
-    }
-}
 async function saveDatabase() {
   try {
     // Save to JSON file for backup
@@ -394,51 +368,91 @@ async function saveDatabase() {
     return false;
   }
 }
-//========[ FUNCTION FOR SAVED MESSAGES]=========
-function saveStoredMessage(message) {
+// ========== MESSAGE STORAGE FOR ANTI-DELETE ==========
+function loadStoredMessages() {
     try {
-        let storedMessages = loadStoredMessages();
-        const chatId = message.key.remoteJid;
-        const messageId = message.key.id;
+        if (fs.existsSync('./start/lib/database/deleted_messages.json')) {
+            const data = fs.readFileSync('./start/lib/database/deleted_messages.json', 'utf8');
+            return JSON.parse(data);
+        }
+    } catch (error) {
+        console.error('Error loading stored messages:', error);
+    }
+    return {};
+}
+
+function saveStoredMessages(messages) {
+    try {
+        const dir = './start/lib/database';
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        fs.writeFileSync('./start/lib/database/deleted_messages.json', JSON.stringify(messages, null, 2));
+    } catch (error) {
+        console.error('Error saving stored messages:', error);
+    }
+}
+
+// Store every incoming message - ENHANCED FOR MEDIA
+function storeMessage(chatId, messageId, messageData) {
+    try {
+        const storedMessages = loadStoredMessages();
         
         if (!storedMessages[chatId]) {
             storedMessages[chatId] = {};
         }
         
-        // Enhanced message storage with edit tracking
-        storedMessages[chatId][messageId] = {
-            key: { ...message.key },
-            message: { ...message.message },
-            messageTimestamp: message.messageTimestamp || Date.now(),
-            pushName: message.pushName || "Unknown",
-            sender: message.key.participant || message.key.remoteJid,
-            text: extractMessageText(message.message), // Extract text for easy access
-            hasMedia: hasMediaMessage(message.message), // Check if media message
-            storedAt: Date.now() // Track when message was stored
-        };
+        // Extract text content and detect media type
+        let textContent = "";
+        let mediaType = "text";
+        const msgType = Object.keys(messageData.message || {})[0];
         
-        // Clean up old messages (keep only last 100 messages per chat)
-        const messageKeys = Object.keys(storedMessages[chatId]);
-        if (messageKeys.length > 100) {
-            const sortedMessages = messageKeys.map(id => ({
-                id,
-                timestamp: storedMessages[chatId][id].messageTimestamp || 0
-            })).sort((a, b) => a.timestamp - b.timestamp);
-            
-            // Remove oldest 20 messages
-            sortedMessages.slice(0, 20).forEach(msg => {
-                delete storedMessages[chatId][msg.id];
-            });
+        if (msgType === 'conversation') {
+            textContent = messageData.message.conversation;
+        } else if (msgType === 'extendedTextMessage') {
+            textContent = messageData.message.extendedTextMessage?.text || "";
+        } else if (msgType === 'imageMessage') {
+            textContent = messageData.message.imageMessage?.caption || "[Image]";
+            mediaType = "image";
+        } else if (msgType === 'videoMessage') {
+            textContent = messageData.message.videoMessage?.caption || "[Video]";
+            mediaType = "video";
+        } else if (msgType === 'audioMessage') {
+            textContent = "[Audio]";
+            mediaType = "audio";
+        } else if (msgType === 'stickerMessage') {
+            textContent = "[Sticker]";
+            mediaType = "sticker";
+        } else if (msgType === 'documentMessage') {
+            textContent = messageData.message.documentMessage?.caption || "[Document]";
+            mediaType = "document";
+        } else {
+            textContent = `[${msgType}]`;
         }
         
-        fs.writeFileSync('./start/lib/database/store.json', JSON.stringify(storedMessages, null, 2));
-        return true;
+        storedMessages[chatId][messageId] = {
+            key: messageData.key,
+            message: messageData.message,
+            messageTimestamp: messageData.messageTimestamp,
+            pushName: messageData.pushName,
+            text: textContent,
+            mediaType: mediaType,
+            storedAt: Date.now()
+        };
+        
+        // Limit storage per chat to prevent memory issues
+        const chatMessages = Object.keys(storedMessages[chatId]);
+        if (chatMessages.length > 100) {
+            const oldestMessageId = chatMessages[0];
+            delete storedMessages[chatId][oldestMessageId];
+        }
+        
+        saveStoredMessages(storedMessages);
+        
     } catch (error) {
-        console.error('Error saving message:', error);
-        return false;
+        // Silent error handling
     }
 }
-
 // ========== ENHANCED ANTI-EDIT HANDLER ==========
 async function handleAntiEdit(m, conn) {
     try {
@@ -579,359 +593,7 @@ ${newText}`;
     }
 }
 
-// ========== FIXED ANTI-DELETE FUNCTIONALITY WITH MEDIA SUPPORT ==========
-async function handleAntiDelete(m, conn) {
-    try {
-        // More reliable check for deleted messages
-        if (!m.message?.protocolMessage || 
-            m.message.protocolMessage.type !== 0) { // Type 0 = message delete
-            return;
-        }
 
-        if (!m.message.protocolMessage.key) {
-            return;
-        }
-
-        const messageId = m.message.protocolMessage.key.id;
-        const chatId = m.key.remoteJid;
-        const deletedBy = m.key.participant || m.key.remoteJid;
-
-        console.log(`🗑️ Processing delete for message ${messageId} in ${chatId}`);
-
-        const storedMessages = loadStoredMessages();
-        const deletedMsg = storedMessages[chatId]?.[messageId];
-
-        if (!deletedMsg) {
-            console.log("⚠️ Deleted message not found in database.");
-            return;
-        }
-
-        const botNumber = await conn.decodeJid(conn.user.id);
-        
-        let targetChat;
-        if (global.antidelete === 'private') {
-            targetChat = botNumber;
-        } else if (global.antidelete === 'chat') {
-            targetChat = chatId;
-        } else {
-            return;
-        }
-
-        const sender = deletedMsg.sender;
-        let chatName = "Unknown Chat";
-
-        if (chatId === 'status@broadcast') {
-            chatName = "Status Update";
-        } else if (chatId.endsWith('@g.us')) {
-            try {
-                const groupInfo = await conn.groupMetadata(chatId).catch(() => null);
-                chatName = groupInfo?.subject || "Group Chat";
-            } catch {
-                chatName = "Group Chat";
-            }
-        } else {
-            chatName = deletedMsg.pushName || "Private Chat";
-        }
-
-        const xtipes = moment((deletedMsg.messageTimestamp || Date.now()) * 1000)
-            .tz(timezones || "Africa/Kampala")
-            .locale('en')
-            .format('HH:mm z');
-            
-        const xdptes = moment((deletedMsg.messageTimestamp || Date.now()) * 1000)
-            .tz(timezones || "Africa/Kampala")
-            .format("DD/MM/YYYY");
-
-        // Check if it's a media message first
-        if (deletedMsg.message?.imageMessage || 
-            deletedMsg.message?.videoMessage || 
-            deletedMsg.message?.audioMessage || 
-            deletedMsg.message?.documentMessage || 
-            deletedMsg.message?.stickerMessage) {
-            
-            // Handle media message recovery
-            try {
-                console.log(`🔄 Attempting to recover media message...`);
-                
-                let mediaBuffer;
-                let mediaType = "Unknown";
-                let caption = "";
-                
-                // Determine media type and prepare for download
-                if (deletedMsg.message?.imageMessage) {
-                    mediaType = "Image";
-                    caption = deletedMsg.message.imageMessage.caption || "";
-                } else if (deletedMsg.message?.videoMessage) {
-                    mediaType = "Video";
-                    caption = deletedMsg.message.videoMessage.caption || "";
-                } else if (deletedMsg.message?.audioMessage) {
-                    mediaType = "Audio";
-                } else if (deletedMsg.message?.documentMessage) {
-                    mediaType = "Document";
-                    caption = deletedMsg.message.documentMessage.caption || "";
-                } else if (deletedMsg.message?.stickerMessage) {
-                    mediaType = "Sticker";
-                }
-
-                // Download the media
-                try {
-                    mediaBuffer = await downloadMediaMessage(conn, {
-                        key: deletedMsg.key,
-                        message: deletedMsg.message
-                    });
-                    console.log(`✅ Successfully downloaded ${mediaType}`);
-                    
-                } catch (downloadError) {
-                    console.error(`❌ Failed to download ${mediaType}:`, downloadError.message);
-                    // Send fallback message for failed media recovery
-                    const mediaInfo = `🚨 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙼𝙴𝙳𝙸𝙰!* 🚨
-${readmore}
-𝙲𝙷𝙰𝚃: ${chatName}
-𝚃𝚈𝙿𝙴: ${mediaType}
-𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]}
-𝚃𝙸𝙼𝙴: ${xtipes}
-𝙳𝙰𝚃𝙴: ${xdptes}
-𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙱𝚈: @${deletedBy.split('@')[0]}
-${caption ? `📝 𝙲𝙰𝙿𝚃𝙸𝙾𝙽: ${caption}` : ''}
-
-❌ Could not recover the deleted ${mediaType.toLowerCase()}.`;
-
-                    await conn.sendMessage(
-                        targetChat,
-                        { 
-                            text: mediaInfo, 
-                            mentions: [sender, deletedBy] 
-                        }
-                    );
-                    return;
-                }
-
-                // Prepare media info text
-                const mediaInfo = `🚨 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙼𝙴𝙳𝙸𝙰!* 🚨
-${readmore}
-𝙲𝙷𝙰𝚃: ${chatName}
-𝚃𝚈𝙿𝙴: ${mediaType}
-𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]}
-𝚃𝙸𝙼𝙴: ${xtipes}
-𝙳𝙰𝚃𝙴: ${xdptes}
-𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙱𝚈: @${deletedBy.split('@')[0]}`;
-
-                // Send recovered media with info
-                if (mediaType === "Image") {
-                    await conn.sendMessage(targetChat, { 
-                        image: mediaBuffer, 
-                        caption: mediaInfo,
-                        mentions: [sender, deletedBy]
-                    });
-                    
-                } else if (mediaType === "Video") {
-                    await conn.sendMessage(targetChat, { 
-                        video: mediaBuffer, 
-                        caption: mediaInfo,
-                        mentions: [sender, deletedBy]
-                    });
-                    
-                } else if (mediaType === "Audio") {
-                    // Check if it's voice note or regular audio
-                    const audioMsg = deletedMsg.message.audioMessage;
-                    if (audioMsg.ptt) {
-                        await conn.sendMessage(targetChat, { 
-                            audio: mediaBuffer, 
-                            ptt: true,
-                            mimetype: 'audio/ogg; codecs=opus'
-                        });
-                        // Send info separately for voice notes
-                        await conn.sendMessage(targetChat, {
-                            text: mediaInfo,
-                            mentions: [sender, deletedBy]
-                        });
-                    } else {
-                        await conn.sendMessage(targetChat, { 
-                            audio: mediaBuffer,
-                            mimetype: audioMsg.mimetype || 'audio/mpeg'
-                        });
-                        // Send info separately for audio files
-                        await conn.sendMessage(targetChat, {
-                            text: mediaInfo,
-                            mentions: [sender, deletedBy]
-                        });
-                    }
-                    
-                } else if (mediaType === "Document") {
-                    const docMsg = deletedMsg.message.documentMessage;
-                    await conn.sendMessage(targetChat, { 
-                        document: mediaBuffer,
-                        fileName: docMsg.fileName || "recovered-file",
-                        mimetype: docMsg.mimetype || 'application/octet-stream'
-                    });
-                    // Send info separately for documents
-                    await conn.sendMessage(targetChat, {
-                        text: mediaInfo,
-                        mentions: [sender, deletedBy]
-                    });
-                    
-                } else if (mediaType === "Sticker") {
-                    await conn.sendMessage(targetChat, { 
-                        sticker: mediaBuffer 
-                    });
-                    // Send info separately for stickers
-                    await conn.sendMessage(targetChat, {
-                        text: mediaInfo,
-                        mentions: [sender, deletedBy]
-                    });
-                }
-                
-                console.log(`✅ Successfully recovered and resent ${mediaType}`);
-                
-            } catch (mediaError) {
-                console.error(`❌ Error recovering media:`, mediaError);
-                // Send error notification
-                await conn.sendMessage(
-                    targetChat,
-                    { 
-                        text: `❌ Failed to recover the deleted media.\nError: ${mediaError.message}`,
-                        mentions: [sender, deletedBy]
-                    }
-                );
-            }
-            
-        } else {
-            // Handle text message (second part)
-            let messageContent = "";
-            let messageType = "Text";
-            
-            // Extract text content
-            if (deletedMsg.message?.conversation) {
-                messageContent = deletedMsg.message.conversation;
-            } else if (deletedMsg.message?.extendedTextMessage?.text) {
-                messageContent = deletedMsg.message.extendedTextMessage.text;
-            } else {
-                messageContent = "[Unsupported message type]";
-            }
-
-            const replyText = `🚨 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙼𝙴𝚂𝚂𝙰𝙶𝙴!* 🚨
-${readmore}
-𝙲𝙷𝙰𝚃: ${chatName}
-𝚃𝚈𝙿𝙴: ${messageType}
-𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]}
-𝚃𝙸𝙼𝙴 𝚂𝙴𝙽𝚃: ${xtipes}
-𝙳𝙰𝚃𝙴 𝚂𝙴𝙽𝚃: ${xdptes}
-𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙱𝚈: @${deletedBy.split('@')[0]}
-
-📝 *𝙲𝙾𝙽𝚃𝙴𝙽𝚃*:
-${messageContent}`;
-
-            const mentions = [sender, deletedBy].filter(Boolean);
-
-            // Send the text message notification
-            await conn.sendMessage(
-                targetChat,
-                { 
-                    text: replyText, 
-                    mentions: mentions
-                }
-            );
-
-            console.log(`✅ Anti-delete triggered for ${messageType} message ${messageId} in ${chatName}`);
-        }
-
-        console.log(`📍 Notification sent to: ${targetChat === botNumber ? 'Private' : 'Same Chat'}`);
-
-    } catch (err) {
-        console.error("❌ Error processing deleted message:", err);
-    }
-}
-
-
-// ========== ENHANCED MESSAGE SAVING FUNCTION ==========
-function saveStoredMessage(message) {
-    try {
-        let storedMessages = loadStoredMessages();
-        const chatId = message.key.remoteJid;
-        const messageId = message.key.id;
-        
-        if (!storedMessages[chatId]) {
-            storedMessages[chatId] = {};
-        }
-        
-        // Enhanced message storage with better media handling
-        storedMessages[chatId][messageId] = {
-            key: { ...message.key },
-            message: { ...message.message },
-            messageTimestamp: message.messageTimestamp || Date.now(),
-            pushName: message.pushName || "Unknown",
-            sender: message.key.participant || message.key.remoteJid
-        };
-        
-        // Extract text content
-        let textContent = "";
-        if (message.message?.conversation) {
-            textContent = message.message.conversation;
-        } else if (message.message?.extendedTextMessage?.text) {
-            textContent = message.message.extendedTextMessage.text;
-        } else if (message.message?.imageMessage?.caption) {
-            textContent = message.message.imageMessage.caption;
-        } else if (message.message?.videoMessage?.caption) {
-            textContent = message.message.videoMessage.caption;
-        } else if (message.message?.documentMessage?.caption) {
-            textContent = message.message.documentMessage.caption;
-        }
-        
-        storedMessages[chatId][messageId].text = textContent;
-        
-        // Check if media key exists for media messages
-        if (message.message?.imageMessage) {
-            storedMessages[chatId][messageId].hasMediaKey = !!(message.message.imageMessage.mediaKey);
-        } else if (message.message?.videoMessage) {
-            storedMessages[chatId][messageId].hasMediaKey = !!(message.message.videoMessage.mediaKey);
-        } else if (message.message?.audioMessage) {
-            storedMessages[chatId][messageId].hasMediaKey = !!(message.message.audioMessage.mediaKey);
-        } else if (message.message?.documentMessage) {
-            storedMessages[chatId][messageId].hasMediaKey = !!(message.message.documentMessage.mediaKey);
-        } else if (message.message?.stickerMessage) {
-            storedMessages[chatId][messageId].hasMediaKey = !!(message.message.stickerMessage.mediaKey);
-        }
-        
-        // Clean up old messages (keep only last 100 messages per chat)
-        const messageKeys = Object.keys(storedMessages[chatId]);
-        if (messageKeys.length > 100) {
-            const sortedMessages = messageKeys.map(id => ({
-                id,
-                timestamp: storedMessages[chatId][id].messageTimestamp || 0
-            })).sort((a, b) => a.timestamp - b.timestamp);
-            
-            // Remove oldest 20 messages
-            sortedMessages.slice(0, 20).forEach(msg => {
-                delete storedMessages[chatId][msg.id];
-            });
-        }
-        
-        fs.writeFileSync('./start/lib/database/store.json', JSON.stringify(storedMessages, null, 2));
-        return true;
-    } catch (error) {
-        console.error('Error saving message:', error);
-        return false;
-    }
-}
-// ========== LOAD STORED MESSAGES FUNCTION ==========
-function loadStoredMessages() {
-    try {
-        // Ensure directory exists
-        const dirPath = './start/lib/database';
-        if (!fs.existsSync(dirPath)) {
-            fs.mkdirSync(dirPath, { recursive: true });
-        }
-        
-        const filePath = './start/lib/database/store.json';
-        if (fs.existsSync(filePath)) {
-            const data = fs.readFileSync(filePath, 'utf8');
-            return JSON.parse(data);
-        }
-    } catch (error) {
-        console.error('Error loading stored messages:', error);
-    }
-    return {};
-}
 
 // ========== FIXED STATUS UPDATE HANDLER ==========
 async function handleStatusUpdate(mek, conn) {
@@ -1213,18 +875,19 @@ module.exports = {
   fetchJson,
   acr,
   obfus,
-  handleAntiDelete,
   handleAntiEdit,
   handleStatusUpdate,
-  saveStoredMessage,
   handleAutoReact,
   saveStatusMessage,
   handleLinkViolation,
   detectUrls,
+  loadStoredMessages,
+  saveStoredMessages,
+  storeMessage,
   checkAndHandleLinks,
   ephoto,
   loadBlacklist,
- GroupDB,
+  GroupDB,
   initializeDatabase,
   delay,
   saveDatabase,
