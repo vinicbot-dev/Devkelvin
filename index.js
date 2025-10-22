@@ -1,3 +1,4 @@
+
 console.clear();
 console.log('Starting Vinic-Xmd...');
 
@@ -81,8 +82,6 @@ const {
 } = require('./start/lib/myfunction');
 
 const {
-handleAntiDelete,
-saveStoredMessage,
 handleAutoReact,
 checkAndHandleLinks,
 handleLinkViolation,
@@ -98,8 +97,6 @@ const {
   writeExifVid
 } = require('./start/lib/exif');
 
-const SESSION_DIR = './session';
-const CREDS_PATH = `${SESSION_DIR}/creds.json`;
 
 // Use system temp directory for cloud platforms
 const TMP_DIR = isProduction 
@@ -123,62 +120,56 @@ const question = (text) => {
 
 const yargs = require('yargs/yargs');
 
-async function downloadSessionData() {
-    console.log("[DEBUG] SESSION_ID:", settings.SESSION_ID);
+//=========SESSION-AUTH=====================
+
+const sessionDir = path.join(__dirname, 'sessions');
+const credsPath = path.join(sessionDir, 'creds.json');
+
+// Create session directory if it doesn't exist
+if (!fs.existsSync(sessionDir)) {
+    fs.mkdirSync(sessionDir, { recursive: true });
+}
+
+async function loadSession() {
     try {
-        if (typeof settings.SESSION_ID === 'undefined') {
-            throw new Error("SESSION_ID is undefined in settings");
-        }
         if (!settings.SESSION_ID) {
-            console.warn("[ ⏳ ] No SESSION_ID provided - Falling back to QR or pairing code");
+            console.log(chalk.red('No SESSION_ID provided - QR login will be generated'));
             return null;
         }
-        if (settings.SESSION_ID.startsWith("starcore~")) {
-            console.info("[ ⏳ ] Decoding base64 session");
-            const base64Data = settings.SESSION_ID.replace("starcore~", "");
+
+        console.log(chalk.yellow('[ ⏳ ] Downloading creds data...'));
+        console.log(chalk.cyan('[ 🆔️ ] Downloading MEGA.nz session...'));
+        
+        // Remove "blinder~" prefix if present, otherwise use full SESSION_ID
+        const megaFileId = settings.SESSION_ID.startsWith('Vinic-Xmd~') 
+            ? settings.SESSION_ID.replace("Vinic-Xmd~", "") 
+            : settings.SESSION_ID;
+
+        const filer = File.fromURL(`https://mega.nz/file/${megaFileId}`);
             
-            const cleanedBase64Data = base64Data.replace(/[^A-Za-z0-9+/=]/g, '');
-            
-            if (!/^[A-Za-z0-9+/=]+$/.test(cleanedBase64Data)) {
-                throw new Error("Invalid base64 format after cleaning");
-            }
-            
-            const decodedData = Buffer.from(cleanedBase64Data, "base64");
-            let sessionData;
-            try {
-                sessionData = JSON.parse(decodedData.toString("utf-8"));
-            } catch (error) {
-                throw new Error("Failed to parse decoded base64 session data: " + error.message);
-            }
-            fs.writeFileSync(CREDS_PATH, JSON.stringify(sessionData, null, 2));
-            console.log("[ ✅ ] Base64 session decoded and saved successfully");
-            return sessionData;
-        } else if (settings.SESSION_ID.startsWith("malvin~")) {
-            console.info("[ 📥 ] Downloading MEGA.nz session");
-            const megaFileId = settings.SESSION_ID.replace("malvin~", "");
-            const filer = File.fromURL(`https://mega.nz/file/${megaFileId}`);
-            const data = await new Promise((resolve, reject) => {
-                filer.download((err, data) => {
-                    if (err) reject(err);
-                    else resolve(data);
-                });
+        const data = await new Promise((resolve, reject) => {
+            filer.download((err, data) => {
+                if (err) reject(err);
+                else resolve(data);
             });
-            fs.writeFileSync(CREDS_PATH, data);
-            console.log("[ ✅ ] MEGA session downloaded successfully");
-            return JSON.parse(data.toString());
-        } else {
-            throw new Error("Invalid SESSION_ID format. Use 'starcore~' for base64 or 'malvin~' for MEGA.nz");
-        }
+        });
+        
+        fs.writeFileSync(credsPath, data);
+        console.log(chalk.green('[ ✅ ] MEGA session downloaded successfully'));
+        return JSON.parse(data.toString());
     } catch (error) {
-        console.error("[ ❌ ] Error loading session", { Error: error.message, Stack: error.stack });
-        console.info("[ 😑 ] Will attempt pairing code login");
+        console.error('❌ Error loading session:', error.message);
+        console.log(chalk.green('Will generate QR code instead'));
         return null;
     }
 }
 
+//=======SESSION-AUTH==============
+
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
+
 // Enhanced cleanup function for cloud
 function cleanupTmpFiles() {
   try {
@@ -229,7 +220,6 @@ function monitorResources() {
   }
 }
 
-
 // Connection resilience for cloud
 let reconnectAttempts = 0;
 const maxReconnectAttempts = 10;
@@ -245,38 +235,16 @@ async function handleReconnection() {
   }
 }
 
-// ... existing code ...
-
 async function clientstart() {
-  if (!fs.existsSync(SESSION_DIR)) {
-    fs.mkdirSync(SESSION_DIR, { recursive: true });
-  }
+  console.log(chalk.cyan("[ 🟠 ] Connecting to WhatsApp ⏳️..."));
 
-  // Create tmp directory
-  if (!fs.existsSync(TMP_DIR)) {
-    fs.mkdirSync(TMP_DIR, { recursive: true });
-  }
-
-  const sessionExists = await downloadSessionData();
+  // Load session if available
+  const creds = await loadSession();
   
-  const { state, saveCreds } = await useMultiFileAuthState("./session", {
-    // Optimize session storage for cloud
-    saveCreds: async (creds) => {
-      const minimalCreds = {
-        noiseKey: creds.noiseKey,
-        signedIdentityKey: creds.signedIdentityKey,
-        signedPreKey: creds.signedPreKey,
-        registrationId: creds.registrationId,
-        advSecretKey: creds.advSecretKey,
-        processedHistoryMessages: creds.processedHistoryMessages,
-        nextPreKeyId: creds.nextPreKeyId,
-        firstUnuploadedPreKeyId: creds.firstUnuploadedPreKeyId,
-        accountSettings: creds.accountSettings
-      };
-      await fs.promises.writeFile(CREDS_PATH, JSON.stringify(minimalCreds, null, 2));
-    }
+  const { state, saveCreds } = await useMultiFileAuthState(path.join(__dirname, 'sessions'), {
+    creds: creds || undefined // Pass loaded creds if available
   });
-  
+
   // Fetch latest WhatsApp Web version
   let waVersion;
   try {
@@ -346,22 +314,21 @@ async function clientstart() {
   }
 
   // Auto-save database with cloud optimization
-setInterval(async () => {
+  setInterval(async () => {
     try {
         await saveDatabase();
     } catch (error) {
         console.error('Auto-save error:', error);
     }
-}, 5 * 60 * 1000); // 5 minutes
+  }, 5 * 60 * 1000); // 5 minutes
 
-// Run cleanup every 30 minutes
-setInterval(cleanupTmpFiles, 30 * 60 * 1000);
+  // Run cleanup every 30 minutes
+  setInterval(cleanupTmpFiles, 30 * 60 * 1000);
 
-// Monitor memory every 10 minutes
-setInterval(monitorResources, 10 * 60 * 1000);
+  // Monitor memory every 10 minutes
+  setInterval(monitorResources, 10 * 60 * 1000);
 
-  
-  if (!sessionExists && !conn.authState.creds.registered) {
+  if (!creds && !conn.authState.creds.registered) {
     const phoneNumber = await question(chalk.greenBright(`Thanks for choosing ${global.botname} Please provide your number start with 256xxx:\n`));
     const code = await conn.requestPairingCode(phoneNumber.trim());
     console.log(chalk.cyan(`Code: ${code}`));
@@ -393,21 +360,14 @@ setInterval(monitorResources, 10 * 60 * 1000);
             
             await handleStatusUpdate(mek, conn);   
             
-           
-            saveStoredMessage(mek);
             return;
         }
 
         if (!conn.public && !mek.key.fromMe && chatUpdate.type === 'notify') return;
         let m = smsg(conn, mek, store);
         
-        saveStoredMessage(mek);
-     
-        
         // Conditionally enable features based on memory
         if (!isLowMemory) {
-          await handleAntiDelete(mek, conn);
-         
           await checkAndHandleLinks(mek, conn);
           await handleAutoReact(m, conn);
           await detectUrls(mek, conn);
@@ -420,9 +380,7 @@ setInterval(monitorResources, 10 * 60 * 1000);
     }
   });
 
-  
-
-conn.ev.on('contacts.update', update => {
+  conn.ev.on('contacts.update', update => {
     for (let contact of update) {
       let id = conn.decodeJid(contact.id);
       if (store && store.contacts) store.contacts[id] = { id, name: contact.notify };
@@ -441,23 +399,8 @@ conn.ev.on('contacts.update', update => {
       ...options,
     }, { quoted });
   };
-    
-
-  conn.sendTextWithMentions = async (jid, text, quoted, options = {}) => {
-    const mentionedJid = [...text.matchAll(/@(\d{0,16})/g)].map(
-      (v) => v[1] + "@s.whatsapp.net",
-    );
-    return conn.sendMessage(jid, {
-      text: text,
-      contextInfo: {
-        mentionedJid: mentionedJid,
-      },
-      ...options,
-    }, { quoted });
-  };
 
   // Add all your other existing conn methods here...
-  // [Keep all your existing conn.sendImageAsSticker, conn.
   conn.sendImageAsSticker = async (jid, path, quoted, options = {}) => {
     let buff;
     try {
@@ -578,50 +521,50 @@ conn.ev.on('contacts.update', update => {
     conn.sendMessage(jid, { contacts: { displayName: `${list.length} Contact`, contacts: list }, ...opts }, { quoted });
   };
 
-conn.sendFile = async (jid, path, filename = '', caption = '', quoted, ptt = false, options = {}) => {
-let type = await conn.getFile(path, true)
-let { res, data: file, filename: pathFile } = type
-if (res && res.status !== 200 || file.length <= 65536) {
-try { throw { json: JSON.parse(file.toString()) } }
-catch (e) { if (e.json) throw e.json }
-}
-let opt = { filename }
-if (quoted) opt.quoted = quoted
-if (!type) options.asDocument = true
-let mtype = '', mimetype = type.mime, convert
-if (/webp/.test(type.mime) || (/image/.test(type.mime) && options.asSticker)) mtype = 'sticker'
-else if (/image/.test(type.mime) || (/webp/.test(type.mime) && options.asImage)) mtype = 'image'
-else if (/video/.test(type.mime)) mtype = 'video'
-else if (/audio/.test(type.mime)) (
-convert = await (ptt ? toPTT : toAudio)(file, type.ext),
-file = convert.data,
-pathFile = convert.filename,
-mtype = 'audio',
-mimetype = 'audio/ogg; codecs=opus'
-)
-else mtype = 'document'
-if (options.asDocument) mtype = 'document'
+  conn.sendFile = async (jid, path, filename = '', caption = '', quoted, ptt = false, options = {}) => {
+    let type = await conn.getFile(path, true)
+    let { res, data: file, filename: pathFile } = type
+    if (res && res.status !== 200 || file.length <= 65536) {
+      try { throw { json: JSON.parse(file.toString()) } }
+      catch (e) { if (e.json) throw e.json }
+    }
+    let opt = { filename }
+    if (quoted) opt.quoted = quoted
+    if (!type) options.asDocument = true
+    let mtype = '', mimetype = type.mime, convert
+    if (/webp/.test(type.mime) || (/image/.test(type.mime) && options.asSticker)) mtype = 'sticker'
+    else if (/image/.test(type.mime) || (/webp/.test(type.mime) && options.asImage)) mtype = 'image'
+    else if (/video/.test(type.mime)) mtype = 'video'
+    else if (/audio/.test(type.mime)) (
+      convert = await (ptt ? toPTT : toAudio)(file, type.ext),
+      file = convert.data,
+      pathFile = convert.filename,
+      mtype = 'audio',
+      mimetype = 'audio/ogg; codecs=opus'
+    )
+    else mtype = 'document'
+    if (options.asDocument) mtype = 'document'
 
-let message = {
-...options,
-caption,
-ptt,
-[mtype]: { url: pathFile },
-mimetype
-}
-let m
-try {
-m = await conn.sendMessage(jid, message, { ...opt, ...options })
-} catch (e) {
-console.error(e)
-m = null
-} finally {
-if (!m) m = await conn.sendMessage(jid, { ...message, [mtype]: file }, { ...opt, ...options })
-return m
-}
-} 
+    let message = {
+      ...options,
+      caption,
+      ptt,
+      [mtype]: { url: pathFile },
+      mimetype
+    }
+    let m
+    try {
+      m = await conn.sendMessage(jid, message, { ...opt, ...options })
+    } catch (e) {
+      console.error(e)
+      m = null
+    } finally {
+      if (!m) m = await conn.sendMessage(jid, { ...message, [mtype]: file }, { ...opt, ...options })
+      return m
+    }
+  } 
 
-conn.downloadAndSaveMediaMessage = async (message, filename, attachExtension = true) => {
+  conn.downloadAndSaveMediaMessage = async (message, filename, attachExtension = true) => {
     let quoted = message.msg ? message.msg : message;
     let mime = (message.msg || message).mimetype || '';
     let messageType = message.mtype ? message.mtype.replace(/Message/gi, '') : mime.split('/')[0];
@@ -637,12 +580,8 @@ conn.downloadAndSaveMediaMessage = async (message, filename, attachExtension = t
     let savePath = path.join(__dirname, 'tmp', trueFileName);
 
     await fs.writeFileSync(savePath, buffer);
-
-    buffer = null; 
-    global.gc?.(); 
-
     return savePath;
-};
+  };
 
   conn.serializeM = (m) => smsg(conn, m, store);
 
@@ -692,44 +631,44 @@ conn.downloadAndSaveMediaMessage = async (message, filename, attachExtension = t
     return waMessage;
   };
 
-function createTmpFolder() {
-const folderName = "tmp";
-const folderPath = path.join(__dirname, folderName);
+  function createTmpFolder() {
+    const folderName = "tmp";
+    const folderPath = path.join(__dirname, folderName);
 
-if (!fs.existsSync(folderPath)) {
-fs.mkdirSync(folderPath);
-   }
- }
+    if (!fs.existsSync(folderPath)) {
+      fs.mkdirSync(folderPath);
+    }
+  }
  
-createTmpFolder();
+  createTmpFolder();
 
-setInterval(() => {
-let directoryPath = path.join();
-fs.readdir(directoryPath, async function (err, files) {
-var filteredArray = await files.filter(item =>
-item.endsWith("gif") ||
-item.endsWith("png") || 
-item.endsWith("mp3") ||
-item.endsWith("mp4") || 
-item.endsWith("opus") || 
-item.endsWith("jpg") ||
-item.endsWith("webp") ||
-item.endsWith("webm") ||
-item.endsWith("zip") 
-)
-if(filteredArray.length > 0){
-let teks =`Detected ${filteredArray.length} junk files,\nJunk files have been deleted🚮`
-conn.sendMessage(conn.user.id, {text : teks })
-setInterval(() => {
-if(filteredArray.length == 0) return console.log("Junk files cleared")
-filteredArray.forEach(function (file) {
-let sampah = fs.existsSync(file)
-if(sampah) fs.unlinkSync(file)
-})
-}, 15_000)
-}
-});
-}, 30_000)
+  setInterval(() => {
+    let directoryPath = path.join();
+    fs.readdir(directoryPath, async function (err, files) {
+      var filteredArray = await files.filter(item =>
+        item.endsWith("gif") ||
+        item.endsWith("png") || 
+        item.endsWith("mp3") ||
+        item.endsWith("mp4") || 
+        item.endsWith("opus") || 
+        item.endsWith("jpg") ||
+        item.endsWith("webp") ||
+        item.endsWith("webm") ||
+        item.endsWith("zip") 
+      )
+      if(filteredArray.length > 0){
+        let teks =`Detected ${filteredArray.length} junk files,\nJunk files have been deleted🚮`
+        conn.sendMessage(conn.user.id, {text : teks })
+        setInterval(() => {
+          if(filteredArray.length == 0) return console.log("Junk files cleared")
+          filteredArray.forEach(function (file) {
+            let sampah = fs.existsSync(file)
+            if(sampah) fs.unlinkSync(file)
+          })
+        }, 15_000)
+      }
+    });
+  }, 30_000)
 
   function getTypeMessage(message) {
     if (!message) return 'unknown';
@@ -749,8 +688,7 @@ if(sampah) fs.unlinkSync(file)
     Connecting({ update, conn, Boom, DisconnectReason, sleep, color, clientstart });
   });
   
-
-conn.ev.on('group-participants.update', async (anu) => {
+  conn.ev.on('group-participants.update', async (anu) => {
     try {
         const botNumber = await conn.decodeJid(conn.user.id);
         
@@ -883,139 +821,138 @@ conn.ev.on('group-participants.update', async (anu) => {
     } catch (error) {
         console.error('Error in group-participants.update:', error);
     }
-}); 
+  }); 
 
-// Initialize global variables for anticall feature
-if (!global.recentCallers) {
-  global.recentCallers = new Map();
-}
+  // Initialize global variables for anticall feature
+  if (!global.recentCallers) {
+    global.recentCallers = new Map();
+  }
 
-// Initialize anticall variables with safe defaults
-if (typeof global.anticall === 'undefined') {
-  global.anticall = true; // Enable anticall by default
-}
+  // Initialize anticall variables with safe defaults
+  if (typeof global.anticall === 'undefined') {
+    global.anticall = true; // Enable anticall by default
+  }
 
-if (!global.anticallMessage) {
-  global.anticallMessage = `🚨 *𝙲𝙰𝙻𝙻 𝙳𝙴𝚃𝙴𝙲𝚃𝙴𝙳!* 🚨\n\n, *🌹Hi. I am 👑${global.botname}, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kelvin Tech.*
+  if (!global.anticallMessage) {
+    global.anticallMessage = `🚨 *𝙲𝙰𝙻𝙻 𝙳𝙴𝚃𝙴𝙲𝚃𝙴𝙳!* 🚨\n\n, *🌹Hi. I am 👑${global.botname}, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kelvin Tech.*
   
     *My owner cannot receive calls at this moment. Please avoid unnecessary calling.*
     
 > ${global.wm}`;
-}
+  }
 
-
-// Updated Anticall handler
-conn.ev.on('call', async (callData) => {
-  try {
-    const botNumber = await conn.decodeJid(conn.user.id);
-    const config = global.db.data.settings[botNumber]?.config;
-    
-    // Check if anticall is enabled
-    if (!config || !config.anticall) return;
-    
-    for (let call of callData) {
-      const from = call.from;
-      const callId = call.id;
+  // Updated Anticall handler
+  conn.ev.on('call', async (callData) => {
+    try {
+      const botNumber = await conn.decodeJid(conn.user.id);
+      const config = global.db.data.settings[botNumber]?.config;
       
-      // Check if caller is owner
-      if (Array.isArray(global.ownernumber) && global.ownernumber.includes(from.split('@')[0])) {
-        console.log(chalk.green(`[ANTICALL] Allowing call from owner: ${from}`));
-        continue;
-      }
+      // Check if anticall is enabled
+      if (!config || !config.anticall) return;
       
-      // Safe check for recentCallers with initialization fallback
-      try {
-        const now = Date.now();
-        const lastWarn = global.recentCallers.get(from) || 0;
-        const COOLDOWN = 30 * 1000; // 30 seconds cooldown per caller
-        if (now - lastWarn < COOLDOWN) {
-          console.log(chalk.yellow(`[ANTICALL] Suppressing repeated warning to ${from}`));
-          // still attempt to reject/block silently
-          try {
-            if (config.anticall === "decline" && typeof conn.rejectCall === 'function') {
-              await conn.rejectCall(callId, from);
-            } else if (config.anticall === "block") {
-              await conn.updateBlockStatus(from, "block");
-            }
-          } catch (e) {}
+      for (let call of callData) {
+        const from = call.from;
+        const callId = call.id;
+        
+        // Check if caller is owner
+        if (Array.isArray(global.ownernumber) && global.ownernumber.includes(from.split('@')[0])) {
+          console.log(chalk.green(`[ANTICALL] Allowing call from owner: ${from}`));
           continue;
         }
-        global.recentCallers.set(from, now);
-        // auto cleanup after cooldown
-        setTimeout(() => global.recentCallers.delete(from), COOLDOWN);
-      } catch (e) {
-        console.error(chalk.red('[ANTICALL] recentCallers check failed:'), e);
-        // Initialize if it's still not working
-        if (!global.recentCallers) global.recentCallers = new Map();
-      }
-      
-      console.log(chalk.yellow(`[ANTICALL] ${config.anticall === "block" ? "Blocking" : "Declining"} call from: ${from}`));
-      
-      // Handle based on anticall mode
-      if (config.anticall === "decline") {
-        // DECLINE MODE: Send warning message and decline call
-        try {
-          const warningMessage = global.anticallMessage || 
-            `@${call.from.split('@')[0]}, my owner cannot receive audio calls and video calls at this moment. Please avoid unnecessary calling.`;
-          
-          await conn.sendMessage(from, { text: warningMessage });
-          console.log(chalk.green(`[ANTICALL] Warning message sent to: ${from}`));
-        } catch (msgError) {
-          console.error(chalk.red('[ANTICALL] Failed to send message:'), msgError);
-        }
         
+        // Safe check for recentCallers with initialization fallback
         try {
-          // Reject the call
-          if (typeof conn.rejectCall === 'function') {
-            await conn.rejectCall(callId, from);
-            console.log(chalk.green(`[ANTICALL] Successfully declined call from: ${from}`));
-          } else {
-            console.log(chalk.yellow('[ANTICALL] conn.rejectCall not available on this baileys build.'));
+          const now = Date.now();
+          const lastWarn = global.recentCallers.get(from) || 0;
+          const COOLDOWN = 30 * 1000; // 30 seconds cooldown per caller
+          if (now - lastWarn < COOLDOWN) {
+            console.log(chalk.yellow(`[ANTICALL] Suppressing repeated warning to ${from}`));
+            // still attempt to reject/block silently
+            try {
+              if (config.anticall === "decline" && typeof conn.rejectCall === 'function') {
+                await conn.rejectCall(callId, from);
+              } else if (config.anticall === "block") {
+                await conn.updateBlockStatus(from, "block");
+              }
+            } catch (e) {}
+            continue;
           }
-        } catch (rejectError) {
-          console.error(chalk.red('[ANTICALL] Failed to decline call:'), rejectError);
+          global.recentCallers.set(from, now);
+          // auto cleanup after cooldown
+          setTimeout(() => global.recentCallers.delete(from), COOLDOWN);
+        } catch (e) {
+          console.error(chalk.red('[ANTICALL] recentCallers check failed:'), e);
+          // Initialize if it's still not working
+          if (!global.recentCallers) global.recentCallers = new Map();
         }
         
-      } else if (config.anticall === "block") {
-        // BLOCK MODE: Send message FIRST, then block
-        try {
-          // SEND MESSAGE BEFORE BLOCKING - THIS IS THE KEY FIX
-          const blockMessage = `@${call.from.split('@')[0]},*🌹Hi. I am 👑VINIC-XMD, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kelvin Tech.
-          
-    You have been blocked for calling. My owner does not accept calls.*
-    
-> ${global.wm}  `;
-          await conn.sendMessage(from, { text: blockMessage });
-          console.log(chalk.green(`[ANTICALL] Block warning sent to: ${from}`));
-          
-          // Add a small delay to ensure message is sent before blocking
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // NOW BLOCK THE USER
-          await conn.updateBlockStatus(from, "block");
-          console.log(chalk.green(`[ANTICALL] Successfully blocked caller: ${from}`));
-          
-        } catch (blockError) {
-          console.error(chalk.red('[ANTICALL] Failed to block caller:'), blockError);
-          
-          // Fallback to decline if block fails
+        console.log(chalk.yellow(`[ANTICALL] ${config.anticall === "block" ? "Blocking" : "Declining"} call from: ${from}`));
+        
+        // Handle based on anticall mode
+        if (config.anticall === "decline") {
+          // DECLINE MODE: Send warning message and decline call
           try {
+            const warningMessage = global.anticallMessage || 
+              `🚫 @${call.from.split('@')[0]}, my owner cannot receive audio calls and video calls at this moment. Please avoid unnecessary calling.`;
+            
+            await conn.sendMessage(from, { text: warningMessage });
+            console.log(chalk.green(`[ANTICALL] Warning message sent to: ${from}`));
+          } catch (msgError) {
+            console.error(chalk.red('[ANTICALL] Failed to send message:'), msgError);
+          }
+          
+          try {
+            // Reject the call
             if (typeof conn.rejectCall === 'function') {
               await conn.rejectCall(callId, from);
-              console.log(chalk.yellow(`[ANTICALL] Fallback: Declined call after block failed: ${from}`));
+              console.log(chalk.green(`[ANTICALL] Successfully declined call from: ${from}`));
+            } else {
+              console.log(chalk.yellow('[ANTICALL] conn.rejectCall not available on this baileys build.'));
             }
-          } catch (fallbackError) {
-            console.error(chalk.red('[ANTICALL] Fallback decline also failed:'), fallbackError);
+          } catch (rejectError) {
+            console.error(chalk.red('[ANTICALL] Failed to decline call:'), rejectError);
+          }
+          
+        } else if (config.anticall === "block") {
+          // BLOCK MODE: Send message FIRST, then block
+          try {
+            // SEND MESSAGE BEFORE BLOCKING - THIS IS THE KEY FIX
+            const blockMessage = `@${call.from.split('@')[0]},*🌹Hi. I am 👑VINIC-XMD, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kelvin Tech.
+            
+      You have been blocked for calling. My owner does not accept calls.*
+      
+> ${global.wm}  `;
+            await conn.sendMessage(from, { text: blockMessage });
+            console.log(chalk.green(`[ANTICALL] Block warning sent to: ${from}`));
+            
+            // Add a small delay to ensure message is sent before blocking
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // NOW BLOCK THE USER
+            await conn.updateBlockStatus(from, "block");
+            console.log(chalk.green(`[ANTICALL] Successfully blocked caller: ${from}`));
+            
+          } catch (blockError) {
+            console.error(chalk.red('[ANTICALL] Failed to block caller:'), blockError);
+            
+            // Fallback to decline if block fails
+            try {
+              if (typeof conn.rejectCall === 'function') {
+                await conn.rejectCall(callId, from);
+                console.log(chalk.yellow(`[ANTICALL] Fallback: Declined call after block failed: ${from}`));
+              }
+            } catch (fallbackError) {
+              console.error(chalk.red('[ANTICALL] Fallback decline also failed:'), fallbackError);
+            }
           }
         }
       }
+    } catch (error) {
+      console.error(chalk.red('[ANTICALL ERROR]'), error);
     }
-  } catch (error) {
-    console.error(chalk.red('[ANTICALL ERROR]'), error);
-  }
-});
+  });
 
-conn.getFile = async (PATH, returnAsFilename) => {
+  conn.getFile = async (PATH, returnAsFilename) => {
     let res, filename;
     const data = Buffer.isBuffer(PATH) 
         ? PATH 
@@ -1048,9 +985,9 @@ conn.getFile = async (PATH, returnAsFilename) => {
     data.fill(0); 
     
     return { res, filename, ...type, data, deleteFile };
-};
+  };
 
-conn.downloadAndSaveMediaMessage = async (message, filename, attachExtension = true) => {
+  conn.downloadAndSaveMediaMessage = async (message, filename, attachExtension = true) => {
     let quoted = message.msg ? message.msg : message;
     let mime = (message.msg || message).mimetype || '';
     let messageType = message.mtype ? message.mtype.replace(/Message/gi, '') : mime.split('/')[0];
@@ -1066,12 +1003,8 @@ conn.downloadAndSaveMediaMessage = async (message, filename, attachExtension = t
     let savePath = path.join(__dirname, 'tmp', trueFileName);
 
     await fs.writeFileSync(savePath, buffer);
-
-    buffer = null; 
-    global.gc?.(); 
-
     return savePath;
-};
+  };
 
   conn.sendButtonImg = async (jid, buttons = [], text, image, footer, quoted = '', options = {}) => {
     const buttonMessage = {
@@ -1145,7 +1078,7 @@ conn.downloadAndSaveMediaMessage = async (message, filename, attachExtension = t
   conn.ments = (teks = '') => {
     if (!teks || typeof teks !== 'string') return [];
     return teks.match('@') ? [...teks.matchAll(/@([0-9]{5,16}|0)/g)].map(v => v[1] + '@s.whatsapp.net') : [];
-};
+  };
 
   conn.cMod = (jid, copy, text = '', sender = conn.user.id, options = {}) => {
     if (!copy || !copy.message) return copy;
