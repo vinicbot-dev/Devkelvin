@@ -328,7 +328,16 @@ async function clientstart() {
   // Monitor memory every 10 minutes
   setInterval(monitorResources, 10 * 60 * 1000);
     
- 
+ const { makeInMemoryStore } = require("./start/lib/store/");
+  const store = makeInMemoryStore({
+    logger: pino().child({
+      level: 'silent',
+      stream: 'store'
+    })
+  });
+  
+
+  store.bind(conn.ev);
 
   conn.ev.on('messages.upsert', async chatUpdate => {
     try {
