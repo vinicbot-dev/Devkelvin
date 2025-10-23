@@ -282,7 +282,52 @@ async function clientstart() {
       })),
     }
   });
+  // Define decodeJid immediately after connection
+  conn.decodeJid = (jid) => {
+    if (!jid) return jid;
+    if (/:\d+@/gi.test(jid)) {
+      let decode = jidDecode(jid) || {};
+      return decode.user && decode.server && decode.user + '@' + decode.server || jid;
+    } else return jid;
+  };
+
+  const botNumber = conn.decodeJid(conn.user?.id) || 'default'; // Add fallback
   
+  // INITIALIZE DATABASE SETTINGS ON BOT START
+  // Load settings from SQLite database
+  try {
+    const savedSettings = db.getSettings(botNumber);
+    if (savedSettings) {
+      if (!global.db.data.settings) global.db.data.settings = {};
+      if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+      global.db.data.settings[botNumber].config = { ...savedSettings };
+      console.log('✅ Settings loaded from database');
+    } else {
+      // Initialize default settings if none exist
+      const { initializeDatabase } = require('./vinic');
+      initializeDatabase(null, botNumber);
+    }
+  } catch (error) {
+    console.error('Error loading settings:', error);
+    const { initializeDatabase } = require('./vinic');
+    initializeDatabase(null, botNumber);
+  }
+
+  // Auto-save database with cloud optimization
+  setInterval(async () => {
+    try {
+        await saveDatabase();
+    } catch (error) {
+        console.error('Auto-save error:', error);
+    }
+  }, 5 * 60 * 1000); // 5 minutes
+
+  // Run cleanup every 30 minutes
+  setInterval(cleanupTmpFiles, 30 * 60 * 1000);
+
+  // Monitor memory every 10 minutes
+  setInterval(monitorResources, 10 * 60 * 1000);
+    
  
 
   conn.ev.on('messages.upsert', async chatUpdate => {
