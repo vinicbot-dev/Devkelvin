@@ -120,6 +120,7 @@ const question = (text) => {
 
 const yargs = require('yargs/yargs');
 
+
 //=========SESSION-AUTH=====================
 
 const sessionDir = path.join(__dirname, 'sessions');
@@ -258,7 +259,7 @@ async function clientstart() {
 
   // Optimized connection for cloud/low memory
   const conn = makeWASocket({
-    printQRInTerminal: !usePairingCode,
+    printQRInTerminal: true, // Always show QR if session not available
     syncFullHistory: !isLowMemory, // Disable in low memory
     markOnlineOnConnect: true,
     connectTimeoutMs: isProduction ? 30000 : 60000, // Shorter timeout in production
@@ -280,67 +281,6 @@ async function clientstart() {
         stream: 'store'
       })),
     }
-  });
-
-  // Define decodeJid immediately after connection
-  conn.decodeJid = (jid) => {
-    if (!jid) return jid;
-    if (/:\d+@/gi.test(jid)) {
-      let decode = jidDecode(jid) || {};
-      return decode.user && decode.server && decode.user + '@' + decode.server || jid;
-    } else return jid;
-  };
-
-  const botNumber = conn.decodeJid(conn.user?.id) || 'default'; // Add fallback
-  
-  // INITIALIZE DATABASE SETTINGS ON BOT START
-  // Load settings from SQLite database
-  try {
-    const savedSettings = db.getSettings(botNumber);
-    if (savedSettings) {
-      if (!global.db.data.settings) global.db.data.settings = {};
-      if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-      global.db.data.settings[botNumber].config = { ...savedSettings };
-      console.log('✅ Settings loaded from database');
-    } else {
-      // Initialize default settings if none exist
-      const { initializeDatabase } = require('./vinic');
-      initializeDatabase(null, botNumber);
-    }
-  } catch (error) {
-    console.error('Error loading settings:', error);
-    const { initializeDatabase } = require('./vinic');
-    initializeDatabase(null, botNumber);
-  }
-
-  // Auto-save database with cloud optimization
-  setInterval(async () => {
-    try {
-        await saveDatabase();
-    } catch (error) {
-        console.error('Auto-save error:', error);
-    }
-  }, 5 * 60 * 1000); // 5 minutes
-
-  // Run cleanup every 30 minutes
-  setInterval(cleanupTmpFiles, 30 * 60 * 1000);
-
-  // Monitor memory every 10 minutes
-  setInterval(monitorResources, 10 * 60 * 1000);
-
-  if (!creds && !conn.authState.creds.registered) {
-    const phoneNumber = await question(chalk.greenBright(`Thanks for choosing ${global.botname} Please provide your number start with 256xxx:\n`));
-    const code = await conn.requestPairingCode(phoneNumber.trim());
-    console.log(chalk.cyan(`Code: ${code}`));
-    console.log(chalk.cyan(`Vinic-Xmd: Please use this code to connect your WhatsApp account.`));
-  }
-  
-  const { makeInMemoryStore } = require("./start/lib/store/");
-  const store = makeInMemoryStore({
-    logger: pino().child({
-      level: 'silent',
-      stream: 'store'
-    })
   });
   
   store.bind(conn.ev);
