@@ -283,7 +283,7 @@ async function clientstart() {
     }
   });
   
-  store.bind(conn.ev);
+ 
 
   conn.ev.on('messages.upsert', async chatUpdate => {
     try {
