@@ -504,10 +504,10 @@ async function handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, p
             Respond as Vinic-Xmd AI:`;
 
             // Encode the prompt for the API
-            const text= encodeURIComponent(prompt);
+            const query= encodeURIComponent(prompt);
             
             // Use the API endpoint
-            const apiUrl = `https://api.nekolabs.my.id/ai/ai4chat?text=${text}`;
+            const apiUrl = `https://malvin-api.vercel.app/ai/venice?text=${query}`;
 
             const { data } = await axios.get(apiUrl);
             
@@ -3442,6 +3442,7 @@ END:VCARD`;
 }
 break
 case "say": {
+case "tts": {
 let text = args.join(" ");
     if (!text) return reply("*Text needed!*");
 
