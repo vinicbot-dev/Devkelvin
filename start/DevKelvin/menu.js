@@ -72,7 +72,7 @@ async function generateMenu(conn, m, prefix, global) {
         },
         image: {
             title: ' *IMAGE MENU*',
-            commands: ['wallapaper', 'balogo', 'tattoo', 'remini'],
+            commands: ['wallapaper', 'remini'],
         },
         reaction: {
             title: ' *REACTION MENU*',
@@ -118,7 +118,7 @@ async function generateMenu(conn, m, prefix, global) {
             title: ' *EPHOTO360MAKER MENU* ',
             commands: ['blackpinklogo', 'blackpinkstyle', 'glossysilver', 'glitchtext', 
                       'arting', 'advancedglow', 'cartoonstyle', 'deadpool', 'deletingtext', 
-                      'luxurygold',  '1917style', 'pixelglitch', 'multicoloredneon', 
+                      'luxurygold', '1917style', 'pixelglitch', 'multicoloredneon', 
                       'effectclouds', 'flagtext', 'freecreat', 'galaxystyle', 'papercut', 'holigram', 'royal', 'bear', 'galaxywallpaper', 
                       'glowingtext', 'makingneon', 'matrix', 'royaltext', 'sand', 'summerbeach', 
                       'topography', 'typography', 'flux', 'dragonball'],
