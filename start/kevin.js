@@ -3441,7 +3441,7 @@ END:VCARD`;
   }
 }
 break
-case "say": {
+case "say": 
 case "tts": {
 let text = args.join(" ");
     if (!text) return reply("*Text needed!*");
