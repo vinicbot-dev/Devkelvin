@@ -6580,61 +6580,6 @@ m.reply(formatIPInfo(res));
 m.reply(`Error: Unable to retrieve data for IP ${text}`);
 }
 }
-break 
-
-  //========================================================\\       
-
-      case 'lemonmail': case 'sendemail': {
- const args = text.split('|'); if (args.length < 3) return m.reply('Format wrong! Provide: email|subject|message');
-const [target, subject, message] = args;
-        m.reply('sending email...');
-        try {
-            const data = JSON.stringify({ "to": target.trim(), "subject": subject.trim(), "message": message.trim() });
-            const config = {
-                method: 'POST',
-                url: 'https://lemon-email.vercel.app/send-email',
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Mobile Safari/537.36',
-                    'Content-Type': 'application/json',
-                    'sec-ch-ua-platform': '"Android"',
-                    'sec-ch-ua': '"Chromium";v="134", "Not:A-Brand";v="24", "Google Chrome";v="134"',
-                    'sec-ch-ua-mobile': '?1',
-                    'origin': 'https://lemon-email.vercel.app',
-                    'sec-fetch-site': 'same-origin',
-                    'sec-fetch-mode': 'cors',
-                    'sec-fetch-dest': 'empty',
-                    'referer': 'https://lemon-email.vercel.app/',
-                    'accept-language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
-                    'priority': 'u=1, i'
-                },
-                data: data
-            };
-            const axios = require('axios');
-            const api = await axios.request(config);
-            m.reply(`Email: ${JSON.stringify(api.data, null, 2)}`);
-        } catch (error) {
-            m.reply(`Error: ${error.message}`);
-        }
-        }
-        break
-  //========================================================\\  
-
-case 'myip':
-            case 'ipbot':
-                if (!Access) return m.reply(mess.owner)
-                var http = require('http')
-                http.get({
-                    'host': 'api.ipify.org',
-                    'port': 80,
-                    'path': '/'
-                }, function(resp) {
-                    resp.on('data', function(ip) {
-                        reply("🔎 My public IP address is: " + ip);
-                    })
-                })
-            break
-
-       //========================================================\\     
  break    
   case "tts": {
   if(!text) return m.reply("`provide a query`");
