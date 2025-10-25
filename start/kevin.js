@@ -441,7 +441,7 @@ async function handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, p
         }
 
         // Improved mention detection for groups
-        let shouldRespond = false;
+        let shouldRespond = true;
         
         if (isGroup) {
             // Check if bot is mentioned
@@ -688,7 +688,7 @@ case 'kevin':
 case 'vinic': {
     // Send loading message first
     const loadingMsg = await conn.sendMessage(m.chat, { 
-        text: '🔄 *Loading menu...*' 
+        text: '*Loading menu...*' 
     }, { quoted: m });
 
     try {
@@ -1727,38 +1727,20 @@ case "vv2": {
 if (!Access) return reply(mess.owner);
     if (!quoted) return reply(`*Reply to an Image or Video*`);
 
-    if (/image/.test(mime)) {
-      const anuan = await conn.downloadAndSaveMediaMessage(quoted);
-      conn.sendMessage(
-        m.chat,
-        {
-          image: { url: anuan },
-          caption: mess.done,
-          fileLength: "999",
-          viewOnce: true
-        },
-        { quoted: m }
-      );
-    } else if (/video/.test(mime)) {
-      const anuanuan = await conn.downloadAndSaveMediaMessage(quoted);
-      conn.sendMessage(
-        m.chat,
-        {
-          video: { url: anuanuan },
-          caption: mess.done,
-          fileLength: "99999999",
-          viewOnce: true
-        },
-        { quoted: m }
-      );
-    } else if (/audio/.test(mime)) {
-      const bebasap = await conn.downloadAndSaveMediaMessage(quoted);
-      conn.sendMessage(m.chat, {
-        audio: { url: bebasap },
-        mimetype: "audio/mpeg",
-        ptt: true,
-        viewOnce: true
-      });
+    let msg = m.quoted.fakeObj.message
+    let type = Object.keys(msg)[0]
+    if (!msg[type].viewOnce && m.quoted.mtype !== "viewOnceMessageV2") return m.reply("message not viewonce!")
+    let media = await downloadContentFromMessage(msg[type], type == 'imageMessage' ? 'image' : type == 'videoMessage' ? 'video' : 'audio')
+    let buffer = Buffer.from([])
+    for await (const chunk of media) {
+        buffer = Buffer.concat([buffer, chunk])
+    }
+    if (/video/.test(type)) {
+        return conn.sendMessage(m.chat, { video: buffer, caption: msg[type].caption || "" }, { quoted: m })
+    } else if (/image/.test(type)) {
+        return conn.sendMessage(m.chat, { image: buffer, caption: msg[type].caption || "" }, { quoted: m })
+    } else if (/audio/.test(type)) {
+        return conn.sendMessage(m.chat, { audio: buffer, mimetype: "audio/mpeg", ptt: true }, { quoted: m })
     }
 }
 break
@@ -3067,7 +3049,7 @@ case "alive": {
         m.chat, 
         { 
             image: { url: randomImageUrl },
-            caption: `*🌹Hi. I am 👑VINIC-XMD, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime:${botUptime}*`
+            caption: `*🌹Hi. I am 👑${global.botname}, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime:${botUptime}*`
         },
         { quoted: m }
     );
@@ -3114,7 +3096,7 @@ case 'botinfo': {
       m.chat, 
       { 
           image: { url: imageUrl },
-          caption: `*🌹Hi. I am 👑VINIC-XMD, a friendly WhatsApp bot.*${botInfo}`
+          caption: `*🌹Hi. I am 👑${global.botname}, a friendly WhatsApp bot.*${botInfo}`
       },
       { quoted: m }
   );
@@ -3202,19 +3184,22 @@ const used = process.memoryUsage();
       const uptime = runtime(process.uptime());
 
       const response = `
-      * BOT STATUS *
-
- *Ping:* ${ping}
- *Uptime:* ${uptime}
- *RAM Usage:* ${ramUsage}
- *Free RAM:* ${freeRam}
- *Disk Usage:* ${formatSize(disk.size - disk.free)} / ${formatSize(disk.size)}
- *Free Disk:* ${formatSize(disk.free)}
- *Platform:* ${os.platform()}
- *NodeJS Version:* ${process.version}
- *CPU Model:* ${os.cpus()[0].model}
- *Downloaded:* ${download}
- *Uploaded:* ${upload}
+      ╭─ ⌬ Bot Status
+│ • Ping      : ${ping}ms
+│ • Uptime    : ${uptime}
+│ • RAM Usage : ${ramUsage}
+│ • Free RAM  : ${freeRam}
+│
+│ • Disk Usage: ${formatSize(disk.size - disk.free)} / ${formatSize(disk.size)}
+│ • Free Disk : ${formatSize(disk.free)}
+│
+│ • Platform  : ${os.platform()}
+│ • NodeJS    : ${process.version}
+│ • CPU Model : ${os.cpus()[0].model}
+│
+│ • Downloaded: ${download}
+│ • Uploaded  : ${upload}
+╰─────────────
 `;
 
       conn.sendMessage(m.chat, { text: response.trim() }, { quoted: m });
