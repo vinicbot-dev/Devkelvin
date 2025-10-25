@@ -39,7 +39,7 @@ async function generateMenu(conn, m, prefix, global) {
         owner: {
             title: ' *OWNER MENU*',
             commands: [
-                'addowner', '𝙸𝚍𝚌𝚑', '𝙲𝚛𝚎𝚊𝚝𝚎𝚌𝚑', 'creategroup', 'del', 'setpp', 'delpp', 
+                'addowner', '𝙸𝚍𝚌𝚑', '𝙲𝚛𝚎𝚊𝚝𝚎𝚌𝚑', 'creategroup', 'del', 'setpp', 'delpp', 'private', 'public',
                 'lastseen', 'setprefix', 'groupid', 'readreceipts', 'reportbug', 'clearchat', 
                 'hack', 'groupjids', 'broadcast', 'disappear', 'disappearstatus', 'clearchat', 
                 'react', 'restart', 'addignorelist', 'delignorelist', 'deljunk', 'features',
