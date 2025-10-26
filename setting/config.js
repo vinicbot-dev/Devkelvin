@@ -13,7 +13,7 @@ const fs = require('fs');
 global.owner = ["256742932677"];  
 global.sudo = ["256742932677", "256755585369"];// Type additional allowed users here
 //NB: They'll be able to use every functions of the bot without restrictions.
-global.ownername = "KELVIN TECH";  
+global.ownername = "Kelvin Tech";  
 global.botname = "ᴠɪɴɪᴄ-xᴍᴅ";  
 
 // ========= Setting Channel ========= //
@@ -27,7 +27,6 @@ global.autoread = false;
 global.autoreact = false;
 global.antibug = true;
 global.autobio = false;
-global.chatbot = false;
 global.autoTyping = false;
 global.autorecording = false;
 global.prefixz = '.';
@@ -35,15 +34,13 @@ global.prefixz = '.';
 // ========= Anti-Delete Feature ========= //
 global.antidelete = 'private'; // Options: 'private', 'chat', or 'off'
 
+// ======= Anti-status features ==========
+global.antistatus = "private"; // Options: "private", "chat", false
 // ===== Anticall ===========
 global.anticall = 'off';// options :- 'off', 'decline' or 'block'
 // off - Disables anticall
 // decline - Declines incoming calls
 // Block - Declines and blocks callers
-
-// ==== Anticall ============
-global.anticall = 'false';
-
 
 // ======= Anti-Edit ==============
 global.antiedit = 'private'; // options: 'private, 'chat', or 'off'
@@ -58,6 +55,7 @@ global.antilinkdelete = true;
 global.antilinkwarn = true;
 global.antilinkkick = false;
 
+
 // ========= Other Global Settings ========= //
 global.welcome = true;
 global.adminevent = true;
@@ -65,7 +63,7 @@ global.AI_CHAT = "true", // Set to "true" to enable AI chatbot by default
 
 // ========= Add modeStatus and versions ========= //
 global.modeStatus = "Public";
-global.versions = "1.3.6";
+global.versions = "1.3.5";
 
 // ========= Setting WM ========= //
 global.packname = 'Vinic';
