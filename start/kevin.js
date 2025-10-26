@@ -2261,25 +2261,9 @@ await saveDatabase();
 reply(`Anti-delete ${type} mode ${option === "on" ? "enabled" : "disabled"} successfully`);
 }
 break
-case "antidelete": {
+case "antistatus": {
     if (!Access) return reply(mess.owner);
-    
-    if (args.length < 1) {
-        const currentMode = global.antidelete ? 
-            `✅ *ENABLED* (Mode: ${global.antidelete})` : 
-            '❌ *DISABLED*';
-            
-        return reply(`🔍 *ANTI-DELETE SETTINGS*\n\n${currentMode}\n\n*Usage:*\n• ${prefix}antidelete private on/off\n• ${prefix}antidelete chat on/off\n• ${prefix}antidelete status\n\n*Modes:*\n• private - Notify bot owner\n• chat - Notify in same chat`);
-    }
-
-    if (args[0].toLowerCase() === 'status') {
-        const currentMode = global.antidelete ? 
-            `🟢 ACTIVE (Mode: ${global.antidelete})` : 
-            '🔴 INACTIVE';
-        return reply(`📊 *Anti-Delete Status:*\n\n${currentMode}`);
-    }
-
-    if (args.length < 2) return reply(`❌ *Invalid Usage!*\n\nExample: ${prefix + command} private on\nOr: ${prefix + command} chat off`);
+    if (args.length < 2) return reply(`Example: ${prefix + command} private on/off\nOr: ${prefix + command} chat on/off`);
 
     const validTypes = ["private", "chat"];
     const validOptions = ["on", "off"];
@@ -2287,42 +2271,34 @@ case "antidelete": {
     const type = args[0].toLowerCase();
     const option = args[1].toLowerCase();
 
-    if (!validTypes.includes(type)) return reply("❌ *Invalid type!* Use 'private' or 'chat'");
-    if (!validOptions.includes(option)) return reply("❌ *Invalid option!* Use 'on' or 'off'");
+    if (!validTypes.includes(type)) return reply("Invalid type. Use 'private' or 'chat'");
+    if (!validOptions.includes(option)) return reply("Invalid option. Use 'on' or 'off'");
 
-    try {
-        // Fix: Properly get setting from global database
-        if (!global.db.data.settings) global.db.data.settings = {};
-        if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-        let setting = global.db.data.settings[botNumber];
+    // Fix: Properly get setting from global database
+    if (!global.db.data.settings) global.db.data.settings = {};
+    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+    let setting = global.db.data.settings[botNumber];
 
-        // Initialize config if it doesn't exist
-        if (!setting.config) setting.config = {};
+    // Initialize config if it doesn't exist
+    if (!setting.config) setting.config = {};
 
-        const isEnabled = option === "on";
-        
-        // Set the anti-delete configuration based on type
-        if (type === "private") {
-            setting.config.antidelete = isEnabled ? "private" : false;
-            global.antidelete = isEnabled ? "private" : false;
-        } else if (type === "chat") {
-            setting.config.antidelete = isEnabled ? "chat" : false;
-            global.antidelete = isEnabled ? "chat" : false;
-        }
-
-        await saveDatabase();
-
-        // Send success message with details
-        if (isEnabled) {
-            await reply(`✅ *Anti-Delete ${type.toUpperCase()} Mode ENABLED*\n\n${type === 'private' ? '🔒 Notifications will be sent to bot owner' : '📢 Notifications will be sent in the same chat'}\n\nDeleted messages will now be captured and reported.`);
-        } else {
-            await reply(`✅ *Anti-Delete ${type.toUpperCase()} Mode DISABLED*\n\nMessage deletion monitoring is now turned off.`);
-        }
-
-    } catch (error) {
-        console.error('Error in antidelete command:', error);
-        await reply('❌ *Failed to update anti-delete settings.* Please try again.');
+    // Set the anti-status configuration based on type
+    if (type === "private") {
+        setting.config.antistatus = option === "on" ? "private" : false;
+    } else if (type === "chat") {
+        setting.config.antistatus = option === "on" ? "chat" : false;
     }
+
+    // Also update the global antistatus variable
+    global.antistatus = setting.config.antistatus;
+
+    await saveDatabase();
+
+    const statusMessage = option === "on" 
+        ? `✅ *Anti-Status ${type.toUpperCase()} Mode ENABLED*\n\n${type === 'private' ? '🔒 Status delete notifications will be sent to bot owner privately' : '📢 Status delete notifications will be sent in the same chat'}\n\nDeleted status updates will now be captured and reported.`
+        : `✅ *Anti-Status ${type.toUpperCase()} Mode DISABLED*\n\nStatus deletion monitoring is now turned off.`;
+
+    reply(statusMessage);
 }
 break
 case 'aichat':
