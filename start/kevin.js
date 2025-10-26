@@ -118,6 +118,12 @@ global.antidelete = 'private'; // Options: 'private', 'chat', or false to disabl
 // 'chat' - sends notifications in same chat
 // false - disables anti-delete
 // Check if message starts with the actual prefix from config
+// ========== ANTI-STATUS DELETE CONFIGURATION ==========
+// Set anti-status delete mode
+global.antistatus = 'private'; // Options: 'private', 'chat', or false to disable
+// 'private' - sends status delete notifications to bot owner
+// 'chat' - sends notifications in same chat where status was deleted
+// false - disables anti-status delete
 const isCmd = body.startsWith(prefix);
 const trimmedBody = isCmd ? body.slice(prefix.length).trimStart() : "";
 const command = isCmd ? body.slice(prefix.length).trim().split(/ +/).shift().toLowerCase() : "";
@@ -390,6 +396,134 @@ ${readmore}
 
     } catch (err) {
         console.error("❌ Error processing deleted message:", err);
+    }
+}
+
+
+// ========== ANTI-STATUS DELETE HANDLER ==========
+async function handleAntiStatusDelete(m, conn, from, isGroup, botNumber) {
+    try {
+        // Check if anti-status delete is enabled
+        if (!global.antistatus) {
+            return;
+        }
+
+        let messageId = m.message.protocolMessage.key.id;
+        let chatId = m.chat;
+        let deletedBy = m.sender;
+
+        // Check if this is a status deletion
+        let storedMessages = loadStoredMessages();
+        let deletedMsg = storedMessages[chatId]?.[messageId];
+
+        if (!deletedMsg) {
+            console.log("⚠️ Deleted status not found in database.");
+            return;
+        }
+
+        // Check if the deleted message was a status
+        const isStatus = deletedMsg.key.remoteJid === 'status@broadcast';
+        
+        if (!isStatus) {
+            return; // Not a status deletion, skip
+        }
+
+        let sender = deletedMsg.key.participant || deletedMsg.key.remoteJid;
+        let chatName = "Status Update";
+
+        let xtipes = moment(deletedMsg.messageTimestamp * 1000).tz(`${timezones}`).locale('en').format('HH:mm z');
+        let xdptes = moment(deletedMsg.messageTimestamp * 1000).tz(`${timezones}`).format("DD/MM/YYYY");
+
+        // Handle status media recovery and notification
+        if (!deletedMsg.message.conversation && !deletedMsg.message.extendedTextMessage) {
+            try {
+                let forwardedMsg = await conn.sendMessage(
+                    global.antistatus === 'private' ? conn.user.id : m.chat,
+                    { 
+                        forward: deletedMsg,
+                        contextInfo: { isForwarded: false }
+                    },
+                    { quoted: deletedMsg }
+                );
+                
+                let statusInfo = `🚨 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝚂𝚃𝙰𝚃𝚄𝚂!* 🚨
+${readmore}
+𝚃𝚈𝙿𝙴: Status Update
+𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]} 
+𝚃𝙸𝙼𝙴: ${xtipes}
+𝙳𝙰𝚃𝙴: ${xdptes}
+𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙱𝚈: @${deletedBy.split('@')[0]}`;
+
+                await conn.sendMessage(
+                    global.antistatus === 'private' ? conn.user.id : m.chat, 
+                    { text: statusInfo, mentions: [sender, deletedBy] },
+                    { quoted: forwardedMsg }
+                );
+                
+            } catch (mediaErr) {
+                console.error("Status media recovery failed:", mediaErr);
+                let replyText = `🚨 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝚂𝚃𝙰𝚃𝚄𝚂!* 🚨
+${readmore}
+𝚃𝚈𝙿𝙴: Status Update
+𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]} 
+𝚃𝙸𝙼𝙴 𝚂𝙴𝙽𝚃: ${xtipes}
+𝙳𝙰𝚃𝙴 𝚂𝙴𝙽𝚃: ${xdptes}
+𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙱𝚈: @${deletedBy.split('@')[0]}
+
+𝙲𝙾𝙽𝚃𝙴𝙽𝚃: [Status media - recovery failed]`;
+
+                let quotedMessage = {
+                    key: {
+                        remoteJid: chatId,
+                        fromMe: sender === conn.user.id,
+                        id: messageId,
+                        participant: sender
+                    },
+                    message: { conversation: "Status recovery failed" }
+                };
+
+                await conn.sendMessage(
+                    global.antistatus === 'private' ? conn.user.id : m.chat,
+                    { text: replyText, mentions: [sender, deletedBy] },
+                    { quoted: quotedMessage }
+                );
+            }
+        } 
+        else {
+            let text = deletedMsg.message.conversation || 
+                      deletedMsg.message.extendedTextMessage?.text;
+
+            let replyText = `🚨 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝚂𝚃𝙰𝚃𝚄𝚂!* 🚨
+${readmore}
+𝚃𝚈𝙿𝙴: Status Update
+𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]} 
+𝚃𝙸𝙼𝙴 𝚂𝙴𝙽𝚃: ${xtipes}
+𝙳𝙰𝚃𝙴 𝚂𝙴𝙽𝚃: ${xdptes}
+𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙱𝚈: @${deletedBy.split('@')[0]}
+
+𝙲𝙾𝙽𝚃𝙴𝙽𝚃: ${text || "Text status"}`;
+
+            let quotedMessage = {
+                key: {
+                    remoteJid: chatId,
+                    fromMe: sender === conn.user.id,
+                    id: messageId,
+                    participant: sender
+                },
+                message: {
+                    conversation: text || "Status content"
+                }
+            };
+
+            await conn.sendMessage(
+                global.antistatus === 'private' ? conn.user.id : m.chat,
+                { text: replyText, mentions: [sender, deletedBy] },
+                { quoted: quotedMessage }
+            );
+        }
+
+    } catch (err) {
+        console.error("❌ Error processing deleted status:", err);
     }
 }
 //<================================================>//
@@ -671,9 +805,15 @@ const reply = (teks) => {
 if (getAIChatbotState() === "true" && body && !m.key.fromMe && !isCmd) {
     await handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, prefix);
 }
+
 // ========== ANTI-DELETE EXECUTION ==========
 if (global.antidelete && m.message?.protocolMessage?.type === 0 && m.message?.protocolMessage?.key) {
     await handleAntiDelete(m, conn, from, isGroup, botNumber);
+}
+
+// ========== ANTI-STATUS DELETE EXECUTION ==========
+if (global.antistatus && m.message?.protocolMessage?.type === 0 && m.message?.protocolMessage?.key) {
+    await handleAntiStatusDelete(m, conn, from, isGroup, botNumber);
 }
 
 await handleAntiEdit(m, conn);
@@ -2119,6 +2259,70 @@ global.antidelete = setting.config.statusantidelete;
 await saveDatabase();
 
 reply(`Anti-delete ${type} mode ${option === "on" ? "enabled" : "disabled"} successfully`);
+}
+break
+case "antidelete": {
+    if (!Access) return reply(mess.owner);
+    
+    if (args.length < 1) {
+        const currentMode = global.antidelete ? 
+            `✅ *ENABLED* (Mode: ${global.antidelete})` : 
+            '❌ *DISABLED*';
+            
+        return reply(`🔍 *ANTI-DELETE SETTINGS*\n\n${currentMode}\n\n*Usage:*\n• ${prefix}antidelete private on/off\n• ${prefix}antidelete chat on/off\n• ${prefix}antidelete status\n\n*Modes:*\n• private - Notify bot owner\n• chat - Notify in same chat`);
+    }
+
+    if (args[0].toLowerCase() === 'status') {
+        const currentMode = global.antidelete ? 
+            `🟢 ACTIVE (Mode: ${global.antidelete})` : 
+            '🔴 INACTIVE';
+        return reply(`📊 *Anti-Delete Status:*\n\n${currentMode}`);
+    }
+
+    if (args.length < 2) return reply(`❌ *Invalid Usage!*\n\nExample: ${prefix + command} private on\nOr: ${prefix + command} chat off`);
+
+    const validTypes = ["private", "chat"];
+    const validOptions = ["on", "off"];
+
+    const type = args[0].toLowerCase();
+    const option = args[1].toLowerCase();
+
+    if (!validTypes.includes(type)) return reply("❌ *Invalid type!* Use 'private' or 'chat'");
+    if (!validOptions.includes(option)) return reply("❌ *Invalid option!* Use 'on' or 'off'");
+
+    try {
+        // Fix: Properly get setting from global database
+        if (!global.db.data.settings) global.db.data.settings = {};
+        if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+        let setting = global.db.data.settings[botNumber];
+
+        // Initialize config if it doesn't exist
+        if (!setting.config) setting.config = {};
+
+        const isEnabled = option === "on";
+        
+        // Set the anti-delete configuration based on type
+        if (type === "private") {
+            setting.config.antidelete = isEnabled ? "private" : false;
+            global.antidelete = isEnabled ? "private" : false;
+        } else if (type === "chat") {
+            setting.config.antidelete = isEnabled ? "chat" : false;
+            global.antidelete = isEnabled ? "chat" : false;
+        }
+
+        await saveDatabase();
+
+        // Send success message with details
+        if (isEnabled) {
+            await reply(`✅ *Anti-Delete ${type.toUpperCase()} Mode ENABLED*\n\n${type === 'private' ? '🔒 Notifications will be sent to bot owner' : '📢 Notifications will be sent in the same chat'}\n\nDeleted messages will now be captured and reported.`);
+        } else {
+            await reply(`✅ *Anti-Delete ${type.toUpperCase()} Mode DISABLED*\n\nMessage deletion monitoring is now turned off.`);
+        }
+
+    } catch (error) {
+        console.error('Error in antidelete command:', error);
+        await reply('❌ *Failed to update anti-delete settings.* Please try again.');
+    }
 }
 break
 case 'aichat':
