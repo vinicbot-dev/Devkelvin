@@ -81,7 +81,7 @@ async function generateMenu(conn, m, prefix, global) {
         },
         features: {
             title: ' *FEATURES MENU*',
-            commands: ['antidelete', 'anticall', 'antibug', 'autorecording', 'autotyping', 
+            commands: ['antidelete', 'anticall', 'antibug', 'autorecording', 'antistatus', 'autotyping', 
                       'welcome', 'chatbot', 'autoread', 'adminevent', 'autoviewstatus', 
                       'autoreactstatus', 'antiedit'],
         },
