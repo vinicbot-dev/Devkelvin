@@ -58,6 +58,7 @@ global.antilinkkick = false;
 
 // ========= Other Global Settings ========= //
 global.welcome = true;
+global.antibug = false;
 global.adminevent = true;
 global.AI_CHAT = "true", // Set to "true" to enable AI chatbot by default
 
