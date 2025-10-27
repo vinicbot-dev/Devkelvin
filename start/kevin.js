@@ -118,12 +118,11 @@ global.antidelete = 'private'; // Options: 'private', 'chat', or false to disabl
 // 'chat' - sends notifications in same chat
 // false - disables anti-delete
 // Check if message starts with the actual prefix from config
-// ========== ANTI-STATUS DELETE CONFIGURATION ==========
-// Set anti-status delete mode
+
+// Add these with your other global settings
 global.antistatus = 'private'; // Options: 'private', 'chat', or false to disable
-// 'private' - sends status delete notifications to bot owner
-// 'chat' - sends notifications in same chat where status was deleted
-// false - disables anti-status delete
+global.antiedit = 'private';   // Options: 'private', 'chat', or false to disable
+
 const isCmd = body.startsWith(prefix);
 const trimmedBody = isCmd ? body.slice(prefix.length).trimStart() : "";
 const command = isCmd ? body.slice(prefix.length).trim().split(/ +/).shift().toLowerCase() : "";
@@ -412,7 +411,7 @@ async function handleAntiStatusDelete(m, conn, from, isGroup, botNumber) {
         let chatId = m.chat;
         let deletedBy = m.sender;
 
-        // Check if this is a status deletion
+        // Check if this is a status deletion - status deletions typically have specific patterns
         let storedMessages = loadStoredMessages();
         let deletedMsg = storedMessages[chatId]?.[messageId];
 
@@ -421,9 +420,15 @@ async function handleAntiStatusDelete(m, conn, from, isGroup, botNumber) {
             return;
         }
 
-        // Check if the deleted message was a status
-        const isStatus = deletedMsg.key.remoteJid === 'status@broadcast';
-        
+        // Better way to identify status deletions
+        const isStatus = 
+            deletedMsg.key.remoteJid === 'status@broadcast' ||
+            (deletedMsg.message && (
+                deletedMsg.message.extendedTextMessage?.text?.includes('status') ||
+                deletedMsg.message.imageMessage?.caption?.includes('status') ||
+                deletedMsg.message.videoMessage?.caption?.includes('status')
+            ));
+
         if (!isStatus) {
             return; // Not a status deletion, skip
         }
@@ -434,19 +439,9 @@ async function handleAntiStatusDelete(m, conn, from, isGroup, botNumber) {
         let xtipes = moment(deletedMsg.messageTimestamp * 1000).tz(`${timezones}`).locale('en').format('HH:mm z');
         let xdptes = moment(deletedMsg.messageTimestamp * 1000).tz(`${timezones}`).format("DD/MM/YYYY");
 
-        // Handle status media recovery and notification
-        if (!deletedMsg.message.conversation && !deletedMsg.message.extendedTextMessage) {
-            try {
-                let forwardedMsg = await conn.sendMessage(
-                    global.antistatus === 'private' ? conn.user.id : m.chat,
-                    { 
-                        forward: deletedMsg,
-                        contextInfo: { isForwarded: false }
-                    },
-                    { quoted: deletedMsg }
-                );
-                
-                let statusInfo = `🚨 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝚂𝚃𝙰𝚃𝚄𝚂!* 🚨
+        // Handle status recovery and notification
+        try {
+            let statusInfo = `🚨 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝚂𝚃𝙰𝚃𝚄𝚂!* 🚨
 ${readmore}
 𝚃𝚈𝙿𝙴: Status Update
 𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]} 
@@ -454,71 +449,45 @@ ${readmore}
 𝙳𝙰𝚃𝙴: ${xdptes}
 𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙱𝚈: @${deletedBy.split('@')[0]}`;
 
-                await conn.sendMessage(
-                    global.antistatus === 'private' ? conn.user.id : m.chat, 
-                    { text: statusInfo, mentions: [sender, deletedBy] },
-                    { quoted: forwardedMsg }
-                );
-                
-            } catch (mediaErr) {
-                console.error("Status media recovery failed:", mediaErr);
-                let replyText = `🚨 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝚂𝚃𝙰𝚃𝚄𝚂!* 🚨
-${readmore}
-𝚃𝚈𝙿𝙴: Status Update
-𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]} 
-𝚃𝙸𝙼𝙴 𝚂𝙴𝙽𝚃: ${xtipes}
-𝙳𝙰𝚃𝙴 𝚂𝙴𝙽𝚃: ${xdptes}
-𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙱𝚈: @${deletedBy.split('@')[0]}
-
-𝙲𝙾𝙽𝚃𝙴𝙽𝚃: [Status media - recovery failed]`;
-
-                let quotedMessage = {
-                    key: {
-                        remoteJid: chatId,
-                        fromMe: sender === conn.user.id,
-                        id: messageId,
-                        participant: sender
-                    },
-                    message: { conversation: "Status recovery failed" }
-                };
-
-                await conn.sendMessage(
+            // Try to forward the original status content
+            let forwardedContent = null;
+            try {
+                forwardedContent = await conn.sendMessage(
                     global.antistatus === 'private' ? conn.user.id : m.chat,
-                    { text: replyText, mentions: [sender, deletedBy] },
-                    { quoted: quotedMessage }
+                    { 
+                        forward: deletedMsg,
+                        contextInfo: { isForwarded: false }
+                    },
+                    { quoted: deletedMsg }
                 );
+            } catch (forwardError) {
+                console.log("Could not forward status content, sending info only");
             }
-        } 
-        else {
-            let text = deletedMsg.message.conversation || 
-                      deletedMsg.message.extendedTextMessage?.text;
 
-            let replyText = `🚨 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝚂𝚃𝙰𝚃𝚄𝚂!* 🚨
+            await conn.sendMessage(
+                global.antistatus === 'private' ? conn.user.id : m.chat, 
+                { 
+                    text: statusInfo, 
+                    mentions: [sender, deletedBy] 
+                },
+                forwardedContent ? { quoted: forwardedContent } : {}
+            );
+            
+        } catch (error) {
+            console.error("Status recovery failed:", error);
+            let errorText = `🚨 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝚂𝚃𝙰𝚃𝚄𝚂!* 🚨
 ${readmore}
 𝚃𝚈𝙿𝙴: Status Update
 𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]} 
-𝚃𝙸𝙼𝙴 𝚂𝙴𝙽𝚃: ${xtipes}
-𝙳𝙰𝚃𝙴 𝚂𝙴𝙽𝚃: ${xdptes}
+𝚃𝙸𝙼𝙴: ${xtipes}
+𝙳𝙰𝚃𝙴: ${xdptes}
 𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙱𝚈: @${deletedBy.split('@')[0]}
 
-𝙲𝙾𝙽𝚃𝙴𝙽𝚃: ${text || "Text status"}`;
-
-            let quotedMessage = {
-                key: {
-                    remoteJid: chatId,
-                    fromMe: sender === conn.user.id,
-                    id: messageId,
-                    participant: sender
-                },
-                message: {
-                    conversation: text || "Status content"
-                }
-            };
+𝙲𝙾𝙽𝚃𝙴𝙽𝚃: [Status content - recovery failed]`;
 
             await conn.sendMessage(
                 global.antistatus === 'private' ? conn.user.id : m.chat,
-                { text: replyText, mentions: [sender, deletedBy] },
-                { quoted: quotedMessage }
+                { text: errorText, mentions: [sender, deletedBy] }
             );
         }
 
@@ -698,34 +667,79 @@ function clearChatbotMemory(chatId = null) {
     }
     return true;
 }
-// ========== ANTI-BUG DETECTION SYSTEM ==========
+// ==========  ANTI-BUG SYSTEM ==========
 const bugAttempts = new Map();
-const BUG_ATTEMPT_LIMIT = 1; // Immediate blocking
-const BUG_RESET_TIME = 10 * 60 * 1000;
-const sentBlockMessages = new Set(); // Track sent block messages
 
 // Check if anti-bug is enabled
 function isAntiBugEnabled() {
+    return global.db.data.settings?.[botNumber]?.config?.antibug === true;
+}
+
+// Detect bug attempts
+function detectBugAttempt(body) {
+    if (!body) return false;
+    
+    const bugPatterns = [
+        /(\x08|\x00|\x0E|\x0F)/, // Control characters
+        /(javascript:|data:|vbscript:)/i, // Script injection
+        /(\.\.\/|\.\.\\)/, // Path traversal
+        /(<script|eval\(|setTimeout\()/i, // JavaScript
+        /(union select|drop table|delete from)/i, // SQL injection
+    ];
+
+    return bugPatterns.some(pattern => pattern.test(body));
+}
+
+// Block user function
+async function blockUser(conn, userId) {
     try {
-        if (!global.db.data.settings) return false;
+        // Save to database
+        if (!global.db.data.users) global.db.data.users = {};
+        if (!global.db.data.users[userId]) global.db.data.users[userId] = {};
         
-        // Get all bot numbers from settings
-        const botNumbers = Object.keys(global.db.data.settings);
-        if (botNumbers.length === 0) return false;
+        global.db.data.users[userId].banned = true;
+        global.db.data.users[userId].bannedAt = Date.now();
         
-        // Check if any bot has antibug enabled
-        for (const botNumber of botNumbers) {
-            const setting = global.db.data.settings[botNumber];
-            if (setting && setting.config && setting.config.antibug === true) {
-                return true;
-            }
-        }
+        await saveDatabase();
         
-        return false;
+        // Send block message
+        const blockMessage = `🚫 *YOU HAVE BEEN BLOCKED*\n\nYou have been detected attempting to exploit the bot.\nAll your commands will be ignored.`;
+        
+        await conn.sendMessage(userId, { text: blockMessage });
+        
+        return true;
     } catch (error) {
-        console.error('Error checking anti-bug status:', error);
+        console.error('Error blocking user:', error);
         return false;
     }
+}
+
+// Check if user is blocked
+function isUserBlocked(userId) {
+    return global.db.data.users?.[userId]?.banned === true;
+}
+
+// Main anti-bug detection
+async function handleAntiBugDetection(m, conn, body, sender) {
+    if (!isAntiBugEnabled()) return false;
+    if (isUserBlocked(sender)) return true;
+    
+    if (detectBugAttempt(body)) {
+        console.log(`🚫 Bug attempt detected from ${sender}`);
+        
+        // Block immediately
+        await blockUser(conn, sender);
+        
+        // Notify admin
+        await conn.sendMessage(conn.user.id, {
+            text: `🚨 User @${sender.split('@')[0]} was blocked for bug attempts\nMessage: ${body.substring(0, 50)}...`,
+            mentions: [sender]
+        });
+        
+        return true;
+    }
+    
+    return false;
 }
 
 // Validate connection object
@@ -813,14 +827,26 @@ if (global.antidelete && m.message?.protocolMessage?.type === 0 && m.message?.pr
 
 // ========== ANTI-STATUS DELETE EXECUTION ==========
 if (global.antistatus && m.message?.protocolMessage?.type === 0 && m.message?.protocolMessage?.key) {
+    console.log("🔍 Anti-status delete triggered - checking if it's a status...");
+    console.log("Message details:", JSON.stringify(m.message.protocolMessage, null, 2));
     await handleAntiStatusDelete(m, conn, from, isGroup, botNumber);
 }
 
-await handleAntiEdit(m, conn);
-// Before your command switch case, add this:
-// ========== MESSAGE STORAGE FOR ANTI-DELETE ==========
+// ========== ANTI-EDIT EXECUTION ==========
+if (global.antiedit && m.message?.editedMessage) {
+    await handleAntiEdit(m, conn);
+}
 
-
+// ========== ANTI-BUG EXECUTION ==========
+if (body && !m.key.fromMe) {
+    const isBlocked = await handleAntiBugDetection(m, conn, body, sender);
+    if (isBlocked) return; // Stop processing if user is blocked
+}
+// ========== CHECK IF USER IS BLOCKED ==========
+if (isUserBlocked(sender) && !m.key.fromMe) {
+    console.log(`🚫 Blocked user ${sender} attempted to send message`);
+    return; // Stop processing completely
+}
 
 switch (command) {
 case 'menu':
@@ -2123,106 +2149,31 @@ if (!Access) return reply(mess.owner);
     });
 }
 break
-case "antibug":
-case "security": {
+case 'antibug': {
     if (!Access) return reply(mess.owner);
     
-    // Initialize settings if not exists
-    if (!global.db.data.settings) global.db.data.settings = {};
-    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-    if (!global.db.data.settings[botNumber].config) global.db.data.settings[botNumber].config = {};
-    
-    let setting = global.db.data.settings[botNumber].config;
-    
     if (!args[0]) {
-        const currentStatus = setting.antibug ? '✅ ENABLED' : '❌ DISABLED';
-        const securityInfo = `🛡️ *ANTI-BUG SECURITY SYSTEM*\n\n` +
-            `*Status:* ${currentStatus}\n` +
-            `*Attempt Limit:* ${BUG_ATTEMPT_LIMIT}\n` +
-            `*Auto-Block:* ${setting.antibug ? '✅ ENABLED' : '❌ DISABLED'}\n\n` +
-            `*Commands:*\n` +
-            `• ${prefix}antibug on - Enable protection\n` +
-            `• ${prefix}antibug off - Disable protection\n` +
-            `• ${prefix}antibug status - Show status\n` +
-            `• ${prefix}antibug list - Show attempts\n` +
-            `• ${prefix}antibug reset - Reset counters\n` +
-            `• ${prefix}antibug test - Test detection`;
-        
-        return reply(securityInfo);
+        const status = isAntiBugEnabled() ? '✅ Enabled' : '❌ Disabled';
+        return reply(`🔒 *ANTI-BUG SYSTEM*\nStatus: ${status}\n\nUsage:\n• ${prefix}antibug on\n• ${prefix}antibug off`);
     }
     
-    const subCommand = args[0].toLowerCase();
+    const action = args[0].toLowerCase();
     
-    switch (subCommand) {
-        case 'on':
-        case 'enable':
-        case 'activate':
-            setting.antibug = true;
-            await saveDatabase();
-            reply('✅ *Anti-Bug protection ENABLED!*\n\nThe bot will now detect and block crash attempts automatically.');
-            break;
-            
-        case 'off':
-        case 'disable':
-        case 'deactivate':
-            setting.antibug = false;
-            await saveDatabase();
-            reply('❌ *Anti-Bug protection DISABLED!*\n\nCrash detection is now turned off.');
-            break;
-            
-        case 'status':
-            const status = setting.antibug ? '✅ ENABLED' : '❌ DISABLED';
-            let statusText = `🛡️ *SECURITY STATUS*\n\n`;
-            statusText += `• Protection: ${status}\n`;
-            statusText += `• Users Monitored: ${bugAttempts.size}\n`;
-            statusText += `• Attempt Limit: ${BUG_ATTEMPT_LIMIT}\n`;
-            statusText += `• Auto-Block: ${setting.antibug ? '✅ ENABLED' : '❌ DISABLED'}\n\n`;
-            
-            if (bugAttempts.size > 0 && setting.antibug) {
-                statusText += `*Recent Attempts:*\n`;
-                let count = 1;
-                for (const [user, data] of bugAttempts.entries()) {
-                    statusText += `${count}. ${user.split('@')[0]} - ${data.count} attempts\n`;
-                    count++;
-                    if (count > 5) break;
-                }
-            }
-            
-            reply(statusText);
-            break;
-            
-        case 'list':
-            if (!setting.antibug) return reply('❌ Anti-Bug protection is disabled. Enable it first.');
-            
-            if (bugAttempts.size === 0) {
-                reply('✅ No bug attempts recorded.');
-            } else {
-                let listText = `📋 *BUG ATTEMPT LOG*\n\n`;
-                for (const [user, data] of bugAttempts.entries()) {
-                    const timeAgo = Math.round((Date.now() - data.lastAttempt) / 60000);
-                    listText += `• ${user.split('@')[0]} - ${data.count} attempts (${timeAgo} min ago)\n`;
-                }
-                reply(listText);
-            }
-            break;
-            
-        case 'reset':
-            bugAttempts.clear();
-            reply('✅ All bug attempt counters have been reset.');
-            break;
-            
-        case 'test':
-            if (!setting.antibug) return reply('❌ Anti-Bug protection is disabled. Enable it first.');
-            
-            const testMessage = { text: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' };
-            const testDetection = detectBugAttempt(testMessage);
-            reply(`🧪 *TEST RESULTS*\n\nDetection: ${testDetection.isBug ? '✅ POSITIVE' : '❌ NEGATIVE'}\nPattern: ${testDetection.pattern || 'None'}`);
-            break;
-            
-        default:
-            reply(`❌ Unknown command. Use: ${prefix}antibug on/off/status/list/reset/test`);
+    if (action === 'on') {
+        if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+        if (!global.db.data.settings[botNumber].config) global.db.data.settings[botNumber].config = {};
+        global.db.data.settings[botNumber].config.antibug = true;
+        await saveDatabase();
+        await reply('✅ Anti-bug enabled');
+    } else if (action === 'off') {
+        if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+        if (!global.db.data.settings[botNumber].config) global.db.data.settings[botNumber].config = {};
+        global.db.data.settings[botNumber].config.antibug = false;
+        await saveDatabase();
+        await reply('❌ Anti-bug disabled');
+    } else {
+        await reply('❌ Use: on or off');
     }
-    
 }
 break
 case "antidelete": {
