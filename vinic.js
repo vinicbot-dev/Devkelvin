@@ -453,147 +453,64 @@ function storeMessage(chatId, messageId, messageData) {
         // Silent error handling
     }
 }
-// ========== ENHANCED ANTI-EDIT HANDLER ==========
+// ========== ANTI-EDIT HANDLER ==========
 async function handleAntiEdit(m, conn) {
     try {
-        const botNumber = await conn.decodeJid(conn.user.id);
-        
         // Check if anti-edit is enabled
-        if (!global.db.data.settings || !global.db.data.settings[botNumber] || 
-            !global.db.data.settings[botNumber].config || 
-            !global.db.data.settings[botNumber].config.antiedit) {
+        if (!global.antiedit) {
             return;
         }
-
-        const config = global.db.data.settings[botNumber].config;
 
         // Check if this is an edited message
-        if (!m.message?.protocolMessage || 
-            m.message.protocolMessage.type !== 14) { // Type 14 = message edit
-            return;
-        }
-
-        const editData = m.message.protocolMessage;
-        if (!editData.key) return;
-
-        const messageId = editData.key.id;
-        const chatId = m.key.remoteJid;
-        const editedBy = m.key.participant || m.key.remoteJid;
-
-        console.log(`✏️ Processing edit for message ${messageId} in ${chatId}`);
-
-        // Load stored messages
-        const storedMessages = loadStoredMessages();
-        const originalMsg = storedMessages[chatId]?.[messageId];
-
-        if (!originalMsg) {
-            console.log("⚠️ Original message not found for edit detection");
-            return;
-        }
-
-        // Get original text
-        const originalText = originalMsg.text || "[No text content]";
-        const newText = extractMessageText(editData.editedMessage) || "[No text content]";
-
-        // Don't process if text hasn't actually changed
-        if (originalText === newText) {
-            return;
-        }
-
-        const sender = originalMsg.sender;
-        let chatName = "Unknown Chat";
-
-        if (chatId === 'status@broadcast') {
-            chatName = "Status Update";
-        } else if (chatId.endsWith('@g.us')) {
-            try {
-                const groupInfo = await conn.groupMetadata(chatId).catch(() => null);
-                chatName = groupInfo?.subject || "Group Chat";
-            } catch {
-                chatName = "Group Chat";
-            }
-        } else {
-            chatName = originalMsg.pushName || "Private Chat";
-        }
-
-        const originalTime = moment((originalMsg.messageTimestamp || Date.now()) * 1000)
-            .tz(timezones || "Africa/Kampala")
-            .format('HH:mm');
+        if (m.message && m.message.editedMessage) {
+            const editedMessage = m.message.editedMessage;
+            const originalMessage = editedMessage.message;
+            const editTimestamp = m.messageTimestamp;
             
-        const editTime = moment(Date.now())
-            .tz(timezones || "Africa/Kampala")
-            .format('HH:mm');
-
-        const mentions = [sender, editedBy].filter(Boolean);
-
-        // DETERMINE WHERE TO SEND NOTIFICATION BASED ON SETTING
-        let targetChat;
-        let notificationType = "";
-
-        // Check the mode setting - UPDATED FOR NEW FORMAT
-        if (config.antiedit === 'private') {
-            // OPTION 1: Send to owner's inbox (private mode)
-            targetChat = botNumber; // Send to bot owner's inbox
-            notificationType = "Private Inbox";
+            let sender = m.sender;
+            let chatId = m.chat;
             
-            const privateEditNotification = `🚨 *𝙴𝙳𝙸𝚃 𝙳𝙴𝚃𝙴𝙲𝚃𝙴𝙳 - 𝙿𝚁𝙸𝚅𝙰𝚃𝙴 𝙼𝙾𝙳𝙴* 🚨
-${readmore}
-💬 𝙲𝙷𝙰𝚃: ${chatName}
-👤 𝙾𝚁𝙸𝙶𝙸𝙽𝙰𝙻 𝚂𝙴𝙽𝙳𝙴𝚁: ${sender.split('@')[0]}
-✏️ 𝙴𝙳𝙸𝚃𝙴𝙳 𝙱𝚈: ${editedBy.split('@')[0]}
-📱 𝙲𝙷𝙰𝚃 𝙸𝙳: ${chatId}
-⏰ 𝙾𝚁𝙸𝙶𝙸𝙽𝙰𝙻 𝚃𝙸𝙼𝙴: ${originalTime}
-🕒 𝙴𝙳𝙸𝚃 𝚃𝙸𝙼𝙴: ${editTime}
-
-📝 *𝙾𝚁𝙸𝙶𝙸𝙽𝙰𝙻 𝙼𝙴𝚂𝚂𝙰𝙶𝙴*:
-${originalText}
-
-✏️ *𝙴𝙳𝙸𝚃𝙴𝙳 𝙼𝙴𝚂𝚂𝙰𝙶𝙴*:
-${newText}`;
-
-            await conn.sendMessage(
-                targetChat,
-                { 
-                    text: privateEditNotification
-                }
-            );
-        } else if (config.antiedit === 'chat') {
-            // OPTION 2: Send to same chat (chat mode)
-            targetChat = chatId; // Send to same chat where edit occurred
-            notificationType = "Same Chat";
+            // Get original message from storage if available
+            let storedMessages = loadStoredMessages();
+            let originalStoredMsg = storedMessages[chatId]?.[m.key.id];
             
-            const editNotification = `🚨 *𝙴𝙳𝙸𝚃𝙴𝙳 𝙼𝙴𝚂𝚂𝙰𝙶𝙴!* 🚨
+            let originalText = originalStoredMsg ? 
+                (originalStoredMsg.message.conversation || 
+                 originalStoredMsg.message.extendedTextMessage?.text) : 
+                "Original message not found";
+            
+            let editedText = originalMessage.conversation || 
+                           originalMessage.extendedTextMessage?.text;
+            
+            let chatName = m.isGroup ? 
+                (await conn.groupMetadata(m.chat).catch(() => ({ subject: 'Group Chat' }))).subject : 
+                "Private Chat";
+            
+            let editTime = moment(editTimestamp * 1000).tz(`${timezones}`).locale('en').format('HH:mm z');
+            let editDate = moment(editTimestamp * 1000).tz(`${timezones}`).format("DD/MM/YYYY");
+
+            let editInfo = `✏️ *𝙴𝙳𝙸𝚃𝙴𝙳 𝙼𝙴𝚂𝚂𝙰𝙶𝙴!* ✏️
 ${readmore}
 𝙲𝙷𝙰𝚃: ${chatName}
-𝙾𝚁𝙸𝙶𝙸𝙽𝙰𝙻 𝚂𝙴𝙽𝙳𝙴𝚁: @${sender.split('@')[0]}
-𝙴𝙳𝙸𝚃𝙴𝙳 𝙱𝚈: @${editedBy.split('@')[0]}
-𝙾𝚁𝙸𝙶𝙸𝙽𝙰𝙻 𝚃𝙸𝙼𝙴: ${originalTime}
-𝙴𝙳𝙸𝚃 𝚃𝙸𝙼𝙴: ${editTime}
+𝚄𝚂𝙴𝚁: @${sender.split('@')[0]}
+𝚃𝙸𝙼𝙴: ${editTime}
+𝙳𝙰𝚃𝙴: ${editDate}
 
-📝 *𝙾𝚁𝙸𝙶𝙸𝙽𝙰𝙻 𝙼𝙴𝚂𝚂𝙰𝙶𝙴*:
+📝 *𝙾𝚁𝙸𝙶𝙸𝙽𝙰𝙻:*
 ${originalText}
 
-✏️ *𝙴𝙳𝙸𝚃𝙴𝙳 𝙼𝙴𝚂𝚂𝙰𝙶𝙴*:
-${newText}`;
+📝 *𝙴𝙳𝙸𝚃𝙴𝙳:*
+${editedText}`;
 
             await conn.sendMessage(
-                targetChat,
-                { 
-                    text: editNotification, 
-                    mentions: mentions
-                }
+                global.antiedit === 'private' ? conn.user.id : m.chat,
+                { text: editInfo, mentions: [sender] }
             );
         }
-
-        console.log(`✅ Anti-edit triggered for message ${messageId} in ${chatName}`);
-        console.log(`📍 ${notificationType}: ${targetChat === botNumber ? 'Owner Inbox' : 'Same Chat'}`);
-
     } catch (err) {
         console.error("❌ Error processing edited message:", err);
     }
 }
-
-
 
 // ========== FIXED STATUS UPDATE HANDLER ==========
 async function handleStatusUpdate(mek, conn) {
