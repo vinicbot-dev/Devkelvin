@@ -404,6 +404,7 @@ async function handleAntiStatusDelete(m, conn, from, isGroup, botNumber) {
     try {
         // Check if anti-status delete is enabled
         if (!global.antistatus) {
+            console.log("❌ Anti-status delete disabled");
             return;
         }
 
@@ -411,61 +412,91 @@ async function handleAntiStatusDelete(m, conn, from, isGroup, botNumber) {
         let chatId = m.chat;
         let deletedBy = m.sender;
 
-        // Check if this is a status deletion - status deletions typically have specific patterns
+        console.log(`🔍 Checking for deleted status - Message ID: ${messageId}, Chat: ${chatId}`);
+
+        // Check if this is a status deletion
         let storedMessages = loadStoredMessages();
         let deletedMsg = storedMessages[chatId]?.[messageId];
 
         if (!deletedMsg) {
-            console.log("⚠️ Deleted status not found in database.");
+            console.log("⚠️ Deleted message not found in database");
             return;
         }
 
-        // Better way to identify status deletions
+        // IMPROVED STATUS DETECTION
         const isStatus = 
-            deletedMsg.key.remoteJid === 'status@broadcast' ||
-            (deletedMsg.message && (
-                deletedMsg.message.extendedTextMessage?.text?.includes('status') ||
-                deletedMsg.message.imageMessage?.caption?.includes('status') ||
-                deletedMsg.message.videoMessage?.caption?.includes('status')
+            deletedMsg.isStatus === true ||
+            deletedMsg.remoteJid === 'status@broadcast' || 
+            chatId === 'status@broadcast' ||
+            (deletedMsg.key && deletedMsg.key.remoteJid === 'status@broadcast') ||
+            (deletedMsg.message && Object.keys(deletedMsg.message).some(key => 
+                key.includes('status') || key.includes('broadcast')
             ));
 
+        console.log(`📱 Status Detection Result:
+        - isStatus flag: ${deletedMsg.isStatus}
+        - RemoteJid: ${deletedMsg.remoteJid}
+        - ChatId: ${chatId}
+        - Final Result: ${isStatus}`);
+
         if (!isStatus) {
-            return; // Not a status deletion, skip
+            console.log("❌ Not a status deletion, skipping");
+            return;
         }
 
-        let sender = deletedMsg.key.participant || deletedMsg.key.remoteJid;
+        let sender = deletedMsg.key.participant || deletedMsg.key.remoteJid || deletedMsg.remoteJid;
         let chatName = "Status Update";
 
         let xtipes = moment(deletedMsg.messageTimestamp * 1000).tz(`${timezones}`).locale('en').format('HH:mm z');
         let xdptes = moment(deletedMsg.messageTimestamp * 1000).tz(`${timezones}`).format("DD/MM/YYYY");
 
+        console.log(`🚨 STATUS DELETION DETECTED - From: ${sender}, Time: ${xtipes}`);
+
         // Handle status recovery and notification
         try {
             let statusInfo = `🚨 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝚂𝚃𝙰𝚃𝚄𝚂!* 🚨
 ${readmore}
-𝚃𝚈𝙿𝙴: Status Update
-𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]} 
-𝚃𝙸𝙼𝙴: ${xtipes}
-𝙳𝙰𝚃𝙴: ${xdptes}
-𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙱𝚈: @${deletedBy.split('@')[0]}`;
+👤 *Sender:* @${sender.split('@')[0]}
+⏰ *Time Posted:* ${xtipes}
+📅 *Date Posted:* ${xdptes}
+🗑️ *Deleted By:* @${deletedBy.split('@')[0]}
+
+📝 *Content Preview:* ${deletedMsg.text ? deletedMsg.text.substring(0, 100) + (deletedMsg.text.length > 100 ? '...' : '') : 'Media Content'}`;
 
             // Try to forward the original status content
             let forwardedContent = null;
             try {
+                // Create a proper forwardable message
+                const forwardMessage = {
+                    key: deletedMsg.key,
+                    message: deletedMsg.message
+                };
+
+                console.log("🔄 Attempting to forward status content...");
+                
                 forwardedContent = await conn.sendMessage(
                     global.antistatus === 'private' ? conn.user.id : m.chat,
                     { 
-                        forward: deletedMsg,
-                        contextInfo: { isForwarded: false }
-                    },
-                    { quoted: deletedMsg }
+                        forward: forwardMessage,
+                        contextInfo: { 
+                            isForwarded: true,
+                            forwardingScore: 999,
+                            participant: sender
+                        }
+                    }
                 );
+                console.log("✅ Status content forwarded successfully");
             } catch (forwardError) {
-                console.log("Could not forward status content, sending info only");
+                console.log("❌ Could not forward status content:", forwardError);
+                statusInfo += "\n\n📄 *Note:* Original content could not be recovered";
             }
 
+            // Send the notification
+            const targetChat = global.antistatus === 'private' ? conn.user.id : m.chat;
+            console.log(`📤 Sending status deletion alert to: ${targetChat}`);
+            
             await conn.sendMessage(
-                global.antistatus === 'private' ? conn.user.id : m.chat, 
+                targetChat, 
                 { 
                     text: statusInfo, 
                     mentions: [sender, deletedBy] 
@@ -473,17 +504,18 @@ ${readmore}
                 forwardedContent ? { quoted: forwardedContent } : {}
             );
             
+            console.log("✅ Status deletion captured and notified successfully");
+            
         } catch (error) {
-            console.error("Status recovery failed:", error);
+            console.error("❌ Status recovery failed:", error);
             let errorText = `🚨 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝚂𝚃𝙰𝚃𝚄𝚂!* 🚨
 ${readmore}
-𝚃𝚈𝙿𝙴: Status Update
-𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]} 
-𝚃𝙸𝙼𝙴: ${xtipes}
-𝙳𝙰𝚃𝙴: ${xdptes}
-𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙱𝚈: @${deletedBy.split('@')[0]}
+👤 *Sender:* @${sender.split('@')[0]}
+⏰ *Time:* ${xtipes}
+📅 *Date:* ${xdptes}
+🗑️ *Deleted By:* @${deletedBy.split('@')[0]}
 
-𝙲𝙾𝙽𝚃𝙴𝙽𝚃: [Status content - recovery failed]`;
+❌ *Error:* Could not recover status content`;
 
             await conn.sendMessage(
                 global.antistatus === 'private' ? conn.user.id : m.chat,
@@ -495,6 +527,8 @@ ${readmore}
         console.error("❌ Error processing deleted status:", err);
     }
 }
+
+
 //<================================================>//
 
 // Message memory for conversation context
@@ -833,7 +867,7 @@ if (global.antistatus && m.message?.protocolMessage?.type === 0 && m.message?.pr
 }
 
 // ========== ANTI-EDIT EXECUTION ==========
-if (global.antiedit && m.message?.editedMessage) {
+if (global.antiedit && m.message?.protocolMessage?.editedMessage) {
     await handleAntiEdit(m, conn);
 }
 
