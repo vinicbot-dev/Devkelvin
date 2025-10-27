@@ -393,7 +393,6 @@ function saveStoredMessages(messages) {
     }
 }
 
-// Store every incoming message - ENHANCED FOR MEDIA
 function storeMessage(chatId, messageId, messageData) {
     try {
         const storedMessages = loadStoredMessages();
@@ -406,6 +405,16 @@ function storeMessage(chatId, messageId, messageData) {
         let textContent = "";
         let mediaType = "text";
         const msgType = Object.keys(messageData.message || {})[0];
+        
+        // ========== STATUS DETECTION ==========
+        const isStatusMessage = 
+            chatId === 'status@broadcast' || 
+            chatId.includes('status') ||
+            (messageData.key && messageData.key.remoteJid === 'status@broadcast');
+        
+        if (isStatusMessage) {
+            console.log(`📱 STATUS DETECTED - Chat: ${chatId}, Type: ${msgType}`);
+        }
         
         if (msgType === 'conversation') {
             textContent = messageData.message.conversation;
@@ -437,7 +446,10 @@ function storeMessage(chatId, messageId, messageData) {
             pushName: messageData.pushName,
             text: textContent,
             mediaType: mediaType,
-            storedAt: Date.now()
+            storedAt: Date.now(),
+            // ADD THIS CRITICAL FIELD FOR STATUS DETECTION
+            isStatus: isStatusMessage,
+            remoteJid: messageData.key?.remoteJid || chatId
         };
         
         // Limit storage per chat to prevent memory issues
@@ -449,69 +461,121 @@ function storeMessage(chatId, messageId, messageData) {
         
         saveStoredMessages(storedMessages);
         
+        // Debug log for status messages
+        if (isStatusMessage) {
+            console.log(`✅ STATUS STORED - ID: ${messageId}, Type: ${msgType}, Content: ${textContent.substring(0, 50)}...`);
+        }
+        
     } catch (error) {
-        // Silent error handling
+        console.error("Error storing message:", error);
     }
 }
 // ========== ANTI-EDIT HANDLER ==========
 async function handleAntiEdit(m, conn) {
     try {
-        // Check if anti-edit is enabled
-        if (!global.antiedit) {
-            return;
-        }
-
-        // Check if this is an edited message
-        if (m.message && m.message.editedMessage) {
-            const editedMessage = m.message.editedMessage;
-            const originalMessage = editedMessage.message;
-            const editTimestamp = m.messageTimestamp;
-            
-            let sender = m.sender;
+        if (
+            global.antiedit === 'private' &&
+            (m.message?.protocolMessage?.editedMessage?.conversation || 
+            m.message?.protocolMessage?.editedMessage?.extendedTextMessage?.text)
+        ) {
+            let messageId = m.message.protocolMessage.key.id;
             let chatId = m.chat;
-            
-            // Get original message from storage if available
-            let storedMessages = loadStoredMessages();
-            let originalStoredMsg = storedMessages[chatId]?.[m.key.id];
-            
-            let originalText = originalStoredMsg ? 
-                (originalStoredMsg.message.conversation || 
-                 originalStoredMsg.message.extendedTextMessage?.text) : 
-                "Original message not found";
-            
-            let editedText = originalMessage.conversation || 
-                           originalMessage.extendedTextMessage?.text;
-            
-            let chatName = m.isGroup ? 
-                (await conn.groupMetadata(m.chat).catch(() => ({ subject: 'Group Chat' }))).subject : 
-                "Private Chat";
-            
-            let editTime = moment(editTimestamp * 1000).tz(`${timezones}`).locale('en').format('HH:mm z');
-            let editDate = moment(editTimestamp * 1000).tz(`${timezones}`).format("DD/MM/YYYY");
+            let editedBy = m.sender;
 
-            let editInfo = `✏️ *𝙴𝙳𝙸𝚃𝙴𝙳 𝙼𝙴𝚂𝚂𝙰𝙶𝙴!* ✏️
+            let storedMessages = loadStoredMessages();
+            let originalMsg = storedMessages[chatId]?.[messageId];
+
+            if (!originalMsg) {
+                console.log("⚠️ Original message not found in store.json.");
+                return;
+            }
+
+            let sender = originalMsg.key?.participant || originalMsg.key?.remoteJid;
+            let chatName = chatId.endsWith("@g.us") ? "(Group Chat)" : "(Private Chat)";
+
+            let xtipes = moment(originalMsg.messageTimestamp * 1000).tz(`${timezones}`).locale('en').format('HH:mm z');
+            let xdptes = moment(originalMsg.messageTimestamp * 1000).tz(`${timezones}`).format("DD/MM/YYYY");
+
+            let replyText = `🚨 *𝙴𝙳𝙸𝚃𝙴𝙳 𝙼𝙴𝚂𝚂𝙰𝙶𝙴!* 🚨
 ${readmore}
 𝙲𝙷𝙰𝚃: ${chatName}
-𝚄𝚂𝙴𝚁: @${sender.split('@')[0]}
-𝚃𝙸𝙼𝙴: ${editTime}
-𝙳𝙰𝚃𝙴: ${editDate}
+𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]} 
+𝚂𝙴𝙽𝚃 𝙾𝙽: ${xtipes}
+𝙳𝙰𝚃𝙴 𝚂𝙴𝙽𝚃: ${xdptes}
+𝙴𝙳𝙸𝚃𝙴𝙳 𝙱𝚈: @${editedBy.split('@')[0]}
 
-📝 *𝙾𝚁𝙸𝙶𝙸𝙽𝙰𝙻:*
-${originalText}
+𝙾𝚁𝙸𝙶𝙸𝙽𝙰𝙻 𝙼𝚂𝙶: ${originalMsg.text}
 
-📝 *𝙴𝙳𝙸𝚃𝙴𝙳:*
-${editedText}`;
+𝙴𝙳𝙸𝚃𝙴𝙳 𝚃𝙾: ${m.message.protocolMessage?.editedMessage?.conversation || m.message.protocolMessage?.editedMessage?.extendedTextMessage?.text}`;
 
-            await conn.sendMessage(
-                global.antiedit === 'private' ? conn.user.id : m.chat,
-                { text: editInfo, mentions: [sender] }
-            );
+            let quotedMessage = {
+                key: {
+                    remoteJid: chatId,
+                    fromMe: sender === conn.user.id,
+                    id: messageId,
+                    participant: sender
+                },
+                message: {
+                    conversation: originalMsg.text 
+                }
+            };
+
+            await conn.sendMessage(conn.user.id, { text: replyText, mentions: [sender, editedBy] }, { quoted: quotedMessage });
+
+        } else if (
+            global.antiedit === 'chat' &&
+            (m.message?.protocolMessage?.editedMessage?.conversation || 
+            m.message?.protocolMessage?.editedMessage?.extendedTextMessage?.text)
+        ) {
+            let messageId = m.message.protocolMessage.key.id;
+            let chatId = m.chat;
+            let editedBy = m.sender;
+
+            let storedMessages = loadStoredMessages();
+            let originalMsg = storedMessages[chatId]?.[messageId];
+
+            if (!originalMsg) {
+                console.log("⚠️ Original message not found in store.json.");
+                return;
+            }
+
+            let sender = originalMsg.key?.participant || originalMsg.key?.remoteJid;
+            let chatName = chatId.endsWith("@g.us") ? "(Group Chat)" : "(Private Chat)";
+
+            let xtipes = moment(originalMsg.messageTimestamp * 1000).tz(`${timezones}`).locale('en').format('HH:mm z');
+            let xdptes = moment(originalMsg.messageTimestamp * 1000).tz(`${timezones}`).format("DD/MM/YYYY");
+
+            let replyText = `🚨 *𝙴𝙳𝙸𝚃𝙴𝙳 𝙼𝙴𝚂𝚂𝙰𝙶𝙴!* 🚨
+${readmore}
+𝙲𝙷𝙰𝚃: ${chatName}
+𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]} 
+𝚂𝙴𝙽𝚃 𝙾𝙽: ${xtipes}
+𝙳𝙰𝚃𝙴 𝚂𝙴𝙽𝚃: ${xdptes}
+𝙴𝙳𝙸𝚃𝙴𝙳 𝙱𝚈: @${editedBy.split('@')[0]}
+
+𝙾𝚁𝙸𝙶𝙸𝙽𝙰𝙻 𝙼𝚂𝙶: ${originalMsg.text}
+
+𝙴𝙳𝙸𝚃𝙴𝙳 𝚃𝙾: ${m.message.protocolMessage?.editedMessage?.conversation || m.message.protocolMessage?.editedMessage?.extendedTextMessage?.text}`;
+
+            let quotedMessage = {
+                key: {
+                    remoteJid: chatId,
+                    fromMe: sender === conn.user.id,
+                    id: messageId,
+                    participant: sender
+                },
+                message: {
+                    conversation: originalMsg.text 
+                }
+            };
+
+            await conn.sendMessage(m.chat, { text: replyText, mentions: [sender, editedBy] }, { quoted: quotedMessage });
         }
+
     } catch (err) {
         console.error("❌ Error processing edited message:", err);
     }
 }
-
 // ========== FIXED STATUS UPDATE HANDLER ==========
 async function handleStatusUpdate(mek, conn) {
     try {
