@@ -97,6 +97,9 @@ const {
   writeExifVid
 } = require('./start/lib/exif');
 
+// Define constants for session handling
+const SESSION_DIR = './session';
+const CREDS_PATH = `${SESSION_DIR}/creds.json`;
 
 // Use system temp directory for cloud platforms
 const TMP_DIR = isProduction 
@@ -121,51 +124,54 @@ const question = (text) => {
 const yargs = require('yargs/yargs');
 
 
-//=========SESSION-AUTH=====================
-
-const sessionDir = path.join(__dirname, 'sessions');
-const credsPath = path.join(sessionDir, 'creds.json');
-
-// Create session directory if it doesn't exist
-if (!fs.existsSync(sessionDir)) {
-    fs.mkdirSync(sessionDir, { recursive: true });
-}
-
-async function loadSession() {
-    try {
-        if (!settings.SESSION_ID) {
-            console.log(chalk.red('No SESSION_ID provided - QR login will be generated'));
-            return null;
-        }
-
-        console.log(chalk.yellow('[ ⏳ ] Downloading creds data...'));
-        console.log(chalk.cyan('[ 🆔️ ] Downloading MEGA.nz session...'));
-        
-        // Remove "blinder~" prefix if present, otherwise use full SESSION_ID
-        const megaFileId = settings.SESSION_ID.startsWith('Vinic-Xmd~') 
-            ? settings.SESSION_ID.replace("Vinic-Xmd~", "") 
-            : settings.SESSION_ID;
-
-        const filer = File.fromURL(`https://mega.nz/file/${megaFileId}`);
-            
-        const data = await new Promise((resolve, reject) => {
-            filer.download((err, data) => {
-                if (err) reject(err);
-                else resolve(data);
-            });
-        });
-        
-        fs.writeFileSync(credsPath, data);
-        console.log(chalk.green('[ ✅ ] MEGA session downloaded successfully'));
-        return JSON.parse(data.toString());
-    } catch (error) {
-        console.error('❌ Error loading session:', error.message);
-        console.log(chalk.green('Will generate QR code instead'));
-        return null;
+async function downloadSessionData() {
+  console.log("[DEBUG] SESSION_ID:", settings.SESSION_ID);
+  try {
+    if (typeof settings.SESSION_ID === 'undefined') {
+      throw new Error("SESSION_ID is undefined in settings");
     }
+    if (!settings.SESSION_ID) {
+      console.warn("[ ⏳ ] No SESSION_ID provided - Falling back to QR or pairing code");
+      return null;
+    }
+    if (settings.SESSION_ID.startsWith("Vinic-Xmd~")) {
+      console.info("[ ⏳ ] Decoding base64 session");
+      const base64Data = settings.SESSION_ID.replace("Vinic-Xmd~", "");
+      if (!/^[A-Za-z0-9+/=]+$/.test(base64Data)) {
+        throw new Error("Invalid base64 format in SESSION_ID");
+      }
+      const decodedData = Buffer.from(base64Data, "base64");
+      let sessionData;
+      try {
+        sessionData = JSON.parse(decodedData.toString("utf-8"));
+      } catch (error) {
+        throw new Error("Failed to parse decoded base64 session data: " + error.message);
+      }
+      fs.writeFileSync(CREDS_PATH, JSON.stringify(sessionData, null, 2));
+      console.log("[ ✅ ] Base64 session decoded and saved successfully");
+      return sessionData;
+    } else if (settings.SESSION_ID.startsWith("Kevin~")) {
+      console.info("[ 📥 ] Downloading MEGA.nz session");
+      const megaFileId = settings.SESSION_ID.replace("Kevin~", "");
+      const filer = File.fromURL(`https://mega.nz/file/${megaFileId}`);
+      const data = await new Promise((resolve, reject) => {
+        filer.download((err, data) => {
+          if (err) reject(err);
+          else resolve(data);
+        });
+      });
+      fs.writeFileSync(CREDS_PATH, data);
+      console.log("[ ✅ ] MEGA session downloaded successfully");
+      return JSON.parse(data.toString());
+    } else {
+      throw new Error("Invalid SESSION_ID format. Use 'Ormanxmd~' for base64 or 'malvin~' for MEGA.nz");
+    }
+  } catch (error) {
+    console.error("[ ❌ ] Error loading session", { Error: error.message, Stack: error.stack });
+    console.info("[ 😑 ] Will attempt pairing code login");
+    return null;
+  }
 }
-
-//=======SESSION-AUTH==============
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -237,15 +243,19 @@ async function handleReconnection() {
 }
 
 async function clientstart() {
-  console.log(chalk.cyan("[ 🟠 ] Connecting to WhatsApp ⏳️..."));
+  // Ensure session directory exists
+  if (!fs.existsSync(SESSION_DIR)) {
+    fs.mkdirSync(SESSION_DIR);
+  }
 
-  // Load session if available
-  const creds = await loadSession();
+  // Check and download session data
+  const sessionExists = await downloadSessionData();
   
-  const { state, saveCreds } = await useMultiFileAuthState(path.join(__dirname, 'sessions'), {
-    creds: creds || undefined // Pass loaded creds if available
-  });
-
+	const {
+		state,
+		saveCreds
+	} = await useMultiFileAuthState("session")
+	
   // Fetch latest WhatsApp Web version
   let waVersion;
   try {
