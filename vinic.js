@@ -406,11 +406,13 @@ function storeMessage(chatId, messageId, messageData) {
         let mediaType = "text";
         const msgType = Object.keys(messageData.message || {})[0];
         
-        // ========== STATUS DETECTION ==========
+        // ========== IMPROVED STATUS DETECTION ==========
         const isStatusMessage = 
             chatId === 'status@broadcast' || 
-            chatId.includes('status') ||
-            (messageData.key && messageData.key.remoteJid === 'status@broadcast');
+            (messageData.key && messageData.key.remoteJid === 'status@broadcast') ||
+            (messageData.message && Object.keys(messageData.message).some(key => 
+                key.includes('protocolMessage') || key.includes('broadcast')
+            ));
         
         if (isStatusMessage) {
             console.log(`📱 STATUS DETECTED - Chat: ${chatId}, Type: ${msgType}`);
@@ -421,22 +423,19 @@ function storeMessage(chatId, messageId, messageData) {
         } else if (msgType === 'extendedTextMessage') {
             textContent = messageData.message.extendedTextMessage?.text || "";
         } else if (msgType === 'imageMessage') {
-            textContent = messageData.message.imageMessage?.caption || "[Image]";
+            textContent = messageData.message.imageMessage?.caption || "[Image Status]";
             mediaType = "image";
         } else if (msgType === 'videoMessage') {
-            textContent = messageData.message.videoMessage?.caption || "[Video]";
+            textContent = messageData.message.videoMessage?.caption || "[Video Status]";
             mediaType = "video";
         } else if (msgType === 'audioMessage') {
-            textContent = "[Audio]";
+            textContent = "[Audio Status]";
             mediaType = "audio";
         } else if (msgType === 'stickerMessage') {
-            textContent = "[Sticker]";
+            textContent = "[Sticker Status]";
             mediaType = "sticker";
-        } else if (msgType === 'documentMessage') {
-            textContent = messageData.message.documentMessage?.caption || "[Document]";
-            mediaType = "document";
         } else {
-            textContent = `[${msgType}]`;
+            textContent = `[${msgType} Status]`;
         }
         
         storedMessages[chatId][messageId] = {
@@ -447,7 +446,7 @@ function storeMessage(chatId, messageId, messageData) {
             text: textContent,
             mediaType: mediaType,
             storedAt: Date.now(),
-            // ADD THIS CRITICAL FIELD FOR STATUS DETECTION
+            // CRITICAL: Mark status messages properly
             isStatus: isStatusMessage,
             remoteJid: messageData.key?.remoteJid || chatId
         };
