@@ -188,6 +188,15 @@ conn.sendMessage(jidss, { react: { text: emoji, key: m.key } })
 
 
 // ========== PRIVACY SETTING DESCRIPTIONS ==========
+function getReadReceiptDescription(option) {
+    const descriptions = {
+        "all": "• ✅ Everyone can see your read receipts (blue ticks)",
+        "contacts": "• 🤝 Only your contacts can see your read receipts", 
+        "none": "• 🙈 No one can see your read receipts (read receipts off)"
+    };
+    return descriptions[option] || "Privacy setting updated";
+}
+
 function getLastSeenDescription(option) {
     const descriptions = {
         "all": "• 👀 Everyone can see your last seen time",
@@ -225,7 +234,6 @@ function getProfilePictureDescription(option) {
     return descriptions[option] || "Profile picture setting updated";
 }
 // ========== END PRIVACY SETTING DESCRIPTIONS ==========
-
 
 // function that converts to audio and video====
 async function webp2mp4(source) {
@@ -399,7 +407,7 @@ ${readmore}
 }
 
 
-// ========== ANTI-STATUS DELETE HANDLER ==========
+// ========== FIXED ANTI-STATUS DELETE HANDLER ==========
 async function handleAntiStatusDelete(m, conn, from, isGroup, botNumber) {
     try {
         // Check if anti-status delete is enabled
@@ -414,30 +422,34 @@ async function handleAntiStatusDelete(m, conn, from, isGroup, botNumber) {
 
         console.log(`🔍 Checking for deleted status - Message ID: ${messageId}, Chat: ${chatId}`);
 
-        // Check if this is a status deletion
+        // Check if this is a status deletion - FIXED DETECTION
         let storedMessages = loadStoredMessages();
         let deletedMsg = storedMessages[chatId]?.[messageId];
 
         if (!deletedMsg) {
-            console.log("⚠️ Deleted message not found in database");
+            console.log("⚠️ Deleted message not found in database.");
             return;
         }
 
-        // IMPROVED STATUS DETECTION
+        // IMPROVED STATUS DETECTION - Check if it's actually a status
         const isStatus = 
-            deletedMsg.isStatus === true ||
-            deletedMsg.remoteJid === 'status@broadcast' || 
+            deletedMsg.key.remoteJid === 'status@broadcast' || 
             chatId === 'status@broadcast' ||
-            (deletedMsg.key && deletedMsg.key.remoteJid === 'status@broadcast') ||
-            (deletedMsg.message && Object.keys(deletedMsg.message).some(key => 
-                key.includes('status') || key.includes('broadcast')
+            (deletedMsg.message && (
+                deletedMsg.message.extendedTextMessage?.text?.includes('status') ||
+                deletedMsg.message.imageMessage?.caption?.includes('status') ||
+                deletedMsg.message.videoMessage?.caption?.includes('status') ||
+                // Check for status-specific message structure
+                Object.keys(deletedMsg.message || {}).some(key => 
+                    key.includes('protocolMessage') || 
+                    key.includes('broadcast')
+                )
             ));
 
         console.log(`📱 Status Detection Result:
-        - isStatus flag: ${deletedMsg.isStatus}
-        - RemoteJid: ${deletedMsg.remoteJid}
+        - RemoteJid: ${deletedMsg.key.remoteJid}
         - ChatId: ${chatId}
-        - Final Result: ${isStatus}`);
+        - Is Status: ${isStatus}`);
 
         if (!isStatus) {
             console.log("❌ Not a status deletion, skipping");
@@ -461,21 +473,22 @@ ${readmore}
 📅 *Date Posted:* ${xdptes}
 🗑️ *Deleted By:* @${deletedBy.split('@')[0]}
 
-📝 *Content Preview:* ${deletedMsg.text ? deletedMsg.text.substring(0, 100) + (deletedMsg.text.length > 100 ? '...' : '') : 'Media Content'}`;
+💬 *Status Content:*`;
 
-            // Try to forward the original status content
+            // Try to recover and forward the original status content
             let forwardedContent = null;
             try {
+                console.log("🔄 Attempting to recover status content...");
+                
                 // Create a proper forwardable message
                 const forwardMessage = {
                     key: deletedMsg.key,
                     message: deletedMsg.message
                 };
 
-                console.log("🔄 Attempting to forward status content...");
-                
+                // Send to bot owner's inbox (private mode)
                 forwardedContent = await conn.sendMessage(
-                    global.antistatus === 'private' ? conn.user.id : m.chat,
+                    conn.user.id, // Always send to bot owner's inbox when private mode
                     { 
                         forward: forwardMessage,
                         contextInfo: { 
@@ -485,15 +498,33 @@ ${readmore}
                         }
                     }
                 );
-                console.log("✅ Status content forwarded successfully");
+                console.log("✅ Status content recovered and forwarded to inbox");
+                
             } catch (forwardError) {
                 console.log("❌ Could not forward status content:", forwardError);
-                statusInfo += "\n\n📄 *Note:* Original content could not be recovered";
+                // If forwarding fails, extract text content
+                let textContent = "";
+                if (deletedMsg.message?.conversation) {
+                    textContent = deletedMsg.message.conversation;
+                } else if (deletedMsg.message?.extendedTextMessage?.text) {
+                    textContent = deletedMsg.message.extendedTextMessage.text;
+                } else if (deletedMsg.message?.imageMessage?.caption) {
+                    textContent = deletedMsg.message.imageMessage.caption;
+                } else if (deletedMsg.message?.videoMessage?.caption) {
+                    textContent = deletedMsg.message.videoMessage.caption;
+                }
+                
+                if (textContent) {
+                    statusInfo += `\n${textContent}`;
+                } else {
+                    statusInfo += `\n[Media Status - Content unavailable]`;
+                }
             }
 
-            // Send the notification
-            const targetChat = global.antistatus === 'private' ? conn.user.id : m.chat;
-            console.log(`📤 Sending status deletion alert to: ${targetChat}`);
+            // ALWAYS send to bot owner's inbox when private mode is enabled
+            const targetChat = conn.user.id; // Bot owner's inbox
+            
+            console.log(`📤 Sending status deletion alert to bot owner's inbox: ${targetChat}`);
             
             await conn.sendMessage(
                 targetChat, 
@@ -504,7 +535,7 @@ ${readmore}
                 forwardedContent ? { quoted: forwardedContent } : {}
             );
             
-            console.log("✅ Status deletion captured and notified successfully");
+            console.log("✅ Status deletion captured and sent to bot owner's inbox");
             
         } catch (error) {
             console.error("❌ Status recovery failed:", error);
@@ -518,7 +549,7 @@ ${readmore}
 ❌ *Error:* Could not recover status content`;
 
             await conn.sendMessage(
-                global.antistatus === 'private' ? conn.user.id : m.chat,
+                conn.user.id, // Always send to bot owner even on error
                 { text: errorText, mentions: [sender, deletedBy] }
             );
         }
@@ -958,24 +989,33 @@ if (newNumber.length < 5 || newNumber.length > 15) {
   return reply("⚠️ Please provide a valid phone number (5-15 digits)");
 }
 
-// Fix: Use setting.config structure
+// Update database config
 if (!global.db.data.settings) global.db.data.settings = {};
 if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
 let setting = global.db.data.settings[botNumber];
-
-// Initialize config if it doesn't exist
 if (!setting.config) setting.config = {};
 
-// Set the owner number in config
-setting.config.ownernumber = newNumber;
+// Store old number for message
+const oldNumber = setting.config.ownernumber || global.ownernumber || 'Not set';
 
-// Also update the global variable if it exists
-if (global.ownernumber) {
-  global.ownernumber = newNumber;
+// Update owner number
+setting.config.ownernumber = newNumber;
+global.ownernumber = newNumber;
+
+// Update owner array
+const newOwnerJid = newNumber.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
+if (!global.owner) global.owner = [];
+global.owner = [newOwnerJid]; // Replace entire array with new owner
+
+// Update sudo array
+if (!global.sudo) global.sudo = [];
+if (!global.sudo.includes(newOwnerJid)) {
+    global.sudo.push(newOwnerJid);
 }
+
 await saveDatabase();
 
-reply(`✅ Owner number changed to *${newNumber}* successfully.`);
+reply(`✅ Owner number changed from *${oldNumber}* to *${newNumber}* successfully.\n\nNew owner has been granted full access.`);
 }
 break
 case "setownername": {
@@ -1558,6 +1598,27 @@ case "setpp": {
       });
       fs.unlinkSync(medis);
       reply(mess.done);
+    }
+}
+break
+case "readreceipt":
+case "readprivacy": {
+    if (!Access) return reply(mess.owner);
+    if (!text) return reply(`*Usage:* ${prefix + command} [option]\n\n*Options:* all, contacts, none\n*Example:* ${prefix + command} all`);
+
+    const validOptions = ["all", "contacts", "none"];
+    const option = args[0].toLowerCase();
+
+    if (!validOptions.includes(option)) {
+        return reply(`❌ *Invalid option!*\n\nValid options: ${validOptions.join(', ')}\nExample: ${prefix + command} all`);
+    }
+
+    try {
+        await conn.updateReadReceiptsPrivacy(option);
+        reply(`✅ *Read receipts privacy set to:* ${option.toUpperCase()}\n\n*What this means:*\n${getReadReceiptDescription(option)}`);
+    } catch (error) {
+        console.error('Error setting read receipts privacy:', error);
+        reply('❌ *Failed to update read receipts settings.* Please try again.');
     }
 }
 break
@@ -5576,7 +5637,7 @@ if (!text) return reply("*Which apk do you want to download?*");
               sourceUrl: `${kelvin.BK9.dllink}`,
               mediaType: 2,
               showAdAttribution: true,
-              renderLargerThumbnail: false
+              renderLargerThumbnail: true
             }
           }
         },
@@ -7905,46 +7966,24 @@ case "ytsearch": {
       }
 }
 break
+case "imdb":
 case "movie": {
-try {
-        const movieName = args.join(' ');
-        if (!movieName) {
-            return reply("📽️ Please provide the name of the movie.");
-        }
+if (!text) return reply("Provide a movie or series name.");
+      
+      try {
+        const { data } = await axios.get(`http://www.omdbapi.com/?apikey=742b2d09&t=${text}&plot=full`);
+        if (data.Response === "False") throw new Error();
 
-        const apiUrl = `https://delirius-apiofc.vercel.app/search/movie?query=${encodeURIComponent(movieName)}`;
-        const response = await axios.get(apiUrl);
+        const imdbText = `🎬 *IMDB SEARCH*\n\n`
+          + `*Title:* ${data.Title}\n*Year:* ${data.Year}\n*Rated:* ${data.Rated}\n`
+          + `*Released:* ${data.Released}\n*Runtime:* ${data.Runtime}\n*Genre:* ${data.Genre}\n`
+          + `*Director:* ${data.Director}\n*Actors:* ${data.Actors}\n*Plot:* ${data.Plot}\n`
+          + `*IMDB Rating:* ${data.imdbRating} ⭐\n*Votes:* ${data.imdbVotes}`;
 
-        const data = response.data;
-        if (!data.status || !data.data.length) {
-            return reply("🚫 Movie not found.");
-        }
-
-        const movie = data.data[0]; // Pehla result le rahe hain
-        const downloadLink = `https://delirius-apiofc.vercel.app/download/movie?id=${movie.id}`;
-
-        const movieInfo = `
-🎬 *Movie Information* 🎬
-
-🎥 *Title:* ${movie.title}
-🗓️ *Release Date:* ${movie.release_date}
-🗳️ *Vote Average:* ${movie.vote_average}
-👥 *Vote Count:* ${movie.vote_count}
-🌍 *Original Language:* ${movie.original_language}
-📝 *Overview:* ${movie.overview}
-⬇️ *Download Link:* [Click Here](${downloadLink})
-`;
-
-        const imageUrl = movie.image || config.ALIVE_IMG;
-
-        await conn.sendMessage(from, {
-            image: { url: imageUrl },
-            caption: `${movieInfo}\n> ©ᴘᴏᴡᴇʀᴇᴅ ʙʏ Vinic-Xmd 💪`
-        }, { quoted: mek });
-    } catch (e) {
-        console.log(e);
-        reply(`❌ Error: ${e.message}`);
-    }
+        conn.sendMessage(m.chat, { image: { url: data.Poster }, caption: imdbText }, { quoted: m });
+      } catch (error) {
+        reply("❌ Unable to fetch IMDb data.");
+      }
 }
 break
 case 'define': {
