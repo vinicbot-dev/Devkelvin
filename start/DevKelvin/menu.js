@@ -148,7 +148,7 @@ async function generateMenu(conn, m, prefix, global) {
 
         for (const section of Object.values(menuSections).slice(1)) {
             menu += `╭━◈${section.title.toUpperCase()} ◈\n`;
-            menu += section.commands.map(cmd => `│ ➸ ${prefix}${cmd}`).join('\n') + '\n';
+            menu += section.commands.map(cmd => `│ ➸ ${cmd}`).join('\n') + '\n';
             menu += `┗▣\n\n`;
         }
              
