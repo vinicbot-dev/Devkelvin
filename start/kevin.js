@@ -279,6 +279,7 @@ async function webp2mp4(source) {
     };
   }
 //*---------------------------------------------------------------*//
+
 // ========== ANTI-DELETE MESSAGE HANDLER ==========
 // Anti-Delete Handler Function
 async function handleAntiDelete(m, conn, from, isGroup, botNumber) {
@@ -314,10 +315,13 @@ async function handleAntiDelete(m, conn, from, isGroup, botNumber) {
         let xtipes = moment(deletedMsg.messageTimestamp * 1000).tz(`${timezones}`).locale('en').format('HH:mm z');
         let xdptes = moment(deletedMsg.messageTimestamp * 1000).tz(`${timezones}`).format("DD/MM/YYYY");
 
+        // Determine target chat based on antidelete mode
+        const targetChat = global.antidelete === 'private' ? conn.user.id : m.chat;
+
         if (!deletedMsg.message.conversation && !deletedMsg.message.extendedTextMessage) {
             try {
                 let forwardedMsg = await conn.sendMessage(
-                    global.antidelete === 'private' ? conn.user.id : m.chat,
+                    targetChat,
                     { 
                         forward: deletedMsg,
                         contextInfo: { isForwarded: false }
@@ -334,7 +338,7 @@ ${readmore}
 𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙱𝚈: @${deletedBy.split('@')[0]}`;
 
                 await conn.sendMessage(
-                    global.antidelete === 'private' ? conn.user.id : m.chat, 
+                    targetChat, 
                     { text: mediaInfo, mentions: [sender, deletedBy] },
                     { quoted: forwardedMsg }
                 );
@@ -362,7 +366,7 @@ ${readmore}
                 };
 
                 await conn.sendMessage(
-                    global.antidelete === 'private' ? conn.user.id : m.chat,
+                    targetChat,
                     { text: replyText, mentions: [sender, deletedBy] },
                     { quoted: quotedMessage }
                 );
@@ -395,17 +399,18 @@ ${readmore}
             };
 
             await conn.sendMessage(
-                global.antidelete === 'private' ? conn.user.id : m.chat,
+                targetChat,
                 { text: replyText, mentions: [sender, deletedBy] },
                 { quoted: quotedMessage }
             );
         }
 
+        console.log(`✅ Deleted message captured and sent to: ${global.antidelete === 'private' ? 'bot owner' : 'same chat'}`);
+
     } catch (err) {
         console.error("❌ Error processing deleted message:", err);
     }
 }
-
 
 // ========== FIXED ANTI-STATUS DELETE HANDLER ==========
 async function handleAntiStatusDelete(m, conn, from, isGroup, botNumber) {
@@ -977,16 +982,20 @@ case "listsudo": {
 break
 case "setownernumber": {
 if (!Access) return reply(mess.owner);
-if (args.length < 1) return reply(`Example: ${prefix + command} 256xxxxxxxx\n\nThis will change the owner's number in the database`);
+if (args.length < 1) return reply(`Example: ${prefix + command} 256755585369\n\nThis will change the owner's number in the database`);
 
-let newNumber = args[0].replace(/\D/g, '');
+// Join all arguments to capture the full number including spaces
+let fullInput = args.join(' ');
+let newNumber = fullInput.replace(/\D/g, '');
+
+console.log(`Input: ${fullInput}, Extracted Number: ${newNumber}`); // Debug log
 
 if (newNumber.startsWith('0')) {
   return reply("⚠️ Phone numbers should not start with *0*. Use the full international format (e.g., *256...* instead of *07...*)");
 }
 
 if (newNumber.length < 5 || newNumber.length > 15) {
-  return reply("⚠️ Please provide a valid phone number (5-15 digits)");
+  return reply(`⚠️ Please provide a valid phone number (5-15 digits)\n\nYou provided: ${newNumber.length} digits: ${newNumber}`);
 }
 
 // Update database config
@@ -2272,39 +2281,54 @@ case 'antibug': {
 }
 break
 case "antidelete": {
-if (!Access) return reply(mess.owner);
-if (args.length < 2) return reply(`Example: ${prefix + command} private on/off\nOr: ${prefix + command} chat on/off`);
-
-const validTypes = ["private", "chat"];
-const validOptions = ["on", "off"];
-
-const type = args[0].toLowerCase();
-const option = args[1].toLowerCase();
-
-if (!validTypes.includes(type)) return reply("Invalid type. Use 'private' or 'chat'");
-if (!validOptions.includes(option)) return reply("Invalid option. Use 'on' or 'off'");
-
-// Fix: Properly get setting from global database
-if (!global.db.data.settings) global.db.data.settings = {};
-if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-let setting = global.db.data.settings[botNumber];
-
-// Initialize config if it doesn't exist
-if (!setting.config) setting.config = {};
-
-// Set the anti-delete configuration based on type
-if (type === "private") {
-    setting.config.statusantidelete = option === "on" ? "private" : false;
-} else if (type === "chat") {
-    setting.config.statusantidelete = option === "on" ? "chat" : false;
-}
-
-// Also update the global antidelete variable
-global.antidelete = setting.config.statusantidelete;
-
-await saveDatabase();
-
-reply(`Anti-delete ${type} mode ${option === "on" ? "enabled" : "disabled"} successfully`);
+    if (!Access) return reply(mess.owner);
+    
+    if (!text) {
+        const currentMode = global.antidelete || 'private';
+        const modeDescription = currentMode === 'private' ? 
+            '✅ Notifications sent to bot owner' : 
+            '💬 Notifications sent in same chat';
+        
+        return reply(`🚨 *ANTI-DELETE SETTINGS*\n\n*Current Mode:* ${currentMode.toUpperCase()}\n${modeDescription}\n\n*Usage:* ${prefix}antidelete [private/chat/off]\n*Examples:*\n${prefix}antidelete private\n${prefix}antidelete chat\n${prefix}antidelete off`);
+    }
+    
+    const mode = args[0].toLowerCase();
+    
+    if (mode === 'private' || mode === 'chat') {
+        global.antidelete = mode;
+        
+        // Save to database
+        if (!global.db.data.settings) global.db.data.settings = {};
+        if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+        let setting = global.db.data.settings[botNumber];
+        if (!setting.config) setting.config = {};
+        setting.config.antidelete = mode;
+        
+        await saveDatabase();
+        
+        const modeMessage = mode === 'private' ? 
+            ' Anti-delete private mode enabled sucks\n\n' :
+            'Anti-delete chat enabled successfully \n\n';
+            
+        await reply(modeMessage);
+        
+    } else if (mode === 'off' || mode === 'disable') {
+        global.antidelete = false;
+        
+        // Save to database
+        if (!global.db.data.settings) global.db.data.settings = {};
+        if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+        let setting = global.db.data.settings[botNumber];
+        if (!setting.config) setting.config = {};
+        setting.config.antidelete = false;
+        
+        await saveDatabase();
+        
+        await reply('❌ *Anti-delete DISABLED*\n\nDeleted messages will not be captured.');
+        
+    } else {
+        await reply(`❌ *INVALID MODE*\n\nPlease use: private, chat, or off\nExample: ${prefix}antidelete chat`);
+    }
 }
 break
 case "antistatus": {
@@ -2503,20 +2527,18 @@ case "getpp": {
 break 
 case "setprefix": {
     if (!Access) return reply(mess.owner);
-    if (args.length < 1) return reply(`Example: ${prefix + command} .\nOr: ${prefix + command} /`);
+    if (args.length < 1) return reply(`Example: ${prefix + command} .\nOr: ${prefix + command} / \nOr: ${prefix + command} 😎`);
 
     let newPrefix = args[0];
     
-    // Validate prefix length
-    if (newPrefix.length > 3) {
-        return reply("❌ Prefix cannot be longer than 3 characters.");
+    // Validate prefix length (more flexible)
+    if (newPrefix.length > 5) {
+        return reply("❌ Prefix cannot be longer than 5 characters.");
     }
     
-    // Check if prefix contains only allowed characters
-    if (!/^[.!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~]/.test(newPrefix)) {
-        return reply("❌ Prefix must be a symbol character (e.g., . ! @ # $ etc.)");
-    }
-
+    // Allow ANY characters including emojis, letters, numbers, symbols
+    // No restrictions on prefix type
+    
     // Use setting.config structure
     if (!global.db.data.settings) global.db.data.settings = {};
     if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
@@ -2536,10 +2558,9 @@ case "setprefix": {
         global.prefix = newPrefix;
     }
 
-    reply(`✅ Prefix changed from *"${oldPrefix}"* to *"${newPrefix}"* successfully.\n\nNow you can use commands like: *${newPrefix}menu*`);
-
     await saveDatabase();
-    
+
+    reply(`✅ Prefix changed from *"${oldPrefix}"* to *"${newPrefix}"* successfully.\n\nNow you can use commands like: *${newPrefix}menu*`);
 }
 break
 case "setownername": {
