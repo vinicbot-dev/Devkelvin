@@ -245,8 +245,6 @@ async function handleReconnection() {
 async function clientstart() {
   console.log(chalk.cyan("[ 🟠 ] Connecting to WhatsApp ⏳️..."));
 
-  // Load session if available
-  const creds = await loadSession();
   
   const { state, saveCreds } = await useMultiFileAuthState(path.join(__dirname, 'sessions'), {
     creds: creds || undefined // Pass loaded creds if available
