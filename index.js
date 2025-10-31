@@ -684,7 +684,7 @@ async function clientstart() {
   conn.serializeM = (m) => smsg(conn, m, store);
 
   conn.ev.on('connection.update', async (update) => {
-    let { Connecting } = require("./connect.js");
+    let { Connecting } = require("./connect");
     Connecting({ update, conn, Boom, DisconnectReason, sleep, color, clientstart });
   });
   
