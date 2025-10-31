@@ -822,6 +822,31 @@ function isValidConn(conn) {
            conn.user.id;
 }
 
+// ========== SETTINGS MANAGEMENT FUNCTIONS ==========
+async function updateBotSetting(settingKey, settingValue) {
+    try {
+        if (!global.db.data.settings[botNumber]) {
+            global.db.data.settings[botNumber] = {};
+        }
+        if (!global.db.data.settings[botNumber].config) {
+            global.db.data.settings[botNumber].config = {};
+        }
+        
+        global.db.data.settings[botNumber].config[settingKey] = settingValue;
+        
+        // Save to database
+        await saveDatabase();
+        
+        return true;
+    } catch (error) {
+        console.error('Error updating setting:', error);
+        return false;
+    }
+}
+
+function getCurrentSettings() {
+    return global.db.data.settings[botNumber]?.config || {};
+}
 
 //================== [ CONSOLE LOG] ==================//
 const dayz = moment(Date.now()).tz(`${timezones}`).locale('en').format('dddd');
@@ -935,6 +960,241 @@ case 'vinic': {
         await conn.sendMessage(m.chat, {
             text: '❌ Error displaying menu. Please try again!'
         });
+    }
+    break;
+}
+
+// ========== SETTINGS MANAGEMENT COMMANDS ==========
+case 'setprefix': {
+    if (!Access) return reply('❌ Owner only command');
+    
+    const newPrefix = args[0];
+    if (!newPrefix || newPrefix.length > 2) {
+        return reply('❌ Please provide a valid prefix (1-2 characters)');
+    }
+    
+    // Update in memory
+    const success = await updateBotSetting('prefix', newPrefix);
+    
+    if (success) {
+        reply(`✅ Prefix updated to: *${newPrefix}*`);
+    } else {
+        reply('❌ Failed to update prefix');
+    }
+    break;
+}
+
+case 'settings': {
+    if (!Access) return reply('❌ Owner only command');
+    
+    const config = getCurrentSettings();
+    const settingsText = `
+⚙️ *BOT SETTINGS*
+
+📝 *Prefix:* ${config.prefix || '.'}
+🚫 *Anti-Delete:* ${config.statusantidelete ? '✅' : '❌'}
+🤖 *AI Chat:* ${config.AI_CHAT ? '✅' : '❌'}
+🐛 *Anti-Bug:* ${config.antibug ? '✅' : '❌'}
+📞 *Anti-Call:* ${config.anticall || 'false'}
+✏️ *Anti-Edit:* ${config.antiedit ? '✅' : '❌'}
+👋 *Welcome:* ${config.welcome ? '✅' : '❌'}
+🎭 *Auto-React:* ${config.autoreact ? '✅' : '❌'}
+👀 *Auto-View:* ${config.autoview ? '✅' : '❌'}
+📖 *Auto-Read:* ${config.autoread ? '✅' : '❌'}
+📹 *Auto-Record:* ${config.autorecord ? '✅' : '❌'}
+📱 *Auto-View Status:* ${config.autoviewstatus ? '✅' : '❌'}
+🎭 *Auto-React Status:* ${config.autoreactstatus ? '✅' : '❌'}
+🤖 *Auto-Bio:* ${config.autobio ? '✅' : '❌'}
+👑 *Admin Events:* ${config.adminevent ? '✅' : '❌'}
+
+*Use commands:*
+• *${prefix}set <option> <value>* - Change setting
+• *${prefix}prefix <new>* - Change prefix
+• *${prefix}backup* - Backup settings
+
+*Example:* ${prefix}set AI_CHAT true
+  `;
+    
+    reply(settingsText);
+    break;
+}
+
+case 'set': {
+    if (!Access) return reply('❌ Owner only command');
+    
+    const option = args[0]?.toUpperCase();
+    const value = args[1];
+    
+    if (!option || value === undefined) {
+        return reply(`❌ Usage: ${prefix}set <option> <value>\nExample: ${prefix}set AI_CHAT true`);
+    }
+    
+    const validOptions = [
+        'AI_CHAT', 'ANTIBUG', 'ANTICALL', 'ANTIEDIT', 'WELCOME', 
+        'AUTOREACT', 'AUTOVIEW', 'AUTOREAD', 'AUTORECORD', 'AUTOVIEWSTATUS',
+        'AUTOREACTSTATUS', 'AUTOBIO', 'ADMINEVENT', 'STATUSANTIDELETE'
+    ];
+    
+    if (!validOptions.includes(option)) {
+        return reply(`❌ Invalid option. Valid options:\n${validOptions.join(', ')}`);
+    }
+    
+    let newValue;
+    if (option === 'ANTICALL') {
+        if (!['false', 'decline', 'block'].includes(value.toLowerCase())) {
+            return reply('❌ Anti-call must be: false, decline, or block');
+        }
+        newValue = value.toLowerCase();
+    } else {
+        newValue = value.toLowerCase() === 'true';
+    }
+    
+    // Update setting
+    const success = await updateBotSetting(option.toLowerCase(), newValue);
+    
+    if (success) {
+        reply(`✅ *${option}* updated to: *${newValue}*`);
+    } else {
+        reply('❌ Failed to update setting');
+    }
+    break;
+}
+
+case 'backup': {
+    if (!Access) return reply('❌ Owner only command');
+    
+    try {
+        await saveDatabase();
+        const settings = getCurrentSettings();
+        
+        const backupText = `💾 *SETTINGS BACKUP*
+        
+📊 *Current Settings:*
+${Object.entries(settings).map(([key, value]) => `• ${key}: ${value}`).join('\n')}
+
+✅ Settings backed up successfully!
+All settings will persist after bot restart.`;
+        
+        reply(backupText);
+    } catch (error) {
+        reply('❌ Failed to backup settings');
+    }
+    break;
+}
+case 'aichat':
+case 'ai': {
+    if (!Access) return reply('❌ Owner only command');
+    
+    const action = args[0]?.toLowerCase();
+    
+    if (!action) {
+        const currentState = getAIChatbotState();
+        return reply(`🤖 AI Chatbot is currently: ${currentState === "true" ? "✅ ENABLED" : "❌ DISABLED"}\n\nUse: ${prefix}ai on/off`);
+    }
+    
+    if (action === 'on' || action === 'enable') {
+        setAIChatbotState(true);
+        await updateBotSetting('AI_CHAT', true);
+        reply('✅ AI Chatbot enabled');
+    } else if (action === 'off' || action === 'disable') {
+        setAIChatbotState(false);
+        await updateBotSetting('AI_CHAT', false);
+        reply('❌ AI Chatbot disabled');
+    } else if (action === 'clear') {
+        clearChatbotMemory(from);
+        reply('🧹 AI conversation memory cleared for this chat');
+    } else {
+        reply(`❌ Usage: ${prefix}ai on/off/clear`);
+    }
+    break;
+}
+
+case 'antidelete': {
+    if (!Access) return reply('❌ Owner only command');
+    
+    const mode = args[0]?.toLowerCase();
+    const validModes = ['private', 'chat', 'off'];
+    
+    if (!mode || !validModes.includes(mode)) {
+        return reply(`❌ Usage: ${prefix}antidelete <private/chat/off>\n\n• private - Notifications to bot owner\n• chat - Notifications in same chat\n• off - Disable anti-delete`);
+    }
+    
+    if (mode === 'off') {
+        global.antidelete = false;
+        reply('❌ Anti-delete disabled');
+    } else {
+        global.antidelete = mode;
+        reply(`✅ Anti-delete set to: ${mode} mode`);
+    }
+    break;
+}
+
+case 'antistatus': {
+    if (!Access) return reply('❌ Owner only command');
+    
+    const mode = args[0]?.toLowerCase();
+    const validModes = ['private', 'chat', 'off'];
+    
+    if (!mode || !validModes.includes(mode)) {
+        return reply(`❌ Usage: ${prefix}antistatus <private/chat/off>\n\n• private - Status delete alerts to bot owner\n• chat - Status delete alerts in same chat\n• off - Disable anti-status delete`);
+    }
+    
+    if (mode === 'off') {
+        global.antistatus = false;
+        reply('❌ Anti-status delete disabled');
+    } else {
+        global.antistatus = mode;
+        reply(`✅ Anti-status delete set to: ${mode} mode`);
+    }
+    break;
+}
+
+case 'antiedit': {
+    if (!Access) return reply('❌ Owner only command');
+    
+    const mode = args[0]?.toLowerCase();
+    const validModes = ['private', 'chat', 'off'];
+    
+    if (!mode || !validModes.includes(mode)) {
+        return reply(`❌ Usage: ${prefix}antiedit <private/chat/off>\n\n• private - Edit alerts to bot owner\n• chat - Edit alerts in same chat\n• off - Disable anti-edit`);
+    }
+    
+    if (mode === 'off') {
+        global.antiedit = false;
+        await updateBotSetting('antiedit', false);
+        reply('❌ Anti-edit disabled');
+    } else {
+        global.antiedit = mode;
+        await updateBotSetting('antiedit', true);
+        reply(`✅ Anti-edit set to: ${mode} mode`);
+    }
+    break;
+}
+case 'dbstatus': {
+    if (!Access) return reply('❌ Owner only command');
+    
+    try {
+        const settings = getCurrentSettings();
+        const totalSettings = Object.keys(settings).length;
+        
+        const statusText = `🗄️ *DATABASE STATUS*
+        
+📊 Settings stored: ${totalSettings}
+🤖 Bot number: ${botNumber}
+💾 Database: SQLite
+🔄 Auto-save: Enabled
+
+*Current Key Settings:*
+• Prefix: ${settings.prefix || '.'}
+• AI Chat: ${settings.AI_CHAT ? '✅' : '❌'}
+• Anti-Bug: ${settings.antibug ? '✅' : '❌'}
+• Welcome: ${settings.welcome ? '✅' : '❌'}
+
+✅ Database is working properly!`;
+        
+        reply(statusText);
+    } catch (error) {
+        reply('❌ Database status check failed');
     }
     break;
 }
@@ -2280,117 +2540,6 @@ case 'antibug': {
     }
 }
 break
-case "antidelete": {
-    if (!Access) return reply(mess.owner);
-    
-    if (!text) {
-        const currentMode = global.antidelete || 'private';
-        const modeDescription = currentMode === 'private' ? 
-            '✅ Notifications sent to bot owner' : 
-            '💬 Notifications sent in same chat';
-        
-        return reply(`🚨 *ANTI-DELETE SETTINGS*\n\n*Current Mode:* ${currentMode.toUpperCase()}\n${modeDescription}\n\n*Usage:* ${prefix}antidelete [private/chat/off]\n*Examples:*\n${prefix}antidelete private\n${prefix}antidelete chat\n${prefix}antidelete off`);
-    }
-    
-    const mode = args[0].toLowerCase();
-    
-    if (mode === 'private' || mode === 'chat') {
-        global.antidelete = mode;
-        
-        // Save to database
-        if (!global.db.data.settings) global.db.data.settings = {};
-        if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-        let setting = global.db.data.settings[botNumber];
-        if (!setting.config) setting.config = {};
-        setting.config.antidelete = mode;
-        
-        await saveDatabase();
-        
-        const modeMessage = mode === 'private' ? 
-            ' Anti-delete private mode enabled sucks\n\n' :
-            'Anti-delete chat enabled successfully \n\n';
-            
-        await reply(modeMessage);
-        
-    } else if (mode === 'off' || mode === 'disable') {
-        global.antidelete = false;
-        
-        // Save to database
-        if (!global.db.data.settings) global.db.data.settings = {};
-        if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-        let setting = global.db.data.settings[botNumber];
-        if (!setting.config) setting.config = {};
-        setting.config.antidelete = false;
-        
-        await saveDatabase();
-        
-        await reply('❌ *Anti-delete DISABLED*\n\nDeleted messages will not be captured.');
-        
-    } else {
-        await reply(`❌ *INVALID MODE*\n\nPlease use: private, chat, or off\nExample: ${prefix}antidelete chat`);
-    }
-}
-break
-case "antistatus": {
-    if (!Access) return reply(mess.owner);
-    if (args.length < 2) return reply(`Example: ${prefix + command} private on/off\nOr: ${prefix + command} chat on/off`);
-
-    const validTypes = ["private", "chat"];
-    const validOptions = ["on", "off"];
-
-    const type = args[0].toLowerCase();
-    const option = args[1].toLowerCase();
-
-    if (!validTypes.includes(type)) return reply("Invalid type. Use 'private' or 'chat'");
-    if (!validOptions.includes(option)) return reply("Invalid option. Use 'on' or 'off'");
-
-    // Fix: Properly get setting from global database
-    if (!global.db.data.settings) global.db.data.settings = {};
-    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-    let setting = global.db.data.settings[botNumber];
-
-    // Initialize config if it doesn't exist
-    if (!setting.config) setting.config = {};
-
-    // Set the anti-status configuration based on type
-    if (type === "private") {
-        setting.config.antistatus = option === "on" ? "private" : false;
-    } else if (type === "chat") {
-        setting.config.antistatus = option === "on" ? "chat" : false;
-    }
-
-    // Also update the global antistatus variable
-    global.antistatus = setting.config.antistatus;
-
-    await saveDatabase();
-
-    const statusMessage = option === "on" 
-        ? `✅ *Anti-Status ${type.toUpperCase()} Mode ENABLED*\n\n${type === 'private' ? '🔒 Status delete notifications will be sent to bot owner privately' : '📢 Status delete notifications will be sent in the same chat'}\n\nDeleted status updates will now be captured and reported.`
-        : `✅ *Anti-Status ${type.toUpperCase()} Mode DISABLED*\n\nStatus deletion monitoring is now turned off.`;
-
-    reply(statusMessage);
-}
-break
-case 'aichat':
-case 'chatbot':
-case 'bot': {
-    if (!Access) return reply(mess.owner);
-    
-    const status = args[0]?.toLowerCase();
-    if (status === "on") {
-        setAIChatbotState(true);
-        return reply("🤖 AI chatbot is now enabled");
-    } else if (status === "off") {
-        setAIChatbotState(false);
-        return reply("🤖 AI chatbot is now disabled");
-    } else if (status === "clear") {
-        clearChatbotMemory();
-        return reply("🧹 AI conversation memory cleared");
-    } else {
-        return reply(`Current AI state: ${getAIChatbotState() === "true" ? "ON" : "OFF"}\nUsage: ${prefix}aichat on/off/clear`);
-    }
-    break;
-}
 case "autoreact": {
     if (!Access) return reply(mess.owner);
        
@@ -2523,75 +2672,6 @@ case "getpp": {
             caption: '⚠️ No profile picture found.' 
         }, { quoted: m });
     }
-}
-break 
-case "setprefix": {
-    if (!Access) return reply(mess.owner);
-    if (args.length < 1) return reply(`Example: ${prefix + command} .\nOr: ${prefix + command} / \nOr: ${prefix + command} 😎`);
-
-    let newPrefix = args[0];
-    
-    // Validate prefix length (more flexible)
-    if (newPrefix.length > 5) {
-        return reply("❌ Prefix cannot be longer than 5 characters.");
-    }
-    
-    // Allow ANY characters including emojis, letters, numbers, symbols
-    // No restrictions on prefix type
-    
-    // Use setting.config structure
-    if (!global.db.data.settings) global.db.data.settings = {};
-    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-    let setting = global.db.data.settings[botNumber];
-
-    // Initialize config if it doesn't exist
-    if (!setting.config) setting.config = {};
-
-    // Store the old prefix for the message
-    const oldPrefix = setting.config.prefix || prefix;
-
-    // Set the new prefix in config
-    setting.config.prefix = newPrefix;
-
-    // Also update the global prefix variable if it exists
-    if (global.prefix) {
-        global.prefix = newPrefix;
-    }
-
-    await saveDatabase();
-
-    reply(`✅ Prefix changed from *"${oldPrefix}"* to *"${newPrefix}"* successfully.\n\nNow you can use commands like: *${newPrefix}menu*`);
-}
-break
-case "setownername": {
-    if (!Access) return reply(mess.owner);
-    if (!text) return reply(`*Usage:* ${prefix}setownername [new name]\n\n*Example:* ${prefix}setownername Kevin Tech`);
-
-    try {
-        // Update global variable immediately (no restart needed)
-        global.ownername = text;
-        
-        // Also update the config file for persistence after restart
-        const configPath = './setting/config.js';
-        let configContent = fs.readFileSync(configPath, 'utf-8');
-        
-        // Update the ownername in the config
-        const updatedConfig = configContent.replace(
-            /global\.ownername\s*=\s*["'][^"']*["']/,
-            `global.ownername = "${text}"`
-        );
-        
-        // Write the updated config back
-        fs.writeFileSync(configPath, updatedConfig);
-        
-        reply(`✅ *Owner name successfully changed to:* ${text}\n\n*Note:* This change is effective immediately and will persist after restart.`);
-        
-    } catch (error) {
-        console.error('Error setting owner name:', error);
-        reply('❌ *Failed to update owner name.* Please check file permissions or try again.');
-    }
-    
-    
 }
 break
 case "toviewonce": {
@@ -2934,39 +3014,6 @@ case "autoreactstatus": {
     await saveDatabase();
 
     reply(`Auto react status ${option === "on" ? "enabled" : "disabled"} successfully`);
-}
-break
-case "antiedit": {
-    if (!Access) return reply(mess.owner);
-    if (args.length < 2) return reply(`Example: ${prefix + command} private on/off\nOr: ${prefix + command} chat on/off`);
-
-    const validTypes = ["private", "chat"];
-    const validOptions = ["on", "off"];
-
-    const type = args[0].toLowerCase();
-    const option = args[1].toLowerCase();
-
-    if (!validTypes.includes(type)) return reply("Invalid type. Use 'private' or 'chat'");
-    if (!validOptions.includes(option)) return reply("Invalid option. Use 'on' or 'off'");
-
-    // Fix: Properly get setting from global database
-    if (!global.db.data.settings) global.db.data.settings = {};
-    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-    let setting = global.db.data.settings[botNumber];
-
-    // Initialize config if it doesn't exist
-    if (!setting.config) setting.config = {};
-
-    // Set the anti-edit configuration based on type
-    if (type === "private") {
-        setting.config.antiedit = option === "on" ? "private" : false;
-    } else if (type === "chat") {
-        setting.config.antiedit = option === "on" ? "chat" : false;
-    }
-
-    await saveDatabase();
-
-    reply(`Anti-edit ${type} mode ${option === "on" ? "enabled" : "disabled"} successfully`);
 }
 break
 case "welcome": { 
@@ -9904,7 +9951,7 @@ reply("*group link reseted by admin*" )
 break
 
 break
-case 'backup':
+case 'botbackup':
 case 'bp': {
 if (!Access) return reply(mess.owner)
 const sessionPath = "./session";
