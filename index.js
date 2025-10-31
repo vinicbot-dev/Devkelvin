@@ -243,15 +243,19 @@ async function handleReconnection() {
 }
 
 async function clientstart() {
-  console.log(chalk.cyan("[ 🟠 ] Connecting to WhatsApp ⏳️..."));
+  // Ensure session directory exists
+  if (!fs.existsSync(SESSION_DIR)) {
+    fs.mkdirSync(SESSION_DIR);
+  }
 
+  // Check and download session data
+  const sessionExists = await downloadSessionData();
   
-  	const {
+	const {
 		state,
 		saveCreds
 	} = await useMultiFileAuthState("session")
 	
-
   // Fetch latest WhatsApp Web version
   let waVersion;
   try {
