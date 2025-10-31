@@ -38,7 +38,6 @@ class SQLiteDB {
                 autoreact INTEGER DEFAULT 0,
                 autoview INTEGER DEFAULT 1,
                 autoread INTEGER DEFAULT 0,
-                autorecord INTEGER DEFAULT 0,
                 group_settings TEXT DEFAULT '{}',
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
