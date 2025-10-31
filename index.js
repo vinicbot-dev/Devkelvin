@@ -246,9 +246,11 @@ async function clientstart() {
   console.log(chalk.cyan("[ 🟠 ] Connecting to WhatsApp ⏳️..."));
 
   
-  const { state, saveCreds } = await useMultiFileAuthState(path.join(__dirname, 'sessions'), {
-    creds: creds || undefined // Pass loaded creds if available
-  });
+  	const {
+		state,
+		saveCreds
+	} = await useMultiFileAuthState("session")
+	
 
   // Fetch latest WhatsApp Web version
   let waVersion;
