@@ -134,9 +134,9 @@ async function downloadSessionData() {
       console.warn("[ ⏳ ] No SESSION_ID provided - Falling back to QR or pairing code");
       return null;
     }
-    if (settings.SESSION_ID.startsWith("Ormanxmd~")) {
+    if (settings.SESSION_ID.startsWith("Vinic-Xmd~")) {
       console.info("[ ⏳ ] Decoding base64 session");
-      const base64Data = settings.SESSION_ID.replace("Ormanxmd~", "");
+      const base64Data = settings.SESSION_ID.replace("Vinic-Xmd~", "");
       if (!/^[A-Za-z0-9+/=]+$/.test(base64Data)) {
         throw new Error("Invalid base64 format in SESSION_ID");
       }
