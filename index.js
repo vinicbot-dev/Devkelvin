@@ -1,4 +1,3 @@
-
 console.clear();
 console.log('Starting Vinic-Xmd...');
 
@@ -123,54 +122,71 @@ const question = (text) => {
 
 const yargs = require('yargs/yargs');
 
+async function getSessionData() {
+    try {
+        if (!settings.SESSION_ID) {
+            console.warn("[ ⏳ ] No SESSION_ID provided - Falling back to QR or pairing code");
+            return null;
+        }
+        
+        console.log("[ 📥 ] Fetching session from server...");
+        const response = await fetch(`https://veronica-ai-production.up.railway.app/session?session=${settings.SESSION_ID}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const sessionData = await response.json();
+        console.log("[ ✅ ] Session data fetched successfully from server");
+        return sessionData;
+        
+    } catch (error) {
+        console.error("[ ❌ ] Error fetching session from server:", error.message);
+        console.info("[ 😑 ] Will attempt pairing code login");
+        return null;
+    }
+}
 
-async function downloadSessionData() {
-  console.log("[DEBUG] SESSION_ID:", settings.SESSION_ID);
-  try {
-    if (typeof settings.SESSION_ID === 'undefined') {
-      throw new Error("SESSION_ID is undefined in settings");
+function initSession(sessionData) {
+    if (!sessionData) {
+        console.log('No session data from server');
+        return null;
     }
-    if (!settings.SESSION_ID) {
-      console.warn("[ ⏳ ] No SESSION_ID provided - Falling back to QR or pairing code");
-      return null;
+    
+    const crypto = require('crypto');
+    const algorithm = 'aes-256-cbc';
+    const key = Buffer.from(sessionData.key, 'hex');
+    const iv = Buffer.from(sessionData.iv, 'hex');
+    
+    try {
+        const decipher = crypto.createDecipheriv(algorithm, key, iv);
+        let decrypted = decipher.update(sessionData.data, 'hex', 'utf8');
+        decrypted += decipher.final('utf8');
+        
+        const data = JSON.parse(decrypted);
+        
+        // Ensure session directory exists
+        if (!fs.existsSync(SESSION_DIR)) {
+            fs.mkdirSync(SESSION_DIR, { recursive: true });
+        }
+        
+        // Save credentials
+        fs.writeFileSync(CREDS_PATH, JSON.stringify(data.creds, null, 2));
+        
+        // Save sync keys if they exist
+        if (data.syncKeys) {
+            for (const [filename, syncKeyData] of Object.entries(data.syncKeys)) {
+                fs.writeFileSync(path.join(SESSION_DIR, filename), JSON.stringify(syncKeyData, null, 2));
+            }
+        }
+        
+        console.log('[ ✅ ] Session decrypted and saved successfully');
+        return data;
+        
+    } catch (error) {
+        console.error('[ ❌ ] Error decrypting session:', error.message);
+        return null;
     }
-    if (settings.SESSION_ID.startsWith("Vinic-Xmd~")) {
-      console.info("[ ⏳ ] Decoding base64 session");
-      const base64Data = settings.SESSION_ID.replace("Vinic-Xmd~", "");
-      if (!/^[A-Za-z0-9+/=]+$/.test(base64Data)) {
-        throw new Error("Invalid base64 format in SESSION_ID");
-      }
-      const decodedData = Buffer.from(base64Data, "base64");
-      let sessionData;
-      try {
-        sessionData = JSON.parse(decodedData.toString("utf-8"));
-      } catch (error) {
-        throw new Error("Failed to parse decoded base64 session data: " + error.message);
-      }
-      fs.writeFileSync(CREDS_PATH, JSON.stringify(sessionData, null, 2));
-      console.log("[ ✅ ] Base64 session decoded and saved successfully");
-      return sessionData;
-    } else if (settings.SESSION_ID.startsWith("Kevin~")) {
-      console.info("[ 📥 ] Downloading MEGA.nz session");
-      const megaFileId = settings.SESSION_ID.replace("Kevin~", "");
-      const filer = File.fromURL(`https://mega.nz/file/${megaFileId}`);
-      const data = await new Promise((resolve, reject) => {
-        filer.download((err, data) => {
-          if (err) reject(err);
-          else resolve(data);
-        });
-      });
-      fs.writeFileSync(CREDS_PATH, data);
-      console.log("[ ✅ ] MEGA session downloaded successfully");
-      return JSON.parse(data.toString());
-    } else {
-      throw new Error("Invalid SESSION_ID format. Use 'Ormanxmd~' for base64 or 'malvin~' for MEGA.nz");
-    }
-  } catch (error) {
-    console.error("[ ❌ ] Error loading session", { Error: error.message, Stack: error.stack });
-    console.info("[ 😑 ] Will attempt pairing code login");
-    return null;
-  }
 }
 
 function sleep(ms) {
@@ -245,17 +261,20 @@ async function handleReconnection() {
 async function clientstart() {
   // Ensure session directory exists
   if (!fs.existsSync(SESSION_DIR)) {
-    fs.mkdirSync(SESSION_DIR);
+    fs.mkdirSync(SESSION_DIR, { recursive: true });
   }
 
-  // Check and download session data
-  const sessionExists = await downloadSessionData();
+  // Get session data from server
+  const serverSessionData = await getSessionData();
+  let decryptedSession = null;
   
-	const {
-		state,
-		saveCreds
-	} = await useMultiFileAuthState("session")
-	
+  if (serverSessionData) {
+    decryptedSession = initSession(serverSessionData);
+  }
+
+  // Use multi-file auth state (this will use the session files we just created)
+  const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
+  
   // Fetch latest WhatsApp Web version
   let waVersion;
   try {
@@ -269,7 +288,7 @@ async function clientstart() {
 
   // Optimized connection for cloud/low memory
   const conn = makeWASocket({
-    printQRInTerminal: true, // Always show QR if session not available
+    printQRInTerminal: !decryptedSession, // Only show QR if no valid session
     syncFullHistory: !isLowMemory, // Disable in low memory
     markOnlineOnConnect: true,
     connectTimeoutMs: isProduction ? 30000 : 60000, // Shorter timeout in production
