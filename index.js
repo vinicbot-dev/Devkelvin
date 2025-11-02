@@ -710,7 +710,7 @@ async function clientstart() {
                         try {
                             ppUrl = await conn.profilePictureUrl(participant, 'image');
                         } catch {
-                            ppUrl = 'https://i.ibb.co/sFjX3nP/default.jpg';
+                            ppUrl = 'https://i.ibb.co/RBx5SQC/avatar-group-large-v2.png?q=60';
                         }
                         const name = (await conn.onWhatsApp(participant))[0]?.notify || participant;
                         if (anu.action === 'add') {
@@ -768,7 +768,7 @@ async function clientstart() {
                         try {
                             ppuser = await conn.profilePictureUrl(num, 'image');
                         } catch {
-                            ppuser = 'https://telegra.ph/file/de7c8230aff02d7bd1a93.jpg';
+                            ppuser = 'https://i.ibb.co/RBx5SQC/avatar-group-large-v2.png?q=60';
                         }
                         
                         if (anu.action == "promote") {
