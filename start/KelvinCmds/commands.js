@@ -462,4 +462,54 @@ async function ytmp4Command(conn, chatId, message, args) {
     }
 }
 
-module.exports = { playCommand, ytmp4Command, musicCommand, ytplayCommand, videoCommand, takeCommand }
+async function telestickerCommand(conn, chatId, message, args) {
+    try {
+        const telegramUrl = args.join(' ').trim();
+        
+        if (!telegramUrl) {
+            return await conn.sendMessage(chatId, {
+                text: "📦 Please provide a Telegram sticker pack URL\nExample: .telesticker https://t.me/addstickers/PBVid"
+            }, { quoted: message });
+        }
+
+        // Start reaction
+        await conn.sendMessage(chatId, { react: { text: "⏳", key: message.key } });
+
+        // Download sticker pack
+        const stickerApi = `https://api.nekolabs.web.id/downloader/telegram-sticker?url=${encodeURIComponent(telegramUrl)}`;
+        const stickerResponse = await axios.get(stickerApi);
+
+        if (!stickerResponse.data || !stickerResponse.data.success || !stickerResponse.data.result || !stickerResponse.data.result.stickers) {
+            await conn.sendMessage(chatId, { react: { text: "❌", key: message.key } });
+            return await conn.sendMessage(chatId, {
+                text: "❌ Failed to download sticker pack"
+            }, { quoted: message });
+        }
+
+        const stickerPack = stickerResponse.data.result;
+        const stickers = stickerPack.stickers;
+
+        // Send each sticker
+        for (const sticker of stickers) {
+            if (sticker.image_url) {
+                await conn.sendMessage(chatId, {
+                    sticker: { url: sticker.image_url }
+                });
+                // Small delay between stickers
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        }
+
+        // Success reaction
+        await conn.sendMessage(chatId, { react: { text: "✅", key: message.key } });
+
+    } catch (error) {
+        console.error("Telesticker Command Error:", error.message);
+        await conn.sendMessage(chatId, { react: { text: "❌", key: message.key } });
+        await conn.sendMessage(chatId, {
+            text: "❌ An error occurred while processing your request."
+        }, { quoted: message });
+    }
+}
+
+module.exports = { playCommand, telestickerCommand, ytmp4Command, musicCommand, ytplayCommand, videoCommand, takeCommand }
