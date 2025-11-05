@@ -74,7 +74,7 @@ const {
   recordError,
   shouldLogError } = require('../vinic')
 
-const { videoCommand, takeCommand, musicCommand, ytplayCommand, ytmp4Command, playCommand } = require('./KelvinCmds/commands')
+const { videoCommand, takeCommand, musicCommand, ytplayCommand, telestickerCommand, ytmp4Command, playCommand } = require('./KelvinCmds/commands')
 const {fetchReactionImage} = require('./lib/reaction')
 const { toAudio } = require('./lib/converter');
 const { remini } = require('./lib/remini')
@@ -7081,6 +7081,12 @@ case "fliptext": {
     let flipe = quere.split("").reverse().join("");
     
     reply(`Normal:\n${quere}\nFlip:\n${flipe}`);
+}
+break
+case 'telesticker':
+case 'tsticker': {
+    await telestickerCommand(conn, m.chat, m, args);
+    
 }
 break
 case 'take':
