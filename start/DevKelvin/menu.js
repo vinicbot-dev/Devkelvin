@@ -119,7 +119,7 @@ async function generateMenu(conn, m, prefix, global) {
             commands: ['blackpinklogo', 'blackpinkstyle', 'glossysilver', 'glitchtext', 
                       'arting', 'advancedglow', 'cartoonstyle', 'deadpool', 'deletingtext', 
                       'luxurygold',  '1917style', 'pixelglitch', 'multicoloredneon', 
-                      'effectclouds', 'flagtext', 'freecreate', 'galaxystyle', 'papercut', 'holigram', 'royal', 'bear', 'galaxywallpaper', 
+                      'effectclouds', 'flagtext', 'freecreate', 'galaxystyle', 'papercut', 'holigram', 'royal', 'bear', 'textonwetglass', 'galaxywallpaper', 
                       'glowingtext', 'makingneon', 'matrix', 'royaltext', 'sand', 'summerbeach', 
                       'topography', 'typography', 'flux', 'dragonball'],
         },
