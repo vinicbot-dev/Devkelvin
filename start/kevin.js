@@ -4599,7 +4599,26 @@ case 'royal': {
     }
 }
 break;
-
+case 'textonwetglass': {
+    if (!text) return reply(`*Example: ${prefix}textonwetglass Kelvin*`);
+    
+    try {
+        await reply('💧 Creating text on wet glass effect... Please wait ⏳');
+        
+        const apiUrl = `https://api.nekolabs.web.id/ephoto/text-on-wet-glass?text=${encodeURIComponent(text)}`;
+        
+        // Send image directly from URL
+        await conn.sendMessage(m.chat, {
+            image: { url: apiUrl },
+            caption: `> ${global.wm}`
+        }, { quoted: m });
+        
+    } catch (error) {
+        console.error('TextOnWetGlass command error:', error);
+        reply('❌ Error generating wet glass effect. Please try again later.');
+    }
+}
+break
 case 'bear': {
     if (!text) return reply(`*Example: ${prefix}bear Kelvin*`);
     
