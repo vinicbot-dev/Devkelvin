@@ -4952,55 +4952,38 @@ try {
 break
 case "Quran": {
 try {
-      let surahInput = text.split(" ")[0];
-      if (!surahInput) {
-        throw new Error(`*Please specify the surah number or name*`);
-      }
-      
-      let surahListRes = await fetch("https://quran-endpoint.vercel.app/quran");
-      let surahList = await surahListRes.json();
-      let surahData = surahList.data.find(
-        (surah) =>
-          surah.number === Number(surahInput) ||
-          surah.asma.ar.short.toLowerCase() === surahInput.toLowerCase() ||
-          surah.asma.en.short.toLowerCase() === surahInput.toLowerCase()
-      );
-      
-      if (!surahData) {
-        throw new Error(`Couldn't find surah with number or name "${surahInput}"`);
-      }
-      
-      let res = await fetch(`https://quran-endpoint.vercel.app/quran/${surahData.number}`);
-      if (!res.ok) {
-        let error = await res.json();
-        throw new Error(`API request failed with status ${res.status} and message ${error.message}`);
-      }
+        if (!surahNumber || isNaN(surahNumber)) {
+            await conn.sendMessage(chatId, { text: "📖 Usage: .quran <surah_number>\nExample: .quran 1" });
+            return;
+        }
 
-      let json = await res.json();
-      let quranSurah = `
-*Quran: The Holy Book*\n
-*Surah ${json.data.number}: ${json.data.asma.ar.long} (${json.data.asma.en.long})*\n
-Type: ${json.data.type.en}\n
-Number of verses: ${json.data.ayahCount}\n
-*Explanation:*\n
-${json.data.tafsir.id}`;
-      
-      reply(quranSurah);
+        const url = `https://apis.davidcyriltech.my.id/quran?surah=${surahNumber}`;
+        const res = await axios.get(url);
 
-      if (json.data.recitation.full) {
-        await conn.sendMessage(
-          m.chat,
-          {
-            audio: { url: json.data.recitation.full },
+        if (!res.data.success) {
+            await conn.sendMessage(chatId, { text: "❌ Could not fetch Surah. Please try another number." });
+            return;
+        }
+
+        const { number, name, type, ayahCount, tafsir, recitation } = res.data.surah;
+
+        // 1️⃣ Send surah info as text
+        let reply = `📖 *Surah ${name.english}* (${name.arabic})\n\n`;
+        reply += `🔢 Surah Number: ${number}\n📌 Type: ${type}\n📜 Ayahs: ${ayahCount}\n\n`;
+        reply += `📝 Tafsir: ${tafsir.id}`;
+
+        await conn.sendMessage(chatId, { text: reply });
+
+        // 2️⃣ Send audio as PTT (voice note)
+        await conn.sendMessage(chatId, {
+            audio: { url: recitation },
             mimetype: "audio/mp4",
-            ptt: true,
-            fileName: `recitation.mp3`,
-          },
-          { quoted: m }
-        );
-      }
-    } catch (error) {
-      reply(`Error: ${error.message}`);
+            ptt: true
+        }, { quoted: message });
+
+    } catch (err) {
+        await conn.sendMessage(chatId, { text: "⚠️ Error fetching Surah. Try again later." });
+        console.error("Quran command error:", err.message);
     }
 }
 //===[DOWNLOAD MENU CMDS]===
