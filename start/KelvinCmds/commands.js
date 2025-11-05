@@ -489,14 +489,36 @@ async function telestickerCommand(conn, chatId, message, args) {
         const stickerPack = stickerResponse.data.result;
         const stickers = stickerPack.stickers;
 
-        // Send each sticker
+        // Send message about the pack
+        await conn.sendMessage(chatId, {
+            text: `📦 *${stickerPack.title}*\n\nSending ${stickers.length} stickers...`
+        }, { quoted: message });
+
+        // Send each sticker with proper formatting
         for (const sticker of stickers) {
             if (sticker.image_url) {
-                await conn.sendMessage(chatId, {
-                    sticker: { url: sticker.image_url }
-                });
-                // Small delay between stickers
-                await new Promise(resolve => setTimeout(resolve, 500));
+                try {
+                    // Download sticker buffer
+                    const stickerBuffer = await axios.get(sticker.image_url, { 
+                        responseType: 'arraybuffer' 
+                    });
+                    
+                    // Convert to buffer
+                    const buffer = Buffer.from(stickerBuffer.data);
+                    
+                    // Send as proper sticker
+                    await conn.sendMessage(chatId, {
+                        sticker: buffer,
+                        isAnimated: sticker.is_animated || false
+                    });
+                    
+                    // Small delay between stickers
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    
+                } catch (stickerError) {
+                    console.error('Error sending sticker:', stickerError.message);
+                    continue; // Continue with next sticker if one fails
+                }
             }
         }
 
