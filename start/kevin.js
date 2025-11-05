@@ -48,6 +48,8 @@ const {
   getRandom 
 } = require('./lib/myfunction')
 
+const { isAdmin } = require('./lib/metadata')
+
 const { obfuscateJS } = require("./lib/encapsulation");
 const { handleMediaUpload } = require('./lib/catbox');
 const {styletext, remind, Wikimedia, wallpaper} = require('./lib/scraper')
@@ -71,6 +73,8 @@ const {
   delay,
   recordError,
   shouldLogError } = require('../vinic')
+
+const { videoCommand, takeCommand, musicCommand, ytplayCommand, ytmp4Command, playCommand } = require('./KelvinCmds/commands')
 const {fetchReactionImage} = require('./lib/reaction')
 const { toAudio } = require('./lib/converter');
 const { remini } = require('./lib/remini')
@@ -162,7 +166,6 @@ const groupAdmins = m.isGroup ? await getGroupAdmins(participants) : [];
 const isGroupAdmins = m.isGroup ? groupAdmins.includes(m.sender) : false;
 const isBotAdmins = m.isGroup ? groupAdmins.includes(botNumber) : false;
 const isBot = botNumber.includes(senderNumber);
-const isAdmins = m.isGroup ? groupAdmins.includes(m.sender) : false;
 const groupOwner = m.isGroup && groupMetadata ? groupMetadata.owner : "";
 const isGroupOwner = m.isGroup
   ? (groupOwner ? groupOwner : groupAdmins).includes(m.sender)
@@ -983,7 +986,7 @@ case 'setprefix': {
     }
     break;
 }
-
+case 'features':
 case 'settings': {
     if (!Access) return reply('❌ Owner only command');
     
@@ -1082,6 +1085,7 @@ All settings will persist after bot restart.`;
     break;
 }
 case 'aichat':
+case 'chatbot':
 case 'ai': {
     if (!Access) return reply('❌ Owner only command');
     
@@ -3620,39 +3624,6 @@ break;
  m.reply('Dissapearing messages successfully turned on for 24hrs!'); 
  } 
 break
-case 'take': {
-const { Sticker, createSticker, StickerTypes } = require('wa-sticker-formatter');
-
-if(!msgR) return reply('*Quote an image, a short video or a sticker to change watermark*.'); 
-
-let media;
-if (m.imageMessage) {
-     media = msgR.imageMessage
-  } else if(msgR.videoMessage) {
-media = args.join(" ").videoMessage
-  } 
-  else if (msgR.stickerMessage) {
-    media = msgR.stickerMessage ;
-  } else {
-    reply('This is neither a sticker, image nor a video...'); return
-  } ;
-
-var result = await conn.downloadAndSaveMediaMessage(media);
-
-let stickerResult = new Sticker(result, {
-            pack: pushname,
-            author: pushname,
-            type: StickerTypes.FULL,
-            categories: ["🤩", "🎉"],
-            id: "12345",
-            quality: 70,
-            background: "transparent",
-          });
-const Buffer = await stickerResult.toBuffer();
-          conn.sendMessage(m.chat, { sticker: Buffer }, { quoted: m });
-
-}
-break;
 //==================================================//
 case "dev":
 case "developer": {
@@ -3660,7 +3631,7 @@ case "developer": {
     // Developer information (replace with your actual details)
     const devInfo = {
       name: "Kevin Tech",      // Developer name
-      number: "256742932677",  // Developer WhatsApp number (without + or @)
+      number: "256755585369",  // Developer WhatsApp number (without + or @)
       organization: "Vinic-Xmd Development Team",
       note: "Bot Developer"
     };
@@ -5089,106 +5060,8 @@ case 'xplay': {
     }
 }
 break
-case "play": {
-    if (!text) return reply('🎵 Please provide a song name or YouTube URL\nExample: .play shape of you');
-    
-    // Send initial processing message
-    await reply(`🔍 Searching for: ${text}\n⏳ Please wait...`);
-
-    try {
-        const apiUrl = `https://api.nekolabs.my.id/downloader/youtube/play/v1?q=${encodeURIComponent(text)}`;
-        
-        const response = await fetch(apiUrl);
-        const data = await response.json();
-
-        if (data.success && data.result.downloadUrl) {
-            const { metadata, downloadUrl } = data.result;
-            
-            // Format selection menu
-            const formatMenu = `🎵 *${metadata.title}* - ${metadata.channel}
-⏱️ Duration: ${metadata.duration}
-
-*Choose download format:*
-1. 📄 MP3 as Document
-2. 🎧 MP3 as Audio (Play)
-3. 🎙️ MP3 as Voice Note (PTT)
-
-_Reply with 1, 2 or 3 to this message to download the format you prefer._`;
-            
-            // Send format selection menu
-            const songmsg = await conn.sendMessage(m.chat, { 
-                text: formatMenu 
-            }, { quoted: m });
-
-            // Listen for format selection
-            conn.ev.on("messages.upsert", async (msgUpdate) => {
-                const mp3msg = msgUpdate.messages[0];
-                if (!mp3msg.message || !mp3msg.message.extendedTextMessage) return;
-
-                const selectedOption = mp3msg.message.extendedTextMessage.text.trim();
-
-                if (
-                    mp3msg.message.extendedTextMessage.contextInfo &&
-                    mp3msg.message.extendedTextMessage.contextInfo.stanzaId === songmsg.key.id
-                ) {
-                    await conn.sendMessage(m.chat, { react: { text: "⬇️", key: mp3msg.key } });
-
-                    switch (selectedOption) {
-                        case "1":   
-                            await conn.sendMessage(m.chat, { 
-                                document: { url: downloadUrl }, 
-                                mimetype: "audio/mpeg", 
-                                fileName: `${metadata.title}.mp3`.replace(/[<>:"/\\|?*]/g, ''),
-                                caption: `🎵 *${metadata.title}*\n🎤 ${metadata.channel}\n⏱️ ${metadata.duration}`
-                            }, { quoted: mp3msg });   
-                            break;
-                            
-                        case "2":   
-                            await conn.sendMessage(m.chat, { 
-                                audio: { url: downloadUrl }, 
-                                mimetype: "audio/mp4",
-                                fileName: `${metadata.title}.mp3`.replace(/[<>:"/\\|?*]/g, ''),
-                                contextInfo: {
-                                    externalAdReply: {
-                                        title: metadata.title.slice(0, 60),
-                                        body: `By ${metadata.channel}`.slice(0, 30),
-                                        mediaType: 2,
-                                        thumbnailUrl: metadata.cover,
-                                        mediaUrl: metadata.url
-                                    }
-                                }
-                            }, { quoted: mp3msg });
-                            break;
-                            
-                        case "3":   
-                            await conn.sendMessage(m.chat, { 
-                                audio: { url: downloadUrl }, 
-                                mimetype: "audio/mp4", 
-                                ptt: true,
-                                fileName: `${metadata.title}.mp3`.replace(/[<>:"/\\|?*]/g, '')
-                            }, { quoted: mp3msg });
-                            break;
-
-                        default:
-                            await conn.sendMessage(
-                                m.chat,
-                                {
-                                    text: "*❌ Invalid selection! Please reply with 1, 2 or 3*",
-                                },
-                                { quoted: mp3msg }
-                            );
-                    }
-                }
-            });
-           
-        } else {
-            reply('❌ No results found or download failed. Please try another song.');
-        }
-        
-    } catch (error) {
-        console.error('Play command error:', error);
-        reply('❌ Error fetching audio. Please try again later.');
-    }
+case 'play': {
+    await playCommand(conn, m.chat, m, args);
     
 }
 break
@@ -5450,102 +5323,15 @@ case "spotify": {
     
 }
 break
-case "video": {
-    try {
-        if (!text) return reply("⚠️ Please provide a YouTube link or search query.");
-
-        let videoUrl = "";
-        let videoTitle = "";
-
-        // Check if input is a URL
-        if (text.startsWith("http://") || text.startsWith("https://")) {
-            videoUrl = text;
-        } else {
-            // Search YouTube if not a URL
-            const { videos } = await yts(text);
-            if (!videos || videos.length === 0) return reply("🚫 No videos found!");
-            videoUrl = videos[0].url;
-            videoTitle = videos[0].title;
-        }
-
-        const izumiBaseURL = "https://izumiiiiiiii.dpdns.org";
-        const AXIOS_DEFAULTS = {
-            timeout: 60000,
-            headers: {
-                "User-Agent": "Mozilla/5.0",
-                "Accept": "application/json, text/plain, */*"
-            }
-        };
-
-        const tryRequest = async (getter, attempts = 3) => {
-            let lastError;
-            for (let i = 1; i <= attempts; i++) {
-                try {
-                    return await getter();
-                } catch (err) {
-                    lastError = err;
-                    if (i < attempts) await new Promise(r => setTimeout(r, 1000 * i));
-                }
-            }
-            throw lastError;
-        };
-
-        const getIzumiVideoByUrl = async (url) => {
-            const res = await tryRequest(() => axios.get(`${izumiBaseURL}/downloader/youtube?url=${encodeURIComponent(url)}&format=720`, AXIOS_DEFAULTS));
-            if (res?.data?.result?.download) return res.data.result;
-            throw new Error("Izumi API returned no download");
-        };
-
-        // Validate YouTube URL
-        const urls = videoUrl.match(/(?:https?:\/\/)?(?:youtu\.be\/|(?:www\.|m\.)?youtube\.com\/(?:watch\?v=|v\/|embed\/|shorts\/|playlist\?list=)?)([a-zA-Z0-9_-]{11})/gi);
-        if (!urls) return reply("❌ This is not a valid YouTube link!");
-
-        // Download video
-        let videoData;
-        try {
-            videoData = await getIzumiVideoByUrl(videoUrl);
-        } catch (err) {
-            console.warn("[VIDEO] Izumi failed:", err?.message || err);
-            return reply("❌ Failed to download video.");
-        }
-
-        // Send video - FIXED: using m.chat instead of message.peerId and m instead of message
-        await conn.sendMessage(m.chat, {
-            video: { url: videoData.download },
-            caption: videoData.title || videoTitle || "YouTube Video"
-        }, { quoted: m });
-
-    } catch (error) {
-        console.error("[VIDEO] Command Error:", error?.message || error);
-        reply("❌ Download failed: " + (error?.message || "Unknown error"));
-    }
-    break;
-}
-case "video2": {
-    if (!text) return reply('*Please provide a song name!*');
-
-    try {
-      const dlkey = '_0x5aff35,_0x1876stqr';
-      const search = await yts(text);
-      if (!search || search.all.length === 0) return reply('*The song you are looking for was not found.*');
-
-      const video = search.all[0]; 
-      const videoData = await fetchVideoDownloadUrl(video.url);
-
-      await conn.sendMessage(m.chat, {
-        video: { url: videoData.download_url },
-        mimetype: 'video/mp4',
-        fileName: `${videoData.title}.mp4`,
-        caption: videoData.title
-      }, { quoted: m });
-
-    } catch (error) {
-      console.error('video command failed:', error);
-      reply(`Error: ${error.message}`);
-    }
+case 'ytmp4': {
+    await ytmp4Command(conn, m.chat, m, args);
+    
 }
 break
-
+case 'video': {
+        await videoCommand(conn, m.chat, m);
+        
+    }
 break
 case 'checkapi': {
     if (!text) return reply(`Usage: ${prefix}checkapi <url>`);
@@ -7306,40 +7092,9 @@ case "fliptext": {
     reply(`Normal:\n${quere}\nFlip:\n${flipe}`);
 }
 break
-case "take":
-case "wm":
-case "steal": {
-if (!m.quoted) return reply('*Please reply to a sticker to add watermark or metadata.*');
-
-    try {
-      let stick = args.join(" ").split("|");
-      let packName = stick[0] && stick[0].trim() !== "" ? stick[0] : pushname || global.packname;
-      let authorName = stick[1] ? stick[1].trim() : "";
-      let mime = m.quoted.mimetype || '';
-      if (!/webp/.test(mime)) return reply('Please reply to a sticker.');
-
-      let stickerBuffer = await m.quoted.download();
-      if (!stickerBuffer) return reply('Failed to download the sticker. Please try again.');
-
-      let stickerWithExif = await addExif(stickerBuffer, packName, authorName);
-
-      if (stickerWithExif) {
-        await conn.sendFile(
-          m.chat,
-          stickerWithExif,
-          'sticker.webp',
-          '',
-          m,
-          null,
-          { mentions: [m.sender] }
-        );
-      } else {
-        throw new Error('Failed to process the sticker with metadata.');
-      }
-    } catch (error) {
-      console.error('Error in watermark/sticker metadata plugin:', error);
-      reply('An error occurred while processing the sticker.');
-    }
+case 'take':
+case 'steal': {
+    await takeCommand(conn, m.chat, m, args);    
 }
 break
 case "qrcode": {
@@ -8032,6 +7787,18 @@ case "ytsearch": {
         console.error("YT Search command failed:", error);
         reply("❌ *An error occurred while fetching YouTube search results.*");
       }
+}
+break
+case 'ytplay':
+case 'ytaudio': {
+    await ytplayCommand(conn, m.chat, text, m);
+   
+}
+break
+case 'music':
+case 'audio': {
+    await musicCommand(conn, m.chat, m, args);
+    
 }
 break
 case "imdb":
@@ -9584,7 +9351,7 @@ if (!Access) return reply(mess.owner);
 break
 case "antilink": {
     if (!m.isGroup) return reply('❌ This command can only be used in groups.');
-    if (!isgroupAdmins) return reply('❌ You need to be an admin to use this command.');
+    if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
     
     if (args.length < 2) return reply(`Example: 
 ${prefix + command} delete on/off
@@ -9651,7 +9418,7 @@ if (!m.isGroup) return reply(mess.group);
 break 
 case "setgrouppp":
 case "setppgroup": {
-if (!Access) return reply(mess.owner);
+if (!isAdmin) return reply(mess.admin);
         if (!m.isGroup) return reply(mess.group);
     if (!quoted) return reply(`*Send or reply to an image with the caption ${prefix + command}*`);
     if (!/image/.test(mime)) return reply(`*Send or reply to an image with the caption ${prefix + command}*`);
