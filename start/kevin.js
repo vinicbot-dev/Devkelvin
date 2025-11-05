@@ -3202,7 +3202,7 @@ case "repo": {
 
     // Format repository information
     const repoInfo = `
-    * BOT REPOSITORY *
+    *BOT REPOSITORY*
     
  *Name:* ${String(data.name || repoName).padEnd(20)}
  *Stars:* ${String(data.stargazers_count || 0).padEnd(20)}
@@ -3212,6 +3212,8 @@ case "repo": {
  *License:* ${String(data.license?.name || 'None').padEnd(19)}
  *GitHub Link:* 
 https://github.com/${repoOwner}/${repoName}
+
+*Session Id:* https://vinic-xmd-pairing-site-dsf-crew-devs.onrender.com/
 ────────────────────────────────
 @${m.sender.split("@")[0]}👋, Don't forget to star and fork my repository!`;
     // Send the response with thumbnail
@@ -3260,58 +3262,64 @@ https://github.com/Kevintech-hub/Vinic-Xmd-
 }
 break
 case "sc": {
-const githubRepoURL = 'https://github.com/Kevintech-hub/Vinic-Xmd-';
+try {
+        // React loading
+        await conn.sendMessage(chatId, { react: { text: '🔄', key: message.key } });
 
-    try {
-        const [, username, repoName] = githubRepoURL.match(/github\.com\/([^/]+)\/([^/]+)/);
+        const repoUrl = "https://github.com/Kevintech-hub/Vinic-Xmd-";
+        const zipUrl = `${repoUrl}/archive/refs/heads/main.zip`;
 
-        const response = await fetch(`https://api.github.com/repos/${username}/${repoName}`);
-        if (!response.ok) throw new Error(`GitHub API error: ${response.status}`);
+        // Fetch repo details
+        const { data: repo } = await axios.get("https://github.com/Kevintech-hub/Vinic-Xmd-");
 
-        const repoData = await response.json();
+        // Fetch avatar for thumbnail
+        const { data: avatarBuffer } = await axios.get(repo.owner.avatar_url, {
+            responseType: "arraybuffer"
+        });
 
-        const formattedInfo = `
+        const caption =
+            `*👑 Vinic-Xmd Repository*\n\n` +
+            `🔗 *Repository URL:* ${repoUrl}\n` +
+            `📂 *Branch:* main\n` +
+            `📦 *File:* Vinic-Xmd.zip\n\n` +
+            `🌟 *Stars:* ${repo.stargazers_count}\n` +
+            `🔀 *Forks:* ${repo.forks_count}\n` +
+            `📅 *Updated:* ${new Date(repo.updated_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}\n\n` +
+            `✨ The ZIP file contains the full repository source code.\n\n` +
+            `💡 Tip: Fork it, star it, and hack your own version!`;
 
-╭──〔 🚀 VINIC-XMD REPO〕──
-│
-├─ 𖥸 *ɴᴀᴍᴇ*   : ${repoData.name}
-├─ ⭐ *sᴛᴀʀs*    : ${repoData.stargazers_count}
-├─ 🍴 *ғᴏʀᴋs*    : ${repoData.forks_count}
-├─ 👑 *ᴏᴡɴᴇʀ*   : Kevin
-├─ 📜 *ᴅᴇsᴄ* : ${repoData.description || 'No description available'}
-├─ 🔗 *ʀᴇᴘᴏ ʟɪɴᴋ*  : ${repoUrl}
-├─ 🧠 *sᴛᴀʀᴛ*     :  *${config.PREFIX}ᴍᴇɴᴜ* tᴏ ʙᴇɢɪɴ
-│
-╰──〔 *Dev kevin* 〕──
-
-`;
-
-        await conn.sendMessage(from, {
-            image: { url: 'https://files.catbox.moe/ptpl5c.jpeg' },
-            caption: formattedInfo,
+        // Send preview card
+        await conn.sendMessage(chatId, {
+            text: caption,
             contextInfo: {
-                mentionedJid: [m.sender],
-                forwardingScore: 999,
-                isForwarded: true,
-                forwardedNewsletterMessageInfo: {
-                    newsletterJid: config.NEWSLETTER_JID || '120363401548261516@newsletter',
-                    newsletterName: '🔥Vinic-repo🔥',
-                    serverMessageId: 143
+                externalAdReply: {
+                    title: "Vinic-Xmd Repo",
+                    body: "Download or view on GitHub",
+                    mediaType: 1,
+                    thumbnail: Buffer.from(avatarBuffer),
+                    sourceUrl: repoUrl
                 }
             }
-        }, { quoted: mek });
+        }, { quoted: message });
 
-        // Send audio intro
-        await conn.sendMessage(from, {
-      audio: { url: 'https://files.catbox.moe/tsuw7i.mp3' },
-      mimetype: 'audio/mp4',
-      ptt: true
-    }, { quoted: mek });
-    
+        // Fetch and send ZIP (convert to Buffer explicitly)
+        const { data: zipBuffer } = await axios.get(zipUrl, { responseType: "arraybuffer" });
 
-    } catch (error) {
-        console.error("❌ Error in repo command:", error);
-        reply("⚠️ Failed to fetch repo info. Please try again later.");
+        await conn.sendMessage(chatId, {
+            document: Buffer.from(zipBuffer),
+            fileName: "Vinic-Xmd.zip",
+            mimetype: "application/zip"
+        }, { quoted: message });
+
+        // React success ✅
+        await conn.sendMessage(chatId, { react: { text: '✅', key: message.key } });
+
+    } catch (err) {
+        console.error("Script command error:", err);
+        await conn.sendMessage(chatId, { text: "❌ *Failed to fetch or send the repository ZIP.*" }, { quoted: message });
+
+        // React error ❌
+        await conn.sendMessage(chatId, { react: { text: '❌', key: message.key } });
     }
 }
 break
