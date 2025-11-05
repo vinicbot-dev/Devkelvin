@@ -106,7 +106,7 @@ async function generateMenu(conn, m, prefix, global) {
             title: ' *TOOLS MENU*',
             commands: ['time', 'calculate', 'owner', 'dev', 'fliptext', 'translate', 
                       'ss2', 'sswebpc', 'kevinfarm', 'say', 'getdevice', 'ss', 'userinfo', 
-                      'npm', 'take', 'checkapi', 'footballhelp', 'qrcode', 'gsmarena', 
+                      'npm', 'take', 'telesticker', 'checkapi', 'footballhelp', 'qrcode', 'gsmarena', 
                       'removebg', 'obfuscate', 'getabout', 'tinylink', 'vcc', 'getbussiness', 
                       'listpc', 'sswebpc'],
         },
@@ -148,7 +148,7 @@ async function generateMenu(conn, m, prefix, global) {
 
         for (const section of Object.values(menuSections).slice(1)) {
             menu += `╭━◈${section.title.toUpperCase()} ◈\n`;
-            menu += section.commands.map(cmd => `│ ➸ ${prefix}${cmd}`).join('\n') + '\n';
+            menu += section.commands.map(cmd => `│ ➸ ${cmd}`).join('\n') + '\n';
             menu += `┗▣\n\n`;
         }
              
