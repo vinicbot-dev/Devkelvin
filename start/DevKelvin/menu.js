@@ -87,10 +87,10 @@ async function generateMenu(conn, m, prefix, global) {
         },
         download: {
             title: ' *DOWNLOAD MENU* ',
-            commands: ['play', 'play2', 'song', 'song2', 'gitclone', 'ringtone', 
+            commands: ['play', 'play2', 'song', 'song2', 'music', 'ytplay', 'gitclone', 'ringtone', 
                       'download', 'pinterest', 'mediafire', 'itunes', 'ytmp4', 'ytstalk', 
                       'apk', 'gdrive', 'playdoc', 'tiktok', 'tiktok2', 'instagram', 
-                      'video', 'video2', 'tiktokaudio', 'save', 'facebook'],
+                      'video', 'tiktokaudio', 'save', 'facebook'],
         },
         
         convert: {
@@ -119,7 +119,7 @@ async function generateMenu(conn, m, prefix, global) {
             commands: ['blackpinklogo', 'blackpinkstyle', 'glossysilver', 'glitchtext', 
                       'arting', 'advancedglow', 'cartoonstyle', 'deadpool', 'deletingtext', 
                       'luxurygold',  '1917style', 'pixelglitch', 'multicoloredneon', 
-                      'effectclouds', 'flagtext', 'freecreat', 'galaxystyle', 'papercut', 'holigram', 'royal', 'bear', 'galaxywallpaper', 
+                      'effectclouds', 'flagtext', 'freecreate', 'galaxystyle', 'papercut', 'holigram', 'royal', 'bear', 'galaxywallpaper', 
                       'glowingtext', 'makingneon', 'matrix', 'royaltext', 'sand', 'summerbeach', 
                       'topography', 'typography', 'flux', 'dragonball'],
         },
@@ -148,7 +148,7 @@ async function generateMenu(conn, m, prefix, global) {
 
         for (const section of Object.values(menuSections).slice(1)) {
             menu += `╭━◈${section.title.toUpperCase()} ◈\n`;
-            menu += section.commands.map(cmd => `│ ➸ ${cmd}`).join('\n') + '\n';
+            menu += section.commands.map(cmd => `│ ➸ ${prefix}${cmd}`).join('\n') + '\n';
             menu += `┗▣\n\n`;
         }
              
