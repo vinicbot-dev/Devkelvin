@@ -75,6 +75,7 @@ const {
   shouldLogError } = require('../vinic')
 
 const { videoCommand, takeCommand, musicCommand, ytplayCommand, telestickerCommand, ytmp4Command, playCommand } = require('./KelvinCmds/commands')
+const { textmakerCommand } = require('./lib/ephoto')
 const {fetchReactionImage} = require('./lib/reaction')
 const { toAudio } = require('./lib/converter');
 const { remini } = require('./lib/remini')
@@ -4838,6 +4839,29 @@ let q = args.join(" ");
       console.error("Error in pixelglitch command:", error);
       reply("*An error occurred while generating the effect.*");
     }
+}
+break
+// Ephoto text effects
+case 'metallic':
+case 'ice':
+case 'snow':
+case 'impressive':
+case 'matrix':
+case 'light':
+case 'neon':
+case 'devil':
+case 'purple':
+case 'thunder':
+case 'leaves':
+case '1917':
+case 'arena':
+case 'hacker':
+case 'sand':
+case 'blackpink':
+case 'glitch':
+case 'fire': {
+    await textmakerCommand(conn, m.chat, m, body, command);
+    
 }
 //======[RELIGION MENU CMDS]==
 break
