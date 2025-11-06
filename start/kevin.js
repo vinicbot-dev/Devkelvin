@@ -53,7 +53,14 @@ const { isAdmin } = require('./lib/metadata')
 const { obfuscateJS } = require("./lib/encapsulation");
 const { handleMediaUpload } = require('./lib/catbox');
 const {styletext, remind, Wikimedia, wallpaper} = require('./lib/scraper')
-const { sendMenu } = require('./DevKelvin/menu')
+const { 
+    setMenu1, 
+    setMenu2,
+    sendMenu,
+    setMenu3, 
+    showCurrentMenu, 
+    loadMenuConfig 
+} = require('./DevKelvin/menu');
 const { Remini } =require('./lib/remini')
 const {
  fetchMp3DownloadUrl,
@@ -967,7 +974,46 @@ case 'vinic': {
     }
     break;
 }
+// Menu arrangement commands
+case 'setmenu1': {
+    await setMenu1(conn, m);
+    break;
+}
 
+case 'setmenu2': {
+    await setMenu2(conn, m);
+    break;
+}
+
+case 'setmenu3': {
+    await setMenu3(conn, m);
+    break;
+}
+
+case 'showmenu':
+case 'currentmenu': {
+    await showCurrentMenu(conn, m);
+    break;
+}
+
+case 'menuconfig':
+case 'menuarrangement': {
+    const menuConfig = loadMenuConfig();
+    const presetNames = {
+        'preset1': 'Default Order',
+        'preset2': 'Download & AI Focus', 
+        'preset3': 'Features & AI Focus'
+    };
+    
+    await reply(`📋 *Menu Configuration*\n\n` +
+        `Current Preset: ${presetNames[menuConfig.preset] || 'Default'}\n\n` +
+        `Available Presets:\n` +
+        `• ${prefix}setmenu1 - Default order\n` +
+        `• ${prefix}setmenu2 - Download & AI focus\n` +
+        `• ${prefix}setmenu3 - Features & AI focus\n` +
+        `• ${prefix}showmenu - Show current arrangement`);
+    break;
+}
 // ========== SETTINGS MANAGEMENT COMMANDS ==========
 case 'setprefix': {
     if (!Access) return reply('❌ Owner only command');
