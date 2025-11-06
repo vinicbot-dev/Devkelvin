@@ -5,7 +5,7 @@ const path = require('path');
 // File to store menu configuration - using temp directory
 const menuConfigPath = path.join(__dirname, '../temp/menu_config.json');
 
-// Three preset menu arrangements
+// Six preset menu arrangements
 const menuPresets = {
     preset1: [
         'header', 'owner', 'group', 'ai', 'audio', 'image', 'reaction', 
@@ -20,6 +20,21 @@ const menuPresets = {
     preset3: [
         'header', 'features', 'ai', 'download', 'audio', 'convert', 'image',
         'group', 'owner', 'reaction', 'fun', 'search', 'ephoto',
+        'cmdTool', 'other', 'helpers', 'religion'
+    ],
+    preset4: [
+        'header', 'ai', 'download', 'audio', 'fun', 'reaction', 'search',
+        'features', 'group', 'image', 'convert', 'owner', 'ephoto',
+        'cmdTool', 'other', 'helpers', 'religion'
+    ],
+    preset5: [
+        'header', 'download', 'audio', 'convert', 'ai', 'features', 'group',
+        'image', 'reaction', 'fun', 'search', 'ephoto', 'owner',
+        'cmdTool', 'other', 'helpers', 'religion'
+    ],
+    preset6: [
+        'header', 'owner', 'features', 'group', 'ai', 'download', 'audio',
+        'convert', 'image', 'reaction', 'fun', 'search', 'ephoto',
         'cmdTool', 'other', 'helpers', 'religion'
     ]
 };
@@ -342,6 +357,63 @@ async function setMenu3(conn, m) {
     }
 }
 
+async function setMenu4(conn, m) {
+    try {
+        if (saveMenuConfig({ preset: 'preset4' })) {
+            await conn.sendMessage(m.chat, {
+                text: '✅ Menu arrangement set to **Preset 4** (AI & Fun Focus)'
+            }, { quoted: m });
+        } else {
+            await conn.sendMessage(m.chat, {
+                text: '❌ Failed to save menu configuration'
+            }, { quoted: m });
+        }
+    } catch (error) {
+        console.error('Error setting menu preset 4:', error);
+        await conn.sendMessage(m.chat, {
+            text: '❌ Error setting menu arrangement'
+        }, { quoted: m });
+    }
+}
+
+async function setMenu5(conn, m) {
+    try {
+        if (saveMenuConfig({ preset: 'preset5' })) {
+            await conn.sendMessage(m.chat, {
+                text: '✅ Menu arrangement set to **Preset 5** (Download & Audio Focus)'
+            }, { quoted: m });
+        } else {
+            await conn.sendMessage(m.chat, {
+                text: '❌ Failed to save menu configuration'
+            }, { quoted: m });
+        }
+    } catch (error) {
+        console.error('Error setting menu preset 5:', error);
+        await conn.sendMessage(m.chat, {
+            text: '❌ Error setting menu arrangement'
+        }, { quoted: m });
+    }
+}
+
+async function setMenu6(conn, m) {
+    try {
+        if (saveMenuConfig({ preset: 'preset6' })) {
+            await conn.sendMessage(m.chat, {
+                text: '✅ Menu arrangement set to **Preset 6** (Owner & Features Focus)'
+            }, { quoted: m });
+        } else {
+            await conn.sendMessage(m.chat, {
+                text: '❌ Failed to save menu configuration'
+            }, { quoted: m });
+        }
+    } catch (error) {
+        console.error('Error setting menu preset 6:', error);
+        await conn.sendMessage(m.chat, {
+            text: '❌ Error setting menu arrangement'
+        }, { quoted: m });
+    }
+}
+
 async function showCurrentMenu(conn, m) {
     try {
         const { currentPreset, currentOrder, menuSections } = await generateMenu(conn, m, '.', {});
@@ -349,7 +421,10 @@ async function showCurrentMenu(conn, m) {
         const presetNames = {
             'preset1': 'Default Order',
             'preset2': 'Download & AI Focus', 
-            'preset3': 'Features & AI Focus'
+            'preset3': 'Features & AI Focus',
+            'preset4': 'AI & Fun Focus',
+            'preset5': 'Download & Audio Focus',
+            'preset6': 'Owner & Features Focus'
         };
         
         const orderList = currentOrder.map((section, index) => {
@@ -358,7 +433,7 @@ async function showCurrentMenu(conn, m) {
         }).join('\n');
 
         await conn.sendMessage(m.chat, {
-            text: `📋 Current Menu: **${presetNames[currentPreset]}**\n\n${orderList}\n\nUse:\n• *.setmenu1* - Default order\n• *.setmenu2* - Download & AI focus\n• *.setmenu3* - Features & AI focus`
+            text: `📋 Current Menu: **${presetNames[currentPreset]}**\n\n${orderList}\n\nUse:\n• *.setmenu1* - Default order\n• *.setmenu2* - Download & AI focus\n• *.setmenu3* - Features & AI focus\n• *.setmenu4* - AI & Fun focus\n• *.setmenu5* - Download & Audio focus\n• *.setmenu6* - Owner & Features focus`
         }, { quoted: m });
     } catch (error) {
         console.error('Error showing current menu:', error);
@@ -385,6 +460,9 @@ module.exports = {
     setMenu1,
     setMenu2,
     setMenu3,
+    setMenu4,
+    setMenu5,
+    setMenu6,
     showCurrentMenu,
     loadMenuConfig,
     menuPresets
