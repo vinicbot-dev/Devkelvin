@@ -501,48 +501,10 @@ async function telestickerCommand(conn, chatId, message, args) {
             const sticker = stickers[i];
             if (sticker.image_url) {
                 try {
-                    // Download sticker
-                    const stickerResponse = await axios.get(sticker.image_url, {
-                        responseType: 'arraybuffer'
+                    // Download sticker directly and send without processing
+                    await conn.sendMessage(chatId, {
+                        sticker: { url: sticker.image_url }
                     });
-                    
-                    const stickerBuffer = Buffer.from(stickerResponse.data);
-                    
-                    // For static stickers, ensure they're proper WebP format
-                    if (!sticker.is_animated) {
-                        // Create proper sticker with metadata using webpmux
-                        const image = new webp.Image();
-                        await image.load(stickerBuffer);
-                        
-                        // Add sticker metadata
-                        const json = {
-                            'sticker-pack-id': `telegram-${stickerPack.title.replace(/\s+/g, '-').toLowerCase()}`,
-                            'sticker-pack-name': stickerPack.title,
-                            'sticker-pack-publisher': 'Telegram',
-                            'emojis': ['😊'],
-                            'android-app-store-link': '',
-                            'ios-app-store-link': ''
-                        };
-                        
-                        const exifAttr = Buffer.from([0x49, 0x49, 0x2A, 0x00, 0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x41, 0x57, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x16, 0x00, 0x00, 0x00]);
-                        const jsonBuffer = Buffer.from(JSON.stringify(json), 'utf8');
-                        const exif = Buffer.concat([exifAttr, jsonBuffer]);
-                        exif.writeUIntLE(jsonBuffer.length, 14, 4);
-                        
-                        image.exif = exif;
-                        const finalBuffer = await image.save(null);
-                        
-                        // Send the properly formatted sticker
-                        await conn.sendMessage(chatId, {
-                            sticker: finalBuffer
-                        });
-                    } else {
-                        // For animated stickers, send as is
-                        await conn.sendMessage(chatId, {
-                            sticker: stickerBuffer,
-                            isAnimated: true
-                        });
-                    }
                     
                     successCount++;
                     
@@ -554,17 +516,27 @@ async function telestickerCommand(conn, chatId, message, args) {
                     }
                     
                     // Delay to avoid rate limiting
-                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    await new Promise(resolve => setTimeout(resolve, 1000));
                     
                 } catch (stickerError) {
-                    console.error(`Error processing sticker ${i + 1}:`, stickerError.message);
+                    console.error(`Error sending sticker ${i + 1}:`, stickerError.message);
+                    // Try alternative method - send as image if sticker fails
+                    try {
+                        await conn.sendMessage(chatId, {
+                            image: { url: sticker.image_url },
+                            caption: `Sticker ${i + 1} from ${stickerPack.title}`
+                        });
+                        successCount++;
+                    } catch (imageError) {
+                        console.error(`Failed to send as image too:`, imageError.message);
+                    }
                 }
             }
         }
 
         // Final success message
         await conn.sendMessage(chatId, {
-            text: `✅ Successfully sent ${successCount}/${stickers.length} stickers from *${stickerPack.title}*\n\nNow you can view sticker information properly! 🎉`
+            text: `✅ Successfully sent ${successCount}/${stickers.length} stickers from *${stickerPack.title}*`
         }, { quoted: message });
 
         // Success reaction
