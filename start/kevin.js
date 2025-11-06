@@ -54,10 +54,12 @@ const { obfuscateJS } = require("./lib/encapsulation");
 const { handleMediaUpload } = require('./lib/catbox');
 const {styletext, remind, Wikimedia, wallpaper} = require('./lib/scraper')
 const { 
-    setMenu1, 
+    setMenu1,
     setMenu2,
-    sendMenu,
-    setMenu3, 
+    setMenu3,
+    setMenu4,
+    setMenu5,
+    setMenu6,
     showCurrentMenu, 
     loadMenuConfig 
 } = require('./DevKelvin/menu');
@@ -974,22 +976,47 @@ case 'vinic': {
     }
     break;
 }
-// Menu arrangement commands
-case 'setmenu1': {
-    await setMenu1(conn, m);
-    break;
-}
+    case 'setmenu1':
+    case 'menu1': {
+        if (!Access) return reply(mess.owner);
+        await setMenu1(conn, m);
+        break;
+    }
 
-case 'setmenu2': {
-    await setMenu2(conn, m);
-    break;
-}
+    case 'setmenu2':
+    case 'menu2': {
+        if (!Access) return reply(mess.owner);
+        await setMenu2(conn, m);
+        break;
+    }
 
-case 'setmenu3': {
-    await setMenu3(conn, m);
-    break;
-}
+    case 'setmenu3':
+    case 'menu3': {
+        if (!Access) return reply(mess.owner);
+        await setMenu3(conn, m);
+        break;
+    }
 
+    case 'setmenu4':
+    case 'menu4': {
+        if (!Access) return reply(mess.owner);
+        await setMenu4(conn, m);
+        break;
+    }
+
+    case 'setmenu5':
+    case 'menu5': {
+        if (!Access) return reply(mess.owner);
+        await setMenu5(conn, m);
+        break;
+    }
+
+    case 'setmenu6':
+    case 'menu6': {
+        if (!Access) return reply(mess.owner);
+        await setMenu6(conn, m);
+        break;
+    }    
 case 'showmenu':
 case 'currentmenu': {
     await showCurrentMenu(conn, m);
