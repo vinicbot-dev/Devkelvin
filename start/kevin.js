@@ -4161,6 +4161,7 @@ case "time": {
     }
     
 }
+// ===== EOHOT EFFECTS ============
 break
 case "glossysilver": {
     try {
@@ -4841,7 +4842,6 @@ let q = args.join(" ");
     }
 }
 break
-// Ephoto text effects
 case 'metallic':
 case 'ice':
 case 'snow':
@@ -4860,8 +4860,8 @@ case 'sand':
 case 'blackpink':
 case 'glitch':
 case 'fire': {
-    await textmakerCommand(conn, m.chat, m, body, command);
-    
+    await textmakerCommand(conn, m.chat, m, text, command);
+   
 }
 //======[RELIGION MENU CMDS]==
 break
