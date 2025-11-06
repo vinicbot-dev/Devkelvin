@@ -1,18 +1,14 @@
 const axios = require('axios');
 const mumaker = require('mumaker');
 
-
-
 // Reusable message templates
 const messageTemplates = {
     error: (message) => ({
-        text: message,
-        contextInfo: channelInfo
+        text: message
     }),
     success: (text, imageUrl) => ({
         image: { url: imageUrl },
-        caption: `${global.wm}`,
-        contextInfo: channelInfo
+        caption: `${global.wm}`
     })
 };
 
