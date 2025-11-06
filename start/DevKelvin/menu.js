@@ -1,21 +1,80 @@
 const os = require('os');
+const fs = require('fs');
+const path = require('path');
 
-  // Memory formatting function
-    const formatMemory = (memory) => {
-        return memory < 1024 * 1024 * 1024
-            ? Math.round(memory / 1024 / 1024) + ' MB'
-            : Math.round(memory / 1024 / 1024 / 1024) + ' GB';
-    };
+// File to store menu configuration - using temp directory
+const menuConfigPath = path.join(__dirname, '../temp/menu_config.json');
 
-    // Memory progress bar (System RAM usage)
-    const progressBar = (used, total, size = 10) => {
-        let percentage = Math.round((used / total) * size);
-        let bar = '█'.repeat(percentage) + '░'.repeat(size - percentage);
-        return `[${bar}] ${Math.round((used / total) * 100)}%`;
+// Three preset menu arrangements
+const menuPresets = {
+    preset1: [
+        'header', 'owner', 'group', 'ai', 'audio', 'image', 'reaction', 
+        'features', 'download', 'convert', 'cmdTool', 'other', 'helpers', 
+        'ephoto', 'search', 'fun', 'religion'
+    ],
+    preset2: [
+        'header', 'download', 'ai', 'audio', 'features', 'group', 'owner',
+        'convert', 'image', 'reaction', 'cmdTool', 'search', 'fun', 
+        'ephoto', 'other', 'helpers', 'religion'
+    ],
+    preset3: [
+        'header', 'features', 'ai', 'download', 'audio', 'convert', 'image',
+        'group', 'owner', 'reaction', 'fun', 'search', 'ephoto',
+        'cmdTool', 'other', 'helpers', 'religion'
+    ]
+};
+
+// Default preset
+const defaultPreset = 'preset1';
+
+// Load menu configuration
+function loadMenuConfig() {
+    try {
+        if (fs.existsSync(menuConfigPath)) {
+            return JSON.parse(fs.readFileSync(menuConfigPath, 'utf8'));
+        }
+    } catch (error) {
+        console.error('Error loading menu config:', error);
+    }
+    return { preset: defaultPreset };
+}
+
+// Save menu configuration
+function saveMenuConfig(config) {
+    try {
+        const dir = path.dirname(menuConfigPath);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        fs.writeFileSync(menuConfigPath, JSON.stringify(config, null, 2));
+        return true;
+    } catch (error) {
+        console.error('Error saving menu config:', error);
+        return false;
+    }
+}
+
+// Memory formatting function
+const formatMemory = (memory) => {
+    return memory < 1024 * 1024 * 1024
+        ? Math.round(memory / 1024 / 1024) + ' MB'
+        : Math.round(memory / 1024 / 1024 / 1024) + ' GB';
+};
+
+// Memory progress bar (System RAM usage)
+const progressBar = (used, total, size = 10) => {
+    let percentage = Math.round((used / total) * size);
+    let bar = '█'.repeat(percentage) + '░'.repeat(size - percentage);
+    return `[${bar}] ${Math.round((used / total) * 100)}%`;
 };
 
 // Function to generate the menu
 async function generateMenu(conn, m, prefix, global) {
+    // Load current menu configuration
+    const menuConfig = loadMenuConfig();
+    const currentPreset = menuConfig.preset || defaultPreset;
+    const currentOrder = menuPresets[currentPreset] || menuPresets.preset1;
+    
     // Calculate memory usage
     const totalMemory = os.totalmem();
     const freeMemory = os.freemem();
@@ -92,7 +151,6 @@ async function generateMenu(conn, m, prefix, global) {
                       'apk', 'gdrive', 'playdoc', 'tiktok', 'tiktok2', 'instagram', 
                       'video', 'tiktokaudio', 'save', 'facebook'],
         },
-        
         convert: {
             title: ' *CONVERT MENU* ',
             commands: ['toaudio', 'toimage', 'url', 'tovideo', 'topdf', 'sticker'],
@@ -140,16 +198,20 @@ async function generateMenu(conn, m, prefix, global) {
         },
     };
 
-    // Function to format the menu
+    // Function to format the menu using current preset
     const formatMenu = () => {
         let menu = `╭═✦〔 🤖 ᴠɪɴɪᴄ xᴅ 〕✦═╮\n`;
         menu += menuSections.header.content.map(line => `┃ ${line}`).join('\n') + '\n';
         menu += `╰═✦═════════════╯\n\n`;
 
-        for (const section of Object.values(menuSections).slice(1)) {
-            menu += `╭━◈${section.title.toUpperCase()} ◈\n`;
-            menu += section.commands.map(cmd => `│ ➸ ${cmd}`).join('\n') + '\n';
-            menu += `┗▣\n\n`;
+        // Use the current preset order
+        for (const sectionKey of currentOrder) {
+            if (sectionKey !== 'header' && menuSections[sectionKey]) {
+                const section = menuSections[sectionKey];
+                menu += `╭━◈${section.title.toUpperCase()} ◈\n`;
+                menu += section.commands.map(cmd => `│ ➸ ${cmd}`).join('\n') + '\n';
+                menu += `┗▣\n\n`;
+            }
         }
              
         menu += `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴋᴇʟᴠɪɴ ᴛᴇᴄʜ `;
@@ -158,7 +220,10 @@ async function generateMenu(conn, m, prefix, global) {
 
     return {
         formatMenu,
-        menuSections
+        menuSections,
+        currentPreset,
+        currentOrder,
+        menuConfig
     };
 }
 
@@ -219,6 +284,87 @@ async function sendMenu(conn, m, prefix, global) {
     }
 }
 
+// Menu preset commands
+async function setMenu1(conn, m) {
+    try {
+        if (saveMenuConfig({ preset: 'preset1' })) {
+            await conn.sendMessage(m.chat, {
+                text: '✅ Menu arrangement set to **Preset 1** (Default Order)'
+            }, { quoted: m });
+        } else {
+            await conn.sendMessage(m.chat, {
+                text: '❌ Failed to save menu configuration'
+            }, { quoted: m });
+        }
+    } catch (error) {
+        console.error('Error setting menu preset 1:', error);
+        await conn.sendMessage(m.chat, {
+            text: '❌ Error setting menu arrangement'
+        }, { quoted: m });
+    }
+}
+
+async function setMenu2(conn, m) {
+    try {
+        if (saveMenuConfig({ preset: 'preset2' })) {
+            await conn.sendMessage(m.chat, {
+                text: '✅ Menu arrangement set to **Preset 2** (Download & AI Focus)'
+            }, { quoted: m });
+        } else {
+            await conn.sendMessage(m.chat, {
+                text: '❌ Failed to save menu configuration'
+            }, { quoted: m });
+        }
+    } catch (error) {
+        console.error('Error setting menu preset 2:', error);
+        await conn.sendMessage(m.chat, {
+            text: '❌ Error setting menu arrangement'
+        }, { quoted: m });
+    }
+}
+
+async function setMenu3(conn, m) {
+    try {
+        if (saveMenuConfig({ preset: 'preset3' })) {
+            await conn.sendMessage(m.chat, {
+                text: '✅ Menu arrangement set to **Preset 3** (Features & AI Focus)'
+            }, { quoted: m });
+        } else {
+            await conn.sendMessage(m.chat, {
+                text: '❌ Failed to save menu configuration'
+            }, { quoted: m });
+        }
+    } catch (error) {
+        console.error('Error setting menu preset 3:', error);
+        await conn.sendMessage(m.chat, {
+            text: '❌ Error setting menu arrangement'
+        }, { quoted: m });
+    }
+}
+
+async function showCurrentMenu(conn, m) {
+    try {
+        const { currentPreset, currentOrder, menuSections } = await generateMenu(conn, m, '.', {});
+        
+        const presetNames = {
+            'preset1': 'Default Order',
+            'preset2': 'Download & AI Focus', 
+            'preset3': 'Features & AI Focus'
+        };
+        
+        const orderList = currentOrder.map((section, index) => {
+            const sectionTitle = menuSections[section]?.title || section;
+            return `${index + 1}. ${sectionTitle.trim()}`;
+        }).join('\n');
+
+        await conn.sendMessage(m.chat, {
+            text: `📋 Current Menu: **${presetNames[currentPreset]}**\n\n${orderList}\n\nUse:\n• *.setmenu1* - Default order\n• *.setmenu2* - Download & AI focus\n• *.setmenu3* - Features & AI focus`
+        }, { quoted: m });
+    } catch (error) {
+        console.error('Error showing current menu:', error);
+    }
+}
+
 // Add to menu.js for more flexibility
 function getMenuSection(sectionName) {
     const { menuSections } = generateMenu();
@@ -235,5 +381,11 @@ module.exports = {
     sendMenu,
     progressBar,
     getMenuSection,
-    getCommandList
+    getCommandList,
+    setMenu1,
+    setMenu2,
+    setMenu3,
+    showCurrentMenu,
+    loadMenuConfig,
+    menuPresets
 };
