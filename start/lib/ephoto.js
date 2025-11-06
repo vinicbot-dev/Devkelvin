@@ -18,12 +18,15 @@ async function textmakerCommand(conn, chatId, message, q, type) {
             return await conn.sendMessage(chatId, messageTemplates.error("Please provide text to generate\nExample: .metallic Nick"));
         }
 
-        // Extract text
-        const text = q.split(' ').slice(1).join(' ');
+        // q is already the text without command, so use it directly
+        const text = q.trim();
 
         if (!text) {
             return await conn.sendMessage(chatId, messageTemplates.error("Please provide text to generate\nExample: .metallic Nick"));
         }
+
+        // Add loading reaction
+        await conn.sendMessage(chatId, { react: { text: "⏳", key: message.key } });
 
         try {
             let result;
@@ -90,13 +93,18 @@ async function textmakerCommand(conn, chatId, message, q, type) {
                 throw new Error('No image URL received from the API');
             }
 
+            // Success reaction
+            await conn.sendMessage(chatId, { react: { text: "✅", key: message.key } });
+
             await conn.sendMessage(chatId, messageTemplates.success(text, result.image));
         } catch (error) {
             console.error('Error in text generator:', error);
+            await conn.sendMessage(chatId, { react: { text: "❌", key: message.key } });
             await conn.sendMessage(chatId, messageTemplates.error(`Error: ${error.message}`));
         }
     } catch (error) {
         console.error('Error in textmaker command:', error);
+        await conn.sendMessage(chatId, { react: { text: "❌", key: message.key } });
         await conn.sendMessage(chatId, messageTemplates.error("An error occurred. Please try again later."));
     }
 }
