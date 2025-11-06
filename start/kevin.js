@@ -56,6 +56,7 @@ const {styletext, remind, Wikimedia, wallpaper} = require('./lib/scraper')
 const { 
     setMenu1,
     setMenu2,
+    sendMenu,
     setMenu3,
     setMenu4,
     setMenu5,
