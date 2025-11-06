@@ -491,36 +491,81 @@ async function telestickerCommand(conn, chatId, message, args) {
 
         // Send message about the pack
         await conn.sendMessage(chatId, {
-            text: `📦 *${stickerPack.title}*\n\nSending ${stickers.length} stickers...`
+            text: `📦 *${stickerPack.title}*\n\nDownloading ${stickers.length} stickers...`
         }, { quoted: message });
 
-        // Send each sticker with proper formatting
-        for (const sticker of stickers) {
+        let successCount = 0;
+        
+        // Process and send each sticker
+        for (let i = 0; i < stickers.length; i++) {
+            const sticker = stickers[i];
             if (sticker.image_url) {
                 try {
-                    // Download sticker buffer
-                    const stickerBuffer = await axios.get(sticker.image_url, { 
-                        responseType: 'arraybuffer' 
+                    // Download sticker
+                    const stickerResponse = await axios.get(sticker.image_url, {
+                        responseType: 'arraybuffer'
                     });
                     
-                    // Convert to buffer
-                    const buffer = Buffer.from(stickerBuffer.data);
+                    const stickerBuffer = Buffer.from(stickerResponse.data);
                     
-                    // Send as proper sticker
-                    await conn.sendMessage(chatId, {
-                        sticker: buffer,
-                        isAnimated: sticker.is_animated || false
-                    });
+                    // For static stickers, ensure they're proper WebP format
+                    if (!sticker.is_animated) {
+                        // Create proper sticker with metadata using webpmux
+                        const image = new webp.Image();
+                        await image.load(stickerBuffer);
+                        
+                        // Add sticker metadata
+                        const json = {
+                            'sticker-pack-id': `telegram-${stickerPack.title.replace(/\s+/g, '-').toLowerCase()}`,
+                            'sticker-pack-name': stickerPack.title,
+                            'sticker-pack-publisher': 'Telegram',
+                            'emojis': ['😊'],
+                            'android-app-store-link': '',
+                            'ios-app-store-link': ''
+                        };
+                        
+                        const exifAttr = Buffer.from([0x49, 0x49, 0x2A, 0x00, 0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x41, 0x57, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x16, 0x00, 0x00, 0x00]);
+                        const jsonBuffer = Buffer.from(JSON.stringify(json), 'utf8');
+                        const exif = Buffer.concat([exifAttr, jsonBuffer]);
+                        exif.writeUIntLE(jsonBuffer.length, 14, 4);
+                        
+                        image.exif = exif;
+                        const finalBuffer = await image.save(null);
+                        
+                        // Send the properly formatted sticker
+                        await conn.sendMessage(chatId, {
+                            sticker: finalBuffer
+                        });
+                    } else {
+                        // For animated stickers, send as is
+                        await conn.sendMessage(chatId, {
+                            sticker: stickerBuffer,
+                            isAnimated: true
+                        });
+                    }
                     
-                    // Small delay between stickers
-                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    successCount++;
+                    
+                    // Progress update every 5 stickers
+                    if ((i + 1) % 5 === 0) {
+                        await conn.sendMessage(chatId, {
+                            text: `📦 Progress: ${i + 1}/${stickers.length} stickers sent...`
+                        });
+                    }
+                    
+                    // Delay to avoid rate limiting
+                    await new Promise(resolve => setTimeout(resolve, 2000));
                     
                 } catch (stickerError) {
-                    console.error('Error sending sticker:', stickerError.message);
-                    continue; // Continue with next sticker if one fails
+                    console.error(`Error processing sticker ${i + 1}:`, stickerError.message);
                 }
             }
         }
+
+        // Final success message
+        await conn.sendMessage(chatId, {
+            text: `✅ Successfully sent ${successCount}/${stickers.length} stickers from *${stickerPack.title}*\n\nNow you can view sticker information properly! 🎉`
+        }, { quoted: message });
 
         // Success reaction
         await conn.sendMessage(chatId, { react: { text: "✅", key: message.key } });
