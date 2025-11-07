@@ -113,10 +113,27 @@ const { sender } = m;
 const from = m.key.remoteJid;
 const isGroup = from.endsWith("@g.us")
 // database 
+// database 
 const kontributor = JSON.parse(fs.readFileSync('./start/lib/database/owner.json'))
 const botNumber = await conn.decodeJid(conn.user.id)
-const Access = [botNumber, devKelvin, ...global.owner, ...global.sudo]
-.map((v) => v.replace(/[^0-9]/g, "") + "@s.whatsapp.net") .includes(m.sender) ? true : m. isChecking ? true : false;
+
+function checkAccess(sender) {
+    // Normalize the sender number
+    const normalizedSender = sender.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
+    
+    // Create array of all authorized numbers (normalized)
+    const authorizedNumbers = [
+        botNumber,
+        devKelvin,
+        ...(global.owner || []),
+        ...(global.sudo || [])
+    ].map(num => num.replace(/[^0-9]/g, "") + "@s.whatsapp.net");
+    
+    // Check if sender is in authorized list
+    return authorizedNumbers.includes(normalizedSender);
+}
+
+const Access = checkAccess(m.sender);
 
 //prefix   
 let prefix = "."; // Default prefix
