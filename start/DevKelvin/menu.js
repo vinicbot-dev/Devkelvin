@@ -272,7 +272,7 @@ async function sendMenu(conn, m, prefix, global) {
                 mentionedJid: [m.sender],
                 forwardedNewsletterMessageInfo: {
                     newsletterName: '🔮 ᴊᴏɪɴ ᴋᴇʟᴠɪɴ ᴛᴇᴄʜ🔮',
-                    newsletterJid: '120363401548261516@newsletter',
+                    newsletterJid: '120363423330269983@newsletter',
                 },
                 isForwarded: true,
                 showAdAttribution: true,
