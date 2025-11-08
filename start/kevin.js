@@ -3,7 +3,7 @@ const yts = require('yt-search')
 const fs = require('fs')
 const axios = require('axios')
 const googleTTS = require('google-tts-api')
-const devKelvin = '256742932677';
+const devKelvin = '256755585369';
 const checkDiskSpace = require('check-disk-space').default;
 const chalk = require("chalk")
 const fetch = require("node-fetch")
@@ -8914,7 +8914,7 @@ case "tagall": {
 break
 case "close": {
   if (!m.isGroup) return reply('❌ This command can only be used in groups.');
-    if (!isAdmins && !Access) return reply('❌ You need to be an admin to use this command.');
+    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
     
 
         conn.groupSettingUpdate(m.chat, "announcement");
@@ -8923,8 +8923,7 @@ case "close": {
 break
 case "delgrouppp": {
         if (!m.isGroup) return reply(mess.group);
-        if (!isAdmins && !isCreator) return reply(mess.notadmin);
-        if (!isBotAdmins) return reply(mess.admin);
+        if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
         
         await conn.removeProfilePicture(from);
         reply("Group profile picture has been successfully removed.");
@@ -8932,8 +8931,7 @@ case "delgrouppp": {
 break
 case "setdesc": {
         if (!m.isGroup) return reply(mess.group);
-        if (!isAdmins && !isGroupOwner && !isCreator) return reply(mess.notadmin);
-        if (!isBotAdmins) return reply(mess.admin);
+        if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
         if (!text) return reply("*Please enter a text*");
         
         await conn.groupUpdateDescription(m.chat, text);
@@ -8976,9 +8974,8 @@ try {
 }
 break
 case 'approve': case 'approve-all': {
-	if (!m.isGroup) return reply(mess.group)
-if (!isAdmins) return m.reply(mess.group)
-if (!isBotAdmins) return reply("*first make Vinic-Xmd admin to operate this feature*")
+if (!m.isGroup) return reply(mess.group)
+if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
 
 const responseList = await conn.groupRequestParticipantsList(m.chat);
 
@@ -8997,9 +8994,7 @@ reply("*Vinic-Xmd has approved all pending requests✅*");
 }
 break
 case " disapproveall": {
-    if (!m.isGroup) return reply(mess.group);
-    if (!isGroupAdmins) return reply(mess.admin);
-    if (!isBotAdmins) return reply(mess.admin);
+    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
         
     const groupId = m.chat;
  
@@ -9008,8 +9003,7 @@ case " disapproveall": {
 break
 case "listrequest": {
 if (!m.isGroup) return reply(mess.group);
-    if (!isGroupAdmins) return reply(mess.admin);
-    if (!isBotAdmins) return reply(mess.admin);
+    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
         
     const groupId = m.chat; 
 
@@ -9087,7 +9081,7 @@ break
 case "demote":
 case "downgrade": {
         if (!m.isGroup) return reply(mess.group);
-        if (!isgroupAdmins) return reply('❌ You need to be an admin to use this command.');
+        if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
     
     let target = m.mentionedJid[0] 
       ? m.mentionedJid[0] 
@@ -9268,8 +9262,7 @@ case "listonline": {
 break
 case "editinfo": {
 if (!m.isGroup) return reply(mess.group);
-        if (!isAdmins && !isGroupOwner && !isCreator) return reply(mess.admin);
-        if (!isBotAdmins) return reply(mess.admin);
+        if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
 
         if (args[0] === "on") {
             await conn.groupSettingUpdate(m.chat, "unlocked").then(
@@ -9286,7 +9279,7 @@ if (!m.isGroup) return reply(mess.group);
 break
 case "invite": {
 if (!m.isGroup) return reply(mess.group);
-        if (!isBotAdmins) return reply(mess.admin);
+        if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
         if (!text)
             return reply(
                 `*Enter the number you want to invite to this group*\n\nExample :\n${prefix + command} 256742932677`
@@ -9325,9 +9318,7 @@ break
 case "'unlockgc'": {
 try {
         if (!isGroup) return reply("❌ This command can only be used in groups");
-        if (!isAdmins) return reply("❌ Only admins can unlock settings");
-        if (!isBotAdmins) return reply("❌ Bot needs admin privileges");
-
+        if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
         await conn.groupSettingUpdate(from, "unlocked");
         reply("🔓 Group settings are now unlocked", {
             contextInfo: {
@@ -9345,9 +9336,7 @@ break
 case "lockgc": {
 try {
         if (!isGroup) return reply("❌ This command can only be used in groups");
-        if (!isAdmins) return reply("❌ Only admins can lock settings");
-        if (!isBotAdmins) return reply("❌ Bot needs admin privileges");
-
+        if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
         await conn.groupSettingUpdate(from, 'locked');
         reply("🔒 Group settings are now locked (admins only)", {
             contextInfo: {
@@ -9364,7 +9353,7 @@ try {
 break
 case "closetime": {
 if (!m.isGroup) return reply('❌ This command can only be used in groups.');
-    if (!isAdmins && !Access) return reply('❌ You need to be an admin to use this command.');
+    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
     
 
     // Check if both arguments are provided
@@ -9402,8 +9391,7 @@ if (!m.isGroup) return reply('❌ This command can only be used in groups.');
 break
 case "opentime": {
     if (!m.isGroup) return reply(mess.group);
-    if (!isAdmins && !isCreator) return reply(mess.notadmin);
-    if (!isBotAdmins) return reply(mess.admin);
+    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
 
     const duration = args[0];
     if (!args[1] || typeof args[1] !== 'string') return reply("*Select unit:*\nseconds\nminutes\nhours\ndays\n\n*Example:*\n10 seconds");
@@ -9436,7 +9424,7 @@ case "opentime": {
 break
 case "totalmembers": {
 if (!m.isGroup) return reply(mess.group);
-    if (!(isGroupAdmins || isCreator)) return reply(mess.admin);
+    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
 
     await conn.sendMessage(
       m.chat,
@@ -9449,8 +9437,7 @@ if (!m.isGroup) return reply(mess.group);
 break
 case "mediatag": {
      if (!m.isGroup) return reply(mess.group);
-        if (!isBotAdmins) return reply(mess.admin);
-        if (!isAdmins) return reply(mess.admin);
+        if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
         if (!m.quoted) return reply(`Reply to any media with caption ${prefix + command}`);
 
         conn.sendMessage(m.chat, {
@@ -9482,7 +9469,7 @@ if (!Access) return reply(mess.owner);
 break
 case "antilink": {
     if (!m.isGroup) return reply('❌ This command can only be used in groups.');
-    if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
+    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
     
     if (args.length < 2) return reply(`Example: 
 ${prefix + command} delete on/off
@@ -9539,8 +9526,7 @@ ${prefix + command} status`);
 break
 case "setgroupname": {
 if (!m.isGroup) return reply(mess.group);
-        if (!isAdmins && !isGroupOwner && !Access) return reply(mess.admin);
-        if (!isBotAdmins) return reply(mess.admin);
+        if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
         if (!text) return reply("*Desired groupname?*");
 
         await conn.groupUpdateSubject(m.chat, text);
@@ -9604,8 +9590,7 @@ break
 case "tagall2": {
 try {
         if (!isGroup) return reply("❌ This command can only be used in groups");
-        if (!isAdmins) return reply("❌ Only admins can tag all members");
-        if (!isBotAdmins) return reply("❌ Bot needs admin privileges");
+        if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
 
         let message = "📢 *Attention Everyone!* \n\n";
         const mentions = participants.map(p => p.id);
@@ -9677,7 +9662,7 @@ break
 case "kick": {
         
         if (!m.isGroup) return reply(mess.group);
-        if (!isgroupAdmins) return reply('❌ You need to be an admin to use this command.');
+        if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
     
 
         let bck = m.mentionedJid[0]
@@ -9693,7 +9678,7 @@ case "kick2": {
 try {
       
         if (!m.isGroup) return reply(mess.group);
-        if (!isgroupAdmins) return reply('❌ You need to be an admin to use this command.');
+        if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
     
         const userId = mentionedJid?.[0] || m.quoted?.sender;
         if (!userId) return reply("ℹ️ Please mention or quote the user to kick");
@@ -9799,7 +9784,6 @@ case "groupavatar": {
     
 }
 break
-break
 case "groupinfo": {
 try {
         if (!isGroup) return reply("❌ This command can only be used in groups");
@@ -9839,8 +9823,7 @@ try {
 break
 case "resetlinkgc": {
 if (!m.isGroup) return reply(mess.group)
-if (!isAdmins && !Access) return reply(mess.admin)
-if (!isBotAdmins) return reply(mess.botadmin)
+if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
 
 conn.groupRevokeInvite(from)
 reply("*group link reseted by admin*" )
