@@ -85,7 +85,6 @@ const {
   shouldLogError } = require('../vinic')
 
 const { videoCommand, takeCommand, musicCommand, ytplayCommand, telestickerCommand, ytmp4Command, playCommand } = require('./KelvinCmds/commands')
-const { textmakerCommand } = require('./lib/ephoto')
 const {fetchReactionImage} = require('./lib/reaction')
 const { toAudio } = require('./lib/converter');
 const { remini } = require('./lib/remini')
@@ -3269,7 +3268,7 @@ const startTime = performance.now();
    }
 }
 break
-case "repo": {
+case "sc": {
   try {
     // GitHub repository details
     const repoOwner = "Kevintech-hub";
@@ -3353,66 +3352,18 @@ https://github.com/Kevintech-hub/Vinic-Xmd-
   }
 }
 break
-case "sc": {
-try {
-        // React loading
-        await conn.sendMessage(chatId, { react: { text: '🔄', key: message.key } });
-
-        const repoUrl = "https://github.com/Kevintech-hub/Vinic-Xmd-";
-        const zipUrl = `${repoUrl}/archive/refs/heads/main.zip`;
-
-        // Fetch repo details
-        const { data: repo } = await axios.get("https://github.com/Kevintech-hub/Vinic-Xmd-");
-
-        // Fetch avatar for thumbnail
-        const { data: avatarBuffer } = await axios.get(repo.owner.avatar_url, {
-            responseType: "arraybuffer"
-        });
-
-        const caption =
-            `*👑 Vinic-Xmd Repository*\n\n` +
-            `🔗 *Repository URL:* ${repoUrl}\n` +
-            `📂 *Branch:* main\n` +
-            `📦 *File:* Vinic-Xmd.zip\n\n` +
-            `🌟 *Stars:* ${repo.stargazers_count}\n` +
-            `🔀 *Forks:* ${repo.forks_count}\n` +
-            `📅 *Updated:* ${new Date(repo.updated_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}\n\n` +
-            `✨ The ZIP file contains the full repository source code.\n\n` +
-            `💡 Tip: Fork it, star it, and hack your own version!`;
-
-        // Send preview card
-        await conn.sendMessage(chatId, {
-            text: caption,
-            contextInfo: {
-                externalAdReply: {
-                    title: "Vinic-Xmd Repo",
-                    body: "Download or view on GitHub",
-                    mediaType: 1,
-                    thumbnail: Buffer.from(avatarBuffer),
-                    sourceUrl: repoUrl
-                }
-            }
-        }, { quoted: message });
-
-        // Fetch and send ZIP (convert to Buffer explicitly)
-        const { data: zipBuffer } = await axios.get(zipUrl, { responseType: "arraybuffer" });
-
-        await conn.sendMessage(chatId, {
-            document: Buffer.from(zipBuffer),
-            fileName: "Vinic-Xmd.zip",
-            mimetype: "application/zip"
-        }, { quoted: message });
-
-        // React success ✅
-        await conn.sendMessage(chatId, { react: { text: '✅', key: message.key } });
-
-    } catch (err) {
-        console.error("Script command error:", err);
-        await conn.sendMessage(chatId, { text: "❌ *Failed to fetch or send the repository ZIP.*" }, { quoted: message });
-
-        // React error ❌
-        await conn.sendMessage(chatId, { react: { text: '❌', key: message.key } });
+// ========== GITHUB COMMAND ==========
+case 'github':
+case 'repo': {
+    try {
+        // Import and execute github command
+        const githubCommand = require('./KelvinCmds/github')
+        await githubCommand(conn, m.chat, m);
+    } catch (error) {
+        console.error('Error in github command:', error);
+        reply('❌ Error fetching repository information.');
     }
+    
 }
 break
 //======[CMD TOOLS MENU]=====
@@ -4933,29 +4884,7 @@ let q = args.join(" ");
     }
 }
 break
-case 'metallic':
-case 'ice':
-case 'snow':
-case 'impressive':
-case 'matrix':
-case 'light':
-case 'neon':
-case 'devil':
-case 'purple':
-case 'thunder':
-case 'leaves':
-case '1917':
-case 'arena':
-case 'hacker':
-case 'sand':
-case 'blackpink':
-case 'glitch':
-case 'fire': {
-    await textmakerCommand(conn, m.chat, m, text, command);
-   
-}
 //======[RELIGION MENU CMDS]==
-break
 case 'bible': {
 const BASE_URL = "https://bible-api.com";
 
@@ -7826,7 +7755,7 @@ const quoted = m.quoted || m.msg?.quoted;
 }
 //=====[SEARCH MENU CMDS]======
 break
-case "lyrics": {
+case "lyrics2": {
     try {
         if (!q) return reply("Please provide a song title. Example: .lyrics shape of you");
         
@@ -7861,6 +7790,23 @@ case "lyrics": {
         console.error('Error fetching lyrics:', error);
         reply("❌ Error fetching lyrics. Please try again later.");
     }
+}
+break
+// ========== LYRICS COMMAND ==========
+case 'lyrics': {
+    try {
+        if (!text) {
+            return reply('🎵 *Lyrics Command*\n\nUsage: `.lyrics <song name>`\nExample: `.lyrics shape of you`');
+        }
+        
+        // Import and execute lyrics command
+        const { lyricsCommand } = require('./KelvinCmds/lyrics')
+        await lyricsCommand(conn, m.chat, text, m);
+    } catch (error) {
+        console.error('Error in lyrics command:', error);
+        reply('❌ Error fetching lyrics. Please try again.');
+    }
+    
 }
 break
 case "playstore": {
@@ -8889,8 +8835,7 @@ case "kickall": {
 break
 case "tagall": {
     if (!m.isGroup) return reply(mess.group);
-    if (!isAdmins && !isGroupOwner && !isCreator) return reply(mess.admin);
-    if (!isBotAdmins) return reply(mess.admin);
+    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
 
     let me = m.sender;
     let q = m.text.split(' ').slice(1).join(' ').trim(); // Extract the message after the command
@@ -9535,8 +9480,8 @@ if (!m.isGroup) return reply(mess.group);
 break 
 case "setgrouppp":
 case "setppgroup": {
-if (!isAdmin) return reply(mess.admin);
-        if (!m.isGroup) return reply(mess.group);
+ if (!m.isGroup) return reply(mess.group);
+ if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
     if (!quoted) return reply(`*Send or reply to an image with the caption ${prefix + command}*`);
     if (!/image/.test(mime)) return reply(`*Send or reply to an image with the caption ${prefix + command}*`);
     if (/webp/.test(mime)) return reply(`*Send or reply to an image with the caption ${prefix + command}*`);
@@ -9572,7 +9517,6 @@ if (!isAdmin) return reply(mess.admin);
 break
 case "tagadmin2": {
     if (!m.isGroup) return reply(mess.group);
-
     const groupAdmins = participants.filter((p) => p.admin);
     const listAdmin = groupAdmins
       .map((v, i) => `${i + 1}. @${v.id.split("@")[0]}`)
