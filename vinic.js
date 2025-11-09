@@ -297,19 +297,26 @@ function initializeDatabase(from, botNumber) {
       setting.config = {};
     }
     
-    // Initialize config properties - ADD AUTOREACT HERE
-    if (!("prefix" in setting.config)) setting.config.prefix = "."; // Default prefix
+    // Initialize config properties
+    if (!("prefix" in setting.config)) setting.config.prefix = ".";
     if (!("statusantidelete" in setting.config)) setting.config.statusantidelete = false;
     if (!("autobio" in setting.config)) setting.config.autobio = false;
     if (!("autorecord" in setting.config)) setting.config.autorecord = false;
     if (!("autoviewstatus" in setting.config)) setting.config.autoviewstatus = false;
     if (!("autoreactstatus" in setting.config)) setting.config.autoreactstatus = false;
     if (!("antiedit" in setting.config)) setting.config.antiedit = false;
-    if (!("anticall" in setting.config)) setting.config.anticall = false; // false, "decline", or "block"
+    if (!("anticall" in setting.config)) setting.config.anticall = false;
     if (!("AI_CHAT" in setting.config)) setting.config.AI_CHAT = false;
     if (!("antibug" in setting.config)) setting.config.antibug = false;
     if (!("ownernumber" in setting.config)) setting.config.ownernumber = global.ownernumber || '';
-
+    
+    // Initialize group chats with allowedUsers for permanent permissions
+    if (from && from.endsWith('@g.us')) {
+      if (!global.db.data.chats) global.db.data.chats = {};
+      if (!global.db.data.chats[from]) global.db.data.chats[from] = {};
+      if (!global.db.data.chats[from].allowedUsers) global.db.data.chats[from].allowedUsers = {};
+    }
+    
     let blacklist = global.db.data.blacklist;
     if (!blacklist || typeof blacklist !== "object") global.db.data.blacklist = { blacklisted_numbers: [] };
 
@@ -670,6 +677,23 @@ async function handleLinkViolation(message, conn) {
         const sender = message.key.participant || message.key.remoteJid;
         const botNumber = await conn.decodeJid(conn.user.id);
 
+        // ========== FIXED: CHECK IF USER IS ALLOWED TO SEND LINKS FIRST ==========
+        if (isUserAllowedToSendLinks(chatId, sender)) {
+            // User is allowed, decrement their allowance
+            decrementLinkAllowance(chatId, sender);
+            
+            // Optional: Notify user about remaining chances
+            const remaining = global.db.data.chats[chatId]?.allowedUsers?.[sender] || 0;
+            if (remaining > 0) {
+                await conn.sendMessage(chatId, {
+                    text: `✅ @${sender.split('@')[0]}, your link was allowed. Remaining chances: ${remaining}`,
+                    mentions: [sender]
+                });
+            }
+            return; // Allow the message - EXIT EARLY
+        }
+        // ========== END FIXED CODE ==========
+
         // Get group settings
         if (!global.db.data.settings || !global.db.data.settings[botNumber] || 
             !global.db.data.settings[botNumber].config) {
@@ -708,6 +732,7 @@ async function handleLinkViolation(message, conn) {
         // 1. Anti-link is enabled for this group
         // 2. Message contains URLs
         // 3. Sender is NOT an admin
+        // 4. Sender is NOT in allowed users list
         // So we take action against regular members
 
         // Delete the message containing the link
@@ -847,6 +872,15 @@ async function handleAutoReact(m, conn) {
         console.error('❌ Error in auto-react:', error);
     }
 }
+// ========== UPDATED HELPER FUNCTIONS ==========
+function isUserAllowedToSendLinks(chatId, userId) {
+    try {
+        // Check if user exists in allowedUsers with true value
+        return !!global.db.data.chats?.[chatId]?.allowedUsers?.[userId];
+    } catch (error) {
+        return false;
+    }
+}
 
 
 module.exports = {
@@ -873,7 +907,9 @@ module.exports = {
   saveDatabase,
   recordError,
   shouldLogError,
-  pickRandom
+  pickRandom,
+  isUserAllowedToSendLinks
+  
 };
 
 let file = require.resolve(__filename)
