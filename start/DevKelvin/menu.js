@@ -130,7 +130,7 @@ async function generateMenu(conn, m, prefix, global) {
                 'listonline', 'add', 'add2', 'listactive', 'listinactive', 'close', 'open', 'kick', 
                 'topchatters', 'listadmin', 'cancelkick', 'kickall', 'closetime', 'disp24hours', 'disp90days', 'dispoff', 
                 'tagall2', 'opentime', 'poll', 'allowlink', 'totalmembers', 
-                'mediatag', 'getgrouppp', 'antilink', 'tagall', 'groupinfo', 'userjid', 'unlockgcsettings', 'lockgcsettings:,
+                'mediatag', 'getgrouppp', 'antilink', 'tagall', 'groupinfo', 'userjid', 'unlockgcsettings', 'lockgcsettings',
                 'tagadmin2', 'setgroupname', 'delgrouppp', 'invite', 'editinfo', 'approve', 'approveall',
                 'disapproveall', 'listrequest', 'promote', 'demote', 'userjid', 'setdesc', 'vcf',
             ],
