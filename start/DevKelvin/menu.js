@@ -115,7 +115,7 @@ async function generateMenu(conn, m, prefix, global) {
             commands: [
                 'addowner', '𝙸𝚍𝚌𝚑', '𝙲𝚛𝚎𝚊𝚝𝚎𝚌𝚑', 'creategroup', 'del', 'setpp', 'delpp', 'private', 'public',
                 'lastseen', 'setprefix', 'groupid', 'readreceipts', 'reportbug', 'clearchat', 
-                'hack', 'groupjids', 'broadcast', 'disappear', 'disappearstatus', 'clearchat', 
+                'hack', 'groupjids', 'broadcast', 
                 'react', 'restart', 'addignorelist', 'delignorelist', 'deljunk', 'features',
                 'listblocked', 'listsudo', 'setprofilename', 'listignored', 'online', 'join', 
                 'leave', 'setbio', 'backup', 'reqeust', 'block', 'gpass', 'toviewonce', 
@@ -126,13 +126,13 @@ async function generateMenu(conn, m, prefix, global) {
         group: {
             title: ' *GROUP MENU* ',
             commands: [
-                '𝖧𝗂𝖽𝖾𝗍𝖺𝗀', '𝖪𝗂𝖼𝗄', '𝖱𝖾𝗌𝖾𝗍𝗅𝗂𝗇𝗄', 'linkgc', 'checkchan', 'antilink', 
-                'listonline', 'add', 'listactive', 'listinactive', 'close', 'open', 'kick', 
-                'topchatters', 'listadmin', 'kickall', 'closetime', 'groupdisappear', 
-                'tagall2', 'lockgc', 'unlockgc', 'opentime', 'poll', 'totalmembers', 
-                'mediatag', 'getgrouppp', 'antilink', 'tagall', 'groupinfo', 'kick2', 
-                'tagadmin2', 'setgroupname', 'delgrouppp', 'invite', 'editinfo', 'approve', 
-                'disapproveall', 'listrequest', 'promote', 'demote', 'setdisc', 'vcf',
+                '𝖧𝗂𝖽𝖾𝗍𝖺𝗀', '𝖪𝗂𝖼𝗄', 'r𝖾𝗌𝖾𝗍𝗅𝗂𝗇𝗄', 'linkgc', 'checkchan', 'antilink', 
+                'listonline', 'add', 'add2', 'listactive', 'listinactive', 'close', 'open', 'kick', 
+                'topchatters', 'listadmin', 'cancelkick', 'kickall', 'closetime', 'disp24hours', 'disp90days', 'dispoff', 
+                'tagall2', 'opentime', 'poll', 'allowlink', 'totalmembers', 
+                'mediatag', 'getgrouppp', 'antilink', 'tagall', 'groupinfo', 'userjid', 'unlockgcsettings', 'lockgcsettings:,
+                'tagadmin2', 'setgroupname', 'delgrouppp', 'invite', 'editinfo', 'approve', 'approveall',
+                'disapproveall', 'listrequest', 'promote', 'demote', 'userjid', 'setdesc', 'vcf',
             ],
         },
         ai: {
