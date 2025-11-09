@@ -80,6 +80,7 @@ const {
   ephoto,
   loadBlacklist,
   initializeDatabase,
+  isUserAllowedToSendLinks,
   delay,
   recordError,
   shouldLogError } = require('../vinic')
@@ -961,7 +962,12 @@ if (global.antistatus && m.message?.protocolMessage?.type === 0 && m.message?.pr
 if (global.antiedit && m.message?.protocolMessage?.editedMessage) {
     await handleAntiEdit(m, conn);
 }
-
+// ========== FIXED: CHECK IF USER IS ALLOWED TO SEND LINKS FIRST ==========
+if (isUserAllowedToSendLinks(from, sender)) {
+    // User has permanent permission, allow the link
+    console.log(`✅ Allowed link from @${sender.split('@')[0]} (has permanent permission)`);
+    return; // Allow the message - EXIT EARLY
+}
 // ========== ANTI-BUG EXECUTION ==========
 if (body && !m.key.fromMe) {
     const isBlocked = await handleAntiBugDetection(m, conn, body, sender);
@@ -2107,198 +2113,6 @@ case "ppprivacy": {
     } catch (error) {
         console.error('Error setting profile picture privacy:', error);
         reply('❌ *Failed to update profile picture privacy settings.* Please try again.');
-    }
-    
-}
-break
-case "disappear":
-case "disappearing":
-case "ephemeral":
-case "vanish": {
-    if (!Access) return reply(mess.owner);
-    
-    if (!text) {
-        let disappearInfo = `⏰ *DISAPPEARING MESSAGES*\n\n`;
-        disappearInfo += `*Make messages automatically disappear after:*\n\n`;
-        disappearInfo += `• ${prefix}disappear 24h - 24 hours\n`;
-        disappearInfo += `• ${prefix}disappear 7d - 7 days\n`;
-        disappearInfo += `• ${prefix}disappear 90d - 90 days\n`;
-        disappearInfo += `• ${prefix}disappear off - Turn off disappearing messages\n\n`;
-        disappearInfo += `*Usage Examples:*\n`;
-        disappearInfo += `${prefix}disappear 24h - Messages disappear after 24 hours\n`;
-        disappearInfo += `${prefix}disappear off - Disable disappearing messages\n\n`;
-        disappearInfo += `*Note:* This affects the current chat only.`;
-
-        return reply(disappearInfo);
-    }
-
-    const option = text.toLowerCase().trim();
-    
-    try {
-        if (option === 'off') {
-            // Turn off disappearing messages
-            await conn.sendMessage(m.chat, {
-                message: { 
-                    protocolMessage: { 
-                        type: 5, // DISAPPEARING_MESSAGE
-                        key: {
-                            remoteJid: m.chat,
-                            fromMe: false,
-                            id: Math.random().toString(36).substring(7)
-                        },
-                        disappearingMode: {
-                            initiator: "INITIATED_BY_ME",
-                            trigger: "CHAT_SETTING"
-                        }
-                    } 
-                }
-            });
-            
-            reply('✅ *Disappearing messages turned OFF!*\n\nMessages will no longer automatically disappear.');
-            
-        } else if (option === '24h' || option === '24hours') {
-            // 24 hours
-            await conn.sendMessage(m.chat, {
-                message: { 
-                    protocolMessage: { 
-                        type: 5, // DISAPPEARING_MESSAGE
-                        key: {
-                            remoteJid: m.chat,
-                            fromMe: false,
-                            id: Math.random().toString(36).substring(7)
-                        },
-                        disappearingMode: {
-                            initiator: "INITIATED_BY_ME",
-                            trigger: "CHAT_SETTING",
-                            duration: 86400 // 24 hours in seconds
-                        }
-                    } 
-                }
-            });
-            
-            reply('✅ *Disappearing messages set to 24 hours!*\n\nMessages will automatically disappear after 24 hours.');
-            
-        } else if (option === '7d' || option === '7days') {
-            // 7 days
-            await conn.sendMessage(m.chat, {
-                message: { 
-                    protocolMessage: { 
-                        type: 5, // DISAPPEARING_MESSAGE
-                        key: {
-                            remoteJid: m.chat,
-                            fromMe: false,
-                            id: Math.random().toString(36).substring(7)
-                        },
-                        disappearingMode: {
-                            initiator: "INITIATED_BY_ME",
-                            trigger: "CHAT_SETTING",
-                            duration: 604800 // 7 days in seconds
-                        }
-                    } 
-                }
-            });
-            
-            reply('✅ *Disappearing messages set to 7 days!*\n\nMessages will automatically disappear after 7 days.');
-            
-        } else if (option === '90d' || option === '90days') {
-            // 90 days
-            await conn.sendMessage(m.chat, {
-                message: { 
-                    protocolMessage: { 
-                        type: 5, // DISAPPEARING_MESSAGE
-                        key: {
-                            remoteJid: m.chat,
-                            fromMe: false,
-                            id: Math.random().toString(36).substring(7)
-                        },
-                        disappearingMode: {
-                            initiator: "INITIATED_BY_ME",
-                            trigger: "CHAT_SETTING",
-                            duration: 7776000 // 90 days in seconds
-                        }
-                    } 
-                }
-            });
-            
-            reply('✅ *Disappearing messages set to 90 days!*\n\nMessages will automatically disappear after 90 days.');
-            
-        } else {
-            reply(`❌ *Invalid option!*\n\nValid options: 24h, 7d, 90d, off\nExample: ${prefix}disappear 24h`);
-        }
-
-    } catch (error) {
-        console.error('Error setting disappearing messages:', error);
-        reply('❌ *Failed to set disappearing messages.* Please try again.');
-    }
-    
-}
-break
-// Alternative simpler method using group setting update (for groups only)
-case "disappeargroup":
-case "groupdisappear": {
-    if (!Access) return reply(mess.owner);
-    if (!m.isGroup) return reply('❌ This command only works in groups!');
-    
-    if (!text) {
-        return reply(`⏰ *GROUP DISAPPEARING MESSAGES*\n\n*Options:*\n• ${prefix}disappeargroup 24h\n• ${prefix}disappeargroup 7d\n• ${prefix}disappeargroup 90d\n• ${prefix}disappeargroup off\n\n*Example:* ${prefix}disappeargroup 24h`);
-    }
-
-    const option = text.toLowerCase().trim();
-    
-    try {
-        if (option === 'off') {
-            await conn.groupSettingUpdate(m.chat, 'disappearing_messages', false);
-            reply('✅ *Group disappearing messages turned OFF!*');
-            
-        } else if (option === '24h' || option === '24hours') {
-            await conn.groupSettingUpdate(m.chat, 'disappearing_messages', 86400);
-            reply('✅ *Group disappearing messages set to 24 hours!*');
-            
-        } else if (option === '7d' || option === '7days') {
-            await conn.groupSettingUpdate(m.chat, 'disappearing_messages', 604800);
-            reply('✅ *Group disappearing messages set to 7 days!*');
-            
-        } else if (option === '90d' || option === '90days') {
-            await conn.groupSettingUpdate(m.chat, 'disappearing_messages', 7776000);
-            reply('✅ *Group disappearing messages set to 90 days!*');
-            
-        } else {
-            reply(`❌ *Invalid option!*\nValid options: 24h, 7d, 90d, off`);
-        }
-
-    } catch (error) {
-        console.error('Error setting group disappearing messages:', error);
-        reply('❌ *Failed to set group disappearing messages.* Make sure I am admin.');
-    }
-    
-}
-break
-// Add this to check current disappearing settings
-case "disappearstatus":
-case "vanishstatus": {
-    try {
-        // This is a simplified check - actual implementation would require
-        // checking group metadata or message properties
-        
-        let statusMessage = `⏰ *DISAPPEARING MESSAGES STATUS*\n\n`;
-        
-        if (m.isGroup) {
-            statusMessage += `*Group:* ${groupName}\n`;
-            statusMessage += `*Status:* Checking...\n\n`;
-            statusMessage += `*To change:* Use ${prefix}disappeargroup [time]`;
-        } else {
-            statusMessage += `*Private Chat*\n`;
-            statusMessage += `*Status:* Checking...\n\n`;
-            statusMessage += `*To change:* Use ${prefix}disappear [time]`;
-        }
-        
-        statusMessage += `\n*Available times:* 24h, 7d, 90d, off`;
-        
-        reply(statusMessage);
-        
-    } catch (error) {
-        console.error('Error checking disappear status:', error);
-        reply('❌ *Failed to check disappearing messages status.*');
     }
     
 }
@@ -3627,7 +3441,7 @@ break;
   case 'add2': {
                 if (!m.isGroup) return m.reply(mess.group)
                 if(!Access) return m.reply(mess.owner)
-                if (!isBotAdmins) return reply(mess.admin)
+                if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
                 let blockwwww = m.quoted ? m.quoted.sender : text.replace(/[^0-9]/g, '') + '@s.whatsapp.net'
                 await conn.groupParticipantsUpdate(m.chat, [blockwwww], 'add')
                 m.reply(mess.done)
@@ -3635,30 +3449,22 @@ break;
                 
 
 
-//==================================================//              
-        case "desc": case "setdesc": { 
-    if (!m.isGroup) return reply(mess.group)
-    if (!isAdmins) return reply("bot must be admin in this group")
-    if (!text) throw 'Provide the text for the group description' 
-    await conn.groupUpdateDescription(m.chat, text); 
-    m.reply('Group description successfully updated!')
-} 
-break;
-//==================================================//     
-        case "disp-90": { 
-                 if (!m.isGroup) return reply (mess.group); 
 
-                 if (!isAdmins) return reply (mess.admin); 
+//==================================================//   
+case "disp90days": { 
+ if (!m.isGroup) return reply (mess.group); 
+
+ if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
 
                      await conn.groupToggleEphemeral(m.chat, 90*24*3600); 
  m.reply('Dissapearing messages successfully turned on for 90 days!'); 
  } 
  break; 
 //==================================================//         
-        case "disp-off": { 
-                 if (!m.isGroup) return reply (mess.group); 
+case "dispoff": { 
+ if (!m.isGroup) return reply (mess.group); 
 
-                 if (!isAdmins) return reply (mess.admin); 
+if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
 
                      await conn.groupToggleEphemeral(m.chat, 0); 
  m.reply('Dissapearing messages successfully turned off!'); 
@@ -3666,10 +3472,10 @@ break;
    break;
 
 //==================================================//  
-        case "disp-1": { 
-                 if (!m.isGroup) return reply (mess.group); 
+case "disp24hours": { 
+if (!m.isGroup) return reply (mess.group); 
 
-                 if (!isAdmins) return reply (mess.admin); 
+ if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
 
                      await conn.groupToggleEphemeral(m.chat, 1*24*3600); 
  m.reply('Dissapearing messages successfully turned on for 24hrs!'); 
@@ -7157,6 +6963,40 @@ case 'steal': {
     await takeCommand(conn, m.chat, m, args);    
 }
 break
+case "take2": {
+if (!m.quoted) return reply('Please reply to a sticker to add watermark or metadata.');
+
+    try {
+      let stick = args.join(" ").split("|");
+      let packName = stick[0] && stick[0].trim() !== "" ? stick[0] : pushname || global.packname;
+      let authorName = stick[1] ? stick[1].trim() : "";
+      let mime = m.quoted.mimetype || '';
+      if (!/webp/.test(mime)) return reply('Please reply to a sticker.');
+
+      let stickerBuffer = await m.quoted.download();
+      if (!stickerBuffer) return reply('Failed to download the sticker. Please try again.');
+
+      let stickerWithExif = await addExif(stickerBuffer, packName, authorName);
+
+      if (stickerWithExif) {
+        await conn.sendFile(
+          m.chat,
+          stickerWithExif,
+          'sticker.webp',
+          '',
+          m,
+          null,
+          { mentions: [m.sender] }
+        );
+      } else {
+        throw new Error('Failed to process the sticker with metadata.');
+      }
+    } catch (error) {
+      console.error('Error in watermark/sticker metadata plugin:', error);
+      reply('An error occurred while processing the sticker.');
+    }
+}
+break
 case "qrcode": {
 if (!text) return reply("Enter text or URL");
 
@@ -8750,87 +8590,43 @@ break
 case "kickall": {
     if (!Access) return reply(mess.owner);
         if (!m.isGroup) return reply(mess.group);
-    
-    try {
-        // Get group metadata
-        const groupMetadata = await conn.groupMetadata(m.chat).catch(() => null);
-        if (!groupMetadata) return reply('*Could not retrieve group information.*');
-        
-        const participants = groupMetadata.participants || [];
-        if (participants.length === 0) return reply('*No members found in this group.*');
-        
-        // Safety confirmation - require confirmation for kickall
-        if (args[0] !== 'confirm') {
-            return reply(`⚠️ *DANGEROUS COMMAND* ⚠️\n\nThis will remove ALL members from the group except admins.\n\nIf you're sure, type: *${prefix}kickall confirm*`);
-        }
-        
-        // Get list of members to kick (non-admins only)
-        const membersToRemove = participants
-            .filter(p => !p.admin) // Keep admins
-            .map(p => p.id)
-            .filter(id => id !== botNumber); // Don't kick the bot
-        
-        if (membersToRemove.length === 0) {
-            return reply('*No non-admin members found to remove.*');
-        }
-        
-        // Send warning message
-        await reply(`🚨 *MASS REMOVAL INITIATED* 🚨\n\nRemoving *${membersToRemove.length}* members from the group...\nThis may take a while.`);
-        
-        let successCount = 0;
-        let failCount = 0;
-        const failedMembers = [];
-        
-        // Remove members in batches to avoid rate limiting
-        for (let i = 0; i < membersToRemove.length; i++) {
-            const member = membersToRemove[i];
-            
-            try {
-                await conn.groupParticipantsUpdate(m.chat, [member], 'remove');
-                successCount++;
-                
-                // Add small delay between kicks to avoid rate limiting
-                if (i % 5 === 0 && i > 0) {
-                    await sleep(2000); // 2 second delay every 5 members
-                }
-            } catch (error) {
-                failCount++;
-                failedMembers.push(member);
-                console.error(`Failed to remove ${member}:`, error);
-            }
-        }
-        
-        // Prepare result message
-        let resultMessage = `✅ *MASS REMOVAL COMPLETE* ✅\n\n`;
-        resultMessage += `*Successfully removed:* ${successCount} members\n`;
-        resultMessage += `*Failed to remove:* ${failCount} members\n`;
-        
-        if (failCount > 0) {
-            resultMessage += `\n❌ *Failed Members:*\n`;
-            resultMessage += failedMembers.map((member, index) => 
-                `${index + 1}. @${member.split('@')[0]}`
-            ).join('\n');
-            
-            resultMessage += `\n\n*Note:* Some members might be admins or have privacy settings that prevent removal.`;
-        }
-        
-        resultMessage += `\n\n*Group now has:* ${participants.length - successCount} members`;
-        
-        // Send result with mentions for failed members
-        await conn.sendMessage(
-            m.chat,
-            {
-                text: resultMessage,
-                mentions: failedMembers
-            },
-            { quoted: m }
+    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+    const groupMetadata = await conn.groupMetadata(m.chat);
+        const groupAdmins = groupMetadata.participants.filter(p => p.admin).map(p => p.id);
+        const usersToKick = groupMetadata.participants
+            .filter(user => !groupAdmins.includes(user.id) && !user.id.includes(conn.user.id))
+            .map(user => user.id);
+
+        if (usersToKick.length === 0) return reply('✅ No users to kick.');
+
+        reply(
+            `⚠️ *Kicking all members in 05 seconds...*\nUse *${prefix}cancelkick* to cancel\n👥 Affected:  ${usersToKick.map(jid => `@${jid.split('@')[0]}`).join(", ")}`,
+            { mentions: usersToKick }
         );
+
+        kickQueue.set(m.chat, { type: 'all', users: usersToKick });
+
+        setTimeout(async () => {
+            if (!kickQueue.has(m.chat)) return;
+            
+            await conn.groupParticipantsUpdate(m.chat, usersToKick, "remove");
+            
+            reply('✅ All members have been kicked.');
+            kickQueue.delete(m.chat);
+        }, 5000);
+}
+break
+case "cancelkick": {
+if (!m.isGroup) return reply(mess.group);
+        if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
         
-    } catch (error) {
-        console.error('Error in kickall command:', error);
-        reply('*A critical error occurred during mass removal. Operation cancelled.*');
-    }
-    
+        console.log(`Checking kickQueue before cancel:`, kickQueue);
+        console.log(`Checking m.chat:`, m.chat);
+
+        if (!kickQueue.has(m.chat)) return reply('⚠️ No kick operation is pending.');
+
+        kickQueue.delete(m.chat);
+        reply('✅ Kick operation has been canceled.');
 }
 break
 case "tagall": {
@@ -8918,7 +8714,7 @@ try {
     }
 }
 break
-case 'approve': case 'approve-all': {
+case 'approve': {
 if (!m.isGroup) return reply(mess.group)
 if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
 
@@ -8938,6 +8734,14 @@ reply("*Vinic-Xmd has approved all pending requests✅*");
 
 }
 break
+case "approveall": {
+if (!m.isGroup) return reply(mess.group);
+    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');     
+     const groupId = m.chat;
+ 
+     await approveAllRequests(m, groupId);
+}
+break
 case " disapproveall": {
     if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
         
@@ -8955,56 +8759,22 @@ if (!m.isGroup) return reply(mess.group);
     await listGroupRequests(m, groupId);
 }
 break
-case "disappear": {
-    try {
-        if (!m.isGroup) return reply("❌ This command only works in groups");
-        if (!isAdmins) return reply("❌ Only admins can change disappearing messages");
+case "mediatag": {
+if (!m.isGroup) return reply(mess.group);
+        if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+        if (!m.quoted) return reply(`Reply to any media with caption ${prefix + command}`);
 
-        const action = args[0]?.toLowerCase();
-        
-        if (action === 'on') {
-            const duration = args[1]?.toLowerCase();
-            let seconds;
-            
-            switch (duration) {
-                case "24h": seconds = 86400; break;
-                case "7d": seconds = 604800; break;
-                case "90d": seconds = 7776000; break;
-                default: 
-                    return reply("❌ Invalid duration! Use 24h, 7d, or 90d");
-            }
-
-            await conn.groupSettingUpdate(m.chat, 'disappearing_messages', seconds);
-            reply(`✅ Disappearing messages enabled for ${duration}`, {
-                contextInfo: {
-                    forwardingScore: 999,
-                    isForwarded: true
-                }
-            });
-            
-        } else if (action === 'off') {
-            await conn.groupSettingUpdate(m.chat, 'disappearing_messages', false);
-            reply("✅ Disappearing messages disabled", {
-                contextInfo: {
-                    forwardingScore: 999,
-                    isForwarded: true
-                }
-            });
-            
-        } else {
-            reply("ℹ️ Usage: .disappear <on/off> [24h/7d/90d]");
-        }
-    } catch (error) {
-        console.error("Disappear Error:", error);
-        reply("❌ Failed to update disappearing messages");
-    }
-    
+        conn.sendMessage(m.chat, {
+          forward: m.quoted.fakeObj,
+          mentions: participants.map((a) => a.id),
+        });
 }
 break
 case "promote":
 case "upgrade": {
 if (!Access) return reply(mess.owner);
         if (!m.isGroup) return reply(mess.group);
+        if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
     let target = m.mentionedJid[0] 
       ? m.mentionedJid[0] 
       : m.quoted 
@@ -9046,7 +8816,6 @@ case "downgrade": {
     }
   }
 break
-// Add admin list command
 case "admins":
 case "listadmins":
 case "adminlist": {
@@ -9278,6 +9047,7 @@ try {
     }
 }
 break
+case "lockgcsettings":
 case "lockgc": {
 try {
         if (!isGroup) return reply("❌ This command can only be used in groups");
@@ -9293,6 +9063,25 @@ try {
     } catch (error) {
         console.error("LockGS Error:", error);
         reply("❌ Failed to lock group settings");
+    }
+}
+break
+case "unlockgcsettings":
+case "unlockgc": {
+    try {
+        if (!isGroup) return reply("❌ This command can only be used in groups");
+        if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+        await conn.groupSettingUpdate(from, 'unlocked');
+        reply("🔓 Group settings are now unlocked (all participants)", {
+            contextInfo: {
+                forwardingScore: 999,
+                isForwarded: true
+            }
+        });
+
+    } catch (error) {
+        console.error("UnlockGS Error:", error);
+        reply("❌ Failed to unlock group settings");
     }
 }
 break
@@ -9469,6 +9258,90 @@ ${prefix + command} status`);
     
 }
 break
+case 'allowlink':
+case 'permitlink':
+case 'linksend': {
+    if (!m.isGroup) return reply('❌ This command only works in groups!');
+    if (!isGroupAdmins && !Access) return reply('❌ Only group admins or bot owners can use this command!');
+
+    let user = m.mentionedJid && m.mentionedJid[0] || (m.quoted ? m.quoted.sender : null);
+    if (!user) return reply('*❌ Mention or reply to a user to allow them to send links!*');
+
+    // Initialize database structure if not exists
+    if (!global.db.data.chats) global.db.data.chats = {};
+    if (!global.db.data.chats[from]) global.db.data.chats[from] = {};
+    if (!global.db.data.chats[from].allowedUsers) global.db.data.chats[from].allowedUsers = {};
+    
+    // Add user to allowed list (permanent permission)
+    global.db.data.chats[from].allowedUsers[user] = true;
+
+    // Save to database
+    await saveDatabase();
+
+    await conn.sendMessage(from, {
+        text: `✅ *Link Permission Granted*\n\n@${user.split("@")[0]} has been permanently allowed to send links in this group.`,
+        mentions: [user]
+    }, { quoted: m });
+    break;
+}
+
+case 'disallowlink':
+case 'revokelink':
+case 'linkban': {
+    if (!m.isGroup) return reply('❌ This command only works in groups!');
+    if (!isGroupAdmins && !Access) return reply('❌ Only group admins or bot owners can use this command!');
+
+    let user = m.mentionedJid && m.mentionedJid[0] || (m.quoted ? m.quoted.sender : null);
+    if (!user) return reply('*❌ Mention or reply to a user to revoke their link permission!*');
+
+    // Check if user is in allowed list
+    if (!global.db.data.chats?.[from]?.allowedUsers?.[user]) {
+        return reply('❌ This user is not in the allowed list!');
+    }
+
+    // Remove user from allowed list
+    delete global.db.data.chats[from].allowedUsers[user];
+
+    // Save to database
+    await saveDatabase();
+
+    await conn.sendMessage(from, {
+        text: `❌ *Link Permission Revoked*\n\n@${user.split("@")[0]} can no longer send links in this group.`,
+        mentions: [user]
+    }, { quoted: m });
+    break;
+}
+
+case 'allowedlinks':
+case 'linklist': {
+    if (!m.isGroup) return reply('❌ This command only works in groups!');
+    if (!isGroupAdmins && !Access) return reply('❌ Only group admins or bot owners can use this command!');
+
+    const allowedUsers = global.db.data.chats?.[from]?.allowedUsers;
+    
+    if (!allowedUsers || Object.keys(allowedUsers).length === 0) {
+        return reply('📝 *Allowed Users List*\n\nNo users are allowed to send links in this group.');
+    }
+
+    let listText = '📝 *Allowed Users List*\n\n';
+    const mentions = [];
+    
+    for (const userId of Object.keys(allowedUsers)) {
+        try {
+            const username = userId.split('@')[0];
+            listText += `• @${username}\n`;
+            mentions.push(userId);
+        } catch (error) {
+            listText += `• ${userId}\n`;
+        }
+    }
+
+    await conn.sendMessage(from, {
+        text: listText,
+        mentions: mentions
+    }, { quoted: m });
+    break;
+}
 case "setgroupname": {
 if (!m.isGroup) return reply(mess.group);
         if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
@@ -9772,9 +9645,23 @@ if (!isGroupAdmins) return reply('❌ You need to be an admin to use this comman
 conn.groupRevokeInvite(from)
 reply("*group link reseted by admin*" )
 }
-//bug command
 break
-
+case "userjid":
+case "userid": {
+if (!m.isGroup) return reply(mess.group);
+if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+        const groupMetadata = m.isGroup
+            ? await conn.groupMetadata(m.chat).catch((e) => {})
+            : "";
+        const participants = m.isGroup
+            ? await groupMetadata.participants
+            : "";
+        let textt = `Here is jid address of all users of\n *${groupMetadata.subject}*\n\n`;
+        for (let mem of participants) {
+            textt += `□ ${mem.id}\n`;
+        }
+        reply(textt);
+}
 break
 case 'botbackup':
 case 'bp': {
