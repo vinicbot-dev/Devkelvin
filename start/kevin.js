@@ -143,17 +143,7 @@ if (global.db.data.settings && global.db.data.settings[botNumber] && global.db.d
     prefix = global.db.data.settings[botNumber].config.prefix || ".";
 }
 
-// ========== ANTI-DELETE CONFIGURATION ==========
-// Set anti-delete mode (add this)
-global.antidelete = 'private'; // Options: 'private', 'chat', or false to disable
-// 'private' - sends notifications to bot owner
-// 'chat' - sends notifications in same chat
-// false - disables anti-delete
-// Check if message starts with the actual prefix from config
 
-// Add these with your other global settings
-global.antistatus = 'private'; // Options: 'private', 'chat', or false to disable
-global.antiedit = 'private';   // Options: 'private', 'chat', or false to disable
 
 const isCmd = body.startsWith(prefix);
 const trimmedBody = isCmd ? body.slice(prefix.length).trimStart() : "";
@@ -311,13 +301,20 @@ async function webp2mp4(source) {
   }
 //*---------------------------------------------------------------*//
 
-// ========== ANTI-DELETE MESSAGE HANDLER ==========
-// Anti-Delete Handler Function
+// ========== FIXED ANTI-DELETE MESSAGE HANDLER ==========
 async function handleAntiDelete(m, conn, from, isGroup, botNumber) {
     try {
+        // Check if anti-delete is enabled
+        if (!global.antidelete) {
+            console.log("❌ Anti-delete disabled");
+            return;
+        }
+
         let messageId = m.message.protocolMessage.key.id;
         let chatId = m.chat;
         let deletedBy = m.sender;
+
+        console.log(`🔍 Anti-delete triggered - Mode: ${global.antidelete}, Chat: ${chatId}`);
 
         let storedMessages = loadStoredMessages();
         let deletedMsg = storedMessages[chatId]?.[messageId];
@@ -332,9 +329,9 @@ async function handleAntiDelete(m, conn, from, isGroup, botNumber) {
         let chatName;
         if (deletedMsg.key.remoteJid === 'status@broadcast') {
             chatName = "Status Update";
-        } else if (m.isGroup) {
+        } else if (isGroup) {
             try {
-                const groupInfo = await conn.groupMetadata(m.chat);
+                const groupInfo = await conn.groupMetadata(chatId);
                 chatName = groupInfo.subject || "Group Chat";
             } catch {
                 chatName = "Group Chat";
@@ -347,8 +344,19 @@ async function handleAntiDelete(m, conn, from, isGroup, botNumber) {
         let xdptes = moment(deletedMsg.messageTimestamp * 1000).tz(`${timezones}`).format("DD/MM/YYYY");
 
         // Determine target chat based on antidelete mode
-        const targetChat = global.antidelete === 'private' ? conn.user.id : m.chat;
+        let targetChat;
+        if (global.antidelete === 'private') {
+            targetChat = conn.user.id; // Bot owner's inbox
+            console.log(`📤 Sending to: Bot Owner's Inbox`);
+        } else if (global.antidelete === 'chat') {
+            targetChat = chatId; // Same chat where deletion happened
+            console.log(`📤 Sending to: Same Chat (${chatId})`);
+        } else {
+            console.log("❌ Invalid anti-delete mode");
+            return;
+        }
 
+        // Handle media messages
         if (!deletedMsg.message.conversation && !deletedMsg.message.extendedTextMessage) {
             try {
                 let forwardedMsg = await conn.sendMessage(
@@ -362,11 +370,11 @@ async function handleAntiDelete(m, conn, from, isGroup, botNumber) {
                 
                 let mediaInfo = `🚨 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙼𝙴𝙳𝙸𝙰!* 🚨
 ${readmore}
-𝙲𝙷𝙰𝚃: ${chatName}
-𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]} 
-𝚃𝙸𝙼𝙴: ${xtipes}
-𝙳𝙰𝚃𝙴: ${xdptes}
-𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙱𝚈: @${deletedBy.split('@')[0]}`;
+• 𝙲𝙷𝙰𝚃: ${chatName}
+• 𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]} 
+• 𝚃𝙸𝙼𝙴: ${xtipes}
+• 𝙳𝙰𝚃𝙴: ${xdptes}
+• 𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙱𝚈: @${deletedBy.split('@')[0]}`;
 
                 await conn.sendMessage(
                     targetChat, 
@@ -378,13 +386,13 @@ ${readmore}
                 console.error("Media recovery failed:", mediaErr);
                 let replyText = `🚨 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙼𝙴𝚂𝚂𝙰𝙶𝙴!* 🚨
 ${readmore}
-𝙲𝙷𝙰𝚃: ${chatName}
-𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]} 
-𝚃𝙸𝙼𝙴 𝚂𝙴𝙽𝚃: ${xtipes}
-𝙳𝙰𝚃𝙴 𝚂𝙴𝙽𝚃: ${xdptes}
-𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙱𝚈: @${deletedBy.split('@')[0]}
+• 𝙲𝙷𝙰𝚃: ${chatName}
+• 𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]} 
+• 𝚃𝙸𝙼𝙴: ${xtipes}
+• 𝙳𝙰𝚃𝙴: ${xdptes}
+• 𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙱𝚈: @${deletedBy.split('@')[0]}
 
-𝙼𝙴𝚂𝚂𝙰𝙶𝙴: [Unsupported media content]`;
+• 𝙼𝙴𝚂𝚂𝙰𝙶𝙴: [Unsupported media content]`;
 
                 let quotedMessage = {
                     key: {
@@ -403,19 +411,20 @@ ${readmore}
                 );
             }
         } 
+        // Handle text messages
         else {
             let text = deletedMsg.message.conversation || 
                       deletedMsg.message.extendedTextMessage?.text;
 
             let replyText = `🚨 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙼𝙴𝚂𝚂𝙰𝙶𝙴!* 🚨
 ${readmore}
-𝙲𝙷𝙰𝚃: ${chatName}
-𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]} 
-𝚃𝙸𝙼𝙴 𝚂𝙴𝙽𝚃: ${xtipes}
-𝙳𝙰𝚃𝙴 𝚂𝙴𝙽𝚃: ${xdptes}
-𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙱𝚈: @${deletedBy.split('@')[0]}
+• 𝙲𝙷𝙰𝚃: ${chatName}
+• 𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]} 
+• 𝚃𝙸𝙼𝙴: ${xtipes}
+• 𝙳𝙰𝚃𝙴: ${xdptes}
+• 𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙱𝚈: @${deletedBy.split('@')[0]}
 
-𝙼𝙴𝚂𝚂𝙰𝙶𝙴: ${text}`;
+• 𝙼𝙴𝚂𝚂𝙰𝙶𝙴: ${text}`;
 
             let quotedMessage = {
                 key: {
@@ -1209,27 +1218,42 @@ case 'ai': {
     }
     break;
 }
+case "antidelete": {
+if (!Access) return reply(mess.owner);
+if (args.length < 2) return reply(`Example: ${prefix + command} private on/off\nOr: ${prefix + command} chat on/off`);
 
-case 'antidelete': {
-    if (!Access) return reply('❌ Owner only command');
-    
-    const mode = args[0]?.toLowerCase();
-    const validModes = ['private', 'chat', 'off'];
-    
-    if (!mode || !validModes.includes(mode)) {
-        return reply(`❌ Usage: ${prefix}antidelete <private/chat/off>\n\n• private - Notifications to bot owner\n• chat - Notifications in same chat\n• off - Disable anti-delete`);
-    }
-    
-    if (mode === 'off') {
-        global.antidelete = false;
-        reply('❌ Anti-delete disabled');
-    } else {
-        global.antidelete = mode;
-        reply(`✅ Anti-delete set to: ${mode} mode`);
-    }
-    break;
+const validTypes = ["private", "chat"];
+const validOptions = ["on", "off"];
+
+const type = args[0].toLowerCase();
+const option = args[1].toLowerCase();
+
+if (!validTypes.includes(type)) return reply("Invalid type. Use 'private' or 'chat'");
+if (!validOptions.includes(option)) return reply("Invalid option. Use 'on' or 'off'");
+
+// Fix: Properly get setting from global database
+if (!global.db.data.settings) global.db.data.settings = {};
+if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+let setting = global.db.data.settings[botNumber];
+
+// Initialize config if it doesn't exist
+if (!setting.config) setting.config = {};
+
+// Set the anti-delete configuration based on type
+if (type === "private") {
+    setting.config.statusantidelete = option === "on" ? "private" : false;
+} else if (type === "chat") {
+    setting.config.statusantidelete = option === "on" ? "chat" : false;
 }
 
+// Also update the global antidelete variable
+global.antidelete = setting.config.statusantidelete;
+
+await saveDatabase();
+
+reply(`Anti-delete ${type} mode ${option === "on" ? "enabled" : "disabled"} successfully`);
+}
+break
 case 'antistatus': {
     if (!Access) return reply('❌ Owner only command');
     
