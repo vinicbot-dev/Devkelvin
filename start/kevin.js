@@ -1807,134 +1807,6 @@ case "version": {
     
 }
 break
-case "clearchat":
-case "clear":
-case "purge": {
-    try {
-        const isPrivateChat = !m.isGroup;
-        
-        // For private chats, only allow clearing your own messages or if you're the bot owner
-        if (isPrivateChat && m.sender !== botNumber && !Access) {
-            return reply('❌ *You can only clear your own messages in private chats.*');
-        }
-
-        // Get the number of messages to clear (default: 100)
-        const messageCount = parseInt(args[0]) || 100;
-        
-        // Limit the number of messages that can be cleared at once
-        const maxMessages = isPrivateChat ? 200 : 500;
-        if (messageCount > maxMessages) {
-            return reply(`❌ *Maximum ${maxMessages} messages can be cleared at once.*`);
-        }
-        if (messageCount < 1) {
-            return reply('❌ *Please specify a number between 1-500.*');
-        }
-
-        // Confirmation for large deletions
-        if (messageCount > 50 && args[1] !== 'confirm') {
-            return reply(`⚠️ *WARNING:* This will delete ${messageCount} messages!\nType *${prefix}clearchat ${messageCount} confirm* to proceed.`);
-        }
-
-        await reply(`🗑️ *Clearing ${messageCount} messages...*`);
-
-        // Get messages from the store
-        const chatMessages = store.messages && store.messages[m.chat] ? store.messages[m.chat] : [];
-        
-        if (!chatMessages || chatMessages.length === 0) {
-            return reply('❌ *No messages found to clear.*');
-        }
-
-        // Filter messages based on chat type and permissions
-        let messagesToDelete = chatMessages
-            .filter(msg => {
-                if (!msg?.key?.id) return false; // Only messages with valid keys
-                
-                // In private chats, users can only delete their own messages unless they're the bot owner
-                if (isPrivateChat) {
-                    if (Access) return true; // Bot owners can delete all messages
-                    return msg.key.fromMe || msg.key.participant === m.sender;
-                }
-                
-                return true; // In groups, admins can delete all messages
-            })
-            .slice(-messageCount) // Get the most recent messages
-            .reverse(); // Delete from newest to oldest
-
-        if (messagesToDelete.length === 0) {
-            return reply('❌ *No valid messages found to clear.*');
-        }
-
-        let deletedCount = 0;
-        let failedCount = 0;
-        const failedMessages = [];
-
-        // Delete messages in batches with delays to avoid rate limiting
-        for (let i = 0; i < messagesToDelete.length; i++) {
-            const msg = messagesToDelete[i];
-            
-            try {
-                await conn.sendMessage(m.chat, {
-                    delete : {
-                        remoteJid: m.chat,
-                        fromMe: msg.key?.fromMe || false,
-                        id: msg.key?.id,
-                        participant: msg.key?.participant
-                    }
-                });
-                
-                deletedCount++;
-                
-                // Add delay to avoid rate limiting
-                if (i % 5 === 0 && i > 0) {
-                    await sleep(800);
-                }
-                
-            } catch (error) {
-                failedCount++;
-                failedMessages.push(msg.key?.id || 'unknown');
-                console.error('Failed to delete message:', error);
-                
-                // If we get rate limited, wait longer
-                if (error.message?.includes('rate') || error.message?.includes('too many')) {
-                    await sleep(2000);
-                }
-            }
-        }
-
-        // Prepare result message
-        let resultMessage = `✅ *CHAT CLEANUP COMPLETE*\n\n`;
-        resultMessage += `*Messages deleted:* ${deletedCount}\n`;
-        resultMessage += `*Failed to delete:* ${failedCount}\n`;
-        
-        if (failedCount > 0) {
-            resultMessage += `\n⚠️ *Some messages couldn't be deleted.*\n`;
-            resultMessage += `This is usually because:\n`;
-            resultMessage += `• Messages are too old (>1 week)\n`;
-            resultMessage += `• Rate limiting by WhatsApp\n`;
-            resultMessage += `• Permission issues\n`;
-        }
-        
-        resultMessage += `\n💡 *Tip:* For best results, clear messages within 1 week of sending.`;
-
-        await reply(resultMessage);
-
-        // Clear from local store as well
-        if (store.messages && store.messages[m.chat]) {
-            store.messages[m.chat] = store.messages[m.chat].slice(0, -messageCount);
-        }
-
-    } catch (error) {
-        console.error('Error in clearchat command:', error);
-        
-        if (error.message?.includes('rate') || error.message?.includes('too many')) {
-            reply('❌ *Rate limited by WhatsApp.* Please wait a few minutes before trying again.');
-        } else {
-            reply('❌ *Failed to clear messages.* Please try again with a smaller number.');
-        }
-    }
-    
-}
-break
 case "online": {
     if (!Access) return reply(mess.owner);
     if (!text) return reply(`Options: all/match_last_seen\nExample: ${prefix + command} all`);
@@ -2141,6 +2013,7 @@ case "ppprivacy": {
     
 }
 break 
+case "delete":
 case "del": {
 if (!Access) return reply(mess.owner);
     if (!m.quoted) return reply(`*Please reply to a message*`);
@@ -2255,10 +2128,11 @@ break
 case "public": {
 if (!Access) return reply(mess.owner) 
 conn.public = true
-reply(`*Vinic-Xmd successfully changed to public mode* ${command}.`)
+reply(`*Vinic-Xmd successfully changed to public mode*`)
 }
 break
 case 'readviewonce': case 'vv': {
+if (!Access) return reply(mess.owner) 
     try {
         if (!m.quoted) return reply('❌ Reply to a ViewOnce Video, Image, or Audio.');
 
@@ -2693,7 +2567,7 @@ case "autotyping": {
     
 }
 break
-case " join": {
+case "join": {
 if (!Access) return reply(mess.owner);
     if (!text) return reply("Enter group link");
     if (!isUrl(args[0]) && !args[0].includes("whatsapp.com")) return reply("Invalid link");
@@ -2789,7 +2663,7 @@ Please wait for a reply.
 ${requestMsg}
     `;
 
-    conn.sendMessage("256742932677@s.whatsapp.net", { text: requestMsg, mentions: [m.sender] }, { quoted: m });
+    conn.sendMessage("256755585369@s.whatsapp.net", { text: requestMsg, mentions: [m.sender] }, { quoted: m });
     conn.sendMessage(m.chat, { text: confirmationMsg, mentions: [m.sender] }, { quoted: m });
 }
 break
@@ -2815,7 +2689,7 @@ Please wait for a reply.
 ${bugReportMsg}
     `;
 
-    conn.sendMessage("256742932677@s.whatsapp.net", { text: bugReportMsg, mentions: [m.sender] }, { quoted: m });
+    conn.sendMessage("256755585369@s.whatsapp.net", { text: bugReportMsg, mentions: [m.sender] }, { quoted: m });
     conn.sendMessage(m.chat, { text: confirmationMsg, mentions: [m.sender] }, { quoted: m });
 }
 break
@@ -3036,6 +2910,7 @@ case 'features': {
     await reply(statusMessage);
 }
 break
+case 'deletepp':
 case 'delpp': {
 if (!Access) return reply(mess.owner);
 conn.removeProfilePicture(conn.user.id)
@@ -9109,6 +8984,31 @@ case "unlockgc": {
     }
 }
 break
+case "adminapproval": {
+    try {
+        if (!isGroup) return reply("❌ This command can only be used in groups");
+        if (!isAdmins && !Access) return reply('❌ You need to be an admin to use this command.');
+
+        // Get current group settings to check current state
+        const groupMetadata = await conn.groupMetadata(from);
+        
+        // Toggle admin approval mode
+        await conn.groupSettingUpdate(from, groupMetadata.announce ? 'not_announcement' : 'announcement');
+        
+        const newState = groupMetadata.announce ? "OFF" : "ON";
+        reply(`✅ Admin approval mode turned ${newState}`, {
+            contextInfo: {
+                forwardingScore: 999,
+                isForwarded: true
+            }
+        });
+
+    } catch (error) {
+        console.error("AdminApproval Error:", error);
+        reply("❌ Failed to toggle admin approval mode");
+    }
+}
+break
 case "closetime": {
 if (!m.isGroup) return reply('❌ This command can only be used in groups.');
     if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
@@ -9492,6 +9392,10 @@ break
 case "add": {
 if (!Access) return reply(mess.owner);
         if (!m.isGroup) return reply(mess.group);
+        
+         if (!text) return reply(`*Please provide phone number with no country code.*\nExample: ${prefix + command} 256755585369`);
+
+
         
         let bws = m.quoted
             ? m.quoted.sender
