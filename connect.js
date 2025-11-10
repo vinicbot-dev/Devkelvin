@@ -53,7 +53,7 @@ const Connecting = async ({
 ▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔
 • Bot Name: ${conn.user.name}
 • System: ${require('os').platform()}
-• Prefix: [ . ]
+• Prefix: ${global.prefix}
 • Mode: ${modeStatus}
 • Version: ${versions}
 ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
