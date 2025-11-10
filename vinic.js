@@ -476,107 +476,99 @@ function storeMessage(chatId, messageId, messageData) {
         console.error("Error storing message:", error);
     }
 }
-// ========== ANTI-EDIT HANDLER ==========
+// ========== FIXED ANTI-EDIT HANDLER ==========
 async function handleAntiEdit(m, conn) {
     try {
-        if (
-            global.antiedit === 'private' &&
-            (m.message?.protocolMessage?.editedMessage?.conversation || 
-            m.message?.protocolMessage?.editedMessage?.extendedTextMessage?.text)
-        ) {
-            let messageId = m.message.protocolMessage.key.id;
-            let chatId = m.chat;
-            let editedBy = m.sender;
-
-            let storedMessages = loadStoredMessages();
-            let originalMsg = storedMessages[chatId]?.[messageId];
-
-            if (!originalMsg) {
-                console.log("⚠️ Original message not found in store.json.");
-                return;
-            }
-
-            let sender = originalMsg.key?.participant || originalMsg.key?.remoteJid;
-            let chatName = chatId.endsWith("@g.us") ? "(Group Chat)" : "(Private Chat)";
-
-            let xtipes = moment(originalMsg.messageTimestamp * 1000).tz(`${timezones}`).locale('en').format('HH:mm z');
-            let xdptes = moment(originalMsg.messageTimestamp * 1000).tz(`${timezones}`).format("DD/MM/YYYY");
-
-            let replyText = `🚨 *𝙴𝙳𝙸𝚃𝙴𝙳 𝙼𝙴𝚂𝚂𝙰𝙶𝙴!* 🚨
-${readmore}
-𝙲𝙷𝙰𝚃: ${chatName}
-𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]} 
-𝚂𝙴𝙽𝚃 𝙾𝙽: ${xtipes}
-𝙳𝙰𝚃𝙴 𝚂𝙴𝙽𝚃: ${xdptes}
-𝙴𝙳𝙸𝚃𝙴𝙳 𝙱𝚈: @${editedBy.split('@')[0]}
-
-𝙾𝚁𝙸𝙶𝙸𝙽𝙰𝙻 𝙼𝚂𝙶: ${originalMsg.text}
-
-𝙴𝙳𝙸𝚃𝙴𝙳 𝚃𝙾: ${m.message.protocolMessage?.editedMessage?.conversation || m.message.protocolMessage?.editedMessage?.extendedTextMessage?.text}`;
-
-            let quotedMessage = {
-                key: {
-                    remoteJid: chatId,
-                    fromMe: sender === conn.user.id,
-                    id: messageId,
-                    participant: sender
-                },
-                message: {
-                    conversation: originalMsg.text 
-                }
-            };
-
-            await conn.sendMessage(conn.user.id, { text: replyText, mentions: [sender, editedBy] }, { quoted: quotedMessage });
-
-        } else if (
-            global.antiedit === 'chat' &&
-            (m.message?.protocolMessage?.editedMessage?.conversation || 
-            m.message?.protocolMessage?.editedMessage?.extendedTextMessage?.text)
-        ) {
-            let messageId = m.message.protocolMessage.key.id;
-            let chatId = m.chat;
-            let editedBy = m.sender;
-
-            let storedMessages = loadStoredMessages();
-            let originalMsg = storedMessages[chatId]?.[messageId];
-
-            if (!originalMsg) {
-                console.log("⚠️ Original message not found in store.json.");
-                return;
-            }
-
-            let sender = originalMsg.key?.participant || originalMsg.key?.remoteJid;
-            let chatName = chatId.endsWith("@g.us") ? "(Group Chat)" : "(Private Chat)";
-
-            let xtipes = moment(originalMsg.messageTimestamp * 1000).tz(`${timezones}`).locale('en').format('HH:mm z');
-            let xdptes = moment(originalMsg.messageTimestamp * 1000).tz(`${timezones}`).format("DD/MM/YYYY");
-
-            let replyText = `🚨 *𝙴𝙳𝙸𝚃𝙴𝙳 𝙼𝙴𝚂𝚂𝙰𝙶𝙴!* 🚨
-${readmore}
-𝙲𝙷𝙰𝚃: ${chatName}
-𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]} 
-𝚂𝙴𝙽𝚃 𝙾𝙽: ${xtipes}
-𝙳𝙰𝚃𝙴 𝚂𝙴𝙽𝚃: ${xdptes}
-𝙴𝙳𝙸𝚃𝙴𝙳 𝙱𝚈: @${editedBy.split('@')[0]}
-
-𝙾𝚁𝙸𝙶𝙸𝙽𝙰𝙻 𝙼𝚂𝙶: ${originalMsg.text}
-
-𝙴𝙳𝙸𝚃𝙴𝙳 𝚃𝙾: ${m.message.protocolMessage?.editedMessage?.conversation || m.message.protocolMessage?.editedMessage?.extendedTextMessage?.text}`;
-
-            let quotedMessage = {
-                key: {
-                    remoteJid: chatId,
-                    fromMe: sender === conn.user.id,
-                    id: messageId,
-                    participant: sender
-                },
-                message: {
-                    conversation: originalMsg.text 
-                }
-            };
-
-            await conn.sendMessage(m.chat, { text: replyText, mentions: [sender, editedBy] }, { quoted: quotedMessage });
+        // Check if anti-edit is enabled and we have an edited message
+        if (!global.antiedit || !m.message?.protocolMessage?.editedMessage) {
+            return;
         }
+
+        let messageId = m.message.protocolMessage.key.id;
+        let chatId = m.chat;
+        let editedBy = m.sender;
+
+        let storedMessages = loadStoredMessages();
+        let originalMsg = storedMessages[chatId]?.[messageId];
+
+        if (!originalMsg) {
+            console.log("⚠️ Original message not found in store.json.");
+            return;
+        }
+
+        let sender = originalMsg.key?.participant || originalMsg.key?.remoteJid;
+        
+        // Get chat name
+        let chatName;
+        if (chatId.endsWith("@g.us")) {
+            try {
+                const groupInfo = await conn.groupMetadata(chatId);
+                chatName = groupInfo.subject || "Group Chat";
+            } catch {
+                chatName = "Group Chat";
+            }
+        } else {
+            chatName = originalMsg.pushName || "Private Chat";
+        }
+
+        let xtipes = moment(originalMsg.messageTimestamp * 1000).tz(`${timezones}`).locale('en').format('HH:mm z');
+        let xdptes = moment(originalMsg.messageTimestamp * 1000).tz(`${timezones}`).format("DD/MM/YYYY");
+
+        // Get original text
+        let originalText = originalMsg.message?.conversation || 
+                          originalMsg.message?.extendedTextMessage?.text ||
+                          originalMsg.text ||
+                          "[Text not available]";
+
+        // Get edited text
+        let editedText = m.message.protocolMessage?.editedMessage?.conversation || 
+                        m.message.protocolMessage?.editedMessage?.extendedTextMessage?.text ||
+                        "[Edit content not available]";
+
+        let replyText = `🚨 *𝙴𝙳𝙸𝚃𝙴𝙳 𝙼𝙴𝚂𝚂𝙰𝙶𝙴!* 🚨
+${readmore}
+• 𝙲𝙷𝙰𝚃: ${chatName}
+• 𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]} 
+• 𝚃𝙸𝙼𝙴: ${xtipes}
+• 𝙳𝙰𝚃𝙴: ${xdptes}
+• 𝙴𝙳𝙸𝚃𝙴𝙳 𝙱𝚈: @${editedBy.split('@')[0]}
+
+• 𝙾𝚁𝙸𝙶𝙸𝙽𝙰𝙻: ${originalText}
+
+• 𝙴𝙳𝙸𝚃𝙴𝙳 𝚃𝙾: ${editedText}`;
+
+        let quotedMessage = {
+            key: {
+                remoteJid: chatId,
+                fromMe: sender === conn.user.id,
+                id: messageId,
+                participant: sender
+            },
+            message: {
+                conversation: originalText 
+            }
+        };
+
+        // Determine target based on mode
+        let targetChat;
+        if (global.antiedit === 'private') {
+            targetChat = conn.user.id; // Send to bot owner
+            console.log(`📤 Anti-edit: Sending to bot owner's inbox`);
+        } else if (global.antiedit === 'chat') {
+            targetChat = chatId; // Send to same chat
+            console.log(`📤 Anti-edit: Sending to same chat`);
+        } else {
+            console.log("❌ Invalid anti-edit mode");
+            return;
+        }
+
+        await conn.sendMessage(
+            targetChat, 
+            { text: replyText, mentions: [sender, editedBy] }, 
+            { quoted: quotedMessage }
+        );
+
+        console.log(`✅ Edited message captured and sent to: ${global.antiedit === 'private' ? 'bot owner' : 'same chat'}`);
 
     } catch (err) {
         console.error("❌ Error processing edited message:", err);
