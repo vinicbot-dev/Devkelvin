@@ -47,19 +47,29 @@ const Connecting = async ({
         // Use global variables with fallbacks
         const modeStatus = global.modeStatus || 'public';
         const versions = global.versions || '1.0.0';
-        
-        await conn.sendMessage(conn.user.id, { 
-            text: `✦◈✦ VINIC-XMD ✦◈✦
+        let prefix = global.prefix || '.'; // Use global prefix or default
+
+        // Function to set prefix (you should move this to your command handler)
+        function setPrefix(newPrefix) {
+            prefix = newPrefix;
+            global.prefix = newPrefix; // Store in global for persistence
+            return `Prefix changed to: ${newPrefix}`;
+        }
+
+        const statusMessage = `✦◈✦ VINIC-XMD ✦◈✦
 ▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔
 • Bot Name: ${conn.user.name}
 • System: ${require('os').platform()}
-• Prefix: ${global.prefix}
+• Prefix: [ ${prefix} ]
 • Mode: ${modeStatus}
 • Version: ${versions}
 ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
 Join our channel for updates:
-🔗 wa.me/channel/0029Vb6eR1r05MUgYul6Pc2W
-✦◈✦◈✦◈✦◈✦◈✦◈✦◈✦◈✦`
+🔗 https://whatsapp.com/channel/0029Vb7VdNbIXnlhBiFjrt1B
+✦◈✦◈✦◈✦◈✦◈✦◈✦◈✦◈✦`;
+
+        await conn.sendMessage(conn.user.id, { 
+            text: statusMessage 
         });
 
         // Auto join group when connected
