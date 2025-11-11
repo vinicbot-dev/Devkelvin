@@ -82,7 +82,6 @@ const {
 
 const {
 handleAutoReact,
-checkAndHandleLinks,
 handleLinkViolation,
 detectUrls,
 saveDatabase,
@@ -391,7 +390,7 @@ async function clientstart() {
         
         // Conditionally enable features based on memory
         if (!isLowMemory) {
-          await checkAndHandleLinks(mek, conn);
+         
           await handleAutoReact(m, conn);
           await detectUrls(mek, conn);
           await handleLinkViolation(mek, conn);
