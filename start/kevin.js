@@ -81,7 +81,6 @@ const {
   ephoto,
   loadBlacklist,
   initializeDatabase,
-  isUserAllowedToSendLinks,
   delay,
   recordError,
   shouldLogError } = require('../vinic')
@@ -977,11 +976,6 @@ if (global.antistatus && m.message?.protocolMessage?.type === 0 && m.message?.pr
 if (global.antiedit && m.message?.protocolMessage?.editedMessage) {
     await handleAntiEdit(m, conn);
 }
-// ========== FIXED: CHECK IF USER IS ALLOWED TO SEND LINKS FIRST ==========
-if (isUserAllowedToSendLinks(from, sender)) {
-    return; // Allow the message - EXIT EARLY (NO MESSAGE SENT)
-}
-// ========== END FIXED CODE ==========
 
 // ========== ANTI-BUG EXECUTION ==========
 if (body && !m.key.fromMe) {
