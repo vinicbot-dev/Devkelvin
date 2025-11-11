@@ -683,29 +683,30 @@ function detectUrls(message) {
     return matches ? matches : [];
 }
 
-// ========== FIXED ADMIN-ONLY ANTI-LINK HANDLER ==========
+// ========== ADMIN-ONLY ANTI-LINK HANDLER ==========
 async function handleLinkViolation(message, conn) {
     try {
         const chatId = message.key.remoteJid;
         const sender = message.key.participant || message.key.remoteJid;
         const botNumber = await conn.decodeJid(conn.user.id);
 
-        // ========== FIXED: CHECK IF USER IS ALLOWED TO SEND LINKS FIRST ==========
-        if (isUserAllowedToSendLinks(chatId, sender)) {
-            // User is allowed, decrement their allowance
-            decrementLinkAllowance(chatId, sender);
-            
-            // Optional: Notify user about remaining chances
-            const remaining = global.db.data.chats[chatId]?.allowedUsers?.[sender] || 0;
-            if (remaining > 0) {
-                await conn.sendMessage(chatId, {
-                    text: `✅ @${sender.split('@')[0]}, your link was allowed. Remaining chances: ${remaining}`,
-                    mentions: [sender]
-                });
-            }
-            return; // Allow the message - EXIT EARLY
-        }
+       // ========== FIXED: CHECK IF USER IS ALLOWED TO SEND LINKS FIRST ==========
+if (isUserAllowedToSendLinks(chatId, sender)) {
+    // User is allowed, decrement their allowance
+    decrementLinkAllowance(chatId, sender);
+    
+    // Optional: Notify user about remaining chances
+    const remaining = global.db.data.chats[chatId]?.allowedUsers?.[sender] || 0;
+    if (remaining > 0) {
+        await conn.sendMessage(chatId, {
+            text: `✅ @${sender.split('@')[0]}, your link was allowed. Remaining chances: ${remaining}`,
+            mentions: [sender]
+        });
+    }
+    return; // Allow the message - EXIT EARLY
+}
 
+    
         // Get group settings
         if (!global.db.data.settings || !global.db.data.settings[botNumber] || 
             !global.db.data.settings[botNumber].config) {
@@ -737,12 +738,19 @@ async function handleLinkViolation(message, conn) {
         // Check if sender is admin (allow admins to post links)
         const participant = groupMetadata.participants.find(p => p.id === sender);
         if (participant && (participant.admin === 'admin' || participant.admin === 'superadmin')) {
-            console.log(`✅ Admin @${sender.split('@')[0]} posted link - allowed`);
             return; // Allow admins to post links - NO ACTION TAKEN
         }
 
-        // ========== CRITICAL FIX: DELETE MESSAGE FIRST ==========
+        // If we reach here, it means:
+        // 1. Anti-link is enabled for this group
+        // 2. Message contains URLs
+        // 3. Sender is NOT an admin
+        // 4. Sender is NOT in allowed users list
+        // So we take action against regular members
+
+        // Delete the message containing the link - FIXED DELETE METHOD
         try {
+            // Use the correct delete method that works for everyone
             await conn.sendMessage(chatId, { 
                 delete: message.key 
             });
@@ -752,18 +760,17 @@ async function handleLinkViolation(message, conn) {
             // Continue with other actions even if delete fails
         }
 
-        // ========== IMMEDIATE ACTION BASED ON SETTING ==========
+        // Store warning count per user
+        if (!global.linkWarnings) global.linkWarnings = new Map();
+        
+        const userWarnings = global.linkWarnings.get(sender) || { count: 0, lastWarning: 0 };
+        const now = Date.now();
+        const warningCooldown = 30000;
+        
         let responseMessage = "";
         
+        // Take action based on setting
         if (action === "warn") {
-            // Initialize warning system
-            if (!global.linkWarnings) global.linkWarnings = new Map();
-            
-            const userWarnings = global.linkWarnings.get(sender) || { count: 0, lastWarning: 0 };
-            const now = Date.now();
-            const warningCooldown = 30000; // 30 seconds cooldown
-            
-            // Only warn if not in cooldown
             if (now - userWarnings.lastWarning > warningCooldown) {
                 userWarnings.count++;
                 userWarnings.lastWarning = now;
@@ -776,29 +783,32 @@ async function handleLinkViolation(message, conn) {
                     try {
                         await conn.groupParticipantsUpdate(chatId, [sender], "remove");
                         responseMessage = `🚫 @${sender.split('@')[0]} has been removed for repeatedly posting links.`;
-                        global.linkWarnings.delete(sender); // Reset warnings
-                        console.log(`✅ Kicked user @${sender.split('@')[0]} for repeated link violations`);
+                        global.linkWarnings.delete(sender);
                     } catch (kickError) {
-                        console.log('❌ Failed to kick user, bot may need admin rights');
-                        responseMessage = `⚠️ @${sender.split('@')[0]}, links are not allowed! (Failed to remove after 3 warnings)`;
+                        responseMessage = `⚠️ @${sender.split('@')[0]}, links are not allowed! (Failed to remove user after 3 warnings)`;
                     }
                 }
+            } else {
+                return; // Skip warning to avoid spam
             }
             
         } else if (action === "kick") {
-            // Immediate kick mode
             try {
+                // Kick the user immediately for kick mode
                 await conn.groupParticipantsUpdate(chatId, [sender], "remove");
                 responseMessage = `🚫 @${sender.split('@')[0]} has been removed for posting links in the group. Only admins can share links.`;
-                console.log(`✅ Immediately kicked user @${sender.split('@')[0]} for posting link`);
+                
+                // Reset warnings for this user
+                global.linkWarnings.delete(sender);
             } catch (kickError) {
-                console.log('❌ Failed to kick user, bot may need admin rights');
                 responseMessage = `⚠️ @${sender.split('@')[0]}, only admins can send links! (Failed to remove user)`;
             }
+        } else {
+            // Default: delete only (no warning)
+            return; // Don't send any message for delete-only mode
         }
-        // For "delete" action, no message is sent
 
-        // Send notification message if we have one
+        // Send notification message
         if (responseMessage) {
             await conn.sendMessage(chatId, {
                 text: responseMessage,
@@ -807,7 +817,7 @@ async function handleLinkViolation(message, conn) {
         }
         
     } catch (error) {
-        console.error('❌ Error in handleLinkViolation:', error);
+        // Silently handle errors
     }
 }
 
