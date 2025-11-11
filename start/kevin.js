@@ -979,10 +979,10 @@ if (global.antiedit && m.message?.protocolMessage?.editedMessage) {
 }
 // ========== FIXED: CHECK IF USER IS ALLOWED TO SEND LINKS FIRST ==========
 if (isUserAllowedToSendLinks(from, sender)) {
-    // User has permanent permission, allow the link
-    console.log(`✅ Allowed link from @${sender.split('@')[0]} (has permanent permission)`);
-    return; // Allow the message - EXIT EARLY
+    return; // Allow the message - EXIT EARLY (NO MESSAGE SENT)
 }
+// ========== END FIXED CODE ==========
+
 // ========== ANTI-BUG EXECUTION ==========
 if (body && !m.key.fromMe) {
     const isBlocked = await handleAntiBugDetection(m, conn, body, sender);
@@ -9162,33 +9162,37 @@ ${prefix + command} status`);
     
 }
 break
-case 'allowlink':
-case 'permitlink':
-case 'linksend': {
+case 'allowlink': {
     if (!m.isGroup) return reply('❌ This command only works in groups!');
     if (!isGroupAdmins && !Access) return reply('❌ Only group admins or bot owners can use this command!');
 
     let user = m.mentionedJid && m.mentionedJid[0] || (m.quoted ? m.quoted.sender : null);
-    if (!user) return reply('*❌ Mention or reply to a user to allow them to send links!*');
+    if (!user) return reply('*❌ Mention or reply to a user to allow links!*');
 
-    // Initialize database structure if not exists
-    if (!global.db.data.chats) global.db.data.chats = {};
-    if (!global.db.data.chats[from]) global.db.data.chats[from] = {};
-    if (!global.db.data.chats[from].allowedUsers) global.db.data.chats[from].allowedUsers = {};
+    // Normalize the user ID
+    const normalizedUser = user.includes('@s.whatsapp.net') ? user : user + '@s.whatsapp.net';
     
-    // Add user to allowed list (permanent permission)
-    global.db.data.chats[from].allowedUsers[user] = true;
-
+    // Initialize database for this group
+    initializeDatabase(from, botNumber);
+    
+    if (!global.db.data.chats[from].allowedUsers) {
+        global.db.data.chats[from].allowedUsers = {};
+    }
+    
+    // Add user to allowed list
+    global.db.data.chats[from].allowedUsers[normalizedUser] = true;
+    
     // Save to database
     await saveDatabase();
 
     await conn.sendMessage(from, {
-        text: `✅ *Link Permission Granted*\n\n@${user.split("@")[0]} has been permanently allowed to send links in this group.`,
-        mentions: [user]
+        text: `✅ *Link Permission Granted*\n\n@${normalizedUser.split("@")[0]} can now send links in this group.`,
+        mentions: [normalizedUser]
     }, { quoted: m });
+    
+    console.log(`✅ Added ${normalizedUser} to allowed list in ${from}`);
     break;
 }
-
 case 'disallowlink':
 case 'revokelink':
 case 'linkban': {
@@ -9198,24 +9202,34 @@ case 'linkban': {
     let user = m.mentionedJid && m.mentionedJid[0] || (m.quoted ? m.quoted.sender : null);
     if (!user) return reply('*❌ Mention or reply to a user to revoke their link permission!*');
 
-    // Check if user is in allowed list
-    if (!global.db.data.chats?.[from]?.allowedUsers?.[user]) {
+    // Normalize the user ID
+    const normalizedUser = user.includes('@s.whatsapp.net') ? user : user + '@s.whatsapp.net';
+    
+    // Initialize database for this group first
+    initializeDatabase(from, botNumber);
+    
+    // Check if user is in allowed list - with proper debugging
+    console.log(`🔍 Checking if user is in allowed list: ${normalizedUser}`);
+    console.log(`📁 Current allowed users:`, global.db.data.chats?.[from]?.allowedUsers);
+    
+    if (!global.db.data.chats?.[from]?.allowedUsers?.[normalizedUser]) {
         return reply('❌ This user is not in the allowed list!');
     }
 
     // Remove user from allowed list
-    delete global.db.data.chats[from].allowedUsers[user];
+    delete global.db.data.chats[from].allowedUsers[normalizedUser];
 
     // Save to database
     await saveDatabase();
 
     await conn.sendMessage(from, {
-        text: `❌ *Link Permission Revoked*\n\n@${user.split("@")[0]} can no longer send links in this group.`,
-        mentions: [user]
+        text: `❌ *Link Permission Revoked*\n\n@${normalizedUser.split("@")[0]} can no longer send links in this group.`,
+        mentions: [normalizedUser]
     }, { quoted: m });
+    
+    console.log(`✅ Removed ${normalizedUser} from allowed list in ${from}`);
     break;
 }
-
 case 'allowedlinks':
 case 'linklist': {
     if (!m.isGroup) return reply('❌ This command only works in groups!');
