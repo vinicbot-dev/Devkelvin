@@ -655,8 +655,7 @@ function detectUrls(message) {
     
     if (!text || typeof text !== 'string') return [];
     
-    // Enhanced URL detection pattern
-    const urlRegex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
+     const urlRegex = /(https?:\/\/)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
     
     const matches = text.match(urlRegex);
     return matches ? matches : [];
