@@ -634,6 +634,28 @@ async function handleStatusUpdate(mek, conn) {
         console.error('Error in status handler:', error);
     }
 }
+
+function isUserAllowedToSendLinks(chatId, userId) {
+    try {
+        // Normalize the user ID to ensure proper comparison
+        const normalizedUserId = userId.includes('@s.whatsapp.net') ? userId : userId + '@s.whatsapp.net';
+        
+        // Check if user exists in allowedUsers
+        const isAllowed = !!global.db.data.chats?.[chatId]?.allowedUsers?.[normalizedUserId];
+        
+        return isAllowed;
+    } catch (error) {
+        return false;
+    }
+}
+function decrementLinkAllowance(chatId, userId) {
+    try {
+        console.log(`✅ Link allowed for @${userId.split('@')[0]} in ${chatId}`);
+    } catch (error) {
+        console.error('Error in decrementLinkAllowance:', error);
+    }
+}
+
 // ========== FIXED ANTI-LINK DETECTION FUNCTION ==========
 function detectUrls(message) {
     if (!message) return [];
@@ -661,7 +683,7 @@ function detectUrls(message) {
     return matches ? matches : [];
 }
 
-// ========== ADMIN-ONLY ANTI-LINK HANDLER ==========
+// ========== FIXED ADMIN-ONLY ANTI-LINK HANDLER ==========
 async function handleLinkViolation(message, conn) {
     try {
         const chatId = message.key.remoteJid;
@@ -683,7 +705,6 @@ async function handleLinkViolation(message, conn) {
             }
             return; // Allow the message - EXIT EARLY
         }
-        // ========== END FIXED CODE ==========
 
         // Get group settings
         if (!global.db.data.settings || !global.db.data.settings[botNumber] || 
@@ -716,41 +737,33 @@ async function handleLinkViolation(message, conn) {
         // Check if sender is admin (allow admins to post links)
         const participant = groupMetadata.participants.find(p => p.id === sender);
         if (participant && (participant.admin === 'admin' || participant.admin === 'superadmin')) {
+            console.log(`✅ Admin @${sender.split('@')[0]} posted link - allowed`);
             return; // Allow admins to post links - NO ACTION TAKEN
         }
 
-        // If we reach here, it means:
-        // 1. Anti-link is enabled for this group
-        // 2. Message contains URLs
-        // 3. Sender is NOT an admin
-        // 4. Sender is NOT in allowed users list
-        // So we take action against regular members
-
-        // Delete the message containing the link
+        // ========== CRITICAL FIX: DELETE MESSAGE FIRST ==========
         try {
-            await conn.sendMessage(chatId, {
-                delete: {
-                    remoteJid: chatId,
-                    fromMe: false,
-                    id: message.key.id,
-                    participant: sender
-                }
+            await conn.sendMessage(chatId, { 
+                delete: message.key 
             });
+            console.log(`🗑️ Deleted link message from @${sender.split('@')[0]}`);
         } catch (deleteError) {
-            // Silently handle delete errors
+            console.log('❌ Could not delete message, bot may need admin rights');
+            // Continue with other actions even if delete fails
         }
 
-        // Store warning count per user
-        if (!global.linkWarnings) global.linkWarnings = new Map();
-        
-        const userWarnings = global.linkWarnings.get(sender) || { count: 0, lastWarning: 0 };
-        const now = Date.now();
-        const warningCooldown = 30000;
-        
+        // ========== IMMEDIATE ACTION BASED ON SETTING ==========
         let responseMessage = "";
         
-        // Take action based on setting
         if (action === "warn") {
+            // Initialize warning system
+            if (!global.linkWarnings) global.linkWarnings = new Map();
+            
+            const userWarnings = global.linkWarnings.get(sender) || { count: 0, lastWarning: 0 };
+            const now = Date.now();
+            const warningCooldown = 30000; // 30 seconds cooldown
+            
+            // Only warn if not in cooldown
             if (now - userWarnings.lastWarning > warningCooldown) {
                 userWarnings.count++;
                 userWarnings.lastWarning = now;
@@ -763,32 +776,29 @@ async function handleLinkViolation(message, conn) {
                     try {
                         await conn.groupParticipantsUpdate(chatId, [sender], "remove");
                         responseMessage = `🚫 @${sender.split('@')[0]} has been removed for repeatedly posting links.`;
-                        global.linkWarnings.delete(sender);
+                        global.linkWarnings.delete(sender); // Reset warnings
+                        console.log(`✅ Kicked user @${sender.split('@')[0]} for repeated link violations`);
                     } catch (kickError) {
-                        responseMessage = `⚠️ @${sender.split('@')[0]}, links are not allowed! (Failed to remove user after 3 warnings)`;
+                        console.log('❌ Failed to kick user, bot may need admin rights');
+                        responseMessage = `⚠️ @${sender.split('@')[0]}, links are not allowed! (Failed to remove after 3 warnings)`;
                     }
                 }
-            } else {
-                return; // Skip warning to avoid spam
             }
             
         } else if (action === "kick") {
+            // Immediate kick mode
             try {
-                // Kick the user immediately for kick mode
                 await conn.groupParticipantsUpdate(chatId, [sender], "remove");
                 responseMessage = `🚫 @${sender.split('@')[0]} has been removed for posting links in the group. Only admins can share links.`;
-                
-                // Reset warnings for this user
-                global.linkWarnings.delete(sender);
+                console.log(`✅ Immediately kicked user @${sender.split('@')[0]} for posting link`);
             } catch (kickError) {
+                console.log('❌ Failed to kick user, bot may need admin rights');
                 responseMessage = `⚠️ @${sender.split('@')[0]}, only admins can send links! (Failed to remove user)`;
             }
-        } else {
-            // Default: delete only (no warning)
-            return; // Don't send any message for delete-only mode
         }
+        // For "delete" action, no message is sent
 
-        // Send notification message
+        // Send notification message if we have one
         if (responseMessage) {
             await conn.sendMessage(chatId, {
                 text: responseMessage,
@@ -797,7 +807,7 @@ async function handleLinkViolation(message, conn) {
         }
         
     } catch (error) {
-        // Silently handle errors
+        console.error('❌ Error in handleLinkViolation:', error);
     }
 }
 
@@ -863,15 +873,7 @@ async function handleAutoReact(m, conn) {
         console.error('❌ Error in auto-react:', error);
     }
 }
-// ========== UPDATED HELPER FUNCTIONS ==========
-function isUserAllowedToSendLinks(chatId, userId) {
-    try {
-        // Check if user exists in allowedUsers with true value
-        return !!global.db.data.chats?.[chatId]?.allowedUsers?.[userId];
-    } catch (error) {
-        return false;
-    }
-}
+
 
 
 module.exports = {
@@ -899,6 +901,7 @@ module.exports = {
   recordError,
   shouldLogError,
   pickRandom,
+  decrementLinkAllowance,
   isUserAllowedToSendLinks
   
 };
