@@ -135,71 +135,6 @@ _Reply with 1, 2 or 3 to this message to download the format you prefer._`;
     }
 }
 
-async function musicCommand(conn, chatId, message, args) {
-    try {
-        const query = args.join(' ').trim();
-        
-        if (!query) {
-            return await conn.sendMessage(chatId, {
-                text: "🎵 Please provide a song name\nExample: .music number one by ravany"
-            }, { quoted: message });
-        }
-
-        // Start reaction
-        await conn.sendMessage(chatId, { react: { text: "⏳", key: message.key } });
-
-        // Send searching message
-        await conn.sendMessage(chatId, {
-            text: `🔍 Searching for: ${query}`
-        }, { quoted: message });
-
-        // Search for the song
-        const searchApi = `https://veron-apis.zone.id/search/youtubesearch?query=${encodeURIComponent(query)}`;
-        const searchResponse = await axios.get(searchApi);
-
-        if (!searchResponse.data || !searchResponse.data.status || !Array.isArray(searchResponse.data.data) || searchResponse.data.data.length === 0) {
-            await conn.sendMessage(chatId, { react: { text: "❌", key: message.key } });
-            return await conn.sendMessage(chatId, {
-                text: `❌ No results found for: ${query}`
-            }, { quoted: message });
-        }
-
-        // Get the first result
-        const firstResult = searchResponse.data.data[0];
-        
-        // Download audio
-        const audioApi = `https://veron-apis.zone.id/downloader/youtube/audio?url=${encodeURIComponent(firstResult.url)}`;
-        const audioResponse = await axios.get(audioApi);
-
-        if (!audioResponse.data || !audioResponse.data.status || !audioResponse.data.data || !audioResponse.data.data.downloadUrl) {
-            await conn.sendMessage(chatId, { react: { text: "❌", key: message.key } });
-            return await conn.sendMessage(chatId, {
-                text: "❌ Failed to download audio"
-            }, { quoted: message });
-        }
-
-        const { title, downloadUrl, format } = audioResponse.data.data;
-        const filename = `${title || firstResult.title}.${format || 'mp3'}`.replace(/[<>:"/\\|?*]/g, '');
-
-        // Send as audio without any caption or context info
-        await conn.sendMessage(chatId, {
-            audio: { url: downloadUrl },
-            mimetype: "audio/mpeg",
-            fileName: filename
-        });
-
-        // Success reaction
-        await conn.sendMessage(chatId, { react: { text: "✅", key: message.key } });
-
-    } catch (error) {
-        console.error("Music Command Error:", error.message);
-        await conn.sendMessage(chatId, { react: { text: "❌", key: message.key } });
-        await conn.sendMessage(chatId, {
-            text: "❌ An error occurred while processing your request."
-        }, { quoted: message });
-    }
-}
-
 async function takeCommand(conn, chatId, message, args) {
     try {
         // Check if message is a reply to a sticker
@@ -274,81 +209,35 @@ async function takeCommand(conn, chatId, message, args) {
     }
 }
 
-async function videoCommand(conn, chatId, message, args) {
+async function videoCommand(conn, chatId, message) {
     try {
-        const query = args.join(' ').trim();
-        
-        if (!query) {
-            return await conn.sendMessage(chatId, {
-                text: "🎬 Please provide a video name or YouTube URL\nExample: .video number one by ravany"
-            }, { quoted: message });
-        }
+        const text = message.message?.conversation || message.message?.extendedTextMessage?.text;
+        const args = text.split(' ').slice(1); // Remove command prefix
+        const searchQuery = args.join(' ').trim();
 
         // Start reaction
-        await conn.sendMessage(chatId, { react: { text: "⏳", key: message.key } });
+        await conn.sendMessage(chatId, { react: { text: '⏳', key: message.key } });
 
-        // Send searching message
+        // Your command logic here
+        if (!searchQuery) {
+            await conn.sendMessage(chatId, { 
+                text: 'Please provide some text!' 
+            }, { quoted: message });
+            return;
+        }
+
+        // Example: Echo command
         await conn.sendMessage(chatId, {
-            text: `🔍 Searching for: ${query}`
+            text: `✅ You said: ${searchQuery}`
         }, { quoted: message });
-
-        let videoUrl = query;
-        let videoTitle = "";
-
-        // If not a YouTube URL, search for it
-        if (!query.includes('youtube.com') && !query.includes('youtu.be')) {
-            const searchApi = `https://veron-apis.zone.id/search/youtubesearch?query=${encodeURIComponent(query)}`;
-            const searchResponse = await axios.get(searchApi);
-
-            if (!searchResponse.data || !searchResponse.data.status || !Array.isArray(searchResponse.data.data) || searchResponse.data.data.length === 0) {
-                await conn.sendMessage(chatId, { react: { text: "❌", key: message.key } });
-                return await conn.sendMessage(chatId, {
-                    text: `❌ No results found for: ${query}`
-                }, { quoted: message });
-            }
-
-            const firstResult = searchResponse.data.data[0];
-            videoUrl = firstResult.url;
-            videoTitle = firstResult.title;
-
-            // Show found result
-            await conn.sendMessage(chatId, {
-                image: { url: firstResult.thumbnail },
-                caption: `🎬 Found: ${firstResult.title}\n⏱️ ${firstResult.duration} • 👁️ ${firstResult.views}\n👤 ${firstResult.channel}\n\n⬇️ Downloading video...`
-            }, { quoted: message });
-        }
-
-        // Download video
-        const videoApi = `https://veron-apis.zone.id/downloader/youtube/video?url=${encodeURIComponent(videoUrl)}`;
-        const videoResponse = await axios.get(videoApi);
-
-        if (!videoResponse.data || !videoResponse.data.status || !videoResponse.data.data || !videoResponse.data.data.downloadUrl) {
-            await conn.sendMessage(chatId, { react: { text: "❌", key: message.key } });
-            return await conn.sendMessage(chatId, {
-                text: "❌ Failed to download video"
-            }, { quoted: message });
-        }
-
-        const { title, downloadUrl, format, videoId } = videoResponse.data.data;
-        const filename = `${title || videoId}.${format || 'mp4'}`.replace(/[<>:"/\\|?*]/g, '');
-
-        // Send as video with caption global.wm
-        await conn.sendMessage(chatId, {
-            video: { url: downloadUrl },
-            mimetype: "video/mp4",
-            fileName: filename,
-            caption: "> global.wm" // Add your custom caption here
-        });
 
         // Success reaction
-        await conn.sendMessage(chatId, { react: { text: "✅", key: message.key } });
+        await conn.sendMessage(chatId, { react: { text: '✅', key: message.key } });
 
     } catch (error) {
-        console.error("Video Command Error:", error.message);
-        await conn.sendMessage(chatId, { react: { text: "❌", key: message.key } });
-        await conn.sendMessage(chatId, {
-            text: "❌ An error occurred while processing your request."
-        }, { quoted: message });
+        console.log('❌ MyCommand Error:', error.message);
+        await conn.sendMessage(chatId, { text: 'Command failed: ' + error.message }, { quoted: message });
+        await conn.sendMessage(chatId, { react: { text: '❌', key: message.key } });
     }
 }
 
@@ -415,140 +304,110 @@ async function ytplayCommand(conn, chatId, query, message) {
     }
 }
 
-async function ytmp4Command(conn, chatId, message, args) {
+// ========== MEDIAFIRE DOWNLOADER ==========
+async function handleMediafireDownload(url, conn, m) {
     try {
-        const youtubeUrl = args.join(' ').trim();
+        // Show typing indicator
+        await conn.sendPresenceUpdate('composing', m.chat);
         
-        if (!youtubeUrl) {
-            return await conn.sendMessage(chatId, {
-                text: "🎬 Please provide a YouTube URL\nExample: .ytmp4 https://youtube.com/watch?v=abc123"
-            }, { quoted: message });
+        // Check if it's a MediaFire link
+        if (!url.includes('mediafire.com')) {
+            throw new Error('❌ Please provide a valid MediaFire link');
         }
 
-        // Start reaction
-        await conn.sendMessage(chatId, { react: { text: "⏳", key: message.key } });
-
-        // Download video
-        const videoApi = `https://veron-apis.zone.id/downloader/youtube/video?url=${encodeURIComponent(youtubeUrl)}`;
-        const videoResponse = await axios.get(videoApi);
-
-        if (!videoResponse.data || !videoResponse.data.status || !videoResponse.data.data || !videoResponse.data.data.downloadUrl) {
-            await conn.sendMessage(chatId, { react: { text: "❌", key: message.key } });
-            return await conn.sendMessage(chatId, {
-                text: "❌ Failed to download video"
-            }, { quoted: message });
+        // Encode the URL for the API
+        const encodedUrl = encodeURIComponent(url);
+        const apiUrl = `https://api.nekolabs.web.id/downloader/mediafire?url=${encodedUrl}`;
+        
+        // Fetch download info from API
+        const { data } = await axios.get(apiUrl);
+        
+        if (!data || !data.result) {
+            throw new Error('❌ Failed to fetch download information from MediaFire');
         }
 
-        const { title, downloadUrl, format, videoId } = videoResponse.data.data;
-        const filename = `${title || videoId}.${format || 'mp4'}`.replace(/[<>:"/\\|?*]/g, '');
+        const fileInfo = data.result;
+        
+        // Send file information first
+        const fileInfoText = `📥 *MEDIAFIRE DOWNLOADER*\n\n` +
+                           `📄 *File Name:* ${fileInfo.filename || 'Unknown'}\n` +
+                           `📦 *File Size:* ${fileInfo.filesize || 'Unknown'}\n` +
+                           `🔗 *Download URL:* ${fileInfo.url || 'Not available'}\n\n` +
+                           `⏳ *Downloading file...*`;
 
-        // Send as video with global watermark caption
-        await conn.sendMessage(chatId, {
-            video: { url: downloadUrl },
-            mimetype: "video/mp4",
-            fileName: filename,
-            caption: global.wm || "🎬 Downloaded by Vinic-Xmd"
-        });
+        await conn.sendMessage(m.chat, { text: fileInfoText }, { quoted: m });
 
-        // Success reaction
-        await conn.sendMessage(chatId, { react: { text: "✅", key: message.key } });
+        // Download the file
+        const fileBuffer = await getBuffer(fileInfo.url);
+        
+        if (!fileBuffer || fileBuffer.length === 0) {
+            throw new Error('❌ Failed to download file from MediaFire');
+        }
+
+        // Determine file type and send accordingly
+        const fileType = await fromBuffer(fileBuffer);
+        const filename = fileInfo.filename || `mediafire_download_${Date.now()}`;
+        
+        // Send the file based on its type
+        if (fileType && fileType.mime.startsWith('image/')) {
+            await conn.sendMessage(m.chat, { 
+                image: fileBuffer,
+                caption: `✅ *Download Successful!*\n\n📄 ${filename}\n📦 ${formatSize(fileBuffer.length)}`,
+                fileName: filename
+            }, { quoted: m });
+            
+        } else if (fileType && fileType.mime.startsWith('video/')) {
+            await conn.sendMessage(m.chat, { 
+                video: fileBuffer,
+                caption: `✅ *Download Successful!*\n\n📄 ${filename}\n📦 ${formatSize(fileBuffer.length)}`,
+                fileName: filename
+            }, { quoted: m });
+            
+        } else if (fileType && fileType.mime.startsWith('audio/')) {
+            await conn.sendMessage(m.chat, { 
+                audio: fileBuffer,
+                caption: `✅ *Download Successful!*\n\n📄 ${filename}\n📦 ${formatSize(fileBuffer.length)}`,
+                fileName: filename,
+                mimetype: fileType.mime
+            }, { quoted: m });
+            
+        } else if (fileType && fileType.mime === 'application/pdf') {
+            await conn.sendMessage(m.chat, { 
+                document: fileBuffer,
+                caption: `✅ *Download Successful!*\n\n📄 ${filename}\n📦 ${formatSize(fileBuffer.length)}`,
+                fileName: filename,
+                mimetype: 'application/pdf'
+            }, { quoted: m });
+            
+        } else {
+            // Send as document for unknown file types
+            await conn.sendMessage(m.chat, { 
+                document: fileBuffer,
+                caption: `✅ *Download Successful!*\n\n📄 ${filename}\n📦 ${formatSize(fileBuffer.length)}\n📝 File Type: ${fileType ? fileType.mime : 'Unknown'}`,
+                fileName: filename
+            }, { quoted: m });
+        }
+
+        console.log(`✅ MediaFire download completed: ${filename}`);
 
     } catch (error) {
-        console.error("YTMP4 Command Error:", error.message);
-        await conn.sendMessage(chatId, { react: { text: "❌", key: message.key } });
-        await conn.sendMessage(chatId, {
-            text: "❌ An error occurred while processing your request."
-        }, { quoted: message });
+        console.error('❌ MediaFire download error:', error);
+        
+        let errorMessage = '❌ *Download Failed!*\n\n';
+        
+        if (error.message.includes('valid MediaFire link')) {
+            errorMessage += 'Please provide a valid MediaFire download link.';
+        } else if (error.message.includes('Failed to fetch')) {
+            errorMessage += 'Unable to fetch file information from MediaFire.\nThe link may be invalid or the file may not exist.';
+        } else if (error.message.includes('Failed to download')) {
+            errorMessage += 'Unable to download the file.\nThe file may be too large or the download link may have expired.';
+        } else {
+            errorMessage += `Error: ${error.message}`;
+        }
+        
+        await conn.sendMessage(m.chat, { text: errorMessage }, { quoted: m });
     }
 }
 
-async function telestickerCommand(conn, chatId, message, args) {
-    try {
-        const telegramUrl = args.join(' ').trim();
-        
-        if (!telegramUrl) {
-            return await conn.sendMessage(chatId, {
-                text: "📦 Please provide a Telegram sticker pack URL\nExample: .telesticker https://t.me/addstickers/PBVid"
-            }, { quoted: message });
-        }
 
-        // Start reaction
-        await conn.sendMessage(chatId, { react: { text: "⏳", key: message.key } });
-
-        // Download sticker pack
-        const stickerApi = `https://api.nekolabs.web.id/downloader/telegram-sticker?url=${encodeURIComponent(telegramUrl)}`;
-        const stickerResponse = await axios.get(stickerApi);
-
-        if (!stickerResponse.data || !stickerResponse.data.success || !stickerResponse.data.result || !stickerResponse.data.result.stickers) {
-            await conn.sendMessage(chatId, { react: { text: "❌", key: message.key } });
-            return await conn.sendMessage(chatId, {
-                text: "❌ Failed to download sticker pack"
-            }, { quoted: message });
-        }
-
-        const stickerPack = stickerResponse.data.result;
-        const stickers = stickerPack.stickers;
-
-        // Send message about the pack
-        await conn.sendMessage(chatId, {
-            text: `📦 *${stickerPack.title}*\n\nDownloading ${stickers.length} stickers...`
-        }, { quoted: message });
-
-        let successCount = 0;
-        
-        // Process and send each sticker
-        for (let i = 0; i < stickers.length; i++) {
-            const sticker = stickers[i];
-            if (sticker.image_url) {
-                try {
-                    // Download sticker directly and send without processing
-                    await conn.sendMessage(chatId, {
-                        sticker: { url: sticker.image_url }
-                    });
-                    
-                    successCount++;
-                    
-                    // Progress update every 5 stickers
-                    if ((i + 1) % 5 === 0) {
-                        await conn.sendMessage(chatId, {
-                            text: `📦 Progress: ${i + 1}/${stickers.length} stickers sent...`
-                        });
-                    }
-                    
-                    // Delay to avoid rate limiting
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                    
-                } catch (stickerError) {
-                    console.error(`Error sending sticker ${i + 1}:`, stickerError.message);
-                    // Try alternative method - send as image if sticker fails
-                    try {
-                        await conn.sendMessage(chatId, {
-                            image: { url: sticker.image_url },
-                            caption: `Sticker ${i + 1} from ${stickerPack.title}`
-                        });
-                        successCount++;
-                    } catch (imageError) {
-                        console.error(`Failed to send as image too:`, imageError.message);
-                    }
-                }
-            }
-        }
-
-        // Final success message
-        await conn.sendMessage(chatId, {
-            text: `✅ Successfully sent ${successCount}/${stickers.length} stickers from *${stickerPack.title}*`
-        }, { quoted: message });
-
-        // Success reaction
-        await conn.sendMessage(chatId, { react: { text: "✅", key: message.key } });
-
-    } catch (error) {
-        console.error("Telesticker Command Error:", error.message);
-        await conn.sendMessage(chatId, { react: { text: "❌", key: message.key } });
-        await conn.sendMessage(chatId, {
-            text: "❌ An error occurred while processing your request."
-        }, { quoted: message });
-    }
-}
-
-module.exports = { playCommand, telestickerCommand, ytmp4Command, musicCommand, ytplayCommand, videoCommand, takeCommand }
+module.exports = { playCommand, handleMediafireDownload, ytplayCommand, videoCommand, takeCommand }
