@@ -76,6 +76,7 @@ const {
   loadStoredMessages,
   saveStoredMessages,
   storeMessage,
+  checkAndHandleLinks,
   GroupDB,
   ephoto,
   loadBlacklist,
@@ -85,7 +86,7 @@ const {
   recordError,
   shouldLogError } = require('../vinic')
 
-const { videoCommand, takeCommand, musicCommand, ytplayCommand, telestickerCommand, ytmp4Command, playCommand } = require('./KelvinCmds/commands')
+const { videoCommand, takeCommand, musicCommand, ytplayCommand, handleMediafireDownload, telestickerCommand, ytmp4Command, playCommand } = require('./KelvinCmds/commands')
 const {fetchReactionImage} = require('./lib/reaction')
 const { toAudio } = require('./lib/converter');
 const { remini } = require('./lib/remini')
@@ -958,6 +959,11 @@ if (getAIChatbotState() === "true" && body && !m.key.fromMe && !isCmd) {
 // ========== ANTI-DELETE EXECUTION ==========
 if (global.antidelete && m.message?.protocolMessage?.type === 0 && m.message?.protocolMessage?.key) {
     await handleAntiDelete(m, conn, from, isGroup, botNumber);
+}
+
+// ========== ANTI-LINK EXECUTION ==========
+if (m.isGroup && body && !m.key.fromMe) {
+    await checkAndHandleLinks(m, conn);
 }
 
 // ========== ANTI-STATUS DELETE EXECUTION ==========
@@ -5332,28 +5338,36 @@ if (!text) return reply("*Please provide a search query*");
     }
 }
 break
-case "instagram": {
-if (!text) return reply('*Please provide an Instagram URL!*');
-
-    const apiUrl = `${global.api}/igdl?url=${encodeURIComponent(text)}`;
+case 'instagram':
+case 'ig': {
+    if (!args[0]) return reply(`❌ Please provide Instagram URL\n\nExample: ${prefix}instagram https://www.instagram.com/reel/...`);
     
     try {
-      const response = await fetch(apiUrl);
-      const data = await response.json();
-      if (!data || data.url.length === 0) return reply('*Failed to retrieve the video!*');
-
-      const videoUrl = data.url;
-      const title = `Instagram Video`;
-
-      await conn.sendMessage(m.chat, {
-        video: { url: videoUrl },
-        mimetype: 'video/mp4',
-        fileName: `${title}.mp4`
-      }, { quoted: m });
+        await reply('⬇️ Downloading...');
+        
+        let url = args[0];
+        let apiUrl = `https://api.nekolabs.web.id/downloader/instagram?url=${encodeURIComponent(url)}`;
+        
+        let { data } = await axios.get(apiUrl);
+        
+        if (!data?.data?.video?.[0]?.url) {
+            throw new Error('No video found');
+        }
+        
+        let videoUrl = data.data.video[0].url;
+        let videoBuffer = await getBuffer(videoUrl);
+        
+        // Send video with global watermark as caption
+        await conn.sendMessage(m.chat, {
+            video: videoBuffer,
+            caption: global.wm || '✨ Powered by Vinic-XMD'
+        }, { quoted: m });
+        
     } catch (error) {
-      console.error('Download command failed:', error);
-      reply(global.mess.error);
+        console.error(error);
+        reply('❌ Download failed! Invalid URL or private content.');
     }
+    
 }
 break
 case 'gitclone': {
@@ -5370,48 +5384,14 @@ try {
 await reply(`*Error! Repository Not Found*`)
 }}
 break
-case 'mediafire': {
-if (!text) return reply("*Please provide a MediaFire file URL*");
-
-    try {
-      let response = await fetch(`${global.siputzx}/api/d/mediafire?url=${encodeURIComponent(text)}`);
-      let data = await response.json();
-
-      if (response.status !== 200 || !data.status || !data.data) {
-        return reply("*Please try again later or try another command!*");
-      } else {
-        const downloadUrl = data.data.downloadLink;
-        const filePath = path.join(__dirname, `${data.data.fileName}.zip`);
-
-        const writer = fs.createWriteStream(filePath);
-        const fileResponse = await axios({
-          url: downloadUrl,
-          method: 'GET',
-          responseType: 'stream'
-        });
-
-        fileResponse.data.pipe(writer);
-
-        writer.on('finish', async () => {
-          
-          await conn.sendMessage(m.chat, {
-            document: { url: filePath },
-            fileName: data.data.fileName,
-            mimetype: 'application/zip'
-          });
-
-          fs.unlinkSync(filePath);
-        });
-
-        writer.on('error', (err) => {
-          console.error('Error downloading the file:', err);
-          reply("An error occurred while downloading the file.");
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching MediaFire file details:', error);
-      reply(global.mess.error);
+case 'mediafire':
+case 'mf': {
+    if (!args[0]) {
+        return reply(`❌ Please provide a MediaFire link\n\nUsage: ${prefix}mediafire <url>\nExample: ${prefix}mediafire https://www.mediafire.com/file/abc123/file.zip`);
     }
+     
+    await handleMediafireDownload(mediafireUrl, conn, m);
+    
 }
 break
 case "itunes": {
