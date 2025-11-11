@@ -635,26 +635,8 @@ async function handleStatusUpdate(mek, conn) {
     }
 }
 
-function isUserAllowedToSendLinks(chatId, userId) {
-    try {
-        // Normalize the user ID to ensure proper comparison
-        const normalizedUserId = userId.includes('@s.whatsapp.net') ? userId : userId + '@s.whatsapp.net';
-        
-        // Check if user exists in allowedUsers
-        const isAllowed = !!global.db.data.chats?.[chatId]?.allowedUsers?.[normalizedUserId];
-        
-        return isAllowed;
-    } catch (error) {
-        return false;
-    }
-}
-function decrementLinkAllowance(chatId, userId) {
-    try {
-        console.log(`✅ Link allowed for @${userId.split('@')[0]} in ${chatId}`);
-    } catch (error) {
-        console.error('Error in decrementLinkAllowance:', error);
-    }
-}
+
+
 
 // ========== FIXED ANTI-LINK DETECTION FUNCTION ==========
 function detectUrls(message) {
@@ -690,23 +672,6 @@ async function handleLinkViolation(message, conn) {
         const sender = message.key.participant || message.key.remoteJid;
         const botNumber = await conn.decodeJid(conn.user.id);
 
-       // ========== FIXED: CHECK IF USER IS ALLOWED TO SEND LINKS FIRST ==========
-if (isUserAllowedToSendLinks(chatId, sender)) {
-    // User is allowed, decrement their allowance
-    decrementLinkAllowance(chatId, sender);
-    
-    // Optional: Notify user about remaining chances
-    const remaining = global.db.data.chats[chatId]?.allowedUsers?.[sender] || 0;
-    if (remaining > 0) {
-        await conn.sendMessage(chatId, {
-            text: `✅ @${sender.split('@')[0]}, your link was allowed. Remaining chances: ${remaining}`,
-            mentions: [sender]
-        });
-    }
-    return; // Allow the message - EXIT EARLY
-}
-
-    
         // Get group settings
         if (!global.db.data.settings || !global.db.data.settings[botNumber] || 
             !global.db.data.settings[botNumber].config) {
@@ -745,19 +710,20 @@ if (isUserAllowedToSendLinks(chatId, sender)) {
         // 1. Anti-link is enabled for this group
         // 2. Message contains URLs
         // 3. Sender is NOT an admin
-        // 4. Sender is NOT in allowed users list
         // So we take action against regular members
 
-        // Delete the message containing the link - FIXED DELETE METHOD
+        // Delete the message containing the link
         try {
-            // Use the correct delete method that works for everyone
-            await conn.sendMessage(chatId, { 
-                delete: message.key 
+            await conn.sendMessage(chatId, {
+                delete: {
+                    remoteJid: chatId,
+                    fromMe: false,
+                    id: message.key.id,
+                    participant: sender
+                }
             });
-            console.log(`🗑️ Deleted link message from @${sender.split('@')[0]}`);
         } catch (deleteError) {
-            console.log('❌ Could not delete message, bot may need admin rights');
-            // Continue with other actions even if delete fails
+            // Silently handle delete errors
         }
 
         // Store warning count per user
@@ -820,7 +786,6 @@ if (isUserAllowedToSendLinks(chatId, sender)) {
         // Silently handle errors
     }
 }
-
 // ========== SIMPLIFIED LINK CHECKING FUNCTION ==========
 async function checkAndHandleLinks(message, conn) {
     try {
@@ -910,10 +875,8 @@ module.exports = {
   saveDatabase,
   recordError,
   shouldLogError,
-  pickRandom,
-  decrementLinkAllowance,
-  isUserAllowedToSendLinks
-  
+  pickRandom
+    
 };
 
 let file = require.resolve(__filename)
