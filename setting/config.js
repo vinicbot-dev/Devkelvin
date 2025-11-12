@@ -73,7 +73,6 @@ global.wm = '©Vinic-Xmd is awesome 🔥';
 
 // === For only developer ============
 global.api = "https://xploaderapi-f5e63b.platform.cypherx.space";
-global.siputzx = "https://api.siputzx.my.id";
 global.wwe = "https://www.wwe.com/api/news";
 global.wwe1 = "https://www.thesportsdb.com/api/v1/json/3/searchfilename.php?e=wwe";
 global.wwe2 = "https://www.thesportsdb.com/api/v1/json/3/searchevents.php?e=wrestling";
@@ -101,7 +100,7 @@ global.mess = {
     { name: "Tredex", number: "+254110081982", country: "Kenya", flag: "🇹🇿" },
     { name: "Dev sung", number: "+27649342626", country: "South Africa", flag: "🇿🇦" }
   ],
- 
+siputzx: "https://api.siputzx.my.id" 
 };
 
 // ========= Feature Status Command ========= //
