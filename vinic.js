@@ -665,11 +665,12 @@ function detectUrls(message) {
     return matches ? matches : [];
 }
 
-// ========== ADMIN-ONLY ANTI-LINK HANDLER ==========
+// ========== FIXED ANTI-LINK HANDLER - VISIBLE TO ALL ==========
 async function handleLinkViolation(message, conn) {
     try {
         const chatId = message.key.remoteJid;
         const sender = message.key.participant || message.key.remoteJid;
+        const messageId = message.key.id;
         const botNumber = await conn.decodeJid(conn.user.id);
 
         // Get group settings
@@ -706,24 +707,23 @@ async function handleLinkViolation(message, conn) {
             return; // Allow admins to post links - NO ACTION TAKEN
         }
 
-        // If we reach here, it means:
-        // 1. Anti-link is enabled for this group
-        // 2. Message contains URLs
-        // 3. Sender is NOT an admin
-        // So we take action against regular members
-
-        // Delete the message containing the link
+        // ========== VISIBLE DELETION FOR EVERYONE ==========
         try {
+            // This method makes deletion visible to all group members
             await conn.sendMessage(chatId, {
                 delete: {
+                    id: messageId,
                     remoteJid: chatId,
                     fromMe: false,
-                    id: message.key.id,
                     participant: sender
                 }
             });
+            
+            console.log(`✅ Link message deleted - VISIBLE TO ALL in group ${chatId}`);
+            
         } catch (deleteError) {
-            // Silently handle delete errors
+            console.log('❌ Failed to delete message visibly');
+            return; // If deletion fails, don't proceed with warnings/kicks
         }
 
         // Store warning count per user
@@ -771,11 +771,14 @@ async function handleLinkViolation(message, conn) {
             }
         } else {
             // Default: delete only (no warning)
-            return; // Don't send any message for delete-only mode
+            // No additional message for delete-only mode
+            return;
         }
 
         // Send notification message
         if (responseMessage) {
+            // Add a small delay so deletion is processed first
+            await delay(1000);
             await conn.sendMessage(chatId, {
                 text: responseMessage,
                 mentions: [sender]
@@ -783,7 +786,7 @@ async function handleLinkViolation(message, conn) {
         }
         
     } catch (error) {
-        // Silently handle errors
+        console.error('❌ Error in handleLinkViolation:', error);
     }
 }
 // ========== SIMPLIFIED LINK CHECKING FUNCTION ==========
