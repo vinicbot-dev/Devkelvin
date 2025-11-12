@@ -86,6 +86,7 @@ const {
   shouldLogError } = require('../vinic')
 
 const { videoCommand, takeCommand, musicCommand, ytplayCommand, handleMediafireDownload, telestickerCommand, ytmp4Command, playCommand } = require('./KelvinCmds/commands')
+const sports = require('./KelvinCmds/sport');
 const {fetchReactionImage} = require('./lib/reaction')
 const { toAudio } = require('./lib/converter');
 const { remini } = require('./lib/remini')
@@ -4589,6 +4590,206 @@ let q = args.join(" ");
     }
 }
 break
+// Football Standings Commands
+case 'clstandings':
+case 'championsleague':
+  await sports.formatStandings('CL', 'UEFA Champions League', { m, reply });
+  break;
+
+case 'laligastandings':
+case 'laliga':
+  await sports.formatStandings('PD', 'La Liga', { m, reply });
+  break;
+
+case 'bundesligastandings':
+case 'bundesliga':
+  await sports.formatStandings('BL1', 'Bundesliga', { m, reply });
+  break;
+
+case 'serieastandings':
+case 'seriea':
+  await sports.formatStandings('SA', 'Serie A', { m, reply });
+  break;
+
+case 'ligue1standings':
+case 'ligue1':
+  await sports.formatStandings('FL1', 'Ligue 1', { m, reply });
+  break;
+
+case 'elstandings':
+case 'europaleague':
+  await sports.formatStandings('EL', 'Europa League', { m, reply });
+  break;
+
+case 'eflstandings':
+case 'championship':
+  await sports.formatStandings('ELC', 'EFL Championship', { m, reply });
+  break;
+
+case 'wcstandings':
+case 'worldcup':
+  await sports.formatStandings('WC', 'World Cup', { m, reply });
+  break;
+
+case 'eplstandings':
+case 'plstandings':
+case 'premierleaguestandings':
+  await sports.formatStandings('PL', 'Premier League', { m, reply });
+  break;
+
+// Football Matches Commands
+case 'eplmatches':
+case 'plmatches':
+  await sports.formatMatches('PL', 'Premier League', { m, reply });
+  break;
+
+case 'clmatches':
+case 'championsleaguematches':
+  await sports.formatMatches('CL', 'UEFA Champions League', { m, reply });
+  break;
+
+case 'laligamatches':
+case 'pdmatches':
+  await sports.formatMatches('PD', 'La Liga', { m, reply });
+  break;
+
+case 'bundesligamatches':
+case 'bl1matches':
+  await sports.formatMatches('BL1', 'Bundesliga', { m, reply });
+  break;
+
+case 'serieamatches':
+case 'samatches':
+  await sports.formatMatches('SA', 'Serie A', { m, reply });
+  break;
+
+case 'ligue1matches':
+case 'fl1matches':
+  await sports.formatMatches('FL1', 'Ligue 1', { m, reply });
+  break;
+
+case 'elmatches':
+case 'europaleaguematches':
+  await sports.formatMatches('EL', 'Europa League', { m, reply });
+  break;
+
+case 'eflmatches':
+case 'elcmatches':
+  await sports.formatMatches('ELC', 'EFL Championship', { m, reply });
+  break;
+
+case 'wcmatches':
+case 'worldcupmatches':
+  await sports.formatMatches('WC', 'World Cup', { m, reply });
+  break;
+
+// Football Top Scorers Commands
+case 'eplscorers':
+case 'plscorers':
+  await sports.formatTopScorers('PL', 'Premier League', { m, reply });
+  break;
+
+case 'clscorers':
+case 'championsleaguescorers':
+  await sports.formatTopScorers('CL', 'UEFA Champions League', { m, reply });
+  break;
+
+case 'laligascorers':
+case 'pdscorers':
+  await sports.formatTopScorers('PD', 'La Liga', { m, reply });
+  break;
+
+case 'bundesligascorers':
+case 'bl1scorers':
+  await sports.formatTopScorers('BL1', 'Bundesliga', { m, reply });
+  break;
+
+case 'serieascorers':
+case 'sascorers':
+  await sports.formatTopScorers('SA', 'Serie A', { m, reply });
+  break;
+
+case 'ligue1scorers':
+case 'fl1scorers':
+  await sports.formatTopScorers('FL1', 'Ligue 1', { m, reply });
+  break;
+
+case 'elscorers':
+case 'europaleaguescorers':
+  await sports.formatTopScorers('EL', 'Europa League', { m, reply });
+  break;
+
+case 'eflscorers':
+case 'elcscorers':
+  await sports.formatTopScorers('ELC', 'EFL Championship', { m, reply });
+  break;
+
+case 'wcscorers':
+case 'worldcupscorers':
+  await sports.formatTopScorers('WC', 'World Cup', { m, reply });
+  break;
+
+// Football Upcoming Matches Commands
+case 'eplupcoming':
+case 'plupcoming':
+  await sports.formatUpcomingMatches('PL', 'Premier League', { m, reply });
+  break;
+
+case 'clupcoming':
+case 'championsleagueupcoming':
+  await sports.formatUpcomingMatches('CL', 'UEFA Champions League', { m, reply });
+  break;
+
+case 'laligaupcoming':
+case 'pdupcoming':
+  await sports.formatUpcomingMatches('PD', 'La Liga', { m, reply });
+  break;
+
+case 'bundesligaupcoming':
+case 'bl1upcoming':
+  await sports.formatUpcomingMatches('BL1', 'Bundesliga', { m, reply });
+  break;
+
+case 'serieaupcoming':
+case 'saupcoming':
+  await sports.formatUpcomingMatches('SA', 'Serie A', { m, reply });
+  break;
+
+case 'ligue1upcoming':
+case 'fl1upcoming':
+  await sports.formatUpcomingMatches('FL1', 'Ligue 1', { m, reply });
+  break;
+
+case 'elupcoming':
+case 'europaleagueupcoming':
+  await sports.formatUpcomingMatches('EL', 'Europa League', { m, reply });
+  break;
+
+case 'eflupcoming':
+case 'elcupcoming':
+  await sports.formatUpcomingMatches('ELC', 'EFL Championship', { m, reply });
+  break;
+
+case 'wcupcoming':
+case 'worldcupupcoming':
+  await sports.formatUpcomingMatches('WC', 'World Cup', { m, reply });
+  break;
+
+// Wrestling Commands
+case 'wweevents':
+case 'wrestlingevents':
+  await sports.getWrestlingEvents({ m, reply });
+  break;
+
+case 'wwenews':
+case 'wwe':
+  await sports.getWWENews({ m, reply });
+  break;
+
+case 'wweschedule':
+case 'wweevents':
+  await sports.getWWESchedule({ m, reply });
+  break;
 //======[RELIGION MENU CMDS]==
 case 'bible': {
 const BASE_URL = "https://bible-api.com";
