@@ -70,7 +70,15 @@ global.versions = "1.3.6";
 global.packname = 'Vinic';
 global.author = 'Xmd';
 global.wm = '©Vinic-Xmd is awesome 🔥';
-global.api = "https://myapi-f721d1db95e9.herokuapp.com";
+
+// === For only developer ============
+global.api = "https://xploaderapi-f5e63b.platform.cypherx.space";
+global.siputzx = "https://api.siputzx.my.id";
+global.wwe = "https://www.wwe.com/api/news";
+global.wwe1 = "https://www.thesportsdb.com/api/v1/json/3/searchfilename.php?e=wwe";
+global.wwe2 = "https://www.thesportsdb.com/api/v1/json/3/searchevents.php?e=wrestling";
+global.falcon = "https://flowfalcon.dpdns.org";
+// ======= End of developer section ====
 global.gcount = {
   prem: 500,
   user: 15
@@ -87,14 +95,13 @@ global.mess = {
   premium: "*First become a premium user*",
   botadmin: "*Vinic-Xmd needs to be admin*",
   limited: "*Limit reached*",
-  // for only developer, don't modify it
   helpersList: [
     { name: "Malvin king", number: "+263776388689", country: "Zimbabwe", flag: "🇿🇼" },
     { name: "lonlysaam", number: "+254762586673", country: "Kenya", flag: "🇹🇿" },
     { name: "Tredex", number: "+254110081982", country: "Kenya", flag: "🇹🇿" },
     { name: "Dev sung", number: "+27649342626", country: "South Africa", flag: "🇿🇦" }
   ],
- siputzx: "https://api.siputzx.my.id"
+ 
 };
 
 // ========= Feature Status Command ========= //
