@@ -6655,34 +6655,6 @@ const q = args.join(" ");
     }
 }
 break 
-case 'translate':{
-  	if (!text) return reply(`*Where is the text*\n\n*𝙴xample usage*\n*${prefix + command} <language id> <text>*\n*${prefix + command} ja yo wassup*`)
-  	const defaultLang = 'en'
-const tld = 'cn'
-    let err = `
- *Example:*
-
-*${prefix + command}* <id> [text]
-*${prefix + command}* en Hello World
-
-≡ *List of supported languages:* 
-https://cloud.google.com/translate/docs/languages
-`.trim()
-    let lang = args[0]
-    let text = args.slice(1).join(' ')
-    if ((args[0] || '').length !== 2) {
-        lang = defaultLang
-        text = args.join(' ')
-    }
-    if (!text && m.quoted && m.quoted.text) text = m.quoted.text
-    try {
-       let result = await translate(text, { to: lang, autoCorrect: true }).catch(_ => null) 
-       reply(result.text)
-    } catch (e) {
-        return reply(err)
-    } 
-    }
-break
 case "ss2": {
  const q = args.join(" ");
     if (!q) return reply(`Please provide a URL to screenshot!`);
@@ -7131,6 +7103,81 @@ if (!text) return reply("Enter URL");
     }
 }
 break
+case "filtervcf": {
+const quoted = m.quoted ? m.quoted : null;
+    const mime = quoted?.mimetype || "";
+    const normalizePhoneNumber = (phone) => {
+      if (!phone || typeof phone !== 'string') return null;
+      return phone.replace(/\D/g, '');
+    };
+
+    if (!quoted || !(mime === "text/vcard" || mime === "text/x-vcard")) {
+      return conn.sendMessage(m.chat, { 
+        text: "❌ *Error:* Reply to a `.vcf` file with `.filtervcf` or `.cleanvcf`!" 
+      }, { quoted: m });
+    }
+
+    try {
+      const media = await quoted.download();
+      const vcfContent = media.toString('utf8');
+      
+      await conn.sendMessage(m.chat, { 
+        text: "🔍 Filtering VCF - checking WhatsApp numbers, this may take a while..." 
+      }, { quoted: m });
+
+      const vCards = vcfContent.split('END:VCARD')
+        .map(card => card.trim())
+        .filter(card => card.length > 0);
+
+      const validContacts = [];
+      const invalidContacts = [];
+      let processed = 0;
+
+      for (const card of vCards) {
+        try {
+          const telMatch = card.match(/TEL[^:]*:([^\n]+)/);
+          if (!telMatch) continue;
+          
+          const phoneRaw = telMatch[1].trim();
+          const phoneNumber = normalizePhoneNumber(phoneRaw);
+          if (!phoneNumber) continue;
+
+          const jid = `${phoneNumber}@s.whatsapp.net`;
+          const result = await conn.onWhatsApp(jid);
+          
+          if (result.length > 0 && result[0].exists) {
+            validContacts.push(card);
+          } else {
+            invalidContacts.push(phoneNumber);
+          }
+        } catch (error) {
+          console.error('Error processing contact:', error);
+        }
+      }
+
+      const filteredVcf = validContacts.join('\nEND:VCARD\n') + (validContacts.length > 0 ? '\nEND:VCARD' : '');
+      
+      const resultMessage = `✅ *VCF Filtering Complete*\n\n` +
+        `• Total contacts: ${vCards.length}\n` +
+        `• Valid WhatsApp contacts: ${validContacts.length}\n` +
+        `• Non-WhatsApp numbers removed: ${invalidContacts.length}\n\n` +
+        `Sending filtered VCF file...`;
+
+      await conn.sendMessage(m.chat, { text: resultMessage }, { quoted: m });
+
+      await conn.sendMessage(m.chat, { 
+        document: Buffer.from(filteredVcf), 
+        mimetype: "text/x-vcard", 
+        fileName: "filtered_contacts.vcf" 
+      });
+
+    } catch (error) {
+      await conn.sendMessage(from, { 
+        text: `❌ *Error:* ${error.message}` 
+      }, { quoted: m });
+    }
+}
+break
 case 'removebg':
 case 'nobg':
 case 'rmbg': {
@@ -7568,6 +7615,7 @@ ${isGroup ? `👥 *Group Role:* ${groupRole}` : ''}
     }
 }
 break
+case "trt": 
 case "translate": {
 const defaultLang = 'en'; // Default language for translation
 
@@ -7601,22 +7649,17 @@ Ensure you use the correct language code for accurate translation.
 `.trim();
 
     let lang = args[0]; 
-    let text;
+    let text = args.slice(1).join(' ');
 
-    // Check if first argument is a supported language
-    if (supportedLangs.includes(lang)) {
-      text = args.slice(1).join(' ');
-    } else {
+    if (!supportedLangs.includes(lang)) {
       lang = defaultLang;
       text = args.join(' ');
     }
-    
-    // Check for quoted message text
     if (!text && m.quoted && m.quoted.text) text = m.quoted.text;
     if (!text) return reply(usageGuide);
 
     try {
-      const apiUrl = `${global.mess.api}/translate?text=${encodeURIComponent(text)}&lang=${lang}`;
+      const apiUrl = `${global.api}/translate?text=${encodeURIComponent(text)}&lang=${lang}`;
 
       const response = await fetch(apiUrl);
       const result = await response.json();
