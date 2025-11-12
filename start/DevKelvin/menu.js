@@ -10,32 +10,32 @@ const menuPresets = {
     preset1: [
         'header', 'owner', 'group', 'ai', 'audio', 'image', 'reaction', 
         'features', 'download', 'convert', 'cmdTool', 'other', 'helpers', 
-        'ephoto', 'search', 'fun', 'religion'
+        'ephoto', 'search', 'fun', 'religion', 'sports'
     ],
     preset2: [
         'header', 'download', 'ai', 'audio', 'features', 'group', 'owner',
         'convert', 'image', 'reaction', 'cmdTool', 'search', 'fun', 
-        'ephoto', 'other', 'helpers', 'religion'
+        'ephoto', 'other', 'helpers', 'religion', 'sports'
     ],
     preset3: [
         'header', 'features', 'ai', 'download', 'audio', 'convert', 'image',
         'group', 'owner', 'reaction', 'fun', 'search', 'ephoto',
-        'cmdTool', 'other', 'helpers', 'religion'
+        'cmdTool', 'other', 'helpers', 'religion', 'sports'
     ],
     preset4: [
         'header', 'ai', 'download', 'audio', 'fun', 'reaction', 'search',
         'features', 'group', 'image', 'convert', 'owner', 'ephoto',
-        'cmdTool', 'other', 'helpers', 'religion'
+        'cmdTool', 'other', 'helpers', 'religion', 'sports'
     ],
     preset5: [
         'header', 'download', 'audio', 'convert', 'ai', 'features', 'group',
         'image', 'reaction', 'fun', 'search', 'ephoto', 'owner',
-        'cmdTool', 'other', 'helpers', 'religion'
+        'cmdTool', 'other', 'helpers', 'religion', 'sports'
     ],
     preset6: [
         'header', 'owner', 'features', 'group', 'ai', 'download', 'audio',
         'convert', 'image', 'reaction', 'fun', 'search', 'ephoto',
-        'cmdTool', 'other', 'helpers', 'religion'
+        'cmdTool', 'other', 'helpers', 'religion', 'sports'
     ]
 };
 
@@ -210,6 +210,24 @@ async function generateMenu(conn, m, prefix, global) {
         religion: {
             title: ' *RELIGION MENU* ',
             commands: ['Bible', 'Biblelist', 'Quran'],
+        },
+        sports: {
+            title: ' *SPORTS MENU* ',
+            commands: [
+                'eplstandings', 'plstandings', 'premierleaguestandings', 'clstandings', 'championsleague',
+                'laligastandings', 'laliga', 'bundesligastandings', 'bundesliga', 'serieastandings', 'seriea',
+                'ligue1standings', 'ligue1', 'elstandings', 'europaleague', 'eflstandings', 'championship',
+                'wcstandings', 'worldcup', 'eplmatches', 'plmatches', 'clmatches', 'championsleaguematches',
+                'laligamatches', 'pdmatches', 'bundesligamatches', 'bl1matches', 'serieamatches', 'samatches',
+                'ligue1matches', 'fl1matches', 'elmatches', 'europaleaguematches', 'eflmatches', 'elcmatches',
+                'wcmatches', 'worldcupmatches', 'eplscorers', 'plscorers', 'clscorers', 'championsleaguescorers',
+                'laligascorers', 'pdscorers', 'bundesligascorers', 'bl1scorers', 'serieascorers', 'sascorers',
+                'ligue1scorers', 'fl1scorers', 'elscorers', 'europaleaguescorers', 'eflscorers', 'elcscorers',
+                'wcscorers', 'worldcupscorers', 'eplupcoming', 'plupcoming', 'clupcoming', 'championsleagueupcoming',
+                'laligaupcoming', 'pdupcoming', 'bundesligaupcoming', 'bl1upcoming', 'serieaupcoming', 'saupcoming',
+                'ligue1upcoming', 'fl1upcoming', 'elupcoming', 'europaleagueupcoming', 'eflupcoming', 'elcupcoming',
+                'wcupcoming', 'worldcupupcoming', 'wweevents', 'wrestlingevents', 'wwenews', 'wwe', 'wweschedule', 'wweevents'
+            ],
         },
     };
 
