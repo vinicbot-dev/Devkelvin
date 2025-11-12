@@ -525,7 +525,7 @@ async function handleAntiEdit(m, conn) {
                         m.message.protocolMessage?.editedMessage?.extendedTextMessage?.text ||
                         "[Edit content not available]";
 
-        let replyText = `🚨 *𝙴𝙳𝙸𝚃𝙴𝙳 𝙼𝙴𝚂𝚂𝙰𝙶𝙴!* 🚨
+        let replyText = `🔮 *𝙴𝙳𝙸𝚃𝙴𝙳 𝙼𝙴𝚂𝚂𝙰𝙶𝙴!* 🔮
 ${readmore}
 • 𝙲𝙷𝙰𝚃: ${chatName}
 • 𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]} 
