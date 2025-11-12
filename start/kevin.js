@@ -385,7 +385,7 @@ ${readmore}
                 
             } catch (mediaErr) {
                 console.error("Media recovery failed:", mediaErr);
-                let replyText = `🚨 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙼𝙴𝚂𝚂𝙰𝙶𝙴!* 🚨
+                let replyText = `🔮 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙼𝙴𝚂𝚂𝙰𝙶𝙴!* 🔮
 ${readmore}
 • 𝙲𝙷𝙰𝚃: ${chatName}
 • 𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]} 
@@ -417,7 +417,7 @@ ${readmore}
             let text = deletedMsg.message.conversation || 
                       deletedMsg.message.extendedTextMessage?.text;
 
-            let replyText = `🚨 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙼𝙴𝚂𝚂𝙰𝙶𝙴!* 🚨
+            let replyText = `🔮 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙼𝙴𝚂𝚂𝙰𝙶𝙴!* 🔮
 ${readmore}
 • 𝙲𝙷𝙰𝚃: ${chatName}
 • 𝚂𝙴𝙽𝚃 𝙱𝚈: @${sender.split('@')[0]} 
@@ -4590,7 +4590,7 @@ let q = args.join(" ");
     }
 }
 break
-// Football Standings Commands
+// =====[Football standings command ===
 case 'clstandings':
 case 'championsleague':
   await sports.formatStandings('CL', 'UEFA Champions League', { m, reply });
