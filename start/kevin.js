@@ -85,7 +85,7 @@ const {
   recordError,
   shouldLogError } = require('../vinic')
 
-const { videoCommand, takeCommand, musicCommand, ytplayCommand, handleMediafireDownload, telestickerCommand, ytmp4Command, playCommand } = require('./KelvinCmds/commands')
+const { videoCommand, takeCommand, musicCommand, ytplayCommand, handleMediafireDownload, InstagramCommand, telestickerCommand, ytmp4Command, playCommand } = require('./KelvinCmds/commands')
 const sports = require('./KelvinCmds/sport');
 const {fetchReactionImage} = require('./lib/reaction')
 const { toAudio } = require('./lib/converter');
@@ -5283,15 +5283,14 @@ case "spotify": {
     
 }
 break
-case 'ytmp4': {
-    await ytmp4Command(conn, m.chat, m, args);
-    
+case 'instagram': {
+       await InstagramCommand(conn, m.chat, m);
 }
 break
-case 'video': {
+case 'ytmp4': {
         await videoCommand(conn, m.chat, m);
         
-    }
+}
 break
 case 'checkapi': {
     if (!text) return reply(`Usage: ${prefix}checkapi <url>`);
@@ -5579,15 +5578,11 @@ try {
 await reply(`*Error! Repository Not Found*`)
 }}
 break
-case 'mediafire':
-case 'mf': {
-    if (!args[0]) {
-        return reply(`❌ Please provide a MediaFire link\n\nUsage: ${prefix}mediafire <url>\nExample: ${prefix}mediafire https://www.mediafire.com/file/abc123/file.zip`);
-    }
-     
-    await handleMediafireDownload(mediafireUrl, conn, m);
-    
+case 'mf':
+case 'mediafire': {
+    await handleMediafireDownload(conn, m.chat, m);
 }
+    break;
 break
 case "itunes": {
 if (!text) return reply("*Please provide a song name*");
