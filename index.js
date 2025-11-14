@@ -1,5 +1,5 @@
 console.clear();
-console.log('Starting Vinic-Xmd...');
+console.log('Starting Vinic-Xmd with Enhanced Longevity...');
 
 // Environment detection for cloud optimization
 const isProduction = process.env.NODE_ENV === 'production';
@@ -242,168 +242,257 @@ function monitorResources() {
   }
 }
 
-// Connection resilience for cloud
-let reconnectAttempts = 0;
-const maxReconnectAttempts = 10;
-
-async function handleReconnection() {
-  if (reconnectAttempts < maxReconnectAttempts) {
-    reconnectAttempts++;
-    console.log(`🔁 Reconnection attempt ${reconnectAttempts}/${maxReconnectAttempts}`);
-    await sleep(3000 * reconnectAttempts); // Exponential backoff
-    await clientstart();
-  } else {
-    console.error('❌ Max reconnection attempts reached');
-  }
-}
-
 async function clientstart() {
-  // Ensure session directory exists
-  if (!fs.existsSync(SESSION_DIR)) {
-    fs.mkdirSync(SESSION_DIR, { recursive: true });
-  }
-
-  // Get session data from server
-  const serverSessionData = await getSessionData();
-  let decryptedSession = null;
-  
-  if (serverSessionData) {
-    decryptedSession = initSession(serverSessionData);
-  }
-
-  // Use multi-file auth state (this will use the session files we just created)
-  const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
-  
-  // Fetch latest WhatsApp Web version
-  let waVersion;
-  try {
-    const { version } = await fetchLatestBaileysVersion();
-    waVersion = version;
-    console.log(chalk.green(`[✅] Using Baileys version: ${waVersion}`));
-  } catch (error) {
-    console.log(chalk.yellow(`[⚠️] Failed to fetch latest version, using default`));
-    waVersion = [2, 3000, 1017546695]; // Fallback version
-  }
-
-  // Optimized connection for cloud/low memory
-  const conn = makeWASocket({
-    printQRInTerminal: !decryptedSession, // Only show QR if no valid session
-    syncFullHistory: !isLowMemory, // Disable in low memory
-    markOnlineOnConnect: true,
-    connectTimeoutMs: isProduction ? 30000 : 60000, // Shorter timeout in production
-    defaultQueryTimeoutMs: 10000,
-    keepAliveIntervalMs: isProduction ? 20000 : 10000, // Less frequent in production
-    generateHighQualityLinkPreview: !isLowMemory, // Disable in low memory
-    
-    version: waVersion,
-    
-    // Lightweight browser identifier for cloud
-    browser: isProduction ? ["Ubuntu", "Chrome", "latest"] : ["Windows", "Edge", "latest"],
-    logger: pino({
-      level: isProduction ? 'silent' : 'fatal' // Less logging in production
-    }),
-    auth: {
-      creds: state.creds,
-      keys: makeCacheableSignalKeyStore(state.keys, pino().child({
-        level: 'silent',
-        stream: 'store'
-      })),
+    // Ensure session directory exists
+    if (!fs.existsSync(SESSION_DIR)) {
+        fs.mkdirSync(SESSION_DIR, { recursive: true });
     }
-  });
-  // Define decodeJid immediately after connection
-  conn.decodeJid = (jid) => {
-    if (!jid) return jid;
-    if (/:\d+@/gi.test(jid)) {
-      let decode = jidDecode(jid) || {};
-      return decode.user && decode.server && decode.user + '@' + decode.server || jid;
-    } else return jid;
-  };
 
-  const botNumber = conn.decodeJid(conn.user?.id) || 'default'; // Add fallback
-  
-  // INITIALIZE DATABASE SETTINGS ON BOT START
-  // Load settings from SQLite database
-  try {
-    const savedSettings = db.getSettings(botNumber);
-    if (savedSettings) {
-      if (!global.db.data.settings) global.db.data.settings = {};
-      if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-      global.db.data.settings[botNumber].config = { ...savedSettings };
-      console.log('✅ Settings loaded from database');
-    } else {
-      // Initialize default settings if none exist
-      const { initializeDatabase } = require('./vinic');
-      initializeDatabase(null, botNumber);
+    // Get session data from server
+    const serverSessionData = await getSessionData();
+    let decryptedSession = null;
+    
+    if (serverSessionData) {
+        decryptedSession = initSession(serverSessionData);
     }
-  } catch (error) {
-    console.error('Error loading settings:', error);
-    const { initializeDatabase } = require('./vinic');
-    initializeDatabase(null, botNumber);
-  }
 
-  // Auto-save database with cloud optimization
-  setInterval(async () => {
+    // Use multi-file auth state
+    const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
+    
+    // Fetch latest WhatsApp Web version with fallback
+    let waVersion;
     try {
-        await saveDatabase();
+        const { version } = await fetchLatestBaileysVersion();
+        waVersion = version;
+        console.log(chalk.green(`[✅] Using Baileys version: ${waVersion}`));
     } catch (error) {
-        console.error('Auto-save error:', error);
+        console.log(chalk.yellow(`[⚠️] Using stable fallback version`));
+        waVersion = [2, 3000, 1017546695];
     }
-  }, 5 * 60 * 1000); // 5 minutes
 
-  // Run cleanup every 30 minutes
-  setInterval(cleanupTmpFiles, 30 * 60 * 1000);
+    // OPTIMIZED CONNECTION FOR LONG-LIVED STABILITY
+    const conn = makeWASocket({
+        // Critical stability settings
+        printQRInTerminal: !decryptedSession,
+        syncFullHistory: false, // Disable to save memory
+        markOnlineOnConnect: true,
+        
+        // Extended timeouts for server stability
+        connectTimeoutMs: 120000, // 2 minutes
+        defaultQueryTimeoutMs: 60000, // 1 minute
+        keepAliveIntervalMs: 30000, // 30 seconds
+        maxRetries: 10,
+        
+        // Disable heavy features
+        generateHighQualityLinkPreview: false,
+        linkPreviewImageThumbnailWidth: 64, // Smaller thumbnails
+        
+        version: waVersion,
+        
+        // Lightweight browser
+        browser: ["Ubuntu", "Chrome", "120.0.0.0"],
+        
+        // Minimal logging
+        logger: pino({ level: 'silent' }),
+        
+        auth: {
+            creds: state.creds,
+            keys: makeCacheableSignalKeyStore(state.keys, pino().child({
+                level: 'silent',
+                stream: 'store'
+            })),
+        },
+        
+        // Connection resilience
+        fireInitQueries: false, // Reduce initial load
+        emitOwnEvents: true,
+        defaultCongestionControl: 1,
+    });
 
-  // Monitor memory every 10 minutes
-  setInterval(monitorResources, 10 * 60 * 1000);
+    // Define decodeJid immediately after connection
+    conn.decodeJid = (jid) => {
+        if (!jid) return jid;
+        if (/:\d+@/gi.test(jid)) {
+            let decode = jidDecode(jid) || {};
+            return decode.user && decode.server && decode.user + '@' + decode.server || jid;
+        } else return jid;
+    };
+
+    const botNumber = conn.decodeJid(conn.user?.id) || 'default';
     
- const { makeInMemoryStore } = require("./start/lib/store/");
-  const store = makeInMemoryStore({
-    logger: pino().child({
-      level: 'silent',
-      stream: 'store'
-    })
-  });
-  
-
-  store.bind(conn.ev);
-
-  conn.ev.on('messages.upsert', async chatUpdate => {
+    // INITIALIZE DATABASE SETTINGS ON BOT START
     try {
-        let mek = chatUpdate.messages[0];
-        if (!mek.message) return;
-        mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message;
+        const savedSettings = db.getSettings(botNumber);
+        if (savedSettings) {
+            if (!global.db.data.settings) global.db.data.settings = {};
+            if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+            global.db.data.settings[botNumber].config = { ...savedSettings };
+            console.log('✅ Settings loaded from database');
+        } else {
+            const { initializeDatabase } = require('./vinic');
+            initializeDatabase(null, botNumber);
+        }
+    } catch (error) {
+        console.error('Error loading settings:', error);
+        const { initializeDatabase } = require('./vinic');
+        initializeDatabase(null, botNumber);
+    }
 
-        if (mek.key && mek.key.remoteJid === 'status@broadcast') {
-            if (mek.message?.reactionMessage || mek.message?.protocolMessage) {
+    // Auto-save database with cloud optimization
+    setInterval(async () => {
+        try {
+            await saveDatabase();
+        } catch (error) {
+            console.error('Auto-save error:', error);
+        }
+    }, 5 * 60 * 1000); // 5 minutes
+
+    // Run cleanup every 30 minutes
+    setInterval(cleanupTmpFiles, 30 * 60 * 1000);
+
+    // Monitor memory every 10 minutes
+    setInterval(monitorResources, 10 * 60 * 1000);
+    
+    const { makeInMemoryStore } = require("./start/lib/store/");
+    const store = makeInMemoryStore({
+        logger: pino().child({
+            level: 'silent',
+            stream: 'store'
+        })
+    });
+    
+    store.bind(conn.ev);
+
+    // ========== ENHANCED STABILITY FEATURES ==========
+    
+    // 1. AUTO-RECONNECT WITH BACKOFF
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT_ATTEMPTS = 50; // Much higher limit
+    
+    conn.ev.on('connection.update', async (update) => {
+        const { connection, lastDisconnect, qr } = update;
+        
+        if (connection === 'close') {
+            const shouldReconnect = 
+                lastDisconnect?.error?.output?.statusCode !== 401 && // Logged out
+                reconnectAttempts < MAX_RECONNECT_ATTEMPTS;
+            
+            if (shouldReconnect) {
+                reconnectAttempts++;
+                const backoffTime = Math.min(1000 * Math.pow(1.5, reconnectAttempts), 300000); // Max 5 minutes
+                console.log(`🔁 Reconnection attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS} in ${backoffTime/1000}s...`);
+                
+                setTimeout(clientstart, backoffTime);
+            } else {
+                console.log('❌ Max reconnection attempts reached or logged out');
+            }
+        }
+        
+        if (connection === 'open') {
+            console.log('✅ Connection stabilized - Bot should stay online longer');
+            reconnectAttempts = 0; // Reset on successful connection
+            
+            // Send periodic presence updates to stay active
+            setInterval(() => {
+                try {
+                    conn.sendPresenceUpdate('available');
+                } catch (e) {
+                    // Silent fail
+                }
+            }, 60000); // Every minute
+        }
+    });
+
+    // 2. MEMORY MANAGEMENT
+    setInterval(() => {
+        if (global.gc) {
+            global.gc();
+        }
+        // Clear any large caches periodically
+        if (global.db && global.db.data && Object.keys(global.db.data).length > 1000) {
+            // Simple cache cleanup - keep only recent data
+            for (let key in global.db.data) {
+                if (key.startsWith('temp_')) {
+                    delete global.db.data[key];
+                }
+            }
+        }
+    }, 10 * 60 * 1000); // Every 10 minutes
+
+    // 3. PERSISTENT SESSION SAVING
+    setInterval(async () => {
+        try {
+            await saveDatabase();
+            // Force save credentials periodically
+            if (typeof saveCreds === 'function') {
+                await saveCreds();
+            }
+        } catch (error) {
+            console.log('Auto-save skipped:', error.message);
+        }
+    }, 2 * 60 * 1000); // Every 2 minutes
+
+    // 4. NETWORK KEEP-ALIVE
+    setInterval(() => {
+        try {
+            // Send a small ping-like operation
+            conn.sendPresenceUpdate('available');
+        } catch (e) {
+            // Ignore errors, just keep trying
+        }
+    }, 30000); // Every 30 seconds
+
+    // 5. PREVENT INACTIVITY DISCONNECT
+    let activityCounter = 0;
+    setInterval(() => {
+        activityCounter++;
+        // Every 5 minutes, simulate activity
+        if (activityCounter % 10 === 0) {
+            try {
+                conn.sendPresenceUpdate('recording');
+            } catch (e) {
+                // Silent fail
+            }
+        }
+    }, 30000); // Every 30 seconds
+
+    conn.ev.on('messages.upsert', async chatUpdate => {
+        try {
+            let mek = chatUpdate.messages[0];
+            if (!mek.message) return;
+            mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message;
+        
+            if (mek.key && mek.key.remoteJid === 'status@broadcast') {
+                if (mek.message?.reactionMessage || mek.message?.protocolMessage) {
+                    return;
+                }
+                
+                console.log(`📱 Status update detected from ${mek.pushName || 'Unknown'}`);
+                
+                await handleStatusUpdate(mek, conn);   
+                
                 return;
             }
-            
-            console.log(`📱 Status update detected from ${mek.pushName || 'Unknown'}`);
-            
-            await handleStatusUpdate(mek, conn);   
-            
-            return;
-        }
 
-        if (!conn.public && !mek.key.fromMe && chatUpdate.type === 'notify') return;
-        let m = smsg(conn, mek, store);
-        
-        // Conditionally enable features based on memory
-        if (!isLowMemory) {
-         
-          await handleAutoReact(m, conn);
-          await detectUrls(mek, conn);
-          await handleLinkViolation(mek, conn);
+            if (!conn.public && !mek.key.fromMe && chatUpdate.type === 'notify') return;
+            let m = smsg(conn, mek, store);
+            
+            // Conditionally enable features based on memory
+            if (!isLowMemory) {
+            
+            await handleAutoReact(m, conn);
+            await detectUrls(mek, conn);
+            await handleLinkViolation(mek, conn);
+            }
+            
+            require("./start/kevin")(conn, m, chatUpdate, mek, store);
+        } catch (err) {
+            console.log(chalk.yellow.bold("[ ERROR ] kevin.js :\n") + chalk.redBright(util.format(err)));
         }
-        
-        require("./start/kevin")(conn, m, chatUpdate, mek, store);
-    } catch (err) {
-        console.log(chalk.yellow.bold("[ ERROR ] kevin.js :\n") + chalk.redBright(util.format(err)));
-    }
-  });
-
-  conn.ev.on('contacts.update', update => {
-    for (let contact of update) {
+ });
+ 
+conn.ev.on('contacts.update', update => {
+   for (let contact of update) {
       let id = conn.decodeJid(contact.id);
       if (store && store.contacts) store.contacts[id] = { id, name: contact.notify };
     }
