@@ -85,7 +85,7 @@ const {
   recordError,
   shouldLogError } = require('../vinic')
 
-const { , takeCommand, musicCommand, ytplayCommand, handleMediafireDownload,  InstagramCommand, telestickerCommand, playCommand } = require('./KelvinCmds/commands')
+const {  takeCommand, musicCommand, ytplayCommand, handleMediafireDownload,  InstagramCommand, telestickerCommand, playCommand } = require('./KelvinCmds/commands')
 const { KelvinVideo } = require('./KelvinCmds/video');
 const sports = require('./KelvinCmds/sport');
 const {fetchReactionImage} = require('./lib/reaction')
