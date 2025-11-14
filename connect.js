@@ -66,6 +66,10 @@ const Connecting = async ({
 ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
 Join our channel for updates:
 🔗 https://whatsapp.com/channel/0029Vb7VdNbIXnlhBiFjrt1B
+
+Follow us on:
+• WhatsApp group: https://chat.whatsapp.com/B8ZQeYZq76lEU6LvZKabPa?mode=wwt
+• Telegram support: https://t.me/VinicSupportDsfCrewDevs
 ✦◈✦◈✦◈✦◈✦◈✦◈✦◈✦◈✦`;
 
         await conn.sendMessage(conn.user.id, { 
