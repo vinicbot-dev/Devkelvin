@@ -85,7 +85,8 @@ const {
   recordError,
   shouldLogError } = require('../vinic')
 
-const { videoCommand, takeCommand, musicCommand, ytplayCommand, handleMediafireDownload, InstagramCommand, telestickerCommand, ytmp4Command, playCommand } = require('./KelvinCmds/commands')
+const { , takeCommand, musicCommand, ytplayCommand, handleMediafireDownload,  InstagramCommand, telestickerCommand, playCommand } = require('./KelvinCmds/commands')
+const { KelvinVideo } = require('./KelvinCmds/video');
 const sports = require('./KelvinCmds/sport');
 const {fetchReactionImage} = require('./lib/reaction')
 const { toAudio } = require('./lib/converter');
@@ -112,6 +113,7 @@ if (m.message && m.key && !m.key.fromMe) {
 }
 const { sender } = m;
 const from = m.key.remoteJid;
+const chatId = m.chat;
 const isGroup = from.endsWith("@g.us")
 // database 
 // database 
@@ -5287,11 +5289,12 @@ case 'instagram': {
        await InstagramCommand(conn, m.chat, m);
 }
 break
-case 'ytmp4': {
-        await videoCommand(conn, m.chat, m);
-        
+case 'ytmp4': 
+case 'video': {
+    const chatId = m.chat;
+    await KelvinVideo(conn, chatId, m, args);
+    break;
 }
-break
 case 'checkapi': {
     if (!text) return reply(`Usage: ${prefix}checkapi <url>`);
     
