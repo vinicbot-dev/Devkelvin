@@ -179,7 +179,7 @@ async function generateMenu(conn, m, prefix, global) {
             title: ' *TOOLS MENU*',
             commands: ['time', 'calculate', 'owner', 'dev', 'fliptext', 'translate', 
                       'ss2', 'sswebpc', 'kevinfarm', 'say', 'getdevice', 'ss', 'userinfo', 
-                      'npm', 'take', 'telesticker', 'checkapi', 'footballhelp', 'qrcode', 'gsmarena', 
+                      'npm', 'take', 'telesticker', 'checkapi', 'footballhelp', 'filtervcf', 'qrcode', 'smartphone', 
                       'removebg', 'obfuscate', 'getabout', 'tinylink', 'vcc', 'getbussiness', 
                       'listpc', 'sswebpc'],
         },
@@ -198,8 +198,8 @@ async function generateMenu(conn, m, prefix, global) {
         },
         search: {
             title: ' *SEARCH MENU* ',
-            commands: ['lyrics', 'chord', 'weather', 'movie', 'define', 'gitstalk', 
-                      'tiktokstalk', 'ytsearch', 'shazam'],
+            commands: ['lyrics', 'chord', 'weather', 'movie', 'define', 'gitstalk', 'playstore',
+                      'tiktoksearch', 'ytsearch', 'shazam'],
         },
         fun: {
             title: ' *FUN MENU* ',
