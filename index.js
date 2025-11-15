@@ -66,7 +66,7 @@ const { File } = require('megajs');
 const { color } = require('./start/lib/color');
 
 const Database = require('better-sqlite3');
-const db = require('./start/lib/sqlite');
+const db = require('./start/lib/database/database');
 
 const {
   smsg,
@@ -319,34 +319,17 @@ async function clientstart() {
         } else return jid;
     };
 
-    const botNumber = conn.decodeJid(conn.user?.id) || 'default';
-    
-    // INITIALIZE DATABASE SETTINGS ON BOT START
-    try {
-        const savedSettings = db.getSettings(botNumber);
-        if (savedSettings) {
-            if (!global.db.data.settings) global.db.data.settings = {};
-            if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-            global.db.data.settings[botNumber].config = { ...savedSettings };
-            console.log('✅ Settings loaded from database');
-        } else {
-            const { initializeDatabase } = require('./vinic');
-            initializeDatabase(null, botNumber);
-        }
-    } catch (error) {
-        console.error('Error loading settings:', error);
-        const { initializeDatabase } = require('./vinic');
-        initializeDatabase(null, botNumber);
-    }
+const botNumber = conn.decodeJid(conn.user?.id) || 'default';
 
-    // Auto-save database with cloud optimization
-    setInterval(async () => {
-        try {
-            await saveDatabase();
-        } catch (error) {
-            console.error('Auto-save error:', error);
-        }
-    }, 5 * 60 * 1000); // 5 minutes
+// LOAD PERSISTENT SETTINGS ON STARTUP
+try {
+    const { loadPersistentSettings, startAutoSave } = require('./vinic');
+    await loadPersistentSettings(conn);
+    startAutoSave();
+} catch (error) {
+    const { initializeDatabase } = require('./vinic');
+    initializeDatabase(null, botNumber);
+}
 
     // Run cleanup every 30 minutes
     setInterval(cleanupTmpFiles, 30 * 60 * 1000);
