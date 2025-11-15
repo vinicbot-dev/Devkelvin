@@ -86,6 +86,8 @@ const {
 
 const {  takeCommand, musicCommand, ytplayCommand, handleMediafireDownload,  InstagramCommand, telestickerCommand, playCommand } = require('./KelvinCmds/commands')
 const { KelvinVideo } = require('./KelvinCmds/video');
+const { tiktokSearch } = require('./KelvinCmds/TikTok');
+const { playstoreSearch } = require('./KelvinCmds/playstore');
 const sports = require('./KelvinCmds/sport');
 const {fetchReactionImage} = require('./lib/reaction')
 const { toAudio } = require('./lib/converter');
@@ -3489,8 +3491,7 @@ END:VCARD`;
   }
 }
 break
-case "say": 
-case "tts": {
+case "say": {
 let text = args.join(" ");
     if (!text) return reply("*Text needed!*");
 
@@ -3864,6 +3865,7 @@ if (!Access) return reply(mess.owner);
     }
 }
 break
+case "smartphone":
 case "gsmarena": {
     if (!text) return reply("*Please provide a query to search for smartphones.*");
 
@@ -5784,6 +5786,20 @@ if (!args[0]) return reply('*Please provide a TikTok video url!*');
     } catch (error) {
       reply(global.mess.error);
     }
+}
+break 
+case 'tiktoksearch':
+case 'tts': {
+    const query = body.slice(command.length + 1).trim();
+    if (!query) return reply("*Provide TikTok username or search query*.");
+    
+    await conn.sendMessage(m.chat, { 
+        text: `🔍 Searching TikTok for "${query}"...` 
+    }, { quoted: m });
+    
+    const result = await tiktokSearch(query);
+    await conn.sendMessage(m.chat, { text: result }, { quoted: m });
+    
 }
 break
 case "TikTok audio": {
@@ -7804,37 +7820,18 @@ case 'lyrics': {
     
 }
 break
-case "playstore": {
-    try {
-        if (!text) return reply('Please provide an app name. Example: .playstore whatsapp');
-        
-        let appName = text.trim();
-        let res = await fetch(`https://api.giftedtech.co.ke/api/search/playstore?apikey=gifted&query=${encodeURIComponent(appName)}`);
-        
-        if (!res.ok) {
-            throw new Error(`API request failed with status ${res.status}`);
-        }
-        
-        let json = await res.json();
-        
-        // Check if the response has the expected structure
-        if (json && json.success && json.results && json.results.length > 0) {
-            let app = json.results[0];
-            let message = `📱 *${app.name || 'App Name'}*\n\n` +
-                         `📝 *Description:* ${app.description || 'No description'}\n` +
-                         `⭐ *Rating:* ${app.rating || 'N/A'}\n` +
-                         `⬇️ *Downloads:* ${app.downloads || 'N/A'}\n` +
-                         `🔗 *URL:* ${app.url || 'Not available'}\n` +
-                         `🏢 *Developer:* ${app.developer || 'Unknown'}`;
-            
-            await conn.sendMessage(m.chat, { text: message }, { quoted: m });
-        } else {
-            throw new Error('No app results found');
-        }
-    } catch (error) {
-        console.error('Error fetching playstore app:', error);
-        reply('Sorry, I couldn\'t find that app. Please try again with a different name.');
-    }
+case 'playstore':
+case 'ps': {
+    const query = body.slice(command.length + 1).trim();
+    if (!query) return reply("*Provide app name*.");
+    
+    await conn.sendMessage(m.chat, { 
+        text: `🔍 Searching PlayStore for "${query}"...` 
+    }, { quoted: m });
+    
+    const result = await playstoreSearch(query);
+    await conn.sendMessage(m.chat, { text: result }, { quoted: m });
+    
 }
 break
 case "yts": 
