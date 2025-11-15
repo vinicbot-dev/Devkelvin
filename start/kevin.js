@@ -1080,14 +1080,20 @@ case 'setprefix': {
         return reply('❌ Please provide a valid prefix (1-2 characters)');
     }
     
-    // Update in memory
-    const success = await updateBotSetting('prefix', newPrefix);
+    // Fix: Properly get setting from global database
+    if (!global.db.data.settings) global.db.data.settings = {};
+    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+    let setting = global.db.data.settings[botNumber];
     
-    if (success) {
-        reply(`✅ Prefix updated to: *${newPrefix}*`);
-    } else {
-        reply('❌ Failed to update prefix');
-    }
+    // Initialize config if it doesn't exist
+    if (!setting.config) setting.config = {};
+    
+    // Update prefix in database
+    setting.config.prefix = newPrefix;
+    
+    await saveDatabase();
+    
+    reply(`✅ Prefix updated to: *${newPrefix}*`);
     break;
 }
 case 'features':
@@ -1196,60 +1202,80 @@ case 'ai': {
     const action = args[0]?.toLowerCase();
     
     if (!action) {
-        const currentState = getAIChatbotState();
-        return reply(`🤖 AI Chatbot is currently: ${currentState === "true" ? "✅ ENABLED" : "❌ DISABLED"}\n\nUse: ${prefix}ai on/off`);
+        // Fix: Get status from database instead of external functions
+        if (!global.db.data.settings) global.db.data.settings = {};
+        if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+        let setting = global.db.data.settings[botNumber];
+        
+        const aiStatus = (setting.config && setting.config.AI_CHAT) ? "✅ ENABLED" : "❌ DISABLED";
+        return reply(`🤖 AI Chatbot is currently: ${aiStatus}\n\nUse: ${prefix}ai on/off/clear`);
     }
     
+    // Fix: Properly get setting from global database
+    if (!global.db.data.settings) global.db.data.settings = {};
+    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+    let setting = global.db.data.settings[botNumber];
+    
+    // Initialize config if it doesn't exist
+    if (!setting.config) setting.config = {};
+    
     if (action === 'on' || action === 'enable') {
-        setAIChatbotState(true);
-        await updateBotSetting('AI_CHAT', true);
+        setting.config.AI_CHAT = true;
         reply('✅ AI Chatbot enabled');
     } else if (action === 'off' || action === 'disable') {
-        setAIChatbotState(false);
-        await updateBotSetting('AI_CHAT', false);
+        setting.config.AI_CHAT = false;
         reply('❌ AI Chatbot disabled');
     } else if (action === 'clear') {
-        clearChatbotMemory(from);
-        reply('🧹 AI conversation memory cleared for this chat');
+        // Clear chatbot memory if you have that function
+        // If not, you can remove this part
+        if (typeof clearChatbotMemory === 'function') {
+            clearChatbotMemory(from);
+            reply('🧹 AI conversation memory cleared for this chat');
+        } else {
+            reply('✅ AI setting updated (clear function not available)');
+        }
     } else {
         reply(`❌ Usage: ${prefix}ai on/off/clear`);
     }
-    break;
+       
+    await saveDatabase();
+        
 }
 case "antidelete": {
-if (!Access) return reply(mess.owner);
-if (args.length < 2) return reply(`Example: ${prefix + command} private on/off\nOr: ${prefix + command} chat on/off`);
+    if (!Access) return reply(mess.owner);
+    if (args.length < 2) return reply(`Example: ${prefix + command} private on/off\nOr: ${prefix + command} chat on/off`);
 
-const validTypes = ["private", "chat"];
-const validOptions = ["on", "off"];
+    const validTypes = ["private", "chat"];
+    const validOptions = ["on", "off"];
 
-const type = args[0].toLowerCase();
-const option = args[1].toLowerCase();
+    const type = args[0].toLowerCase();
+    const option = args[1].toLowerCase();
 
-if (!validTypes.includes(type)) return reply("Invalid type. Use 'private' or 'chat'");
-if (!validOptions.includes(option)) return reply("Invalid option. Use 'on' or 'off'");
+    if (!validTypes.includes(type)) return reply("Invalid type. Use 'private' or 'chat'");
+    if (!validOptions.includes(option)) return reply("Invalid option. Use 'on' or 'off'");
 
-// Fix: Properly get setting from global database
-if (!global.db.data.settings) global.db.data.settings = {};
-if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-let setting = global.db.data.settings[botNumber];
+    // Fix: Properly get setting from global database
+    if (!global.db.data.settings) global.db.data.settings = {};
+    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+    let setting = global.db.data.settings[botNumber];
 
-// Initialize config if it doesn't exist
-if (!setting.config) setting.config = {};
+    // Initialize config if it doesn't exist
+    if (!setting.config) setting.config = {};
 
-// Set the anti-delete configuration based on type
-if (type === "private") {
-    setting.config.statusantidelete = option === "on" ? "private" : false;
-} else if (type === "chat") {
-    setting.config.statusantidelete = option === "on" ? "chat" : false;
-}
+    // Set the anti-delete configuration
+    if (option === "on") {
+        setting.config.antidelete = type; // "private" or "chat"
+        global.antidelete = type;
+    } else {
+        setting.config.antidelete = false;
+        global.antidelete = false;
+    }
 
-// Also update the global antidelete variable
-global.antidelete = setting.config.statusantidelete;
+    // Save to database immediately
+    await saveDatabase();
 
-await saveDatabase();
-
-reply(`Anti-delete ${type} mode ${option === "on" ? "enabled" : "disabled"} successfully`);
+    reply(`✅ Anti-delete ${type} mode ${option === "on" ? "enabled" : "disabled"} successfully`);
+    
 }
 break
 case 'antistatus': {
@@ -1271,7 +1297,6 @@ case 'antistatus': {
     }
     break;
 }
-
 case 'antiedit': {
     if (!Access) return reply('❌ Owner only command');
     
@@ -1282,16 +1307,27 @@ case 'antiedit': {
         return reply(`❌ Usage: ${prefix}antiedit <private/chat/off>\n\n• private - Edit alerts to bot owner\n• chat - Edit alerts in same chat\n• off - Disable anti-edit`);
     }
     
+    // Fix: Properly get setting from global database
+    if (!global.db.data.settings) global.db.data.settings = {};
+    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+    let setting = global.db.data.settings[botNumber];
+    
+    // Initialize config if it doesn't exist
+    if (!setting.config) setting.config = {};
+    
     if (mode === 'off') {
+        setting.config.antiedit = false;
         global.antiedit = false;
-        await updateBotSetting('antiedit', false);
-        reply('❌ Anti-edit disabled');
     } else {
+        setting.config.antiedit = mode;
         global.antiedit = mode;
-        await updateBotSetting('antiedit', true);
-        reply(`✅ Anti-edit set to: ${mode} mode`);
     }
-    break;
+    
+    // Save to database immediately
+    await saveDatabase();
+    
+    reply(`✅ Anti-edit ${mode === 'off' ? 'disabled' : 'set to: ' + mode + ' mode'}`);
+    b
 }
 case 'dbstatus': {
     if (!Access) return reply('❌ Owner only command');
@@ -2528,17 +2564,32 @@ case "autotyping": {
     if (!Access) return reply(mess.owner);
     
     if (!text) {
-        const status = global.autoTyping ? "✅ ON" : "❌ OFF";
+        // Fix: Get status from database instead of global variable
+        if (!global.db.data.settings) global.db.data.settings = {};
+        if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+        let setting = global.db.data.settings[botNumber];
+        
+        const status = (setting.config && setting.config.autotyping) ? "✅ ON" : "❌ OFF";
         return reply(`*Auto-Typing Status:* ${status}\n\nUsage: ${prefix}autotyping on/off`);
     }
 
     const option = args[0].toLowerCase();
     
+    // Fix: Properly get setting from global database
+    if (!global.db.data.settings) global.db.data.settings = {};
+    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+    let setting = global.db.data.settings[botNumber];
+    
+    // Initialize config if it doesn't exist
+    if (!setting.config) setting.config = {};
+    
     if (option === 'on') {
+        setting.config.autotyping = true;
         global.autoTyping = true;
-        reply('✅ *Auto-typing enabled!* The bot will now show typing indicators.');
+        reply('✅ *Auto-typing enabled!*');
     } 
     else if (option === 'off') {
+        setting.config.autotyping = false;
         global.autoTyping = false;
         reply('❌ *Auto-typing disabled!*');
     } 
@@ -2546,23 +2597,7 @@ case "autotyping": {
         reply(`❌ Invalid option! Use: ${prefix}autotyping on/off`);
     }
     
-    // Save to config file for persistence
-    try {
-        const configPath = './setting/config.js';
-        let configContent = fs.readFileSync(configPath, 'utf-8');
-        
-        // Update the autoTyping setting
-        const updatedConfig = configContent.replace(
-            /global\.autoTyping\s*=\s*(true|false)/,
-            `global.autoTyping = ${global.autoTyping}`
-        );
-        
-        fs.writeFileSync(configPath, updatedConfig);
-    } catch (error) {
-        console.error('Error saving autoTyping setting:', error);
-    }
-    
-    
+    await saveDatabase();
 }
 break
 case "join": {
@@ -2727,21 +2762,31 @@ case 'autotyping': {
     
 break
 case "autorecording": {
-
-                if (!Access) return reply(mess.owner)
-                if (args.length < 1) return reply(`Example ${prefix + command} on/off`)
-                if (q === 'on') {
-                    autoRecording = true
-
-                    reply(`Successfully 💠changed auto-recording to ${q}`)
-
-                } else if (q === 'off') {
-
-                    autoRecording = false
-
-                    reply(`Successfully changed auto-recording to ${q} `)
-
-           }
+    if (!Access) return reply(mess.owner);
+    if (args.length < 1) return reply(`Example: ${prefix + command} on/off`);
+    
+    const option = args[0].toLowerCase();
+    
+    // Fix: Properly get setting from global database
+    if (!global.db.data.settings) global.db.data.settings = {};
+    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+    let setting = global.db.data.settings[botNumber];
+    
+    // Initialize config if it doesn't exist
+    if (!setting.config) setting.config = {};
+    
+    if (option === 'on') {
+        setting.config.autorecording = true;
+        reply(`✅ Auto-recording enabled`);
+    } else if (option === 'off') {
+        setting.config.autorecording = false;
+        reply(`✅ Auto-recording disabled`);
+    } else {
+        return reply(`❌ Invalid option. Use: ${prefix + command} on/off`);
+    }
+    
+    // Save to database immediately
+    await saveDatabase();
 }
 break
 case "autoread": {
@@ -2859,7 +2904,6 @@ case "adminevent": {
     reply(`Admin event feature ${option === 'on' ? 'enabled' : 'disabled'} successfully`);
 }
 break
-// Enhanced features status command
 case 'features': {
     if (!global.db.data.settings || !global.db.data.settings[botNumber] || !global.db.data.settings[botNumber].config) {
         // If no database settings, show global config
@@ -5134,7 +5178,8 @@ case "play2": {
     
 }
 break
-case "song2": {
+case "audio":
+case "music": {
     if (!text) return reply(global.mess.notext);
 
     try {
@@ -7822,11 +7867,27 @@ case 'ytaudio': {
    
 }
 break
-case 'music':
-case 'audio': {
-    await musicCommand(conn, m.chat, m, args);
-    
-}
+case 'song2': {
+      if (!text) return reply('*Please provide a song name!*');
+
+    try {
+      const search = await yts(text);
+      if (!search || search.all.length === 0) return reply('*The song you are looking for was not found.*');
+
+      const video = search.all[0];
+      const downloadUrl = await fetchMp3DownloadUrl(video.url);
+
+      await conn.sendMessage(m.chat, {
+        audio: { url: downloadUrl },
+        mimetype: 'audio/mpeg',
+        fileName: `${video.title}.mp3`
+      }, { quoted: m });
+
+    } catch (error) {
+      console.error('play command failed:', error);
+      reply(`Error: ${error.message}`);
+    }
+  }
 break
 case "imdb":
 case "movie": {
