@@ -86,15 +86,15 @@ if (global.db.data) {
 // Function to fetch MP3 download URL
 async function fetchMp3DownloadUrl(link) {
   const fetchDownloadUrl1 = async (videoUrl) => {
-    const apiUrl = `https://api.giftedtech.my.id/api/download/dlmp3?apikey=${dlkey}&url=${videoUrl}`;
+    const apiUrl = `https://api.nekolabs.my.id/downloader/youtube/play/v1?q=${encodeURIComponent(videoUrl)}`;
     try {
       const response = await axios.get(apiUrl);
       if (response.status !== 200 || !response.data.success) {
-        throw new Error('Failed to fetch from GiftedTech API');
+        throw new Error('Failed to fetch from NekoLabs API');
       }
-      return response.data.result.download_url;
+      return response.data.result.downloadUrl;
     } catch (error) {
-      console.error('Error with GiftedTech API:', error.message);
+      console.error('Error with NekoLabs API:', error.message);
       throw error;
     }
   };
@@ -281,49 +281,160 @@ async function obfus(query) {
 const pickRandom = (arr) => {
 return arr[Math.floor(Math.random() * arr.length)]
 }
+// ========== ENHANCED SETTINGS PERSISTENCE FOR JSON ==========
 
-function initializeDatabase(from, botNumber) {
-  try {
-    if (from && from.endsWith('@g.us')) { 
-      // ... existing group settings code ...
+// Load settings from JSON database on startup
+async function loadPersistentSettings(conn) {
+    try {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        
+        if (!fs.existsSync("./start/lib/database/database.json")) {
+            initializeDatabase(null, botNumber);
+            return false;
+        }
+        
+        const dbData = JSON.parse(fs.readFileSync("./start/lib/database/database.json", "utf8"));
+        
+        if (dbData.settings && dbData.settings[botNumber] && dbData.settings[botNumber].config) {
+            if (!global.db.data) global.db.data = {};
+            if (!global.db.data.settings) global.db.data.settings = {};
+            if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+            
+            global.db.data.settings[botNumber].config = { ...dbData.settings[botNumber].config };
+            
+            global.antidelete = dbData.settings[botNumber].config.antidelete || false;
+            global.autoread = dbData.settings[botNumber].config.autoread || false;
+            global.autoviewstatus = dbData.settings[botNumber].config.autoviewstatus || false;
+            
+            return true;
+        } else {
+            initializeDatabase(null, botNumber);
+            return false;
+        }
+    } catch (error) {
+        return false;
     }
-
-    let setting = global.db.data.settings[botNumber];
-    if (typeof setting !== "object") global.db.data.settings[botNumber] = {};
-    setting = global.db.data.settings[botNumber]; 
-    
-    // Add config section
-    if (!setting.config || typeof setting.config !== "object") {
-      setting.config = {};
-    }
-    
-    // Initialize config properties
-    if (!("prefix" in setting.config)) setting.config.prefix = ".";
-    if (!("statusantidelete" in setting.config)) setting.config.statusantidelete = false;
-    if (!("autobio" in setting.config)) setting.config.autobio = false;
-    if (!("autorecord" in setting.config)) setting.config.autorecord = false;
-    if (!("autoviewstatus" in setting.config)) setting.config.autoviewstatus = false;
-    if (!("autoreactstatus" in setting.config)) setting.config.autoreactstatus = false;
-    if (!("antiedit" in setting.config)) setting.config.antiedit = false;
-    if (!("anticall" in setting.config)) setting.config.anticall = false;
-    if (!("AI_CHAT" in setting.config)) setting.config.AI_CHAT = false;
-    if (!("antibug" in setting.config)) setting.config.antibug = false;
-    if (!("ownernumber" in setting.config)) setting.config.ownernumber = global.ownernumber || '';
-    
-    // Initialize group chats with allowedUsers for permanent permissions
-    if (from && from.endsWith('@g.us')) {
-      if (!global.db.data.chats) global.db.data.chats = {};
-      if (!global.db.data.chats[from]) global.db.data.chats[from] = {};
-      if (!global.db.data.chats[from].allowedUsers) global.db.data.chats[from].allowedUsers = {};
-    }
-    
-    let blacklist = global.db.data.blacklist;
-    if (!blacklist || typeof blacklist !== "object") global.db.data.blacklist = { blacklisted_numbers: [] };
-
-  } catch (err) {
-    console.error("Error initializing database:", err);
-  }
 }
+
+// Enhanced initializeDatabase with JSON persistence
+function initializeDatabase(from, botNumber) {
+    try {
+        if (!global.db.data) {
+            if (fs.existsSync("./start/lib/database/database.json")) {
+                global.db.data = JSON.parse(fs.readFileSync("./start/lib/database/database.json")) || {};
+            } else {
+                global.db.data = {};
+            }
+        }
+        
+        if (!global.db.data.settings) global.db.data.settings = {};
+        if (!global.db.data.chats) global.db.data.chats = {};
+        if (!global.db.data.blacklist) global.db.data.blacklist = { blacklisted_numbers: [] };
+
+        if (!global.db.data.settings[botNumber]) {
+            global.db.data.settings[botNumber] = {};
+        }
+        
+        let setting = global.db.data.settings[botNumber];
+        if (typeof setting !== "object") global.db.data.settings[botNumber] = {};
+        setting = global.db.data.settings[botNumber]; 
+        
+        if (!setting.config || typeof setting.config !== "object") {
+            setting.config = {};
+        }
+        
+        let existingSettings = {};
+        try {
+            if (fs.existsSync("./start/lib/database/database.json")) {
+                const fileData = JSON.parse(fs.readFileSync("./start/lib/database/database.json", "utf8"));
+                if (fileData.settings && fileData.settings[botNumber] && fileData.settings[botNumber].config) {
+                    existingSettings = fileData.settings[botNumber].config;
+                }
+            }
+        } catch (e) {}
+        
+        const defaultSettings = {
+            prefix: ".",
+            statusantidelete: false,
+            autobio: false,
+            autorecord: false,
+            autoviewstatus: false,
+            autoreactstatus: false,
+            antiedit: false,
+            anticall: false,
+            AI_CHAT: false,
+            antibug: false,
+            ownernumber: global.ownernumber || '',
+            antidelete: false, 
+            autoread: false,
+            welcome: true,
+            adminevent: true,
+            autoreact: false,
+            groupSettings: {}
+        };
+        
+        Object.keys(defaultSettings).forEach(key => {
+            if (!(key in setting.config)) {
+                setting.config[key] = existingSettings[key] !== undefined ? existingSettings[key] : defaultSettings[key];
+            }
+        });
+        
+        global.antidelete = setting.config.antidelete || false;
+        global.autoread = setting.config.autoread || false;
+        global.autoviewstatus = setting.config.autoviewstatus || false;
+        
+        saveDatabase();
+        
+    } catch (err) {
+        global.antidelete = false;
+        global.autoread = false;
+        global.autoviewstatus = false;
+    }
+}
+
+// Enhanced saveDatabase with better JSON handling
+async function saveDatabase() {
+    try {
+        if (!global.db.data) {
+            global.db.data = {
+                settings: {},
+                chats: {},
+                blacklist: { blacklisted_numbers: [] }
+            };
+        }
+        
+        const dir = './start/lib/database';
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        
+        fs.writeFileSync("./start/lib/database/database.json", JSON.stringify(global.db.data, null, 2));
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
+// Force save settings (call this when settings change)
+async function forceSaveSettings() {
+    try {
+        await saveDatabase();
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
+// Auto-save settings periodically
+function startAutoSave() {
+    setInterval(async () => {
+        try {
+            await saveDatabase();
+        } catch (error) {}
+    }, 1 * 60 * 1000);
+}
+
+
 //================== [ MESSAGE HANDLING FUNCTIONS ] ==================//
 function loadBlacklist() {
     if (!global.db.data.blacklist) {
@@ -355,26 +466,7 @@ function extractMessageText(message) {
 }
 
 
-async function saveDatabase() {
-  try {
-    // Save to JSON file for backup
-    fs.writeFileSync("./start/lib/database/database.json", JSON.stringify(global.db.data, null, 2));
-    
-    // Save all settings to SQLite
-    if (global.db.data.settings) {
-      for (const [botNumber, settings] of Object.entries(global.db.data.settings)) {
-        if (settings.config) {
-          db.saveSettings(botNumber, settings.config);
-        }
-      }
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Error saving database:', error);
-    return false;
-  }
-}
+
 // ========== MESSAGE STORAGE FOR ANTI-DELETE ==========
 function loadStoredMessages() {
     try {
@@ -878,8 +970,10 @@ module.exports = {
   saveDatabase,
   recordError,
   shouldLogError,
-  pickRandom
-    
+  pickRandom,
+  loadPersistentSettings,
+  forceSaveSettings,
+  startAutoSave
 };
 
 let file = require.resolve(__filename)
