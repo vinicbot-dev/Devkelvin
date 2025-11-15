@@ -76,7 +76,6 @@ const {
   loadStoredMessages,
   saveStoredMessages,
   storeMessage,
-  checkAndHandleLinks,
   GroupDB,
   ephoto,
   loadBlacklist,
@@ -963,10 +962,6 @@ if (global.antidelete && m.message?.protocolMessage?.type === 0 && m.message?.pr
     await handleAntiDelete(m, conn, from, isGroup, botNumber);
 }
 
-// ========== ANTI-LINK EXECUTION ==========
-if (m.isGroup && body && !m.key.fromMe) {
-    await checkAndHandleLinks(m, conn);
-}
 
 // ========== ANTI-STATUS DELETE EXECUTION ==========
 if (global.antistatus && m.message?.protocolMessage?.type === 0 && m.message?.protocolMessage?.key) {
