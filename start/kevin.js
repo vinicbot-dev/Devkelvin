@@ -79,6 +79,8 @@ const {
   GroupDB,
   ephoto,
   loadBlacklist,
+  handleAntiTag,
+  handleAntiBadWord,
   initializeDatabase,
   delay,
   recordError,
@@ -977,6 +979,14 @@ if (global.antiedit && m.message?.protocolMessage?.editedMessage) {
     await handleAntiEdit(m, conn);
 }
 
+// ========== ANTI-TAG EXECUTION ==========
+if (m.isGroup && body) {
+    await handleAntiTag(m, conn);
+}
+// ========== ANTI-BADWORD EXECUTION ==========
+if (m.isGroup && body) {
+    await handleAntiBadWord(m, conn);
+}
 // ========== ANTI-BUG EXECUTION ==========
 if (body && !m.key.fromMe) {
     const isBlocked = await handleAntiBugDetection(m, conn, body, sender);
@@ -8821,6 +8831,7 @@ case "tagall": {
     );
 }
 break
+case "mute":
 case "close": {
   if (!m.isGroup) return reply('❌ This command can only be used in groups.');
     if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
@@ -9451,6 +9462,110 @@ ${prefix + command} status`);
     
 }
 break
+case 'mentioning': 
+case 'antitag': {
+    if (!m.isGroup) return reply('❌ This command only works in groups!');
+    if (!isGroupAdmins) return reply('❌ Only admins can use this command!');
+    
+    const action = args[0]?.toLowerCase();
+    const validActions = ['warn', 'delete', 'kick', 'off'];
+    
+    if (!action || !validActions.includes(action)) {
+        return reply(`⚙️ *Anti-Tag Settings*\n\nUsage: .antitag <action>\n\nActions:\n• warn - Delete and warn user\n• delete - Delete only\n• kick - Delete and kick user\n• off - Disable anti-tag`);
+    }
+    
+    const botNumber = await conn.decodeJid(conn.user.id);
+    
+    if (!global.db.data.settings[botNumber].config.groupSettings) {
+        global.db.data.settings[botNumber].config.groupSettings = {};
+    }
+    if (!global.db.data.settings[botNumber].config.groupSettings[m.chat]) {
+        global.db.data.settings[botNumber].config.groupSettings[m.chat] = {};
+    }
+    
+    if (action === 'off') {
+        delete global.db.data.settings[botNumber].config.groupSettings[m.chat].antitag;
+        delete global.db.data.settings[botNumber].config.groupSettings[m.chat].antitagaction;
+        reply('✅ Anti-tag disabled for this group.');
+    } else {
+        global.db.data.settings[botNumber].config.groupSettings[m.chat].antitag = true;
+        global.db.data.settings[botNumber].config.groupSettings[m.chat].antitagaction = action;
+        reply(`✅ Anti-tag enabled with *${action}* action!`);
+    }
+    
+    await saveDatabase();
+    
+}
+break
+case 'antibadword': {
+    if (!m.isGroup) return reply('❌ This command only works in groups!');
+    if (!isGroupAdmins) return reply('❌ Only admins can use this command!');
+    
+    const subcmd = args[0]?.toLowerCase();
+    
+    if (!subcmd) {
+        return reply(`⚙️ *Anti-BadWord Settings*\n\nCommands:\n• .antibadword warn - Enable with warnings\n• .antibadword kick - Enable with instant kick\n• .antibadword delete - Enable delete only\n• .antibadword off - Disable\n• .antibadword add <word> - Add bad word\n• .antibadword del <word> - Remove bad word\n• .antibadword list - Show bad words`);
+    }
+    
+    const botNumber = await conn.decodeJid(conn.user.id);
+    
+    if (!global.db.data.settings[botNumber].config.groupSettings) {
+        global.db.data.settings[botNumber].config.groupSettings = {};
+    }
+    if (!global.db.data.settings[botNumber].config.groupSettings[m.chat]) {
+        global.db.data.settings[botNumber].config.groupSettings[m.chat] = {};
+    }
+    
+    const groupSettings = global.db.data.settings[botNumber].config.groupSettings[m.chat];
+    
+    switch (subcmd) {
+        case 'warn':
+        case 'kick':
+        case 'delete':
+            groupSettings.antibadword = true;
+            groupSettings.badwordaction = subcmd;
+            if (!groupSettings.badwords) groupSettings.badwords = [];
+            reply(`✅ Anti-badword enabled with *${subcmd}* action!`);
+            break;
+            
+        case 'off':
+            delete groupSettings.antibadword;
+            delete groupSettings.badwordaction;
+            reply('✅ Anti-badword disabled!');
+            break;
+            
+        case 'add':
+            const wordToAdd = args.slice(1).join(' ');
+            if (!wordToAdd) return reply('❌ Please provide a word to add!');
+            if (!groupSettings.badwords) groupSettings.badwords = [];
+            groupSettings.badwords.push(wordToAdd.toLowerCase());
+            reply(`✅ Added "*${wordToAdd}*" to bad words list!`);
+            break;
+            
+        case 'del':
+            const wordToDel = args.slice(1).join(' ');
+            if (!wordToDel) return reply('❌ Please provide a word to remove!');
+            if (groupSettings.badwords) {
+                groupSettings.badwords = groupSettings.badwords.filter(w => w !== wordToDel.toLowerCase());
+                reply(`✅ Removed "*${wordToDel}*" from bad words list!`);
+            }
+            break;
+            
+        case 'list':
+            const words = groupSettings.badwords || [];
+            reply(words.length > 0 ? 
+                `📝 *Bad Words List:*\n${words.map(w => `• ${w}`).join('\n')}` : 
+                '❌ No bad words added yet!');
+            break;
+            
+        default:
+            reply('❌ Invalid subcommand! Use .antibadword for help.');
+    }
+    
+    await saveDatabase();
+    
+}
+break
 case 'allowlink': {
     if (!m.isGroup) return reply('❌ This command only works in groups!');
     if (!isGroupAdmins && !Access) return reply('❌ Only group admins or bot owners can use this command!');
@@ -9665,6 +9780,7 @@ case "linkgc": {
     }
 }
 break
+case "unmute":
 case "open": {
 if (!Access) return reply(mess.owner);
         if (!m.isGroup) return reply(mess.group);
