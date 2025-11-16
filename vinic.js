@@ -908,6 +908,146 @@ async function checkAndHandleLinks(message, conn) {
         // Silently handle errors
     }
 }
+
+// ========== ANTI-TAG SYSTEM ==========
+async function handleAntiTag(m, conn) {
+    try {
+        if (!m.isGroup) return;
+        
+        const botNumber = await conn.decodeJid(conn.user.id);
+        const chatId = m.chat;
+        const sender = m.sender;
+        
+        // Check if anti-tag is enabled for this group
+        if (!global.db.data.settings?.[botNumber]?.config?.groupSettings?.[chatId]?.antitag) {
+            return;
+        }
+        
+        const groupSettings = global.db.data.settings[botNumber].config.groupSettings[chatId];
+        const action = groupSettings.antitagaction || "warn";
+        
+        // Get group metadata
+        const groupMetadata = await conn.groupMetadata(chatId);
+        const groupAdmins = groupMetadata.participants.filter(p => p.admin).map(p => p.id);
+        const isBotAdmin = groupAdmins.includes(botNumber);
+        const isSenderAdmin = groupAdmins.includes(sender);
+        
+        // Check if user tagged someone
+        const mentionedUsers = m.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+        
+        if (mentionedUsers.length > 0 && !isSenderAdmin && isBotAdmin) {
+            // Delete the message
+            await conn.sendMessage(chatId, { delete: m.key });
+            
+            let responseMessage = "";
+            
+            switch (action) {
+                case "warn":
+                    responseMessage = `⚠️ @${sender.split('@')[0]}, tagging members is not allowed in this group!`;
+                    break;
+                    
+                case "kick":
+                    await conn.groupParticipantsUpdate(chatId, [sender], "remove");
+                    responseMessage = `🚫 @${sender.split('@')[0]} has been removed for tagging members.`;
+                    break;
+                    
+                case "delete":
+                default:
+                    // Just delete, no message
+                    return;
+            }
+            
+            if (responseMessage) {
+                await conn.sendMessage(chatId, {
+                    text: responseMessage,
+                    mentions: [sender]
+                });
+            }
+        }
+        
+    } catch (error) {
+        console.error('Anti-tag error:', error);
+    }
+}
+
+// ========== ANTI-BADWORD SYSTEM ==========
+async function handleAntiBadWord(m, conn) {
+    try {
+        if (!m.isGroup) return;
+        
+        const botNumber = await conn.decodeJid(conn.user.id);
+        const chatId = m.chat;
+        const sender = m.sender;
+        const body = m.text || '';
+        
+        // Check if anti-badword is enabled for this group
+        if (!global.db.data.settings?.[botNumber]?.config?.groupSettings?.[chatId]?.antibadword) {
+            return;
+        }
+        
+        const groupSettings = global.db.data.settings[botNumber].config.groupSettings[chatId];
+        const badWords = groupSettings.badwords || [];
+        const action = groupSettings.badwordaction || "warn";
+        
+        // Check if message contains bad words
+        const foundWord = badWords.find(word => body.toLowerCase().includes(word.toLowerCase()));
+        if (!foundWord) return;
+        
+        // Get group metadata
+        const groupMetadata = await conn.groupMetadata(chatId);
+        const groupAdmins = groupMetadata.participants.filter(p => p.admin).map(p => p.id);
+        const isBotAdmin = groupAdmins.includes(botNumber);
+        const isSenderAdmin = groupAdmins.includes(sender);
+        
+        if (isSenderAdmin || !isBotAdmin) return;
+        
+        // Initialize warnings
+        if (!global.badwordWarnings) global.badwordWarnings = new Map();
+        const userWarnings = global.badwordWarnings.get(sender) || { count: 0, lastWarning: 0 };
+        
+        // Delete the message
+        await conn.sendMessage(chatId, { delete: m.key });
+        
+        userWarnings.count++;
+        userWarnings.lastWarning = Date.now();
+        global.badwordWarnings.set(sender, userWarnings);
+        
+        let responseMessage = "";
+        
+        switch (action) {
+            case "warn":
+                if (userWarnings.count >= 3) {
+                    await conn.groupParticipantsUpdate(chatId, [sender], "remove");
+                    responseMessage = `🚫 @${sender.split('@')[0]} has been kicked for using bad words repeatedly.`;
+                    global.badwordWarnings.delete(sender);
+                } else {
+                    responseMessage = `⚠️ @${sender.split('@')[0]}, bad word detected!\nWord: *${foundWord}*\nWarning: *${userWarnings.count}/3*\n${3 - userWarnings.count} more and you'll be kicked!`;
+                }
+                break;
+                
+            case "kick":
+                await conn.groupParticipantsUpdate(chatId, [sender], "remove");
+                responseMessage = `🚫 @${sender.split('@')[0]} has been kicked for using bad words.`;
+                break;
+                
+            case "delete":
+            default:
+                // Just delete, no message
+                return;
+        }
+        
+        if (responseMessage) {
+            await conn.sendMessage(chatId, {
+                text: responseMessage,
+                mentions: [sender]
+            });
+        }
+        
+    } catch (error) {
+        console.error('Anti-badword error:', error);
+    }
+}
+
 // ========== AUTO-REACT FUNCTION ==========
 async function handleAutoReact(m, conn) {
     try {
@@ -965,6 +1105,8 @@ module.exports = {
   ephoto,
   loadBlacklist,
   GroupDB,
+  handleAntiTag,
+  handleAntiBadWord,
   initializeDatabase,
   delay,
   saveDatabase,
