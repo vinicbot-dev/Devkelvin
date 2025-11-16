@@ -55,6 +55,15 @@ global.antilinkdelete = true;
 global.antilinkwarn = true;
 global.antilinkkick = false;
 
+// ====== Antitag global =============
+global.antitagdelete = false;
+global.antitagwarn = false;
+global.antitagkick = false;
+
+// ===== Antibadword global =====≠===
+global.antibadworddelete = true;
+global.antibadwordwarn = false;
+global.antibadwordkick = false;
 
 // ========= Other Global Settings ========= //
 global.welcome = true;
