@@ -1,6 +1,8 @@
 const os = require('os');
 const fs = require('fs');
 const path = require('path');
+const more = String.fromCharCode(8206);
+const readmore = more.repeat(4001);
 
 // File to store menu configuration - using temp directory
 const menuConfigPath = path.join(__dirname, '../temp/menu_config.json');
@@ -238,12 +240,22 @@ async function generateMenu(conn, m, prefix, global) {
         menu += `╰═✦═════════════╯\n\n`;
 
         // Use the current preset order
+        let sectionCount = 0;
         for (const sectionKey of currentOrder) {
             if (sectionKey !== 'header' && menuSections[sectionKey]) {
                 const section = menuSections[sectionKey];
                 menu += `╭━◈${section.title.toUpperCase()} ◈\n`;
                 menu += section.commands.map(cmd => `│ ➸ ${cmd}`).join('\n') + '\n';
                 menu += `┗▣\n\n`;
+                
+               
+                sectionCount++;
+                if (sectionCount === 3) { 
+                    menu += `${readmore}\n\n`;
+                }
+                if (sectionCount === 8) { // After 8 sections  
+                    menu += `${readmore}\n\n`;
+                }
             }
         }
              
