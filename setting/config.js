@@ -73,7 +73,7 @@ global.AI_CHAT = "true", // Set to "true" to enable AI chatbot by default
 
 // ========= Add modeStatus and versions ========= //
 global.modeStatus = "Public";
-global.versions = "1.3.6";
+global.versions = "1.3.7";
 
 // ========= Setting WM ========= //
 global.packname = 'Vinic';
