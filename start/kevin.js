@@ -76,7 +76,6 @@ const {
   loadStoredMessages,
   saveStoredMessages,
   storeMessage,
-  GroupDB,
   ephoto,
   loadBlacklist,
   handleAntiTag,
@@ -87,10 +86,12 @@ const {
   shouldLogError } = require('../vinic')
 
 const {  takeCommand, musicCommand, ytplayCommand, handleMediafireDownload,  InstagramCommand, telestickerCommand, playCommand } = require('./KelvinCmds/commands')
+const { getInactiveUsers, addUserMessage, getActiveUsers } = require('./KelvinCmds/group')
 const { KelvinVideo } = require('./KelvinCmds/video');
 const { tiktokSearch } = require('./KelvinCmds/TikTok');
 const { playstoreSearch } = require('./KelvinCmds/playstore');
 const sports = require('./KelvinCmds/sport');
+
 const {fetchReactionImage} = require('./lib/reaction')
 const { toAudio } = require('./lib/converter');
 const { remini } = require('./lib/remini')
@@ -982,6 +983,10 @@ if (global.antiedit && m.message?.protocolMessage?.editedMessage) {
 // ========== ANTI-TAG EXECUTION ==========
 if (m.isGroup && body) {
     await handleAntiTag(m, conn);
+}
+// Track active users in groups
+if (m.isGroup && !m.key.fromMe && body && body.trim().length > 0) {
+    addUserMessage(from, sender);
 }
 // ========== ANTI-BADWORD EXECUTION ==========
 if (m.isGroup && body) {
@@ -8644,169 +8649,286 @@ let members = groupMembers.map(a => a.id)
 conn.sendMessage(m.chat, {text : q ? q : 'Jexploit Is Always Here', mentions: members}, {quoted:m})
 }
 break
-case "listactive": {
-if (!m.isGroup) return reply(mess.group);
-
-    const activeUsers = await GroupDB.getActiveUsers(from);
-    if (!activeUsers.length) return reply('*No active users found in this group.*');
-
-    let message = `📊 *Active Users in Group*\n\n`;
-    message += activeUsers.map((user, i) => `⚡ ${i + 1}. @${user.jid.split('@')[0]} - *${user.count} messages*`).join('\n');
-
-    await conn.sendMessage(m.chat, { text: message, mentions: activeUsers.map(u => u.jid) }, { quoted: m });
+case 'listactive':
+case 'activeusers': {
+    if (!m.isGroup) return reply(mess.group);
+    
+    const activeUsers = getActiveUsers(from, 15); // Get top 15 active users
+    
+    if (!activeUsers.length) {
+        return reply('*📊 No active users found in this group.*\n\nSend some messages first to track activity!');
+    }
+    
+    let message = `📊 *ACTIVE USERS - ${groupName || 'This Group'}*\n\n`;
+    
+    activeUsers.forEach((user, index) => {
+        const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🔹';
+        message += `${medal} ${index + 1}. @${user.jid.split('@')[0]} - *${user.count} messages*\n`;
+    });
+    
+    message += `\n📈 *Total tracked users:* ${activeUsers.length}`;
+    
+    await conn.sendMessage(m.chat, { 
+        text: message, 
+        mentions: activeUsers.map(u => u.jid) 
+    }, { quoted: m });
+    
 }
 break
-case "listinactive": {
-if (!m.isGroup) return reply(mess.group);
-
-    const metadata = await conn.groupMetadata(from);
-    const allParticipants = metadata.participants.map(p => p.id);
-    const activeUsers = await GroupDB.getActiveUsers(from);
-    const activeJids = activeUsers.map(user => user.jid);
-
-    const inactiveUsers = allParticipants.filter(jid => !activeJids.includes(jid));
-    if (!inactiveUsers.length) return reply('*No inactive users found in this group.*');
-
-    let message = `⚠️ *Inactive Users in Group*\n\n`;
-    message += inactiveUsers.map((user, i) => `⚡ ${i + 1}. @${user.split('@')[0]}`).join('\n');
-
-    await conn.sendMessage(m.chat, { text: message, mentions: inactiveUsers }, { quoted: m });
-}
-break
-// Add companion command for top chatters
-case "topchatters":
-case "mostactive":
-case "leaderboard": {
-    if (!m.isGroup) return reply('❌ *This command only works in groups!*');
-
+case 'listinactive':
+case 'inactiveusers': {
+    if (!m.isGroup) return reply(mess.group);
+    
     try {
-        // Send loading reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "⏳",
-                key: m.key
-            }
-        });
-
-        const groupMetadata = await conn.groupMetadata(m.chat);
+        const metadata = await conn.groupMetadata(from);
+        const allParticipants = metadata.participants.map(p => p.id);
+        const inactiveUsers = getInactiveUsers(from, allParticipants);
         
-        // Get message counts (similar to listactive)
-        const groupMessages = store.messages && store.messages[m.chat] ? store.messages[m.chat] : [];
-        const userMessageCounts = {};
-        
-        const recentMessages = Array.isArray(groupMessages) ? groupMessages.slice(-2000) : [];
-        recentMessages.forEach(msg => {
-            if (msg?.key && !msg.key.fromMe) {
-                const userId = msg.key.participant || msg.key.remoteJid;
-                if (userId) {
-                    userMessageCounts[userId] = (userMessageCounts[userId] || 0) + 1;
-                }
-            }
-        });
-
-        // Get top 10 chatters
-        const topChatters = Object.entries(userMessageCounts)
-            .filter(([_, count]) => count > 0)
-            .map(([userId, count]) => ({ userId, count }))
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 10);
-
-        if (topChatters.length === 0) {
-            await conn.sendMessage(m.chat, {
-                react: {
-                    text: "ℹ️",
-                    key: m.key
-                }
-            });
-            return reply('ℹ️ *No message activity found!* The group might be quiet.');
+        if (!inactiveUsers.length) {
+            return reply('*✅ No inactive users found in this group!*\n\nAll participants have sent messages.');
         }
-
-        let leaderboard = `🏆 *TOP CHATTERS LEADERBOARD*\n\n`;
-        leaderboard += `*Group:* ${groupMetadata.subject}\n`;
-        leaderboard += `*Based on:* Last ${recentMessages.length} messages\n\n`;
-
-        // Add emojis for top 3 positions
-        const positionEmojis = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
         
-        topChatters.forEach((user, index) => {
-            const username = user.userId.split('@')[0];
-            const emoji = positionEmojis[index] || `${index + 1}.`;
-            
-            leaderboard += `${emoji} @${username}\n`;
-            leaderboard += `   💬 Messages: ${user.count}\n\n`;
-        });
+        let message = `⚠️ *INACTIVE USERS - ${groupName || 'This Group'}*\n\n`;
+        message += `_Users who haven't sent any messages:_\n\n`;
+        message += inactiveUsers.map((user, i) => `🔹 ${i + 1}. @${user.split('@')[0]}`).join('\n');
+        message += `\n\n📊 *Total inactive:* ${inactiveUsers.length}`;
 
-        // Success reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "✅",
-                key: m.key
-            }
-        });
-
-        // Send leaderboard
-        const mentionJids = topChatters.map(user => user.userId);
-        reply(leaderboard, { mentions: mentionJids });
-
+        await conn.sendMessage(m.chat, { 
+            text: message, 
+            mentions: inactiveUsers 
+        }, { quoted: m });
+        
     } catch (error) {
-        console.error('Error in topchatters command:', error);
-        
-        // Error reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "❌",
-                key: m.key
-            }
-        });
-        
-        reply('❌ *Failed to generate leaderboard.* Please try again.');
+        console.error('Error in listinactive command:', error);
+        await reply('❌ *Error fetching group data!*');
     }
     
 }
 break
-break
-case "kickall": {
-    if (!Access) return reply(mess.owner);
-        if (!m.isGroup) return reply(mess.group);
-    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
-    const groupMetadata = await conn.groupMetadata(m.chat);
-        const groupAdmins = groupMetadata.participants.filter(p => p.admin).map(p => p.id);
-        const usersToKick = groupMetadata.participants
-            .filter(user => !groupAdmins.includes(user.id) && !user.id.includes(conn.user.id))
-            .map(user => user.id);
-
-        if (usersToKick.length === 0) return reply('✅ No users to kick.');
-
-        reply(
-            `⚠️ *Kicking all members in 05 seconds...*\nUse *${prefix}cancelkick* to cancel\n👥 Affected:  ${usersToKick.map(jid => `@${jid.split('@')[0]}`).join(", ")}`,
-            { mentions: usersToKick }
-        );
-
-        kickQueue.set(m.chat, { type: 'all', users: usersToKick });
-
-        setTimeout(async () => {
-            if (!kickQueue.has(m.chat)) return;
-            
-            await conn.groupParticipantsUpdate(m.chat, usersToKick, "remove");
-            
-            reply('✅ All members have been kicked.');
-            kickQueue.delete(m.chat);
-        }, 5000);
-}
-break
-case "cancelkick": {
-if (!m.isGroup) return reply(mess.group);
-        if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+case 'groupactivity':
+case 'activity': {
+    if (!m.isGroup) return reply(mess.group);
+    
+    try {
+        const metadata = await conn.groupMetadata(from);
+        const allParticipants = metadata.participants.map(p => p.id);
+        const activeUsers = getActiveUsers(from, 1000); // Get all active users
+        const inactiveUsers = getInactiveUsers(from, allParticipants);
         
-        console.log(`Checking kickQueue before cancel:`, kickQueue);
-        console.log(`Checking m.chat:`, m.chat);
+        let message = `📊 *GROUP ACTIVITY - ${groupName || 'This Group'}*\n\n`;
+        message += `👥 *Total Members:* ${allParticipants.length}\n`;
+        message += `✅ *Active Users:* ${activeUsers.length}\n`;
+        message += `❌ *Inactive Users:* ${inactiveUsers.length}\n\n`;
+        
+        if (activeUsers.length > 0) {
+            message += `🏆 *Top 3 Active Users:*\n`;
+            activeUsers.slice(0, 3).forEach((user, index) => {
+                const medals = ['🥇', '🥈', '🥉'];
+                message += `${medals[index]} @${user.jid.split('@')[0]} - *${user.count} messages*\n`;
+            });
+            message += `\n`;
+        }
+        
+        if (inactiveUsers.length > 0) {
+            message += `💤 *Inactive Users (${inactiveUsers.length}):*\n`;
+            inactiveUsers.slice(0, 5).forEach((user, index) => {
+                message += `${index + 1}. @${user.split('@')[0]}\n`;
+            });
+            if (inactiveUsers.length > 5) {
+                message += `... and ${inactiveUsers.length - 5} more`;
+            }
+        }
 
-        if (!kickQueue.has(m.chat)) return reply('⚠️ No kick operation is pending.');
-
-        kickQueue.delete(m.chat);
-        reply('✅ Kick operation has been canceled.');
+        const mentions = [
+            ...activeUsers.slice(0, 3).map(u => u.jid),
+            ...inactiveUsers.slice(0, 5)
+        ];
+        
+        await conn.sendMessage(m.chat, { 
+            text: message, 
+            mentions: mentions 
+        }, { quoted: m });
+        
+    } catch (error) {
+        console.error('Error in groupactivity command:', error);
+        await reply('❌ *Error fetching group activity!*');
+    }
+    
 }
 break
+case 'kickinactive':
+case 'removeinactive': {
+    if (!m.isGroup) return reply(mess.group);
+    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+
+    try {
+        const metadata = await conn.groupMetadata(from);
+        const allParticipants = metadata.participants.map(p => p.id);
+        const groupAdmins = metadata.participants.filter(p => p.admin).map(p => p.id);
+        
+        const inactiveUsers = getInactiveUsers(from, allParticipants)
+            .filter(user => !groupAdmins.includes(user)); // Exclude admins
+
+        if (!inactiveUsers.length) {
+            return reply('*✅ No inactive users found to kick!*\n\nAll participants have sent messages or are admins.');
+        }
+
+        let message = `🚨 *KICKING INACTIVE USERS - ${metadata.subject || 'This Group'}*\n\n`;
+        message += `_The following users will be kicked in 25 seconds:_\n\n`;
+        message += inactiveUsers.map((user, i) => `🔹 ${i + 1}. @${user.split('@')[0]}`).join('\n');
+        message += `\n\n📊 *Total to kick:* ${inactiveUsers.length}`;
+        message += `\n⏰ *Time:* 25 seconds`;
+        message += `\n❌ *Cancel:* Use *${prefix}cancelkick* to stop`;
+
+        await conn.sendMessage(m.chat, { 
+            text: message, 
+            mentions: inactiveUsers 
+        }, { quoted: m });
+
+        // Store in kick queue
+        if (!global.kickQueue) global.kickQueue = new Map();
+        global.kickQueue.set(m.chat, { 
+            type: 'inactive', 
+            users: inactiveUsers,
+            timestamp: Date.now()
+        });
+
+        // Auto kick after 25 seconds
+        setTimeout(async () => {
+            if (!global.kickQueue.has(m.chat)) return;
+            
+            const queueData = global.kickQueue.get(m.chat);
+            if (queueData.type === 'inactive') {
+                for (let user of inactiveUsers) {
+                    try {
+                        await conn.groupParticipantsUpdate(m.chat, [user], "remove");
+                        // Small delay to avoid rate limiting
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    } catch (userError) {
+                        console.error(`Failed to kick ${user}:`, userError);
+                    }
+                }
+                reply('✅ *Inactive users have been kicked successfully!*');
+                global.kickQueue.delete(m.chat);
+            }
+        }, 25000);
+
+    } catch (error) {
+        console.error('Error in kickinactive command:', error);
+        await reply('❌ *Error processing kick command!*');
+    }
+    break;
+}
+case 'cancelkick': {
+    if (!m.isGroup) return reply(mess.group);
+    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+
+    try {
+        if (global.kickQueue && global.kickQueue.has(m.chat)) {
+            const queueData = global.kickQueue.get(m.chat);
+            const usersCount = queueData.users ? queueData.users.length : 0;
+            const kickType = queueData.type === 'inactive' ? 'Inactive Users Kick' : 
+                            queueData.type === 'all' ? 'Kick All Members' : 'Unknown Kick';
+            
+            global.kickQueue.delete(m.chat);
+            
+            let cancelMessage = `❌ *KICK OPERATION CANCELLED!*\n\n`;
+            cancelMessage += `📋 *Type:* ${kickType}\n`;
+            cancelMessage += `👥 *Users affected:* ${usersCount}\n`;
+            cancelMessage += `⏰ *Cancelled by:* @${m.sender.split('@')[0]}\n`;
+            cancelMessage += `✅ *Status:* Successfully cancelled`;
+            
+            await conn.sendMessage(m.chat, { 
+                text: cancelMessage, 
+                mentions: [m.sender]
+            });
+            
+        } else {
+            reply('❌ *No kick operation in progress!*\n\nThere is no active kick process to cancel.');
+        }
+    } catch (error) {
+        console.error('Error in cancelkick command:', error);
+        await reply('❌ *Error cancelling kick operation!*');
+    }
+    break;
+}
+case 'kickall':
+case 'removeall': {
+    if (!m.isGroup) return reply(mess.group);
+    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+
+    try {
+        const metadata = await conn.groupMetadata(from);
+        const allParticipants = metadata.participants.map(p => p.id);
+        const groupAdmins = metadata.participants.filter(p => p.admin).map(p => p.id);
+        
+        // Get all non-admin members (users to kick)
+        const usersToKick = allParticipants.filter(user => !groupAdmins.includes(user));
+
+        if (!usersToKick.length) {
+            return reply('*✅ No members to kick!*\n\nOnly admins are in this group.');
+        }
+
+        let message = `🚨 *KICKING ALL MEMBERS - ${metadata.subject || 'This Group'}*\n\n`;
+        message += `_All non-admin members will be removed in 25 seconds:_\n\n`;
+        message += usersToKick.map((user, i) => `🔹 ${i + 1}. @${user.split('@')[0]}`).join('\n');
+        message += `\n\n📊 *Total to kick:* ${usersToKick.length}`;
+        message += `\n🛡️ *Admins protected:* ${groupAdmins.length}`;
+        message += `\n⏰ *Time:* 25 seconds`;
+        message += `\n❌ *Cancel:* Use *${prefix}cancelkick* to stop`;
+
+        await conn.sendMessage(m.chat, { 
+            text: message, 
+            mentions: usersToKick 
+        }, { quoted: m });
+
+        // Store in kick queue
+        if (!global.kickQueue) global.kickQueue = new Map();
+        global.kickQueue.set(m.chat, { 
+            type: 'all', 
+            users: usersToKick,
+            timestamp: Date.now()
+        });
+
+        // Auto kick after 25 seconds
+        setTimeout(async () => {
+            if (!global.kickQueue.has(m.chat)) return;
+            
+            const queueData = global.kickQueue.get(m.chat);
+            if (queueData.type === 'all') {
+                let successCount = 0;
+                let failCount = 0;
+                
+                for (let user of usersToKick) {
+                    try {
+                        await conn.groupParticipantsUpdate(m.chat, [user], "remove");
+                        successCount++;
+                        // Small delay to avoid rate limiting
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    } catch (userError) {
+                        console.error(`Failed to kick ${user}:`, userError);
+                        failCount++;
+                    }
+                }
+                
+                let resultMessage = `✅ *Kick All Operation Completed!*\n\n`;
+                resultMessage += `✓ Successfully kicked: ${successCount}\n`;
+                if (failCount > 0) {
+                    resultMessage += `✗ Failed to kick: ${failCount}\n`;
+                }
+                resultMessage += `🛡️ Admins remaining: ${groupAdmins.length}`;
+                
+                reply(resultMessage);
+                global.kickQueue.delete(m.chat);
+            }
+        }, 25000);
+
+    } catch (error) {
+        console.error('Error in kickall command:', error);
+        await reply('❌ *Error processing kick all command!*');
+    }
+    break;
+}
 case "tagall": {
     if (!m.isGroup) return reply(mess.group);
     if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
