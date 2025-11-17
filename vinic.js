@@ -219,39 +219,9 @@ async function ephoto(url, texk) {
       );
       return build_server + data.image;
  }
-// ===== function for active members =====
-const GroupDB = {
-  addMessage: (groupJid, userJid) => {
-    try {
-      // Check if db is properly initialized
-      if (!db || typeof db.prepare !== 'function') {
-        console.error('❌ Database not properly initialized');
-        return;
-      }
-      
-      // Use the dedicated method from SQLiteDB class
-      db.addGroupMessage(groupJid, userJid);
-    } catch (err) {
-      console.error('Error inserting message:', err);
-    }
-  },
 
-  getActiveUsers: (groupJid) => {
-    try {
-      // Check if db is properly initialized
-      if (!db || typeof db.prepare !== 'function') {
-        console.error('❌ Database not properly initialized');
-        return [];
-      }
-      
-      // Use the dedicated method from SQLiteDB class
-      return db.getActiveUsers(groupJid);
-    } catch (err) {
-      console.error('Error getting active users:', err);
-      return [];
-    }
-  }
-};
+
+
 //obfuscator 
 async function obfus(query) {
       return new Promise((resolve, reject) => {
@@ -338,7 +308,13 @@ function initializeDatabase(from, botNumber) {
         let setting = global.db.data.settings[botNumber];
         if (typeof setting !== "object") global.db.data.settings[botNumber] = {};
         setting = global.db.data.settings[botNumber]; 
-        
+ 
+        if (!global.db.data.groups) global.db.data.groups = {};
+        if (!global.db.data.groups[groupJid]) {
+    global.db.data.groups[groupJid] = {
+        activeUsers: {}
+    };
+}
         if (!setting.config || typeof setting.config !== "object") {
             setting.config = {};
         }
@@ -1104,7 +1080,6 @@ module.exports = {
   checkAndHandleLinks,
   ephoto,
   loadBlacklist,
-  GroupDB,
   handleAntiTag,
   handleAntiBadWord,
   initializeDatabase,
