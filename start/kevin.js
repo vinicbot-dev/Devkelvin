@@ -72,7 +72,7 @@ const {
   acr,
   obfus,
   handleAntiEdit,
-  handleLinkViolation,
+  handleVisibleAntiLink,
   saveDatabase,
   loadStoredMessages,
   saveStoredMessages,
@@ -963,9 +963,9 @@ if (getAIChatbotState() === "true" && body && !m.key.fromMe && !isCmd) {
     await handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, prefix);
 }
 
-// ========== ANTI-LINK EXECUTION ==========
+// ========== ENHANCED VISIBLE ANTI-LINK EXECUTION ==========
 if (m.isGroup && body && !m.key.fromMe) {
-    await handleLinkViolation(m, conn);
+    await handleVisibleAntiLink(m, conn);
 }
 
 // ========== ANTI-DELETE EXECUTION ==========
