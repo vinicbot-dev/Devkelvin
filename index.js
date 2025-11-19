@@ -83,7 +83,6 @@ const {
 const {
 handleAutoReact,
 checkAndHandleLinks,
-handleLinkViolation,
 detectUrls,
 saveDatabase,
 handleStatusUpdate
@@ -467,7 +466,7 @@ try {
             await handleAutoReact(m, conn);  
             await checkAndHandleLinks(mek, conn);
             await detectUrls(mek, conn);
-            await handleLinkViolation(mek, conn);
+           
             }
             
             require("./start/kevin")(conn, m, chatUpdate, mek, store);
