@@ -733,73 +733,60 @@ function detectUrls(message) {
     return matches ? matches : [];
 }
 
-// ========== FIXED ANTI-LINK HANDLER - VISIBLE TO ALL ==========
-async function handleLinkViolation(message, conn) {
+// ========== ENHANCED VISIBLE ANTI-LINK FUNCTION ==========
+async function handleVisibleAntiLink(m, conn) {
     try {
-        const chatId = message.key.remoteJid;
-        const sender = message.key.participant || message.key.remoteJid;
-        const messageId = message.key.id;
         const botNumber = await conn.decodeJid(conn.user.id);
-
-        // Get group settings
-        if (!global.db.data.settings || !global.db.data.settings[botNumber] || 
-            !global.db.data.settings[botNumber].config) {
-            return;
+        const from = m.chat;
+        const body = m.text || '';
+        
+        // Check if anti-link is enabled for this group
+        if (!global.db.data.settings?.[botNumber]?.config?.groupSettings?.[from]?.antilink) {
+            return false;
         }
         
-        const config = global.db.data.settings[botNumber].config;
+        const groupSettings = global.db.data.settings[botNumber].config.groupSettings[from];
+        const action = groupSettings.antilinkaction || "warn";
         
-        // Check if group settings exist and anti-link is enabled
-        if (!config.groupSettings || !config.groupSettings[chatId] || !config.groupSettings[chatId].antilink) {
-            return;
-        }
+        // Detect URLs in the message
+        const urls = detectUrls(m.message);
+        if (urls.length === 0) return false;
         
-        const groupSettings = config.groupSettings[chatId];
-        const action = groupSettings.antilinkaction || "delete";
-
-        // Check if this is a media message without links in caption
-        const urls = detectUrls(message.message);
-        if (urls.length === 0) {
-            return; // Don't process messages without links
-        }
-
         // Get group metadata to check admin status
-        const groupMetadata = await conn.groupMetadata(chatId).catch(() => null);
-        if (!groupMetadata) {
-            return; // Can't get group info
-        }
-
+        const groupMetadata = await conn.groupMetadata(from).catch(() => null);
+        if (!groupMetadata) return false;
+        
         // Check if sender is admin (allow admins to post links)
-        const participant = groupMetadata.participants.find(p => p.id === sender);
+        const participant = groupMetadata.participants.find(p => p.id === m.sender);
         if (participant && (participant.admin === 'admin' || participant.admin === 'superadmin')) {
-            return; // Allow admins to post links - NO ACTION TAKEN
+            return false; // Allow admins to post links
         }
-
+        
         // ========== VISIBLE DELETION FOR EVERYONE ==========
         try {
             // This method makes deletion visible to all group members
-            await conn.sendMessage(chatId, {
+            await conn.sendMessage(from, {
                 delete: {
-                    id: messageId,
-                    remoteJid: chatId,
+                    id: m.key.id,
+                    remoteJid: from,
                     fromMe: false,
-                    participant: sender
+                    participant: m.sender
                 }
             });
             
-            console.log(`✅ Link message deleted - VISIBLE TO ALL in group ${chatId}`);
+            console.log(`✅ Link message deleted - VISIBLE TO ALL in group ${from}`);
             
         } catch (deleteError) {
-            console.log('❌ Failed to delete message visibly');
-            return; // If deletion fails, don't proceed with warnings/kicks
+            console.log('❌ Failed to delete message visibly:', deleteError);
+            return false; // If deletion fails, don't proceed with warnings/kicks
         }
-
+        
         // Store warning count per user
         if (!global.linkWarnings) global.linkWarnings = new Map();
         
-        const userWarnings = global.linkWarnings.get(sender) || { count: 0, lastWarning: 0 };
+        const userWarnings = global.linkWarnings.get(m.sender) || { count: 0, lastWarning: 0 };
         const now = Date.now();
-        const warningCooldown = 30000;
+        const warningCooldown = 30000; // 30 seconds cooldown between warnings
         
         let responseMessage = "";
         
@@ -808,53 +795,56 @@ async function handleLinkViolation(message, conn) {
             if (now - userWarnings.lastWarning > warningCooldown) {
                 userWarnings.count++;
                 userWarnings.lastWarning = now;
-                global.linkWarnings.set(sender, userWarnings);
+                global.linkWarnings.set(m.sender, userWarnings);
                 
-                responseMessage = `⚠️ @${sender.split('@')[0]}, only admins are allowed to send links in this group!\nYour message has been deleted. Warning ${userWarnings.count}/3.`;
+                responseMessage = `⚠️ @${m.sender.split('@')[0]}, only admins are allowed to send links in this group!\nYour message has been deleted. Warning ${userWarnings.count}/3.`;
                 
                 // Auto-kick after 3 warnings
                 if (userWarnings.count >= 3) {
                     try {
-                        await conn.groupParticipantsUpdate(chatId, [sender], "remove");
-                        responseMessage = `🚫 @${sender.split('@')[0]} has been removed for repeatedly posting links.`;
-                        global.linkWarnings.delete(sender);
+                        await conn.groupParticipantsUpdate(from, [m.sender], "remove");
+                        responseMessage = `🚫 @${m.sender.split('@')[0]} has been removed for repeatedly posting links.`;
+                        global.linkWarnings.delete(m.sender);
                     } catch (kickError) {
-                        responseMessage = `⚠️ @${sender.split('@')[0]}, links are not allowed! (Failed to remove user after 3 warnings)`;
+                        responseMessage = `⚠️ @${m.sender.split('@')[0]}, links are not allowed! (Failed to remove user after 3 warnings)`;
                     }
                 }
             } else {
-                return; // Skip warning to avoid spam
+                return true; // Skip warning to avoid spam, but deletion happened
             }
             
         } else if (action === "kick") {
             try {
                 // Kick the user immediately for kick mode
-                await conn.groupParticipantsUpdate(chatId, [sender], "remove");
-                responseMessage = `🚫 @${sender.split('@')[0]} has been removed for posting links in the group. Only admins can share links.`;
+                await conn.groupParticipantsUpdate(from, [m.sender], "remove");
+                responseMessage = `🚫 @${m.sender.split('@')[0]} has been removed for posting links in the group. Only admins can share links.`;
                 
                 // Reset warnings for this user
-                global.linkWarnings.delete(sender);
+                global.linkWarnings.delete(m.sender);
             } catch (kickError) {
-                responseMessage = `⚠️ @${sender.split('@')[0]}, only admins can send links! (Failed to remove user)`;
+                responseMessage = `⚠️ @${m.sender.split('@')[0]}, only admins can send links! (Failed to remove user)`;
             }
         } else {
             // Default: delete only (no warning)
             // No additional message for delete-only mode
-            return;
+            return true;
         }
-
+        
         // Send notification message
         if (responseMessage) {
             // Add a small delay so deletion is processed first
             await delay(1000);
-            await conn.sendMessage(chatId, {
+            await conn.sendMessage(from, {
                 text: responseMessage,
-                mentions: [sender]
+                mentions: [m.sender]
             });
         }
         
+        return true;
+        
     } catch (error) {
-        console.error('❌ Error in handleLinkViolation:', error);
+        console.error('❌ Error in visible anti-link:', error);
+        return false;
     }
 }
 // ========== SIMPLIFIED LINK CHECKING FUNCTION ==========
@@ -1072,8 +1062,8 @@ module.exports = {
   handleStatusUpdate,
   handleAutoReact,
   saveStatusMessage,
-  handleLinkViolation,
   detectUrls,
+  handleVisibleAntiLink,
   loadStoredMessages,
   saveStoredMessages,
   storeMessage,
