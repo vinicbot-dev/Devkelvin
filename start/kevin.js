@@ -1213,51 +1213,26 @@ All settings will persist after bot restart.`;
 }
 case 'aichat':
 case 'chatbot':
-case 'ai': {
-    if (!Access) return reply('❌ Owner only command');
+case 'bot': {
+    if (!Access) return reply(mess.owner);
     
-    const action = args[0]?.toLowerCase();
-    
-    if (!action) {
-        // Fix: Get status from database instead of external functions
-        if (!global.db.data.settings) global.db.data.settings = {};
-        if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-        let setting = global.db.data.settings[botNumber];
-        
-        const aiStatus = (setting.config && setting.config.AI_CHAT) ? "✅ ENABLED" : "❌ DISABLED";
-        return reply(`🤖 AI Chatbot is currently: ${aiStatus}\n\nUse: ${prefix}ai on/off/clear`);
-    }
-    
-    // Fix: Properly get setting from global database
-    if (!global.db.data.settings) global.db.data.settings = {};
-    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-    let setting = global.db.data.settings[botNumber];
-    
-    // Initialize config if it doesn't exist
-    if (!setting.config) setting.config = {};
-    
-    if (action === 'on' || action === 'enable') {
-        setting.config.AI_CHAT = true;
-        reply('✅ AI Chatbot enabled');
-    } else if (action === 'off' || action === 'disable') {
-        setting.config.AI_CHAT = false;
-        reply('❌ AI Chatbot disabled');
-    } else if (action === 'clear') {
-        // Clear chatbot memory if you have that function
-        // If not, you can remove this part
-        if (typeof clearChatbotMemory === 'function') {
-            clearChatbotMemory(from);
-            reply('🧹 AI conversation memory cleared for this chat');
-        } else {
-            reply('✅ AI setting updated (clear function not available)');
-        }
+    const status = args[0]?.toLowerCase();
+    if (status === "on") {
+        setAIChatbotState(true);
+        return reply("🤖 AI chatbot is now enabled");
+    } else if (status === "off") {
+        setAIChatbotState(false);
+        return reply("🤖 AI chatbot is now disabled");
+    } else if (status === "clear") {
+        clearChatbotMemory();
+        return reply("🧹 AI conversation memory cleared");
     } else {
-        reply(`❌ Usage: ${prefix}ai on/off/clear`);
+        return reply(`Current AI state: ${getAIChatbotState() === "true" ? "ON" : "OFF"}\nUsage: ${prefix}aichat on/off/clear`);
     }
-       
-    await saveDatabase();
-        
+    
 }
+
+break
 case "antidelete": {
     if (!Access) return reply(mess.owner);
     if (args.length < 2) return reply(`Example: ${prefix + command} private on/off\nOr: ${prefix + command} chat on/off`);
