@@ -83,6 +83,7 @@ const {
 const {
 handleAutoReact,
 checkAndHandleLinks,
+handleLinkViolation,
 detectUrls,
 saveDatabase,
 handleStatusUpdate
@@ -270,49 +271,53 @@ async function clientstart() {
         waVersion = [2, 3000, 1017546695];
     }
 
-   // FORCE CONNECTION - NO QR CODE
-const conn = makeWASocket({
-    // Force disable QR code
-    printQRInTerminal: false,
-    syncFullHistory: false,
-    markOnlineOnConnect: true,
-    
-    // Extended timeouts
-    connectTimeoutMs: 120000,
-    defaultQueryTimeoutMs: 60000,
-    keepAliveIntervalMs: 30000,
-    maxRetries: 10,
-    
-    // Performance optimizations
-    generateHighQualityLinkPreview: false,
-    linkPreviewImageThumbnailWidth: 64,
-    
-    version: waVersion,
-    browser: ["Ubuntu", "Chrome", "120.0.0.0"],
-    logger: pino({ level: 'silent' }),
-    
-    auth: {
-        creds: state.creds,
-        keys: makeCacheableSignalKeyStore(state.keys, pino().child({
-            level: 'silent',
-            stream: 'store'
-        })),
-    },
-    
-    // Force connection behavior
-    fireInitQueries: false,
-    emitOwnEvents: true,
-    defaultCongestionControl: 1,
-});
+    // OPTIMIZED CONNECTION FOR LONG-LIVED STABILITY
+    const conn = makeWASocket({
+        // Critical stability settings
+        printQRInTerminal: !decryptedSession,
+        syncFullHistory: false, // Disable to save memory
+        markOnlineOnConnect: true,
+        
+        // Extended timeouts for server stability
+        connectTimeoutMs: 120000, // 2 minutes
+        defaultQueryTimeoutMs: 60000, // 1 minute
+        keepAliveIntervalMs: 30000, // 30 seconds
+        maxRetries: 10,
+        
+        // Disable heavy features
+        generateHighQualityLinkPreview: false,
+        linkPreviewImageThumbnailWidth: 64, // Smaller thumbnails
+        
+        version: waVersion,
+        
+        // Lightweight browser
+        browser: ["Ubuntu", "Chrome", "120.0.0.0"],
+        
+        // Minimal logging
+        logger: pino({ level: 'silent' }),
+        
+        auth: {
+            creds: state.creds,
+            keys: makeCacheableSignalKeyStore(state.keys, pino().child({
+                level: 'silent',
+                stream: 'store'
+            })),
+        },
+        
+        // Connection resilience
+        fireInitQueries: false, // Reduce initial load
+        emitOwnEvents: true,
+        defaultCongestionControl: 1,
+    });
 
-// Define decodeJid immediately after connection
-conn.decodeJid = (jid) => {
-    if (!jid) return jid;
-    if (/:\d+@/gi.test(jid)) {
-        let decode = jidDecode(jid) || {};
-        return decode.user && decode.server && decode.user + '@' + decode.server || jid;
-    } else return jid;
-};
+    // Define decodeJid immediately after connection
+    conn.decodeJid = (jid) => {
+        if (!jid) return jid;
+        if (/:\d+@/gi.test(jid)) {
+            let decode = jidDecode(jid) || {};
+            return decode.user && decode.server && decode.user + '@' + decode.server || jid;
+        } else return jid;
+    };
 
 const botNumber = conn.decodeJid(conn.user?.id) || 'default';
 
@@ -342,57 +347,45 @@ try {
     
     store.bind(conn.ev);
 
-   
-
-// 1. AUTO-RECONNECT WITH BACKOFF
-let reconnectAttempts = 0;
-const MAX_RECONNECT_ATTEMPTS = 50; // Much higher limit
-
-conn.ev.on('connection.update', async (update) => {
-    const { connection, lastDisconnect, qr } = update;
+    // ========== ENHANCED STABILITY FEATURES ==========
     
-    if (connection === 'close') {
-        const shouldReconnect = 
-            lastDisconnect?.error?.output?.statusCode !== 401 && // Logged out
-            reconnectAttempts < MAX_RECONNECT_ATTEMPTS;
+    // 1. AUTO-RECONNECT WITH BACKOFF
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT_ATTEMPTS = 50; // Much higher limit
+    
+    conn.ev.on('connection.update', async (update) => {
+        const { connection, lastDisconnect, qr } = update;
         
-        if (shouldReconnect) {
-            reconnectAttempts++;
-            const backoffTime = Math.min(1000 * Math.pow(1.5, reconnectAttempts), 300000); // Max 5 minutes
-            console.log(`🔁 Force reconnection attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS} in ${backoffTime/1000}s...`);
+        if (connection === 'close') {
+            const shouldReconnect = 
+                lastDisconnect?.error?.output?.statusCode !== 401 && // Logged out
+                reconnectAttempts < MAX_RECONNECT_ATTEMPTS;
             
-            setTimeout(clientstart, backoffTime);
-        } else {
-            console.log('❌ Max reconnection attempts reached or logged out');
-            // Force restart after longer delay
-            setTimeout(clientstart, 600000); // 10 minutes
-        }
-    }
-    
-    if (connection === 'open') {
-        console.log('✅ Connection stabilized - Bot should stay online longer');
-        reconnectAttempts = 0; // Reset on successful connection
-        
-        // Send periodic presence updates to stay active
-        setInterval(() => {
-            try {
-                conn.sendPresenceUpdate('available');
-            } catch (e) {
-                // Silent fail
+            if (shouldReconnect) {
+                reconnectAttempts++;
+                const backoffTime = Math.min(1000 * Math.pow(1.5, reconnectAttempts), 300000); // Max 5 minutes
+                console.log(`🔁 Reconnection attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS} in ${backoffTime/1000}s...`);
+                
+                setTimeout(clientstart, backoffTime);
+            } else {
+                console.log('❌ Max reconnection attempts reached or logged out');
             }
-        }, 60000); // Every minute
-    }
-    
-    // Handle pairing code if needed (instead of QR)
-    if (qr) {
-        console.log('🔄 Pairing code required - connection will proceed automatically');
-        // The connection will automatically handle pairing without showing QR
-    }
-    
-    if (connection === 'connecting') {
-        console.log('🔄 Force connecting to WhatsApp...');
-    }
-});
+        }
+        
+        if (connection === 'open') {
+            console.log('✅ Connection stabilized - Bot should stay online longer');
+            reconnectAttempts = 0; // Reset on successful connection
+            
+            // Send periodic presence updates to stay active
+            setInterval(() => {
+                try {
+                    conn.sendPresenceUpdate('available');
+                } catch (e) {
+                    // Silent fail
+                }
+            }, 60000); // Every minute
+        }
+    });
 
     // 2. MEMORY MANAGEMENT
     setInterval(() => {
@@ -474,7 +467,7 @@ conn.ev.on('connection.update', async (update) => {
             await handleAutoReact(m, conn);  
             await checkAndHandleLinks(mek, conn);
             await detectUrls(mek, conn);
-           
+            await handleLinkViolation(mek, conn);
             }
             
             require("./start/kevin")(conn, m, chatUpdate, mek, store);
