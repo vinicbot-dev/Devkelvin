@@ -130,7 +130,7 @@ async function getSessionData() {
         }
         
         console.log("[ 📥 ] Fetching session from server...");
-        const response = await fetch(`https://veronica-ai-production.up.railway.app/session?session=${settings.SESSION_ID}`);
+        const response = await fetch(`https://vinic-xmd-pairing-site-dsf-crew-devs.onrender.com/session?session=${settings.SESSION_ID}`);
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
