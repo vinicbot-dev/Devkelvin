@@ -342,13 +342,7 @@ try {
     
     store.bind(conn.ev);
 
-    // ========== ENHANCED STABILITY FEATURES ==========
-    
-    // 1. AUTO-RECONNECT WITH BACKOFF
-    let reconnectAttempts = 0;
-    const MAX_RECONNECT_ATTEMPTS = 50; // Much higher limit
-    
-    // ========== ENHANCED STABILITY FEATURES ==========
+   
 
 // 1. AUTO-RECONNECT WITH BACKOFF
 let reconnectAttempts = 0;
