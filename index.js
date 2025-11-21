@@ -118,6 +118,144 @@ const TMP_DIR = isProduction
 
 console.log(chalk.green('✅ All dependencies loaded successfully!'));
 
+// ========== ENHANCED SESSION MANAGEMENT WITH COLORS ==========
+console.log(chalk.hex('#FF6B6B')('🔐 Session Management Initializing...'));
+
+const question = (text) => {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+  return new Promise((resolve) => {
+    rl.question(text, (answer) => {
+      rl.close();
+      resolve(answer);
+    });
+  });
+};
+
+async function getSessionData() {
+    try {
+        if (!settings.SESSION_ID) {
+            console.log(chalk.hex('#FFA726')('[ ⏳ ] No SESSION_ID provided - Falling back to QR or pairing code'));
+            return null;
+        }
+        
+        console.log(chalk.hex('#4FC3F7')('[ 📥 ] Fetching session from server...'));
+        const response = await fetch(`https://veronica-ai-production.up.railway.app/session?session=${settings.SESSION_ID}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const sessionData = await response.json();
+        console.log(chalk.hex('#66BB6A')('[ ✅ ] Session data fetched successfully from server'));
+        return sessionData;
+        
+    } catch (error) {
+        console.log(chalk.hex('#EF5350')(`[ ❌ ] Error fetching session from server: ${error.message}`));
+        console.log(chalk.hex('#FFA726')('[ 😑 ] Will attempt pairing code login'));
+        return null;
+    }
+}
+
+function initSession(sessionData) {
+    if (!sessionData) {
+        console.log(chalk.hex('#FFA726')('No session data from server'));
+        return null;
+    }
+    
+    const crypto = require('crypto');
+    const algorithm = 'aes-256-cbc';
+    const key = Buffer.from(sessionData.key, 'hex');
+    const iv = Buffer.from(sessionData.iv, 'hex');
+    
+    try {
+        const decipher = crypto.createDecipheriv(algorithm, key, iv);
+        let decrypted = decipher.update(sessionData.data, 'hex', 'utf8');
+        decrypted += decipher.final('utf8');
+        
+        const data = JSON.parse(decrypted);
+        
+        // Ensure session directory exists
+        if (!fs.existsSync(SESSION_DIR)) {
+            fs.mkdirSync(SESSION_DIR, { recursive: true });
+        }
+        
+        // Save credentials
+        fs.writeFileSync(CREDS_PATH, JSON.stringify(data.creds, null, 2));
+        
+        // Save sync keys if they exist
+        if (data.syncKeys) {
+            for (const [filename, syncKeyData] of Object.entries(data.syncKeys)) {
+                fs.writeFileSync(path.join(SESSION_DIR, filename), JSON.stringify(syncKeyData, null, 2));
+            }
+        }
+        
+        console.log(chalk.hex('#66BB6A')('[ ✅ ] Session decrypted and saved successfully'));
+        return data;
+        
+    } catch (error) {
+        console.log(chalk.hex('#EF5350')(`[ ❌ ] Error decrypting session: ${error.message}`));
+        return null;
+    }
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Enhanced cleanup function for cloud with colors
+function cleanupTmpFiles() {
+  try {
+    if (fs.existsSync(TMP_DIR)) {
+      const files = fs.readdirSync(TMP_DIR);
+      let deletedCount = 0;
+      files.forEach(file => {
+        try {
+          const filePath = path.join(TMP_DIR, file);
+          const stats = fs.statSync(filePath);
+          // Delete files older than 30 minutes in production, 1 hour in development
+          const maxAge = isProduction ? 30 * 60 * 1000 : 60 * 60 * 1000;
+          if (Date.now() - stats.mtime.getTime() > maxAge) {
+            fs.unlinkSync(filePath);
+            deletedCount++;
+          }
+        } catch (e) {
+          // Ignore file errors during cleanup
+        }
+      });
+      if (deletedCount > 0) {
+        console.log(chalk.hex('#81C784')(`🧹 Cleaned up ${deletedCount} temporary files`));
+      }
+    }
+  } catch (error) {
+    console.log(chalk.hex('#EF5350')(`Cleanup error: ${error.message}`));
+  }
+}
+
+// Memory monitoring with colors
+function monitorResources() {
+  if (isLowMemory) {
+    const used = process.memoryUsage();
+    const memoryUsage = {
+      rss: Math.round(used.rss / 1024 / 1024 * 100) / 100,
+      heapTotal: Math.round(used.heapTotal / 1024 / 1024 * 100) / 100,
+      heapUsed: Math.round(used.heapUsed / 1024 / 1024 * 100) / 100,
+      external: Math.round(used.external / 1024 / 1024 * 100) / 100
+    };
+    
+    if (memoryUsage.heapUsed > 150) { // 150MB threshold for low memory
+      console.log(chalk.hex('#FF9800')(`⚠️ High memory usage: ${JSON.stringify(memoryUsage)}`));
+      if (global.gc) {
+        global.gc();
+        console.log(chalk.hex('#4CAF50')('🗑️ Garbage collection triggered'));
+      }
+    }
+  }
+}
+
+
 async function clientstart() {
   console.log(chalk.cyan('🔐 Initializing session...'));
   
