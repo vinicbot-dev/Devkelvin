@@ -1,6 +1,5 @@
 console.clear();
-console.log(('Starting Vinic-Xmd with Enhanced Longevity...');
-
+console.log('Starting Vinic-Xmd with Enhanced Longevity...');
 // Environment detection for cloud optimization
 const isProduction = process.env.NODE_ENV === 'production';
 const isLowMemory = process.env.MEMORY_LIMIT < 512 || isProduction;
