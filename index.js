@@ -1,14 +1,9 @@
 console.clear();
 
-// Colorful startup banner
+// Colorful startup banner using chalk only
 const chalk = require('chalk');
-const gradient = require('gradient-string');
 
-const startupGradient = gradient('purple', 'pink', 'orange');
-const successGradient = gradient('green', 'lime');
-const infoGradient = gradient('cyan', 'blue');
-
-console.log(startupGradient(`
+console.log(chalk.hex('#8B5CF6').bold(`
 ╔══════════════════════════════════════════════════════════════╗
 ║                                                              ║
 ║    🚀 VINIC-XMD BOT STARTING...                             ║
@@ -121,7 +116,7 @@ const TMP_DIR = isProduction
   ? path.join(os.tmpdir(), 'vinic-bot-tmp')
   : path.join(__dirname, 'tmp');
 
-console.log(successGradient('✅ All dependencies loaded successfully!'));
+console.log(chalk.green('✅ All dependencies loaded successfully!'));
 
 async function clientstart() {
   console.log(chalk.cyan('🔐 Initializing session...'));
@@ -140,7 +135,7 @@ async function clientstart() {
   try {
     const { version } = await fetchLatestBaileysVersion();
     waVersion = version;
-    console.log(successGradient(`✅ Using Baileys version: ${waVersion}`));
+    console.log(chalk.green(`✅ Using Baileys version: ${waVersion}`));
   } catch (error) {
     console.log(chalk.yellow('⚠️ Using stable fallback version'));
     waVersion = [2, 3000, 1017546695];
@@ -197,7 +192,7 @@ async function clientstart() {
     const { loadPersistentSettings, startAutoSave } = require('./vinic');
     await loadPersistentSettings(conn);
     startAutoSave();
-    console.log(successGradient('✅ Settings loaded successfully!'));
+    console.log(chalk.green('✅ Settings loaded successfully!'));
   } catch (error) {
     console.log(chalk.yellow('⚠️ Using default settings'));
     const { initializeDatabase } = require('./vinic');
@@ -234,7 +229,7 @@ async function clientstart() {
     }
     
     if (connection === 'open') {
-      console.log(successGradient('🎉 Connection established! Bot is now online'));
+      console.log(chalk.green('🎉 Connection established! Bot is now online'));
       
       // Send periodic presence updates
       setInterval(() => {
@@ -1001,7 +996,7 @@ async function clientstart() {
   conn.ev.on('creds.update', saveCreds);
   conn.serializeM = (m) => smsg(conn, m, store);
 
-  console.log(successGradient('✨ Bot initialization complete! Waiting for connection...'));
+  console.log(chalk.green('✨ Bot initialization complete! Waiting for connection...'));
   return conn;
 }
 
