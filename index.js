@@ -3,6 +3,7 @@ console.log('Starting Vinic-Xmd with Enhanced Longevity...');
 // Environment detection for cloud optimization
 const isProduction = process.env.NODE_ENV === 'production';
 const isLowMemory = process.env.MEMORY_LIMIT < 512 || isProduction;
+const chalk = require('chalk');
 
 // Optimize memory usage
 if (isLowMemory) {
@@ -48,7 +49,6 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path')
 const more = String.fromCharCode(8206);
-const chalk = require('chalk');
 const _ = require('lodash');
 const NodeCache = require("node-cache");
 const lolcatjs = require('lolcatjs');
