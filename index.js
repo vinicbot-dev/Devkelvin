@@ -55,21 +55,43 @@ const {
   downloadContentFromMessage,
   getContentType,
   jidDecode,
+  MessageRetryMap,
+  getAggregateVotesInPollMessage,
   proto,
-  browsers
+  browsers,
+  delay
 } = require("@whiskeysockets/baileys");
 
 const pino = require('pino');
+const readline = require("readline");
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const more = String.fromCharCode(8206);
+const _ = require('lodash');
+const NodeCache = require("node-cache");
+const lolcatjs = require('lolcatjs');
+const readmore = more.repeat(4001);
+const util = require('util');
+const axios = require('axios');
+const fetch = require('node-fetch');
+const timezones = global.timezones || "Africa/Kampala";
+const moment = require('moment-timezone');
+const FileType = require('file-type');
 const { Boom } = require('@hapi/boom');
 const PhoneNumber = require('awesome-phonenumber');
+const { File } = require('megajs');
+const { color } = require('./start/lib/color');
 
-// Utility functions
+const Database = require('better-sqlite3');
+const db = require('./start/lib/database/database');
+
 const {
   smsg,
+  sendGmail,
   formatSize,
+  isUrl,
+  generateMessageTag,
   getBuffer,
   getSizeMedia,
   runtime,
@@ -265,11 +287,8 @@ async function clientstart() {
     }
   });
 
-  console.log(successGradient('✨ Bot initialization complete! Waiting for connection...'));
-  return conn;
-}
-
-
+  // ========== BOT FUNCTIONALITY METHODS ==========
+  console.log(chalk.cyan('🔧 Setting up bot functionality...'));
 
   conn.sendTextWithMentions = async (jid, text, quoted, options = {}) => {
     const mentionedJid = [...text.matchAll(/@(\d{0,16})/g)].map(
@@ -284,7 +303,6 @@ async function clientstart() {
     }, { quoted });
   };
 
-  // Add all your other existing conn methods here...
   conn.sendImageAsSticker = async (jid, path, quoted, options = {}) => {
     let buff;
     try {
@@ -446,25 +464,6 @@ async function clientstart() {
       if (!m) m = await conn.sendMessage(jid, { ...message, [mtype]: file }, { ...opt, ...options })
       return m
     }
-  } 
-
-  conn.downloadAndSaveMediaMessage = async (message, filename, attachExtension = true) => {
-    let quoted = message.msg ? message.msg : message;
-    let mime = (message.msg || message).mimetype || '';
-    let messageType = message.mtype ? message.mtype.replace(/Message/gi, '') : mime.split('/')[0];
-
-    const stream = await downloadContentFromMessage(quoted, messageType);
-    let buffer = Buffer.from([]);
-    for await (const chunk of stream) {
-        buffer = Buffer.concat([buffer, chunk]);
-    }
-
-    let type = await FileType.fromBuffer(buffer);
-    let trueFileName = attachExtension ? (filename + '.' + type.ext) : filename;
-    let savePath = path.join(__dirname, 'tmp', trueFileName);
-
-    await fs.writeFileSync(savePath, buffer);
-    return savePath;
   };
 
   conn.serializeM = (m) => smsg(conn, m, store);
@@ -526,6 +525,7 @@ async function clientstart() {
  
   createTmpFolder();
 
+  // Cleanup junk files
   setInterval(() => {
     let directoryPath = path.join();
     fs.readdir(directoryPath, async function (err, files) {
@@ -552,7 +552,7 @@ async function clientstart() {
         }, 15_000)
       }
     });
-  }, 30_000)
+  }, 30_000);
 
   function getTypeMessage(message) {
     if (!message) return 'unknown';
@@ -567,11 +567,13 @@ async function clientstart() {
   conn.public = config.autoviewstatus || true;
   conn.serializeM = (m) => smsg(conn, m, store);
 
+  // Additional connection handler
   conn.ev.on('connection.update', async (update) => {
     let { Connecting } = require("./connect");
     Connecting({ update, conn, Boom, DisconnectReason, sleep, color, clientstart });
   });
   
+  // ========== GROUP PARTICIPANTS UPDATE HANDLER ==========
   conn.ev.on('group-participants.update', async (anu) => {
     try {
         const botNumber = await conn.decodeJid(conn.user.id);
@@ -707,6 +709,8 @@ async function clientstart() {
     }
   }); 
 
+  // ========== ANTICALL FEATURE ==========
+  
   // Initialize global variables for anticall feature
   if (!global.recentCallers) {
     global.recentCallers = new Map();
@@ -836,6 +840,8 @@ async function clientstart() {
     }
   });
 
+  // ========== ADDITIONAL UTILITY METHODS ==========
+
   conn.getFile = async (PATH, returnAsFilename) => {
     let res, filename;
     const data = Buffer.isBuffer(PATH) 
@@ -869,25 +875,6 @@ async function clientstart() {
     data.fill(0); 
     
     return { res, filename, ...type, data, deleteFile };
-  };
-
-  conn.downloadAndSaveMediaMessage = async (message, filename, attachExtension = true) => {
-    let quoted = message.msg ? message.msg : message;
-    let mime = (message.msg || message).mimetype || '';
-    let messageType = message.mtype ? message.mtype.replace(/Message/gi, '') : mime.split('/')[0];
-
-    const stream = await downloadContentFromMessage(quoted, messageType);
-    let buffer = Buffer.from([]);
-    for await (const chunk of stream) {
-        buffer = Buffer.concat([buffer, chunk]);
-    }
-
-    let type = await FileType.fromBuffer(buffer);
-    let trueFileName = attachExtension ? (filename + '.' + type.ext) : filename;
-    let savePath = path.join(__dirname, 'tmp', trueFileName);
-
-    await fs.writeFileSync(savePath, buffer);
-    return savePath;
   };
 
   conn.sendButtonImg = async (jid, buttons = [], text, image, footer, quoted = '', options = {}) => {
@@ -1013,11 +1000,15 @@ async function clientstart() {
 
   conn.ev.on('creds.update', saveCreds);
   conn.serializeM = (m) => smsg(conn, m, store);
+
+  console.log(successGradient('✨ Bot initialization complete! Waiting for connection...'));
   return conn;
 }
 
-clientstart();
+// Start the bot
+clientstart().catch(console.error);
 
+// File watcher for development
 let file = require.resolve(__filename);
 fs.watchFile(file, () => {
   fs.unwatchFile(file);
