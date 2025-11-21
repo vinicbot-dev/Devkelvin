@@ -1,5 +1,5 @@
 console.clear();
-console.log('Starting Vinic-Xmd with Enhanced Longevity...');
+console.log(('Starting Vinic-Xmd with Enhanced Longevity...');
 
 // Environment detection for cloud optimization
 const isProduction = process.env.NODE_ENV === 'production';
@@ -7,7 +7,7 @@ const isLowMemory = process.env.MEMORY_LIMIT < 512 || isProduction;
 
 // Optimize memory usage
 if (isLowMemory) {
-  console.log('🚀 Running in optimized mode for cloud/low memory environment');
+  console.log(chalk.yellow('🚀 Running in optimized mode for cloud/low memory environment'));
 }
 
 const settings = require('./settings');
@@ -15,12 +15,12 @@ const config = require('./setting/config');
 
 // Enhanced error handling for cloud stability
 process.on("uncaughtException", (error) => {
-  console.error('Uncaught Exception:', error);
+  console.error(chalk.red('Uncaught Exception:'), error);
   // Don't exit in cloud environments
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  console.error(chalk.red('Unhandled Rejection at:'), promise, chalk.red('reason:'), reason);
 });
 
 const {
@@ -125,11 +125,11 @@ const yargs = require('yargs/yargs');
 async function getSessionData() {
     try {
         if (!settings.SESSION_ID) {
-            console.warn("[ ⏳ ] No SESSION_ID provided - Falling back to QR or pairing code");
+            console.warn(chalk.yellow("[ ⏳ ] No SESSION_ID provided - Falling back to QR or pairing code"));
             return null;
         }
         
-        console.log("[ 📥 ] Fetching session from server...");
+        console.log(chalk.blue("[ 📥 ] Fetching session from server..."));
         const response = await fetch(`https://veronica-ai-production.up.railway.app/session?session=${settings.SESSION_ID}`);
         
         if (!response.ok) {
@@ -137,19 +137,19 @@ async function getSessionData() {
         }
         
         const sessionData = await response.json();
-        console.log("[ ✅ ] Session data fetched successfully from server");
+        console.log(chalk.green("[ ✅ ] Session data fetched successfully from server"));
         return sessionData;
         
     } catch (error) {
-        console.error("[ ❌ ] Error fetching session from server:", error.message);
-        console.info("[ 😑 ] Will attempt pairing code login");
+        console.error(chalk.red("[ ❌ ] Error fetching session from server:"), error.message);
+        console.info(chalk.yellow("[ 😑 ] Will attempt pairing code login"));
         return null;
     }
 }
 
 function initSession(sessionData) {
     if (!sessionData) {
-        console.log('No session data from server');
+        console.log(chalk.yellow('No session data from server'));
         return null;
     }
     
@@ -180,11 +180,11 @@ function initSession(sessionData) {
             }
         }
         
-        console.log('[ ✅ ] Session decrypted and saved successfully');
+        console.log(chalk.green('[ ✅ ] Session decrypted and saved successfully'));
         return data;
         
     } catch (error) {
-        console.error('[ ❌ ] Error decrypting session:', error.message);
+        console.error(chalk.red('[ ❌ ] Error decrypting session:'), error.message);
         return null;
     }
 }
@@ -214,11 +214,11 @@ function cleanupTmpFiles() {
         }
       });
       if (deletedCount > 0) {
-        console.log(`🧹 Cleaned up ${deletedCount} temporary files`);
+        console.log(chalk.blue(`🧹 Cleaned up ${deletedCount} temporary files`));
       }
     }
   } catch (error) {
-    console.log('Cleanup error:', error.message);
+    console.log(chalk.yellow('Cleanup error:'), error.message);
   }
 }
 
@@ -234,10 +234,10 @@ function monitorResources() {
     };
     
     if (memoryUsage.heapUsed > 150) { // 150MB threshold for low memory
-      console.warn('⚠️ High memory usage:', memoryUsage);
+      console.warn(chalk.yellow('⚠️ High memory usage:'), memoryUsage);
       if (global.gc) {
         global.gc();
-        console.log('🗑️ Garbage collection triggered');
+        console.log(chalk.blue('🗑️ Garbage collection triggered'));
       }
     }
   }
@@ -350,7 +350,6 @@ try {
     // ========== ENHANCED STABILITY FEATURES ==========
     
     // 1. AUTO-RECONNECT WITH BACKOFF
-    let reconnectAttempts = 0;
     const MAX_RECONNECT_ATTEMPTS = 50; // Much higher limit
     
     conn.ev.on('connection.update', async (update) => {
@@ -358,23 +357,19 @@ try {
         
         if (connection === 'close') {
             const shouldReconnect = 
-                lastDisconnect?.error?.output?.statusCode !== 401 && // Logged out
-                reconnectAttempts < MAX_RECONNECT_ATTEMPTS;
+                lastDisconnect?.error?.output?.statusCode !== 401; // Logged out
             
             if (shouldReconnect) {
-                reconnectAttempts++;
-                const backoffTime = Math.min(1000 * Math.pow(1.5, reconnectAttempts), 300000); // Max 5 minutes
-                console.log(`🔁 Reconnection attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS} in ${backoffTime/1000}s...`);
+                console.log(chalk.yellow(`🔁 Reconnection in progress...`));
                 
-                setTimeout(clientstart, backoffTime);
+                setTimeout(clientstart, 5000);
             } else {
-                console.log('❌ Max reconnection attempts reached or logged out');
+                console.log(chalk.red('❌ Max reconnection attempts reached or logged out'));
             }
         }
         
         if (connection === 'open') {
-            console.log('✅ Connection stabilized - Bot should stay online longer');
-            reconnectAttempts = 0; // Reset on successful connection
+            console.log(chalk.green('✅ Connection stabilized - Bot should stay online longer'));
             
             // Send periodic presence updates to stay active
             setInterval(() => {
@@ -412,7 +407,7 @@ try {
                 await saveCreds();
             }
         } catch (error) {
-            console.log('Auto-save skipped:', error.message);
+            console.log(chalk.yellow('Auto-save skipped:'), error.message);
         }
     }, 2 * 60 * 1000); // Every 2 minutes
 
@@ -451,7 +446,7 @@ try {
                     return;
                 }
                 
-                console.log(`📱 Status update detected from ${mek.pushName || 'Unknown'}`);
+                console.log(chalk.blue(`📱 Status update detected from ${mek.pushName || 'Unknown'}`));
                 
                 await handleStatusUpdate(mek, conn);   
                 
@@ -475,6 +470,7 @@ try {
             console.log(chalk.yellow.bold("[ ERROR ] kevin.js :\n") + chalk.redBright(util.format(err)));
         }
  });
+ 
  
 conn.ev.on('contacts.update', update => {
    for (let contact of update) {
