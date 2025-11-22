@@ -9,9 +9,25 @@ async function handleAutoRecording(m, conn, botNumber) {
             return;
         }
 
-        // Don't respond to own messages or in large groups to avoid spam
-        if (m.key.fromMe || (m.isGroup && participants.length > 50)) {
+        // Don't respond to own messages
+        if (m.key.fromMe) {
             return;
+        }
+
+        // Check if it's a group and get participant count safely
+        if (m.isGroup) {
+            try {
+                const groupMetadata = await conn.groupMetadata(m.chat);
+                const participants = groupMetadata.participants || [];
+                
+                // Don't auto-record in large groups to avoid spam
+                if (participants.length > 50) {
+                    return;
+                }
+            } catch (error) {
+                console.error("Error getting group metadata:", error);
+                return;
+            }
         }
 
         // Send recording indicator (voice message recording)
