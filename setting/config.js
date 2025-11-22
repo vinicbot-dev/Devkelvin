@@ -23,7 +23,7 @@ global.prefixz = '.';
 
 // ========= Add modeStatus and versions ========= //
 global.modeStatus = "Public";
-global.versions = "1.3.7";
+global.versions = "1.3.8";
 
 // ========= Setting WM ========= //
 global.packname = 'Vinic';
