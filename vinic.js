@@ -1,11 +1,9 @@
-
 const {
   generateWAMessageFromContent,
   proto,
-  downloadContentFromMessage,
-  downloadMedaiMesaage
+  downloadContentFromMessage
 } = require("@whiskeysockets/baileys");
-const { exec, spawn, execSync } = require("child_process")
+const { exec } = require("child_process")
 const util = require('util')
 const fetch = require('node-fetch')
 const path = require('path')
@@ -15,7 +13,6 @@ const acrcloud = require ('acrcloud');
 const FormData = require('form-data');
 const cheerio = require('cheerio')
 const { performance } = require("perf_hooks");
-const process = require('process');
 const moment = require("moment-timezone")
 const os = require('os');
 const speed = require('performance-now')
@@ -28,32 +25,6 @@ const timestampp = speed();
 const latensi = speed() - timestampp
 
 const { smsg, sendGmail, formatSize, isUrl, generateMessageTag, CheckBandwidth, getBuffer, getSizeMedia, runtime, fetchJson, sleep, getRandom } = require('./start/lib/myfunction')
-
-const db = require('./start/lib/sqlite')
-
-//delay
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-//error handling
-const errorLog = new Map();
-const ERROR_EXPIRY_TIME = 60000; // 60 seconds
-
-const recordError = (error) => {
-  const now = Date.now();
-  errorLog.set(error, now);
-  setTimeout(() => errorLog.delete(error), ERROR_EXPIRY_TIME);
-};
-
-const shouldLogError = (error) => {
-  const now = Date.now();
-  if (errorLog.has(error)) {
-    const lastLoggedTime = errorLog.get(error);
-    if (now - lastLoggedTime < ERROR_EXPIRY_TIME) {
-      return false;
-    }
-  }
-  return true;
-};
 
 //Version
 const versions = require("./package.json").version;
@@ -69,19 +40,8 @@ const acr = new acrcloud({
     access_secret: 'qVvKAxknV7bUdtxjXS22b5ssvWYxpnVndhy2isXP'
 });
 
-//database 
-global.db = { data: {} };
-global.db.data = JSON.parse(fs.readFileSync("./start/lib/database/database.json")) || {};
-
-if (global.db.data) {
-  global.db.data = {
-    chats: {},
-    settings: {},
-    blacklist: { blacklisted_numbers: [] }, 
-    ...(global.db.data || {}),
-  };
-}
-
+//delay
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Function to fetch MP3 download URL
 async function fetchMp3DownloadUrl(link) {
@@ -94,7 +54,6 @@ async function fetchMp3DownloadUrl(link) {
       }
       return response.data.result.downloadUrl;
     } catch (error) {
-      console.error('Error with NekoLabs API:', error.message);
       throw error;
     }
   };
@@ -123,7 +82,6 @@ async function fetchMp3DownloadUrl(link) {
         await new Promise(resolve => setTimeout(resolve, 5000));
       }
     } catch (error) {
-      console.error('Error with API2:', error.message);
       throw error;
     }
   };
@@ -133,7 +91,6 @@ async function fetchMp3DownloadUrl(link) {
     try {
       downloadUrl = await fetchDownloadUrl1(link);
     } catch (error) {
-      console.log('Falling back to second API...');
       downloadUrl = await fetchDownloadUrl2(link);
     }
     return downloadUrl;
@@ -152,7 +109,6 @@ async function fetchVideoDownloadUrl(link) {
     }
     return response.data.result;
   } catch (error) {
-    console.error('Error fetching video download URL:', error.message);
     throw error;
   }
 }
@@ -164,10 +120,7 @@ async function saveStatusMessage(m) {
     }
     await m.quoted.copyNForward(m.chat, true);
     conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
-
-    console.log('Status saved successfully!');
   } catch (error) {
-    console.error('Failed to save status message:', error);
     reply(`Error: ${error.message}`);
   }
 }
@@ -220,8 +173,6 @@ async function ephoto(url, texk) {
       return build_server + data.image;
  }
 
-
-
 //obfuscator 
 async function obfus(query) {
       return new Promise((resolve, reject) => {
@@ -251,197 +202,6 @@ async function obfus(query) {
 const pickRandom = (arr) => {
 return arr[Math.floor(Math.random() * arr.length)]
 }
-// ========== ENHANCED SETTINGS PERSISTENCE FOR JSON ==========
-
-// Load settings from JSON database on startup
-async function loadPersistentSettings(conn) {
-    try {
-        const botNumber = await conn.decodeJid(conn.user.id);
-        
-        if (!fs.existsSync("./start/lib/database/database.json")) {
-            initializeDatabase(null, botNumber);
-            return false;
-        }
-        
-        const dbData = JSON.parse(fs.readFileSync("./start/lib/database/database.json", "utf8"));
-        
-        if (dbData.settings && dbData.settings[botNumber] && dbData.settings[botNumber].config) {
-            if (!global.db.data) global.db.data = {};
-            if (!global.db.data.settings) global.db.data.settings = {};
-            if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-            
-            global.db.data.settings[botNumber].config = { ...dbData.settings[botNumber].config };
-            
-            global.antidelete = dbData.settings[botNumber].config.antidelete || false;
-            global.autoread = dbData.settings[botNumber].config.autoread || false;
-            global.autoviewstatus = dbData.settings[botNumber].config.autoviewstatus || false;
-            
-            return true;
-        } else {
-            initializeDatabase(null, botNumber);
-            return false;
-        }
-    } catch (error) {
-        return false;
-    }
-}
-
-// Enhanced initializeDatabase with JSON persistence
-function initializeDatabase(from, botNumber) {
-    try {
-        if (!global.db.data) {
-            if (fs.existsSync("./start/lib/database/database.json")) {
-                global.db.data = JSON.parse(fs.readFileSync("./start/lib/database/database.json")) || {};
-            } else {
-                global.db.data = {};
-            }
-        }
-        
-        if (!global.db.data.settings) global.db.data.settings = {};
-        if (!global.db.data.chats) global.db.data.chats = {};
-        if (!global.db.data.blacklist) global.db.data.blacklist = { blacklisted_numbers: [] };
-
-        if (!global.db.data.settings[botNumber]) {
-            global.db.data.settings[botNumber] = {};
-        }
-        
-        let setting = global.db.data.settings[botNumber];
-        if (typeof setting !== "object") global.db.data.settings[botNumber] = {};
-        setting = global.db.data.settings[botNumber]; 
- 
-        if (!global.db.data.groups) global.db.data.groups = {};
-        if (!global.db.data.groups[groupJid]) {
-    global.db.data.groups[groupJid] = {
-        activeUsers: {}
-    };
-}
-        if (!setting.config || typeof setting.config !== "object") {
-            setting.config = {};
-        }
-        
-        let existingSettings = {};
-        try {
-            if (fs.existsSync("./start/lib/database/database.json")) {
-                const fileData = JSON.parse(fs.readFileSync("./start/lib/database/database.json", "utf8"));
-                if (fileData.settings && fileData.settings[botNumber] && fileData.settings[botNumber].config) {
-                    existingSettings = fileData.settings[botNumber].config;
-                }
-            }
-        } catch (e) {}
-        
-        const defaultSettings = {
-            prefix: ".",
-            statusantidelete: false,
-            autobio: false,
-            autorecord: false,
-            autoviewstatus: false,
-            autoreactstatus: false,
-            antiedit: false,
-            anticall: false,
-            AI_CHAT: false,
-            antibug: false,
-            ownernumber: global.ownernumber || '',
-            antidelete: false, 
-            autoread: false,
-            welcome: true,
-            adminevent: true,
-            autoreact: false,
-            groupSettings: {}
-        };
-        
-        Object.keys(defaultSettings).forEach(key => {
-            if (!(key in setting.config)) {
-                setting.config[key] = existingSettings[key] !== undefined ? existingSettings[key] : defaultSettings[key];
-            }
-        });
-        
-        global.antidelete = setting.config.antidelete || false;
-        global.autoread = setting.config.autoread || false;
-        global.autoviewstatus = setting.config.autoviewstatus || false;
-        
-        saveDatabase();
-        
-    } catch (err) {
-        global.antidelete = false;
-        global.autoread = false;
-        global.autoviewstatus = false;
-    }
-}
-
-// Enhanced saveDatabase with better JSON handling
-async function saveDatabase() {
-    try {
-        if (!global.db.data) {
-            global.db.data = {
-                settings: {},
-                chats: {},
-                blacklist: { blacklisted_numbers: [] }
-            };
-        }
-        
-        const dir = './start/lib/database';
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
-        }
-        
-        fs.writeFileSync("./start/lib/database/database.json", JSON.stringify(global.db.data, null, 2));
-        return true;
-    } catch (error) {
-        return false;
-    }
-}
-
-// Force save settings (call this when settings change)
-async function forceSaveSettings() {
-    try {
-        await saveDatabase();
-        return true;
-    } catch (error) {
-        return false;
-    }
-}
-
-// Auto-save settings periodically
-function startAutoSave() {
-    setInterval(async () => {
-        try {
-            await saveDatabase();
-        } catch (error) {}
-    }, 1 * 60 * 1000);
-}
-
-
-//================== [ MESSAGE HANDLING FUNCTIONS ] ==================//
-function loadBlacklist() {
-    if (!global.db.data.blacklist) {
-        global.db.data.blacklist = { blacklisted_numbers: [] };
-    }
-    return global.db.data.blacklist;
-}
-// ========== HELPER FUNCTIONS ==========
-
-// Helper function to extract text from message
-function extractMessageText(message) {
-    if (!message) return "";
-    
-    if (message.conversation) {
-        return message.conversation;
-    } else if (message.extendedTextMessage?.text) {
-        return message.extendedTextMessage.text;
-    } else if (message.imageMessage?.caption) {
-        return message.imageMessage.caption;
-    } else if (message.videoMessage?.caption) {
-        return message.videoMessage.caption;
-    } else if (message.documentMessage?.caption) {
-        return message.documentMessage.caption;
-    } else if (message.protocolMessage?.editedMessage) {
-        // Handle edited messages recursively
-        return extractMessageText(message.protocolMessage.editedMessage);
-    }
-    return "";
-}
-
-
 
 // ========== MESSAGE STORAGE FOR ANTI-DELETE ==========
 function loadStoredMessages() {
@@ -451,7 +211,6 @@ function loadStoredMessages() {
             return JSON.parse(data);
         }
     } catch (error) {
-        console.error('Error loading stored messages:', error);
     }
     return {};
 }
@@ -464,7 +223,6 @@ function saveStoredMessages(messages) {
         }
         fs.writeFileSync('./start/lib/database/deleted_messages.json', JSON.stringify(messages, null, 2));
     } catch (error) {
-        console.error('Error saving stored messages:', error);
     }
 }
 
@@ -476,12 +234,10 @@ function storeMessage(chatId, messageId, messageData) {
             storedMessages[chatId] = {};
         }
         
-        // Extract text content and detect media type
         let textContent = "";
         let mediaType = "text";
         const msgType = Object.keys(messageData.message || {})[0];
         
-        // ========== IMPROVED STATUS DETECTION ==========
         const isStatusMessage = 
             chatId === 'status@broadcast' || 
             (messageData.key && messageData.key.remoteJid === 'status@broadcast') ||
@@ -490,7 +246,6 @@ function storeMessage(chatId, messageId, messageData) {
             ));
         
         if (isStatusMessage) {
-            console.log(`📱 STATUS DETECTED - Chat: ${chatId}, Type: ${msgType}`);
         }
         
         if (msgType === 'conversation') {
@@ -521,12 +276,10 @@ function storeMessage(chatId, messageId, messageData) {
             text: textContent,
             mediaType: mediaType,
             storedAt: Date.now(),
-            // CRITICAL: Mark status messages properly
             isStatus: isStatusMessage,
             remoteJid: messageData.key?.remoteJid || chatId
         };
         
-        // Limit storage per chat to prevent memory issues
         const chatMessages = Object.keys(storedMessages[chatId]);
         if (chatMessages.length > 100) {
             const oldestMessageId = chatMessages[0];
@@ -535,20 +288,18 @@ function storeMessage(chatId, messageId, messageData) {
         
         saveStoredMessages(storedMessages);
         
-        // Debug log for status messages
-        if (isStatusMessage) {
-            console.log(`✅ STATUS STORED - ID: ${messageId}, Type: ${msgType}, Content: ${textContent.substring(0, 50)}...`);
-        }
-        
     } catch (error) {
-        console.error("Error storing message:", error);
     }
 }
-// ========== FIXED ANTI-EDIT HANDLER ==========
+
+// ========== FIXED ANTI-EDIT HANDLER (DATABASE-BASED) ==========
 async function handleAntiEdit(m, conn) {
     try {
-        // Check if anti-edit is enabled and we have an edited message
-        if (!global.antiedit || !m.message?.protocolMessage?.editedMessage) {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        const settings = global.db.getSettings(botNumber);
+        const antiEditSetting = settings?.antiedit || 'off';
+        
+        if (!antiEditSetting || antiEditSetting === 'off' || !m.message?.protocolMessage?.editedMessage) {
             return;
         }
 
@@ -560,13 +311,11 @@ async function handleAntiEdit(m, conn) {
         let originalMsg = storedMessages[chatId]?.[messageId];
 
         if (!originalMsg) {
-            console.log("⚠️ Original message not found in store.json.");
             return;
         }
 
         let sender = originalMsg.key?.participant || originalMsg.key?.remoteJid;
         
-        // Get chat name
         let chatName;
         if (chatId.endsWith("@g.us")) {
             try {
@@ -582,13 +331,11 @@ async function handleAntiEdit(m, conn) {
         let xtipes = moment(originalMsg.messageTimestamp * 1000).tz(`${timezones}`).locale('en').format('HH:mm z');
         let xdptes = moment(originalMsg.messageTimestamp * 1000).tz(`${timezones}`).format("DD/MM/YYYY");
 
-        // Get original text
         let originalText = originalMsg.message?.conversation || 
                           originalMsg.message?.extendedTextMessage?.text ||
                           originalMsg.text ||
                           "[Text not available]";
 
-        // Get edited text
         let editedText = m.message.protocolMessage?.editedMessage?.conversation || 
                         m.message.protocolMessage?.editedMessage?.extendedTextMessage?.text ||
                         "[Edit content not available]";
@@ -617,16 +364,12 @@ ${readmore}
             }
         };
 
-        // Determine target based on mode
         let targetChat;
-        if (global.antiedit === 'private') {
-            targetChat = conn.user.id; // Send to bot owner
-            console.log(`📤 Anti-edit: Sending to bot owner's inbox`);
-        } else if (global.antiedit === 'chat') {
-            targetChat = chatId; // Send to same chat
-            console.log(`📤 Anti-edit: Sending to same chat`);
+        if (antiEditSetting === 'private' || antiEditSetting === 'on') {
+            targetChat = conn.user.id;
+        } else if (antiEditSetting === 'chat') {
+            targetChat = chatId;
         } else {
-            console.log("❌ Invalid anti-edit mode");
             return;
         }
 
@@ -636,42 +379,32 @@ ${readmore}
             { quoted: quotedMessage }
         );
 
-        console.log(`✅ Edited message captured and sent to: ${global.antiedit === 'private' ? 'bot owner' : 'same chat'}`);
-
     } catch (err) {
-        console.error("❌ Error processing edited message:", err);
     }
 }
-// ========== FIXED STATUS UPDATE HANDLER ==========
+
+// ========== FIXED STATUS UPDATE HANDLER (DATABASE-BASED) ==========
 async function handleStatusUpdate(mek, conn) {
     try {
         const botNumber = await conn.decodeJid(conn.user.id);
-        if (!global.db.data.settings || !global.db.data.settings[botNumber]) return;
-        
-        const setting = global.db.data.settings[botNumber];
-        if (!setting.config) return;
+        const settings = global.db.getSettings(botNumber);
+        if (!settings) return;
 
-        // Auto view status
-        if (setting.config.autoviewstatus) {
+        // Auto view status - DATABASE-BASED
+        if (settings.autoviewstatus) {
             try {
-                // Correct way to mark status as viewed in Baileys
                 await conn.readMessages([mek.key]);
-                console.log(`👀 Auto-viewed status from ${mek.pushName || 'Unknown'}`);
             } catch (viewError) {
-                console.error('Error auto-viewing status:', viewError);
             }
         }
 
-        // Auto react to status - FIXED VERSION
-        if (setting.config.autoreactstatus) {
+        // Auto react to status - DATABASE-BASED
+        if (settings.autoreactstatus) {
             try {
                 const reactions = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉'];
                 const randomReaction = reactions[Math.floor(Math.random() * reactions.length)];
                 
-                // For status updates, we need to use the correct approach
-                // Status messages are broadcast messages with special handling
                 if (mek.key && mek.key.remoteJid === 'status@broadcast') {
-                    // Create a proper reaction for status using the status message key
                     const reactionMessage = {
                         react: {
                             text: randomReaction,
@@ -679,32 +412,15 @@ async function handleStatusUpdate(mek, conn) {
                         }
                     };
                     
-                    // Send reaction to the status
                     await conn.sendMessage(mek.key.remoteJid, reactionMessage);
-                    
-                    console.log(`🎭 Auto-reacted "${randomReaction}" to status from ${mek.pushName || 'Unknown'}`);
-                    
-                    // Add a small delay to avoid rate limiting
                     await delay(1000);
                 }
             } catch (reactError) {
-                console.error('Error auto-reacting to status:', reactError);
-                // Log more details for debugging
-                console.log('Status message structure:', {
-                    key: mek.key,
-                    remoteJid: mek.key?.remoteJid,
-                    id: mek.key?.id,
-                    participant: mek.key?.participant
-                });
             }
         }
     } catch (error) {
-        console.error('Error in status handler:', error);
     }
 }
-
-
-
 
 // ========== FIXED ANTI-LINK DETECTION FUNCTION ==========
 function detectUrls(message) {
@@ -741,11 +457,11 @@ async function handleVisibleAntiLink(m, conn) {
         const body = m.text || '';
         
         // Check if anti-link is enabled for this group
-        if (!global.db.data.settings?.[botNumber]?.config?.groupSettings?.[from]?.antilink) {
+        const groupSettings = global.db.getGroupSettings(from);
+        if (!groupSettings.antilink) {
             return false;
         }
         
-        const groupSettings = global.db.data.settings[botNumber].config.groupSettings[from];
         const action = groupSettings.antilinkaction || "warn";
         
         // Detect URLs in the message
@@ -764,7 +480,6 @@ async function handleVisibleAntiLink(m, conn) {
         
         // ========== VISIBLE DELETION FOR EVERYONE ==========
         try {
-            // This method makes deletion visible to all group members
             await conn.sendMessage(from, {
                 delete: {
                     id: m.key.id,
@@ -774,10 +489,7 @@ async function handleVisibleAntiLink(m, conn) {
                 }
             });
             
-            console.log(`✅ Link message deleted - VISIBLE TO ALL in group ${from}`);
-            
         } catch (deleteError) {
-            console.log('❌ Failed to delete message visibly:', deleteError);
             return false; // If deletion fails, don't proceed with warnings/kicks
         }
         
@@ -843,10 +555,10 @@ async function handleVisibleAntiLink(m, conn) {
         return true;
         
     } catch (error) {
-        console.error('❌ Error in visible anti-link:', error);
         return false;
     }
 }
+
 // ========== SIMPLIFIED LINK CHECKING FUNCTION ==========
 async function checkAndHandleLinks(message, conn) {
     try {
@@ -859,9 +571,6 @@ async function checkAndHandleLinks(message, conn) {
         if (sender === botNumber) return;
         
         const chatId = message.key.remoteJid;
-        
-        // Initialize database for this chat
-        initializeDatabase(chatId, botNumber);
         
         // Detect URLs in the message first (for efficiency)
         const urls = detectUrls(message.message);
@@ -885,11 +594,11 @@ async function handleAntiTag(m, conn) {
         const sender = m.sender;
         
         // Check if anti-tag is enabled for this group
-        if (!global.db.data.settings?.[botNumber]?.config?.groupSettings?.[chatId]?.antitag) {
+        const groupSettings = global.db.getGroupSettings(chatId);
+        if (!groupSettings.antitag) {
             return;
         }
         
-        const groupSettings = global.db.data.settings[botNumber].config.groupSettings[chatId];
         const action = groupSettings.antitagaction || "warn";
         
         // Get group metadata
@@ -932,7 +641,6 @@ async function handleAntiTag(m, conn) {
         }
         
     } catch (error) {
-        console.error('Anti-tag error:', error);
     }
 }
 
@@ -947,11 +655,11 @@ async function handleAntiBadWord(m, conn) {
         const body = m.text || '';
         
         // Check if anti-badword is enabled for this group
-        if (!global.db.data.settings?.[botNumber]?.config?.groupSettings?.[chatId]?.antibadword) {
+        const groupSettings = global.db.getGroupSettings(chatId);
+        if (!groupSettings.antibadword) {
             return;
         }
         
-        const groupSettings = global.db.data.settings[botNumber].config.groupSettings[chatId];
         const badWords = groupSettings.badwords || [];
         const action = groupSettings.badwordaction || "warn";
         
@@ -1010,47 +718,8 @@ async function handleAntiBadWord(m, conn) {
         }
         
     } catch (error) {
-        console.error('Anti-badword error:', error);
     }
 }
-
-// ========== AUTO-REACT FUNCTION ==========
-async function handleAutoReact(m, conn) {
-    try {
-        const botNumber = await conn.decodeJid(conn.user.id);
-        
-        // Check if auto-react is enabled in settings
-        if (!global.db.data.settings || !global.db.data.settings[botNumber]) return;
-        
-        const setting = global.db.data.settings[botNumber];
-        if (!setting.config || !setting.config.autoreact) return;
-        
-        // Don't react to bot's own messages
-        const sender = m.key.participant || m.key.remoteJid;
-        if (sender === botNumber) return;
-        
-        // List of common emoji reactions
-        const reactions = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉', '🤩', '🙏', '💯', '👀', '✨', '🥳', '😎'];
-        
-        // Pick a random reaction
-        const randomReaction = reactions[Math.floor(Math.random() * reactions.length)];
-        
-        // Send the reaction
-        await conn.sendMessage(m.key.remoteJid, {
-            react: {
-                text: randomReaction,
-                key: m.key
-            }
-        });
-        
-        console.log(`🎭 Auto-reacted "${randomReaction}" to message from ${m.pushName || 'Unknown'}`);
-        
-    } catch (error) {
-        console.error('❌ Error in auto-react:', error);
-    }
-}
-
-
 
 module.exports = {
   fetchMp3DownloadUrl,
@@ -1060,7 +729,6 @@ module.exports = {
   obfus,
   handleAntiEdit,
   handleStatusUpdate,
-  handleAutoReact,
   saveStatusMessage,
   detectUrls,
   handleVisibleAntiLink,
@@ -1069,24 +737,15 @@ module.exports = {
   storeMessage,
   checkAndHandleLinks,
   ephoto,
-  loadBlacklist,
   handleAntiTag,
   handleAntiBadWord,
-  initializeDatabase,
   delay,
-  saveDatabase,
-  recordError,
-  shouldLogError,
-  pickRandom,
-  loadPersistentSettings,
-  forceSaveSettings,
-  startAutoSave
+  pickRandom
 };
 
 let file = require.resolve(__filename)
 fs.watchFile(file, () => {
   fs.unwatchFile(file)
-  console.log(`Updated '${__filename}'`)
   delete require.cache[file]
   require(file)
 })
