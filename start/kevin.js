@@ -1,9 +1,9 @@
-require('../setting/config')
+
 const yts = require('yt-search')
 const fs = require('fs')
 const axios = require('axios')
 const googleTTS = require('google-tts-api')
-const devKelvin = '256755585369';
+const devKelvin = '256755434075';
 const checkDiskSpace = require('check-disk-space').default;
 const chalk = require("chalk")
 const fetch = require("node-fetch")
@@ -73,26 +73,27 @@ const {
   obfus,
   handleAntiEdit,
   handleVisibleAntiLink,
-  saveDatabase,
   loadStoredMessages,
   saveStoredMessages,
   storeMessage,
   ephoto,
-  loadBlacklist,
   handleAntiTag,
   handleAntiBadWord,
-  initializeDatabase,
-  delay,
-  recordError,
-  shouldLogError } = require('../vinic')
+  delay
+  } = require('../vinic')
 
+const { updateSetting, loadBlacklist, saveDatabase } = require('./KelvinCmds/core/databases');
 const {  takeCommand, musicCommand, ytplayCommand, handleMediafireDownload,  InstagramCommand, telestickerCommand, playCommand } = require('./KelvinCmds/commands')
 const { getInactiveUsers, addUserMessage, getActiveUsers } = require('./KelvinCmds/group')
 const { KelvinVideo } = require('./KelvinCmds/video');
 const { tiktokSearch } = require('./KelvinCmds/TikTok');
 const { playstoreSearch } = require('./KelvinCmds/playstore');
 const sports = require('./KelvinCmds/sport');
-
+const { handleAutoReact } = require('./KelvinCmds/autoreact');
+const { handleAutoRead } = require('./KelvinCmds/autoread');
+const { handleAutoTyping } = require('./KelvinCmds/autotyping');
+const { handleAIChatbot } = require('./KelvinCmds/chatbot');
+const { handleAutoRecording } = require('./KelvinCmds/autorecord');
 const {fetchReactionImage} = require('./lib/reaction')
 const { toAudio } = require('./lib/converter');
 const { remini } = require('./lib/remini')
@@ -116,6 +117,8 @@ if (m.message && m.key && !m.key.fromMe) {
         pushName: m.pushName || "Unknown"
     });
 }
+
+
 const { sender } = m;
 const from = m.key.remoteJid;
 const chatId = m.chat;
@@ -309,12 +312,16 @@ async function webp2mp4(source) {
   }
 //*---------------------------------------------------------------*//
 
-// ========== FIXED ANTI-DELETE MESSAGE HANDLER ==========
+
 async function handleAntiDelete(m, conn, from, isGroup, botNumber) {
     try {
+        // Get anti-delete setting from database
+        const settings = global.db.getSettings(botNumber);
+        const antiDeleteSetting = settings?.antidelete || 'off';
+        
         // Check if anti-delete is enabled
-        if (!global.antidelete) {
-            console.log("❌ Anti-delete disabled");
+        if (!antiDeleteSetting || antiDeleteSetting === 'off') {
+            console.log(" Anti-delete disabled");
             return;
         }
 
@@ -322,7 +329,7 @@ async function handleAntiDelete(m, conn, from, isGroup, botNumber) {
         let chatId = m.chat;
         let deletedBy = m.sender;
 
-        console.log(`🔍 Anti-delete triggered - Mode: ${global.antidelete}, Chat: ${chatId}`);
+        console.log(`🔍 Anti-delete triggered - Mode: ${antiDeleteSetting}, Chat: ${chatId}`);
 
         let storedMessages = loadStoredMessages();
         let deletedMsg = storedMessages[chatId]?.[messageId];
@@ -353,12 +360,12 @@ async function handleAntiDelete(m, conn, from, isGroup, botNumber) {
 
         // Determine target chat based on antidelete mode
         let targetChat;
-        if (global.antidelete === 'private') {
+        if (antiDeleteSetting === 'private' || antiDeleteSetting === 'on') {
             targetChat = conn.user.id; // Bot owner's inbox
             console.log(`📤 Sending to: Bot Owner's Inbox`);
-        } else if (global.antidelete === 'chat') {
-            targetChat = chatId; // Same chat where deletion happened
-            console.log(`📤 Sending to: Same Chat (${chatId})`);
+        } else if (antiDeleteSetting === 'chat') {
+            targetChat = chatId; // Same chat where deletion happened - EVERYONE SEES IT
+            console.log(`📤 Sending to: Same Chat (${chatId}) - Everyone will see`);
         } else {
             console.log("❌ Invalid anti-delete mode");
             return;
@@ -367,13 +374,12 @@ async function handleAntiDelete(m, conn, from, isGroup, botNumber) {
         // Handle media messages
         if (!deletedMsg.message.conversation && !deletedMsg.message.extendedTextMessage) {
             try {
+                // Forward the original media message
                 let forwardedMsg = await conn.sendMessage(
                     targetChat,
                     { 
-                        forward: deletedMsg,
-                        contextInfo: { isForwarded: false }
-                    },
-                    { quoted: deletedMsg }
+                        forward: deletedMsg
+                    }
                 );
                 
                 let mediaInfo = `🚨 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝙼𝙴𝙳𝙸𝙰!* 🚨
@@ -386,8 +392,7 @@ ${readmore}
 
                 await conn.sendMessage(
                     targetChat, 
-                    { text: mediaInfo, mentions: [sender, deletedBy] },
-                    { quoted: forwardedMsg }
+                    { text: mediaInfo, mentions: [sender, deletedBy] }
                 );
                 
             } catch (mediaErr) {
@@ -402,20 +407,9 @@ ${readmore}
 
 • 𝙼𝙴𝚂𝚂𝙰𝙶𝙴: [Unsupported media content]`;
 
-                let quotedMessage = {
-                    key: {
-                        remoteJid: chatId,
-                        fromMe: sender === conn.user.id,
-                        id: messageId,
-                        participant: sender
-                    },
-                    message: { conversation: "Media recovery failed" }
-                };
-
                 await conn.sendMessage(
                     targetChat,
-                    { text: replyText, mentions: [sender, deletedBy] },
-                    { quoted: quotedMessage }
+                    { text: replyText, mentions: [sender, deletedBy] }
                 );
             }
         } 
@@ -434,32 +428,18 @@ ${readmore}
 
 • 𝙼𝙴𝚂𝚂𝙰𝙶𝙴: ${text}`;
 
-            let quotedMessage = {
-                key: {
-                    remoteJid: chatId,
-                    fromMe: sender === conn.user.id,
-                    id: messageId,
-                    participant: sender
-                },
-                message: {
-                    conversation: text 
-                }
-            };
-
             await conn.sendMessage(
                 targetChat,
-                { text: replyText, mentions: [sender, deletedBy] },
-                { quoted: quotedMessage }
+                { text: replyText, mentions: [sender, deletedBy] }
             );
         }
 
-        console.log(`✅ Deleted message captured and sent to: ${global.antidelete === 'private' ? 'bot owner' : 'same chat'}`);
+        console.log(`✅ Deleted message captured and sent to: ${antiDeleteSetting === 'private' ? 'bot owner' : 'same chat'}`);
 
     } catch (err) {
         console.error("❌ Error processing deleted message:", err);
     }
 }
-
 // ========== FIXED ANTI-STATUS DELETE HANDLER ==========
 async function handleAntiStatusDelete(m, conn, from, isGroup, botNumber) {
     try {
@@ -615,250 +595,6 @@ ${readmore}
 
 //<================================================>//
 
-// Message memory for conversation context
-let messageMemory = new Map();
-const MAX_MEMORY = 150; // Maximum messages to remember per chat
-
-// Function to manage conversation memory
-function updateMemory(chatId, message, isUser = true) {
-    if (!messageMemory.has(chatId)) {
-        messageMemory.set(chatId, []);
-    }
-    
-    const chatMemory = messageMemory.get(chatId);
-    chatMemory.push({
-        role: isUser ? "user" : "assistant",
-        content: message,
-        timestamp: Date.now()
-    });
-    
-    // Keep only the last MAX_MEMORY messages
-    if (chatMemory.length > MAX_MEMORY) {
-        messageMemory.set(chatId, chatMemory.slice(-MAX_MEMORY));
-    }
-}
-// AI Chatbot Handler Function - IMPROVED VERSION
-async function handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, prefix) {
-    try {
-        // Check if AI is disabled
-        if (AI_ENABLED !== "true") {
-            console.log("AI: Disabled");
-            return false;
-        }
-
-        // Prevent bot responding to its own messages or commands
-        if (!body || m.key.fromMe || body.startsWith(prefix)) {
-            console.log("AI: Skipping - own message or command");
-            return false;
-        }
-        
-             // DON'T RESPOND TO THESE SPECIFIC NUMBERS - ADDED CHECK
-        const senderNumber = m.sender.split('@')[0];
-        const ignoredNumbers = ['256742932677', '256755585369'];
-        
-        if (ignoredNumbers.includes(senderNumber)) {
-            console.log(`🤖 AI Chatbot: Ignoring messages from ${senderNumber}`);
-            return false;
-        }
-
-        // Improved mention detection for groups
-        let shouldRespond = true;
-        
-        if (isGroup) {
-            // Check if bot is mentioned
-            const mentionedJids = m.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
-            const isMentioned = mentionedJids.includes(botNumber);
-            
-            // Check if it's a direct reply to the bot
-            const isReplyToBot = m.message?.extendedTextMessage?.contextInfo?.participant === botNumber;
-            
-            console.log(`AI Group Check - Mentioned: ${isMentioned}, ReplyToBot: ${isReplyToBot}`);
-            
-            // Only respond in groups if mentioned or replied to
-            if (!isMentioned && !isReplyToBot) {
-                console.log("AI: Not mentioned in group, skipping");
-                return false;
-            }
-            
-            shouldRespond = true;
-        } else {
-            // In private chats, respond to all messages
-            console.log("AI: Private chat, responding");
-            shouldRespond = true;
-        }
-
-        if (!shouldRespond) return false;
-
-        console.log("AI: Processing message:", body);
-
-        // Show "typing..." indicator
-        await conn.sendPresenceUpdate('composing', from);
-
-        // Add user message to memory
-        updateMemory(from, body, true);
-
-        // Check if user is asking about creator
-        const isAskingAboutCreator = /(who made you|who created you|who is your (creator|developer|owner)|who are you|what are you)/i.test(body);
-        
-        let response;
-        
-        if (isAskingAboutCreator) {
-            // Special response for creator questions
-            response = "I am Vinic-Xmd AI, created by Kelvin Tech - a brilliant developer from Uganda with exceptional coding skills and vision. He's the mastermind behind my existence, crafting me with precision and care to be your helpful assistant.";
-        } else {
-            // Get conversation context
-            const context = messageMemory.has(from) 
-                ? messageMemory.get(from).map(msg => `${msg.role}: ${msg.content}`).join('\n')
-                : `user: ${body}`;
-
-            // Create prompt with context and instructions
-            const prompt = `You are Vinic-Xmd AI, a powerful WhatsApp bot developed by Kelvin Tech from Uganda. 
-            You respond smartly, confidently, and stay loyal to your creator. 
-            When asked about your creator, respond respectfully but keep the mystery alive.
-            If someone is being abusive, apologize and say "Let's begin afresh."
-            
-            Previous conversation context:
-            ${context}
-            
-            Current message: ${body}
-            
-            Respond as Vinic-Xmd AI:`;
-
-            // Encode the prompt for the API
-            const query= encodeURIComponent(prompt);
-            
-            // Use the API endpoint
-            const apiUrl = `https://malvin-api.vercel.app/ai/venice?text=${query}`;
-
-            const { data } = await axios.get(apiUrl);
-            
-            if (data && data.result) {
-                response = data.result;
-            } else if (data && data.message) {
-                response = data.message;
-            } else {
-                response = "I'm sorry, I couldn't process that request. Let's begin afresh.";
-            }
-        }
-
-        // Add footer to response
-        const finalResponse = `${response}\n\n> *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴠɪɴɪᴄ-xᴍᴅ ᴀɪ*`;
-        
-        // Add AI response to memory
-        updateMemory(from, response, false);
-        
-        await conn.sendMessage(from, {
-            text: finalResponse
-        }, { quoted: m });
-
-        console.log("AI: Response sent successfully");
-        return true;
-
-    } catch (err) {
-        console.error("AI Chatbot Error:", err.message);
-        return false;
-    }
-}
-
-// Use the global config setting
-let AI_ENABLED = global.AI_Chat ? "true" : "false";
-
-// Function to toggle AI chatbot state
-function setAIChatbotState(state) {
-    AI_ENABLED = state ? "true" : "false";
-    // Also update the global config
-    global.AI_Chat = state;
-    return AI_ENABLED;
-}
-
-// Function to get AI chatbot state
-function getAIChatbotState() {
-    return AI_ENABLED;
-}
-
-// Function to clear conversation memory
-function clearChatbotMemory(chatId = null) {
-    if (chatId) {
-        messageMemory.delete(chatId);
-    } else {
-        messageMemory.clear();
-    }
-    return true;
-}
-// ==========  ANTI-BUG SYSTEM ==========
-const bugAttempts = new Map();
-
-// Check if anti-bug is enabled
-function isAntiBugEnabled() {
-    return global.db.data.settings?.[botNumber]?.config?.antibug === true;
-}
-
-// Detect bug attempts
-function detectBugAttempt(body) {
-    if (!body) return false;
-    
-    const bugPatterns = [
-        /(\x08|\x00|\x0E|\x0F)/, // Control characters
-        /(javascript:|data:|vbscript:)/i, // Script injection
-        /(\.\.\/|\.\.\\)/, // Path traversal
-        /(<script|eval\(|setTimeout\()/i, // JavaScript
-        /(union select|drop table|delete from)/i, // SQL injection
-    ];
-
-    return bugPatterns.some(pattern => pattern.test(body));
-}
-
-// Block user function
-async function blockUser(conn, userId) {
-    try {
-        // Save to database
-        if (!global.db.data.users) global.db.data.users = {};
-        if (!global.db.data.users[userId]) global.db.data.users[userId] = {};
-        
-        global.db.data.users[userId].banned = true;
-        global.db.data.users[userId].bannedAt = Date.now();
-        
-        await saveDatabase();
-        
-        // Send block message
-        const blockMessage = `🚫 *YOU HAVE BEEN BLOCKED*\n\nYou have been detected attempting to exploit the bot.\nAll your commands will be ignored.`;
-        
-        await conn.sendMessage(userId, { text: blockMessage });
-        
-        return true;
-    } catch (error) {
-        console.error('Error blocking user:', error);
-        return false;
-    }
-}
-
-// Check if user is blocked
-function isUserBlocked(userId) {
-    return global.db.data.users?.[userId]?.banned === true;
-}
-
-// Main anti-bug detection
-async function handleAntiBugDetection(m, conn, body, sender) {
-    if (!isAntiBugEnabled()) return false;
-    if (isUserBlocked(sender)) return true;
-    
-    if (detectBugAttempt(body)) {
-        console.log(`🚫 Bug attempt detected from ${sender}`);
-        
-        // Block immediately
-        await blockUser(conn, sender);
-        
-        // Notify admin
-        await conn.sendMessage(conn.user.id, {
-            text: `🚨 User @${sender.split('@')[0]} was blocked for bug attempts\nMessage: ${body.substring(0, 50)}...`,
-            mentions: [sender]
-        });
-        
-        return true;
-    }
-    
-    return false;
-}
 
 // Validate connection object
 function isValidConn(conn) {
@@ -870,31 +606,8 @@ function isValidConn(conn) {
            conn.user.id;
 }
 
-// ========== SETTINGS MANAGEMENT FUNCTIONS ==========
-async function updateBotSetting(settingKey, settingValue) {
-    try {
-        if (!global.db.data.settings[botNumber]) {
-            global.db.data.settings[botNumber] = {};
-        }
-        if (!global.db.data.settings[botNumber].config) {
-            global.db.data.settings[botNumber].config = {};
-        }
-        
-        global.db.data.settings[botNumber].config[settingKey] = settingValue;
-        
-        // Save to database
-        await saveDatabase();
-        
-        return true;
-    } catch (error) {
-        console.error('Error updating setting:', error);
-        return false;
-    }
-}
 
-function getCurrentSettings() {
-    return global.db.data.settings[botNumber]?.config || {};
-}
+
 
 //================== [ CONSOLE LOG] ==================//
 const dayz = moment(Date.now()).tz(`${timezones}`).locale('en').format('dddd');
@@ -911,32 +624,8 @@ if (m.message) {
   console.log(chalk.hex('#8B00FF').bold('┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━─ ⳹\n\n'));
 }
 //<================================================>//
-//====[ AUTO-READ MESSAGE HANDLER ]====//
-if (global.autoread) {
-    try {
-        await conn.readMessages([m.key]);
-        await sleep(100);
-    } catch (error) {
-        console.error('Auto-read error:', error);
-    }
-}
-
-if (autoread) {
-    conn.readMessages([m.key])
-}
-
-if (global.autoTyping) {
-    conn.sendPresenceUpdate('composing', from)
-}
-
-if (global.autoRecording) {
-    conn.sendPresenceUpdate('recording', from)
-}
-//<================================================>//
         conn.sendPresenceUpdate('uavailable', from)
-                if (autobio) {
-            conn.updateProfileStatus(`24/7 𝗩𝗶𝗻𝗶𝗰-𝗫𝗺𝗱 𝗼𝗻𝗹𝗶𝗻𝗲 𝗽𝗼𝘄𝗲𝗿𝗲𝗱 𝗯𝘆 ༒𝗞𝗲𝘃𝗶𝗻 𝘁𝗲𝗰𝗵༒`).catch(_ => _)
-        }
+              
 let resize = async (image, width, height) => {
 let oyy = await jimp.read(image)
 let kiyomasa = await oyy.resize(width, height).getBufferAsync(jimp.MIME_JPEG)
@@ -958,10 +647,12 @@ const reply = (teks) => {
                 }
             }, { quoted: m })
         }
-// ========== AI CHATBOT EXECUTION ==========
-if (getAIChatbotState() === "true" && body && !m.key.fromMe && !isCmd) {
-    await handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, prefix);
-}
+
+await handleAutoRecording(m, conn, botNumber);
+await handleAutoRead(m, conn, botNumber);
+await handleAutoTyping(m, conn, botNumber);
+await handleAutoReact(m, conn, botNumber);
+await handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, prefix);
 
 // ========== ENHANCED VISIBLE ANTI-LINK EXECUTION ==========
 if (m.isGroup && body && !m.key.fromMe) {
@@ -998,16 +689,7 @@ if (m.isGroup && !m.key.fromMe && body && body.trim().length > 0) {
 if (m.isGroup && body) {
     await handleAntiBadWord(m, conn);
 }
-// ========== ANTI-BUG EXECUTION ==========
-if (body && !m.key.fromMe) {
-    const isBlocked = await handleAntiBugDetection(m, conn, body, sender);
-    if (isBlocked) return; // Stop processing if user is blocked
-}
-// ========== CHECK IF USER IS BLOCKED ==========
-if (isUserBlocked(sender) && !m.key.fromMe) {
-    console.log(`🚫 Blocked user ${sender} attempted to send message`);
-    return; // Stop processing completely
-}
+
 
 switch (command) {
 case 'menu':
@@ -1119,83 +801,6 @@ case 'setprefix': {
     reply(`✅ Prefix updated to: *${newPrefix}*`);
     break;
 }
-case 'features':
-case 'settings': {
-    if (!Access) return reply('❌ Owner only command');
-    
-    const config = getCurrentSettings();
-    const settingsText = `
-⚙️ *BOT SETTINGS*
-
-📝 *Prefix:* ${config.prefix || '.'}
-🚫 *Anti-Delete:* ${config.statusantidelete ? '✅' : '❌'}
-🤖 *AI Chat:* ${config.AI_CHAT ? '✅' : '❌'}
-🐛 *Anti-Bug:* ${config.antibug ? '✅' : '❌'}
-📞 *Anti-Call:* ${config.anticall || 'false'}
-✏️ *Anti-Edit:* ${config.antiedit ? '✅' : '❌'}
-👋 *Welcome:* ${config.welcome ? '✅' : '❌'}
-🎭 *Auto-React:* ${config.autoreact ? '✅' : '❌'}
-👀 *Auto-View:* ${config.autoview ? '✅' : '❌'}
-📖 *Auto-Read:* ${config.autoread ? '✅' : '❌'}
-📹 *Auto-Record:* ${config.autorecord ? '✅' : '❌'}
-📱 *Auto-View Status:* ${config.autoviewstatus ? '✅' : '❌'}
-🎭 *Auto-React Status:* ${config.autoreactstatus ? '✅' : '❌'}
-🤖 *Auto-Bio:* ${config.autobio ? '✅' : '❌'}
-👑 *Admin Events:* ${config.adminevent ? '✅' : '❌'}
-
-*Use commands:*
-• *${prefix}set <option> <value>* - Change setting
-• *${prefix}prefix <new>* - Change prefix
-• *${prefix}backup* - Backup settings
-
-*Example:* ${prefix}set AI_CHAT true
-  `;
-    
-    reply(settingsText);
-    break;
-}
-
-case 'set': {
-    if (!Access) return reply('❌ Owner only command');
-    
-    const option = args[0]?.toUpperCase();
-    const value = args[1];
-    
-    if (!option || value === undefined) {
-        return reply(`❌ Usage: ${prefix}set <option> <value>\nExample: ${prefix}set AI_CHAT true`);
-    }
-    
-    const validOptions = [
-        'AI_CHAT', 'ANTIBUG', 'ANTICALL', 'ANTIEDIT', 'WELCOME', 
-        'AUTOREACT', 'AUTOVIEW', 'AUTOREAD', 'AUTORECORD', 'AUTOVIEWSTATUS',
-        'AUTOREACTSTATUS', 'AUTOBIO', 'ADMINEVENT', 'STATUSANTIDELETE'
-    ];
-    
-    if (!validOptions.includes(option)) {
-        return reply(`❌ Invalid option. Valid options:\n${validOptions.join(', ')}`);
-    }
-    
-    let newValue;
-    if (option === 'ANTICALL') {
-        if (!['false', 'decline', 'block'].includes(value.toLowerCase())) {
-            return reply('❌ Anti-call must be: false, decline, or block');
-        }
-        newValue = value.toLowerCase();
-    } else {
-        newValue = value.toLowerCase() === 'true';
-    }
-    
-    // Update setting
-    const success = await updateBotSetting(option.toLowerCase(), newValue);
-    
-    if (success) {
-        reply(`✅ *${option}* updated to: *${newValue}*`);
-    } else {
-        reply('❌ Failed to update setting');
-    }
-    break;
-}
-
 case 'backup': {
     if (!Access) return reply('❌ Owner only command');
     
@@ -1217,65 +822,6 @@ All settings will persist after bot restart.`;
     }
     break;
 }
-case 'aichat':
-case 'chatbot':
-case 'bot': {
-    if (!Access) return reply(mess.owner);
-    
-    const status = args[0]?.toLowerCase();
-    if (status === "on") {
-        setAIChatbotState(true);
-        return reply("🤖 AI chatbot is now enabled");
-    } else if (status === "off") {
-        setAIChatbotState(false);
-        return reply("🤖 AI chatbot is now disabled");
-    } else if (status === "clear") {
-        clearChatbotMemory();
-        return reply("🧹 AI conversation memory cleared");
-    } else {
-        return reply(`Current AI state: ${getAIChatbotState() === "true" ? "ON" : "OFF"}\nUsage: ${prefix}aichat on/off/clear`);
-    }
-    
-}
-
-break
-case "antidelete": {
-    if (!Access) return reply(mess.owner);
-    if (args.length < 2) return reply(`Example: ${prefix + command} private on/off\nOr: ${prefix + command} chat on/off`);
-
-    const validTypes = ["private", "chat"];
-    const validOptions = ["on", "off"];
-
-    const type = args[0].toLowerCase();
-    const option = args[1].toLowerCase();
-
-    if (!validTypes.includes(type)) return reply("Invalid type. Use 'private' or 'chat'");
-    if (!validOptions.includes(option)) return reply("Invalid option. Use 'on' or 'off'");
-
-    // Fix: Properly get setting from global database
-    if (!global.db.data.settings) global.db.data.settings = {};
-    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-    let setting = global.db.data.settings[botNumber];
-
-    // Initialize config if it doesn't exist
-    if (!setting.config) setting.config = {};
-
-    // Set the anti-delete configuration
-    if (option === "on") {
-        setting.config.antidelete = type; // "private" or "chat"
-        global.antidelete = type;
-    } else {
-        setting.config.antidelete = false;
-        global.antidelete = false;
-    }
-
-    // Save to database immediately
-    await saveDatabase();
-
-    reply(`✅ Anti-delete ${type} mode ${option === "on" ? "enabled" : "disabled"} successfully`);
-    
-}
-break
 case 'antistatus': {
     if (!Access) return reply('❌ Owner only command');
     
@@ -1295,38 +841,7 @@ case 'antistatus': {
     }
     break;
 }
-case 'antiedit': {
-    if (!Access) return reply('❌ Owner only command');
-    
-    const mode = args[0]?.toLowerCase();
-    const validModes = ['private', 'chat', 'off'];
-    
-    if (!mode || !validModes.includes(mode)) {
-        return reply(`❌ Usage: ${prefix}antiedit <private/chat/off>\n\n• private - Edit alerts to bot owner\n• chat - Edit alerts in same chat\n• off - Disable anti-edit`);
-    }
-    
-    // Fix: Properly get setting from global database
-    if (!global.db.data.settings) global.db.data.settings = {};
-    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-    let setting = global.db.data.settings[botNumber];
-    
-    // Initialize config if it doesn't exist
-    if (!setting.config) setting.config = {};
-    
-    if (mode === 'off') {
-        setting.config.antiedit = false;
-        global.antiedit = false;
-    } else {
-        setting.config.antiedit = mode;
-        global.antiedit = mode;
-    }
-    
-    // Save to database immediately
-    await saveDatabase();
-    
-    reply(`✅ Anti-edit ${mode === 'off' ? 'disabled' : 'set to: ' + mode + ' mode'}`);
-    b
-}
+
 case 'dbstatus': {
     if (!Access) return reply('❌ Owner only command');
     
@@ -2379,33 +1894,6 @@ case 'antibug': {
     }
 }
 break
-case "autoreact": {
-    if (!Access) return reply(mess.owner);
-       
-    // Initialize settings if not exists
-    if (!global.db.data.settings[botNumber]) {
-        global.db.data.settings[botNumber] = {};
-    }
-    if (!global.db.data.settings[botNumber].config) {
-        global.db.data.settings[botNumber].config = {};
-    }
-    
-    const currentStatus = global.db.data.settings[botNumber].config.autoreact || false;
-    
-    if (args[0] === 'on') {
-        global.db.data.settings[botNumber].config.autoreact = true;
-        reply('✅ Auto-react enabled! The bot will now react to all messages.');
-    } else if (args[0] === 'off') {
-        global.db.data.settings[botNumber].config.autoreact = false;
-        reply('❌ Auto-react disabled!');
-    } else {
-        reply(`🔄 Auto-react is currently: ${currentStatus ? 'ENABLED ✅' : 'DISABLED ❌'}\n\nUse: ${prefix}autoreact on/off`);
-    }
-    
-    await saveDatabase();
-    
-}
-break
 case "anticall": {
 if (!Access) return reply(mess.owner);
 if (args.length < 2) return reply(`Example: ${prefix + command} decline on/off\nOr: ${prefix + command} block on/off`);
@@ -2558,46 +2046,6 @@ conn.public = false
 reply(`*Vinic-Xmd successfully changed to private mode*  ${command}.`)
 }
 break
-case "autotyping": {
-    if (!Access) return reply(mess.owner);
-    
-    if (!text) {
-        // Fix: Get status from database instead of global variable
-        if (!global.db.data.settings) global.db.data.settings = {};
-        if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-        let setting = global.db.data.settings[botNumber];
-        
-        const status = (setting.config && setting.config.autotyping) ? "✅ ON" : "❌ OFF";
-        return reply(`*Auto-Typing Status:* ${status}\n\nUsage: ${prefix}autotyping on/off`);
-    }
-
-    const option = args[0].toLowerCase();
-    
-    // Fix: Properly get setting from global database
-    if (!global.db.data.settings) global.db.data.settings = {};
-    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-    let setting = global.db.data.settings[botNumber];
-    
-    // Initialize config if it doesn't exist
-    if (!setting.config) setting.config = {};
-    
-    if (option === 'on') {
-        setting.config.autotyping = true;
-        global.autoTyping = true;
-        reply('✅ *Auto-typing enabled!*');
-    } 
-    else if (option === 'off') {
-        setting.config.autotyping = false;
-        global.autoTyping = false;
-        reply('❌ *Auto-typing disabled!*');
-    } 
-    else {
-        reply(`❌ Invalid option! Use: ${prefix}autotyping on/off`);
-    }
-    
-    await saveDatabase();
-}
-break
 case "join": {
 if (!Access) return reply(mess.owner);
     if (!text) return reply("Enter group link");
@@ -2746,208 +2194,346 @@ case "groupid": {
     });
 }
 break
+case 'antidelete': {
+    if (!Access) return reply(mess.owner);
+    
+    
+    if (args[0] === 'on' || args[0] === 'off' || args[0] === 'private' || args[0] === 'chat') {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        const success = updateSetting(botNumber, 'antidelete', args[0]);
+        
+        if (success) {
+            // Force save to database
+            await saveDatabase();
+            reply(`✅ Anti-delete set to: ${args[0]}`);
+        } else {
+            reply('❌ Failed to update anti-delete setting');
+        }
+    } else {
+        reply(`❌ Usage: ${prefix}antidelete <on/off/private/chat>\n\n• on/private - Send to bot owner\n• chat - Send to same chat\n• off - Disable anti-delete`);
+    }
+    break;
+}
+case 'antiedit': {
+    if (!Access) return reply(mess.owner);
+    
+    
+    if (args[0] === 'on' || args[0] === 'off' || args[0] === 'private' || args[0] === 'chat') {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        const success = updateSetting(botNumber, 'antiedit', args[0]);
+        
+        if (success) {
+            reply(`✅ Anti-edit set to: ${args[0]}`);
+        } else {
+            reply('❌ Failed to update anti-edit setting');
+        }
+    } else {
+        reply(`❌ Usage: ${prefix}antiedit <on/off/private/chat>\n\n• on/private - Send to bot owner\n• chat - Send to same chat\n• off - Disable anti-edit`);
+    }
+    break;
+}
+case 'autoread': {
+    if (!Access) return reply(mess.owner);
+    
+    
+    if (args[0] === 'on' || args[0] === 'off') {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        const success = updateSetting(botNumber, 'autoread', args[0] === 'on');
+        
+        if (success) {
+            await saveDatabase();
+            reply(`✅ Auto-read set to: ${args[0]}`);
+        } else {
+            reply('❌ Failed to update auto-read setting');
+        }
+    } else {
+        reply(`❌ Usage: ${prefix}autoread <on/off>`);
+    }
+    break;
+}
 case 'autotyping': {
-                if (!Access) return reply(mess.owner)
-                if (args.length < 1) return reply(`Example ${prefix + command} on/off`)
-                if (q === 'on') {
-                    autoTyping = true
-                    reply(`Successfully changed auto-typing to ${q}`)
-                } else if (q === 'off') {
-                    autoTyping = false
-                    reply(`Successfully changed auto-typing to ${q}`)
-                }
-         }
-    
-break
-case "autorecording": {
-    if (!Access) return reply(mess.owner);
-    if (args.length < 1) return reply(`Example: ${prefix + command} on/off`);
-    
-    const option = args[0].toLowerCase();
-    
-    // Fix: Properly get setting from global database
-    if (!global.db.data.settings) global.db.data.settings = {};
-    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-    let setting = global.db.data.settings[botNumber];
-    
-    // Initialize config if it doesn't exist
-    if (!setting.config) setting.config = {};
-    
-    if (option === 'on') {
-        setting.config.autorecording = true;
-        reply(`✅ Auto-recording enabled`);
-    } else if (option === 'off') {
-        setting.config.autorecording = false;
-        reply(`✅ Auto-recording disabled`);
-    } else {
-        return reply(`❌ Invalid option. Use: ${prefix + command} on/off`);
-    }
-    
-    // Save to database immediately
-    await saveDatabase();
-}
-break
-case "autoread": {
     if (!Access) return reply(mess.owner);
     
-    // Initialize settings if not exists
-    if (!global.db.data.settings) global.db.data.settings = {};
-    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-    let setting = global.db.data.settings[botNumber];
-
-    // Initialize config if it doesn't exist
-    if (!setting.config) setting.config = {};
-
-    const currentStatus = setting.config.autoread || global.autoread || false;
-    
-    if (args[0] === 'on') {
-        setting.config.autoread = true;
-        global.autoread = true;
-        await saveDatabase();
-        reply('✅ *Auto-read enabled!* The bot will now automatically read all messages.');
-    } else if (args[0] === 'off') {
-        setting.config.autoread = false;
-        global.autoread = false;
-        await saveDatabase();
-        reply('❌ *Auto-read disabled!* Messages will no longer be automatically read.');
-    } else {
-        reply(`📖 Auto-read is currently: ${currentStatus ? 'ENABLED ✅' : 'DISABLED ❌'}\n\nUse: ${prefix}autoread on/off`);
-    }
-    
-}
-break
-case "autoviewstatus": {
-    if (!Access) return reply(mess.owner);
-    if (args.length < 1) return reply(`Example: ${prefix + command} on/off`);
-
-    const validOptions = ["on", "off"];
-    const option = args[0].toLowerCase();
-
-    if (!validOptions.includes(option)) return reply("Invalid option");
-
-    if (!global.db.data.settings) global.db.data.settings = {};
-    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-    let setting = global.db.data.settings[botNumber];
-    
-    // Initialize config if it doesn't exist
-    if (!setting.config) setting.config = {};
-    
-    // Set the autoviewstatus setting
-    setting.config.autoviewstatus = option === "on";
-
-    await saveDatabase();
-
-    reply(`Auto view status ${option === "on" ? "enabled" : "disabled"} successfully`);
-}
-break
-case "autoreactstatus": {
-    if (!Access) return reply(mess.owner);
-    if (args.length < 1) return reply(`Example: ${prefix + command} on/off`);
-
-    const validOptions = ["on", "off"];
-    const option = args[0].toLowerCase();
-
-    if (!validOptions.includes(option)) return reply("Invalid option");
-
-    if (!global.db.data.settings) global.db.data.settings = {};
-    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-    let setting = global.db.data.settings[botNumber];
-    
-    // Initialize config if it doesn't exist
-    if (!setting.config) setting.config = {};
-    
-    // Set the autoreactstatus setting
-    setting.config.autoreactstatus = option === "on";
-
-    await saveDatabase();
-
-    reply(`Auto react status ${option === "on" ? "enabled" : "disabled"} successfully`);
-}
-break
-case "welcome": { 
-    if (!Access) return reply(mess.owner);
-    if (args.length < 1) return reply(`Example: ${prefix + command} on/off`);
-
-    const option = args[0].toLowerCase();
-    if (!['on', 'off'].includes(option)) return reply("Invalid option. Use 'on' or 'off'");
-
-    // Initialize settings if not exists
-    if (!global.db.data.settings) global.db.data.settings = {};
-    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-    if (!global.db.data.settings[botNumber].config) global.db.data.settings[botNumber].config = {};
-
-    // Set welcome setting
-    global.db.data.settings[botNumber].config.welcome = option === 'on';
-
-    await saveDatabase();
-    reply(`Welcome feature ${option === 'on' ? 'enabled' : 'disabled'} successfully`);
-}
-break
-case "adminevent": {
-    if (!Access) return reply(mess.owner);
-    if (args.length < 1) return reply(`Example: ${prefix + command} on/off`);
-
-    const option = args[0].toLowerCase();
-    if (!['on', 'off'].includes(option)) return reply("Invalid option. Use 'on' or 'off'");
-
-    // Initialize settings if not exists
-    if (!global.db.data.settings) global.db.data.settings = {};
-    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-    if (!global.db.data.settings[botNumber].config) global.db.data.settings[botNumber].config = {};
-
-    // Set adminevent setting
-    global.db.data.settings[botNumber].config.adminevent = option === 'on';
-
-    await saveDatabase();
-    reply(`Admin event feature ${option === 'on' ? 'enabled' : 'disabled'} successfully`);
-}
-break
-case 'features': {
-    if (!global.db.data.settings || !global.db.data.settings[botNumber] || !global.db.data.settings[botNumber].config) {
-        // If no database settings, show global config
-        let statusMessage = `*📊 Feature Status (Global Config):*\n\n`;
-        statusMessage += `• Welcome: ${global.welcome ? '✅ ON' : '❌ OFF'}\n`;
-        statusMessage += `• Admin Events: ${global.adminevent ? '✅ ON' : '❌ OFF'}\n`;
-        statusMessage += `• Anti-edit: ${global.antiedit ? '✅ ' + global.antiedit.toUpperCase() : '❌ OFF'}\n`;
-        statusMessage += `• Anti-delete: ${global.antidelete ? '✅ ' + global.antidelete.toUpperCase() : '❌ OFF'}\n`;
-        statusMessage += `• Auto-react: ${global.autoreact ? '✅ ON' : '❌ OFF'}\n`;
-        statusMessage += `• Auto-bio: ${global.autobio ? '✅ ON' : '❌ OFF'}\n`;
-        statusMessage += `• Chatbot: ${global.chatbot ? '✅ ON' : '❌ OFF'}\n`;
-        statusMessage += `• Anti-call: ${global.anticall ? '✅ ' + global.anticall.toUpperCase() : '❌ OFF'}\n`;
-        statusMessage += `• Auto-view status: ${global.autoviewstatus ? '✅ ON' : '❌ OFF'}\n`;
-        statusMessage += `• Auto-react status: ${global.autoreactstatus ? '✅ ON' : '❌ OFF'}\n`;
+    if (args[0] === 'on' || args[0] === 'off') {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        const success = updateSetting(botNumber, 'autotyping', args[0] === 'on');
         
-        statusMessage += `\n*Note:* Use commands like:\n`;
-        statusMessage += `• \`.welcome on/off\`\n`;
-        statusMessage += `• \`.adminevent on/off\`\n`;
-        statusMessage += `• \`.antiedit private/chat on/off\`\n`;
-        statusMessage += `• \`.antidelete private/chat on/off\``;
-        
-        return await reply(statusMessage);
+        if (success) {
+            await saveDatabase();
+            reply(`✅ Auto-typing set to: ${args[0]}`);
+        } else {
+            reply('❌ Failed to update auto-typing setting');
+        }
+    } else {
+        reply(`❌ Usage: ${prefix}autotyping <on/off>`);
     }
-
-    const config = global.db.data.settings[botNumber].config;
+    break;
+}
+break
+case 'autorecording': {
+    if (!Access) return reply(mess.owner);
     
-    let statusMessage = `*📊 Feature Status (Database):*\n\n`;
-    statusMessage += `• Welcome: ${config.welcome ? '✅ ON' : '❌ OFF'}\n`;
-    statusMessage += `• Admin Events: ${config.adminevent ? '✅ ON' : '❌ OFF'}\n`;
-    statusMessage += `• Anti-edit: ${config.antiedit ? '✅ ' + config.antiedit.toUpperCase() : '❌ OFF'}\n`;
-    statusMessage += `• Anti-delete: ${config.statusantidelete ? '✅ ' + config.statusantidelete.toUpperCase() : '❌ OFF'}\n`;
-    statusMessage += `• Auto-react: ${config.autoreact ? '✅ ON' : '❌ OFF'}\n`;
-    statusMessage += `• Auto-bio: ${config.autobio ? '✅ ON' : '❌ OFF'}\n`;
-    statusMessage += `• Chatbot: ${config.chatbot ? '✅ ON' : '❌ OFF'}\n`;
-    statusMessage += `• Auto-view status: ${config.autoviewstatus ? '✅ ON' : '❌ OFF'}\n`;
-    statusMessage += `• Auto-react status: ${config.autoreactstatus ? '✅ ON' : '❌ OFF'}\n`;
     
-    statusMessage += `\n*Available Commands:*\n`;
-    statusMessage += `• \`.welcome on/off\` - Toggle welcome messages\n`;
-    statusMessage += `• \`.adminevent on/off\` - Toggle admin event notifications\n`;
-    statusMessage += `• \`.antiedit private/chat on/off\` - Anti-edit settings\n`;
-    statusMessage += `• \`.antidelete private/chat on/off\` - Anti-delete settings\n`;
-    statusMessage += `• \`.autoreact on/off\` - Auto-react to messages\n`;
-    statusMessage += `• \`.autobio on/off\` - Auto-bio changer\n`;
+    if (args[0] === 'on' || args[0] === 'off') {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        const success = updateSetting(botNumber, 'autorecording', args[0] === 'on');
+        
+        if (success) {
+            await saveDatabase();
+            reply(`✅ Auto-recording ${args[0] === 'on' ? 'enabled' : 'disabled'}`);
+        } else {
+            reply('❌ Failed to update auto-recording setting');
+        }
+    } else {
+        reply(`❌ Usage: ${prefix}autorecording <on/off>`);
+    }
+    break;
+}
+case 'chatbot':
+case 'aichat': {
+    if (!Access) return reply(mess.owner);
+        
+    if (args[0] === 'on' || args[0] === 'off') {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        const success = updateSetting(botNumber, 'AI_CHAT', args[0] === 'on');
+        
+        if (success) {
+            await saveDatabase();
+            reply(`✅ AI Chatbot set to: ${args[0]}`);
+        } else {
+            reply('❌ Failed to update AI chatbot setting');
+        }
+    } else {
+        reply(`❌ Usage: ${prefix}aichat <on/off>`);
+    }
+    break;
+}
+case 'autoreact': {
+    if (!Access) return reply(mess.owner);
+    
+    
+    if (args[0] === 'on' || args[0] === 'off') {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        const success = updateSetting(botNumber, 'autoreact', args[0] === 'on');
+        
+        if (success) {
+            await saveDatabase();
+            reply(`✅ Auto-react set to: ${args[0]}`);
+        } else {
+            reply('❌ Failed to update auto-react setting');
+        }
+    } else {
+        reply(`❌ Usage: ${prefix}autoreact <on/off>`);
+    }
+    break;
+}
+case 'autoviewstatus': {
+    if (!Access) return reply(mess.owner);
+    
+    if (args[0] === 'on' || args[0] === 'off') {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        const success = updateSetting(botNumber, 'autoviewstatus', args[0] === 'on');
+        
+        if (success) {
+            reply(`✅ Auto-view status set to: ${args[0]}`);
+        } else {
+            reply('❌ Failed to update auto-view status setting');
+        }
+    } else {
+        reply(`❌ Usage: ${prefix}autoviewstatus <on/off>`);
+    }
+    break;
+}
 
-    await reply(statusMessage);
+case 'autoreactstatus': {
+    if (!Access) return reply(mess.owner);
+    
+    if (args[0] === 'on' || args[0] === 'off') {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        const success = updateSetting(botNumber, 'autoreactstatus', args[0] === 'on');
+        
+        if (success) {
+            reply(`✅ Auto-react status set to: ${args[0]}`);
+        } else {
+            reply('❌ Failed to update auto-react status setting');
+        }
+    } else {
+        reply(`❌ Usage: ${prefix}autoreactstatus <on/off>`);
+    }
+    break;
+}
+
+case 'autobio': {
+    if (!Access) return reply(mess.owner);
+    
+    if (args[0] === 'on' || args[0] === 'off') {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        const success = updateSetting(botNumber, 'autobio', args[0] === 'on');
+        
+        if (success) {
+            reply(`✅ Auto-bio set to: ${args[0]}`);
+        } else {
+            reply('❌ Failed to update auto-bio setting');
+        }
+    } else {
+        reply(`❌ Usage: ${prefix}autobio <on/off>`);
+    }
+    break;
+}
+case 'anticall': {
+    if (!Access) return reply(mess.owner);
+    
+    if (args[0] === 'decline' || args[0] === 'block' || args[0] === 'decline_block' || args[0] === 'off') {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        const value = args[0] === 'off' ? false : args[0];
+        const success = updateSetting(botNumber, 'anticall', value);
+        
+        if (success) {
+            await saveDatabase();
+            if (args[0] === 'off') {
+                reply('✅ Anticall feature disabled');
+            } else {
+                reply(`✅ Anticall mode set to: ${args[0]}\n\n` +
+                      `📞 *Modes:*\n` +
+                      `• decline - Decline calls and notify caller\n` +
+                      `• block - Block callers automatically\n` +
+                      `• decline_block - Decline and block callers\n` +
+                      `• off - Disable anticall feature`);
+            }
+        } else {
+            reply('❌ Failed to update anticall setting');
+        }
+    } else {
+        reply(`❌ Usage: ${prefix}anticall <decline/block/decline_block/off>\n\n` +
+              `📞 *Available Modes:*\n` +
+              `• decline - Decline calls with notification\n` +
+              `• block - Block callers automatically\n` +
+              `• decline_block - Decline then block\n` +
+              `• off - Disable anticall`);
+    }
+    break;
+}
+case 'settings': {
+    if (!Access) return reply(mess.owner);
+    
+    const botNumber = await conn.decodeJid(conn.user.id);
+    const settings = global.db.getSettings(botNumber);
+    
+    let settingsText = `⚙️ *CURRENT BOT SETTINGS*\n\n`;
+    
+    // Format settings for display
+    for (const [key, value] of Object.entries(settings)) {
+        let displayValue;
+        
+        if (typeof value === 'boolean') {
+            displayValue = value ? '✅ ON' : '❌ OFF';
+        } else if (value === false) {
+            displayValue = '❌ OFF';
+        } else {
+            displayValue = `📝 ${value}`;
+        }
+        
+        settingsText += `• *${key.toUpperCase()}*: ${displayValue}\n`;
+    }
+    
+    settingsText += `\n💾 *All settings are saved automatically*`;
+    
+    reply(settingsText);
+    break;
+}
+
+case 'resetsettings': {
+    if (!Access) return reply(mess.owner)
+    
+    const settingToReset = args[0]?.toLowerCase();
+    
+    if (!settingToReset) {
+        return reply(`❌ Usage: ${prefix}reset <setting_name>\nExample: ${prefix}reset antidelete`);
+    }
+    
+    const botNumber = await conn.decodeJid(conn.user.id);
+    const settings = global.db.getSettings(botNumber);
+    
+    // Default values for reset
+    const defaultValues = {
+        'antidelete': false,
+        'antiedit': false,
+        'welcome': false,
+        'adminevent': false,
+        'autoread': false,
+        'autotyping': false,
+        'autoreact': false,
+        'autoviewstatus': false,
+        'autoreactstatus': false,
+        'autobio': false,
+        'anticall': false,
+        'antibug': false,
+        'autorecord': false,
+        'ai_chat': false
+    };
+    
+    if (settingToReset === 'all') {
+        // Reset all settings to defaults
+        for (const [key, defaultValue] of Object.entries(defaultValues)) {
+            settings[key] = defaultValue;
+            global[key] = defaultValue;
+        }
+        
+        await saveDatabase(botNumber, settings);
+        reply('✅ All settings have been reset to defaults');
+        
+    } else if (defaultValues.hasOwnProperty(settingToReset)) {
+        // Reset specific setting
+        settings[settingToReset] = defaultValues[settingToReset];
+        global[settingToReset] = defaultValues[settingToReset];
+        
+        await saveDatabase(botNumber, settings);
+        reply(`✅ *${settingToReset.toUpperCase()}* has been reset to default`);
+        
+    } else {
+        reply(`❌ Invalid setting name. Available: ${Object.keys(defaultValues).join(', ')} or 'all'`);
+    }
+    
+}
+break
+case 'welcome': 
+case 'wel': {
+    if (!Access) return reply(mess.owner);
+    
+    if (args[0] === 'on' || args[0] === 'off') {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        const success = updateSetting(botNumber, 'welcome', args[0] === 'on');
+        
+        if (success) {
+            await saveDatabase();
+            reply(`✅ Welcome messages ${args[0] === 'on' ? 'enabled' : 'disabled'}`);
+        } else {
+            reply('❌ Failed to update welcome setting');
+        }
+    } else {
+        reply(`❌ Usage: ${prefix}welcome <on/off>`);
+    }
+    
+}
+break
+case 'adminevent': 
+case 'adminevents': {
+    if (!Access) return reply(mess.owner);
+    
+    if (args[0] === 'on' || args[0] === 'off') {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        const success = updateSetting(botNumber, 'adminevent', args[0] === 'on');
+        
+        if (success) {
+            await saveDatabase();
+            reply(`✅ Admin events ${args[0] === 'on' ? 'enabled' : 'disabled'}`);
+        } else {
+            reply('❌ Failed to update admin events setting');
+        }
+    } else {
+        reply(`❌ Usage: ${prefix}adminevent <on/off>`);
+    }
+    ;
 }
 break
 case 'deletepp':
@@ -3427,7 +3013,7 @@ case "developer": {
     // Developer information (replace with your actual details)
     const devInfo = {
       name: "Kevin Tech",      // Developer name
-      number: "256755585369",  // Developer WhatsApp number (without + or @)
+      number: "256755434075",  // Developer WhatsApp number (without + or @)
       organization: "Vinic-Xmd Development Team",
       note: "Bot Developer"
     };
@@ -9508,95 +9094,83 @@ if (!Access) return reply(mess.owner);
         });
 }
 break
-case "antilink": {
-    if (!m.isGroup) return reply('❌ This command can only be used in groups.');
-    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
-    
-    if (args.length < 2) return reply(`Example: 
-${prefix + command} delete on/off
-${prefix + command} warn on/off  
-${prefix + command} kick on/off
-${prefix + command} status`);
-
-    const actionType = args[0].toLowerCase();
-    const option = args[1] ? args[1].toLowerCase() : 'status';
-
-    // Use setting.config structure for group settings
-    if (!global.db.data.settings) global.db.data.settings = {};
-    if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-    let setting = global.db.data.settings[botNumber];
-    if (!setting.config) setting.config = {};
-
-    // Initialize group-specific settings in config
-    if (!setting.config.groupSettings) setting.config.groupSettings = {};
-    if (!setting.config.groupSettings[m.chat]) setting.config.groupSettings[m.chat] = {};
-
-    let groupSettings = setting.config.groupSettings[m.chat];
-
-    if (option === "status") {
-        const status = groupSettings.antilink ? "Enabled" : "Disabled";
-        const action = groupSettings.antilinkaction || "delete";
-        reply(`🔗 Anti-link Status:
-• Status: ${status}
-• Action: ${action}
-• Group: ${(await conn.groupMetadata(m.chat)).subject}`);
-        return;
-    }
-
-    if (option !== "on" && option !== "off") {
-        return reply('❌ Invalid option. Use "on" or "off"');
-    }
-
-    const validActions = ["delete", "warn", "kick"];
-    if (!validActions.includes(actionType)) {
-        return reply('❌ Invalid action. Use: delete, warn, or kick');
-    }
-
-    if (option === "on") {
-        groupSettings.antilink = true;
-        groupSettings.antilinkaction = actionType;
-        reply(`✅ Anti-link ${actionType} mode enabled!`);
-    } else {
-        groupSettings.antilink = false;
-        reply(`✅ Anti-link disabled!`);
-    }
-
-    await saveDatabase();
-    
-}
-break
-case 'mentioning': 
-case 'antitag': {
+case 'antilink': {
     if (!m.isGroup) return reply('❌ This command only works in groups!');
     if (!isGroupAdmins) return reply('❌ Only admins can use this command!');
     
-    const action = args[0]?.toLowerCase();
-    const validActions = ['warn', 'delete', 'kick', 'off'];
+    const subcmd = args[0]?.toLowerCase();
     
-    if (!action || !validActions.includes(action)) {
-        return reply(`⚙️ *Anti-Tag Settings*\n\nUsage: .antitag <action>\n\nActions:\n• warn - Delete and warn user\n• delete - Delete only\n• kick - Delete and kick user\n• off - Disable anti-tag`);
+    if (!subcmd) {
+        return reply(`⚙️ *Anti-Link Settings*\n\nCommands:\n• ${prefix}antilink warn - Enable with warnings\n• ${prefix}antilink kick - Enable with instant kick\n• ${prefix}antilink delete - Enable delete only\n• ${prefix}antilink off - Disable`);
     }
     
     const botNumber = await conn.decodeJid(conn.user.id);
     
-    if (!global.db.data.settings[botNumber].config.groupSettings) {
-        global.db.data.settings[botNumber].config.groupSettings = {};
-    }
-    if (!global.db.data.settings[botNumber].config.groupSettings[m.chat]) {
-        global.db.data.settings[botNumber].config.groupSettings[m.chat] = {};
+    // Get current group settings
+    const groupSettings = global.db.getGroupSettings(m.chat) || {};
+    
+    switch (subcmd) {
+        case 'warn':
+        case 'kick':
+        case 'delete':
+            groupSettings.antilink = true;
+            groupSettings.antilinkaction = subcmd;
+            global.db.saveGroupSettings(m.chat, groupSettings);
+            await saveDatabase();
+            reply(`✅ Anti-link enabled with *${subcmd}* action!`);
+            break;
+            
+        case 'off':
+            groupSettings.antilink = false;
+            delete groupSettings.antilinkaction;
+            global.db.saveGroupSettings(m.chat, groupSettings);
+            await saveDatabase();
+            reply('✅ Anti-link disabled!');
+            break;
+            
+        default:
+            reply('❌ Invalid subcommand! Use .antilink for help.');
     }
     
-    if (action === 'off') {
-        delete global.db.data.settings[botNumber].config.groupSettings[m.chat].antitag;
-        delete global.db.data.settings[botNumber].config.groupSettings[m.chat].antitagaction;
-        reply('✅ Anti-tag disabled for this group.');
-    } else {
-        global.db.data.settings[botNumber].config.groupSettings[m.chat].antitag = true;
-        global.db.data.settings[botNumber].config.groupSettings[m.chat].antitagaction = action;
-        reply(`✅ Anti-tag enabled with *${action}* action!`);
+}
+break
+case 'antitag': {
+    if (!m.isGroup) return reply('❌ This command only works in groups!');
+    if (!isGroupAdmins) return reply('❌ Only admins can use this command!');
+    
+    const subcmd = args[0]?.toLowerCase();
+    
+    if (!subcmd) {
+        return reply(`⚙️ *Anti-Tag Settings*\n\nCommands:\n• ${prefix}antitag warn - Enable with warnings\n• ${prefix}antitag kick - Enable with instant kick\n• ${prefix}antitag delete - Enable delete only\n• ${prefix}antitag off - Disable`);
     }
     
-    await saveDatabase();
+    const botNumber = await conn.decodeJid(conn.user.id);
+    
+    // Get current group settings
+    const groupSettings = global.db.getGroupSettings(m.chat) || {};
+    
+    switch (subcmd) {
+        case 'warn':
+        case 'kick':
+        case 'delete':
+            groupSettings.antitag = true;
+            groupSettings.antitagaction = subcmd;
+            global.db.saveGroupSettings(m.chat, groupSettings);
+            await saveDatabase();
+            reply(`✅ Anti-tag enabled with *${subcmd}* action!`);
+            break;
+            
+        case 'off':
+            groupSettings.antitag = false;
+            delete groupSettings.antitagaction;
+            global.db.saveGroupSettings(m.chat, groupSettings);
+            await saveDatabase();
+            reply('✅ Anti-tag disabled!');
+            break;
+            
+        default:
+            reply('❌ Invalid subcommand! Use .antitag for help.');
+    }
     
 }
 break
@@ -9607,19 +9181,13 @@ case 'antibadword': {
     const subcmd = args[0]?.toLowerCase();
     
     if (!subcmd) {
-        return reply(`⚙️ *Anti-BadWord Settings*\n\nCommands:\n• .antibadword warn - Enable with warnings\n• .antibadword kick - Enable with instant kick\n• .antibadword delete - Enable delete only\n• .antibadword off - Disable\n• .antibadword add <word> - Add bad word\n• .antibadword del <word> - Remove bad word\n• .antibadword list - Show bad words`);
+        return reply(`⚙️ *Anti-BadWord Settings*\n\nCommands:\n• ${prefix}antibadword warn - Enable with warnings\n• ${prefix}antibadword kick - Enable with instant kick\n• ${prefix}antibadword delete - Enable delete only\n• ${prefix}antibadword off - Disable\n• ${prefix}antibadword add <word> - Add bad word\n• ${prefix}antibadword del <word> - Remove bad word\n• ${prefix}antibadword list - Show bad words`);
     }
     
     const botNumber = await conn.decodeJid(conn.user.id);
     
-    if (!global.db.data.settings[botNumber].config.groupSettings) {
-        global.db.data.settings[botNumber].config.groupSettings = {};
-    }
-    if (!global.db.data.settings[botNumber].config.groupSettings[m.chat]) {
-        global.db.data.settings[botNumber].config.groupSettings[m.chat] = {};
-    }
-    
-    const groupSettings = global.db.data.settings[botNumber].config.groupSettings[m.chat];
+    // Get current group settings
+    const groupSettings = global.db.getGroupSettings(m.chat) || {};
     
     switch (subcmd) {
         case 'warn':
@@ -9628,12 +9196,16 @@ case 'antibadword': {
             groupSettings.antibadword = true;
             groupSettings.badwordaction = subcmd;
             if (!groupSettings.badwords) groupSettings.badwords = [];
+            global.db.saveGroupSettings(m.chat, groupSettings);
+            await saveDatabase();
             reply(`✅ Anti-badword enabled with *${subcmd}* action!`);
             break;
             
         case 'off':
-            delete groupSettings.antibadword;
+            groupSettings.antibadword = false;
             delete groupSettings.badwordaction;
+            global.db.saveGroupSettings(m.chat, groupSettings);
+            await saveDatabase();
             reply('✅ Anti-badword disabled!');
             break;
             
@@ -9642,14 +9214,19 @@ case 'antibadword': {
             if (!wordToAdd) return reply('❌ Please provide a word to add!');
             if (!groupSettings.badwords) groupSettings.badwords = [];
             groupSettings.badwords.push(wordToAdd.toLowerCase());
+            global.db.saveGroupSettings(m.chat, groupSettings);
+            await saveDatabase();
             reply(`✅ Added "*${wordToAdd}*" to bad words list!`);
             break;
             
         case 'del':
+        case 'remove':
             const wordToDel = args.slice(1).join(' ');
             if (!wordToDel) return reply('❌ Please provide a word to remove!');
             if (groupSettings.badwords) {
                 groupSettings.badwords = groupSettings.badwords.filter(w => w !== wordToDel.toLowerCase());
+                global.db.saveGroupSettings(m.chat, groupSettings);
+                await saveDatabase();
                 reply(`✅ Removed "*${wordToDel}*" from bad words list!`);
             }
             break;
@@ -9664,8 +9241,6 @@ case 'antibadword': {
         default:
             reply('❌ Invalid subcommand! Use .antibadword for help.');
     }
-    
-    await saveDatabase();
     
 }
 break
