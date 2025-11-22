@@ -80,11 +80,8 @@ const {
 } = require('./start/lib/myfunction');
 
 const {
-handleAutoReact,
 checkAndHandleLinks,
-handleLinkViolation,
 detectUrls,
-saveDatabase,
 handleStatusUpdate
  } = require('./vinic');
 
@@ -94,6 +91,46 @@ const {
   writeExifImg,
   writeExifVid
 } = require('./start/lib/exif');
+
+const { initializeDatabase, saveDatabase } = require('./start/KelvinCmds/core/databases');
+
+// Initialize database
+if (!global.db) {
+    try {
+        initializeDatabase();
+        console.log(chalk.green('✅ Database initialized successfully'));
+    } catch (error) {
+        console.error(chalk.red('❌ Database initialization failed:'), error);
+        // Create fallback structure to prevent crashes
+        global.db = {
+            data: {
+                settings: {},
+                users: {},
+                chats: {}
+            },
+            saveSettings: (botNumber, config) => {
+                if (!global.db.data.settings[botNumber]) {
+                    global.db.data.settings[botNumber] = {};
+                }
+                global.db.data.settings[botNumber] = config;
+            },
+            getSettings: (botNumber) => {
+                return global.db.data.settings[botNumber] || {};
+            },
+            saveGroupSettings: (groupJid, settings) => {
+                // Fallback implementation
+            },
+            getGroupSettings: (groupJid) => {
+                return {};
+            }
+        };
+    }
+}
+
+// Ensure global settings structure exists
+if (!global.db.data.settings) {
+    global.db.data.settings = {};
+}
 
 // Define constants for session handling
 const SESSION_DIR = './session';
@@ -136,7 +173,7 @@ async function getSessionData() {
         }
         
         const sessionData = await response.json();
-        console.log(chalk.green("[ ✅ ] Session data fetched successfully from server"));
+        console.log(chalk.blue("[ ✅ ] Session data fetched successfully from server"));
         return sessionData;
         
     } catch (error) {
@@ -264,9 +301,10 @@ async function clientstart() {
     try {
         const { version } = await fetchLatestBaileysVersion();
         waVersion = version;
-        console.log(chalk.green(`[✅] Using Baileys version: ${waVersion}`));
+        console.log(chalk.yellow("[ 🟠 ] Connecting to WhatsApp ⏳️..."));
+        
     } catch (error) {
-        console.log(chalk.yellow(`[⚠️] Using stable fallback version`));
+        console.log(chalk.blue(`[⚠️] Using stable fallback version`));
         waVersion = [2, 3000, 1017546695];
     }
 
@@ -320,15 +358,7 @@ async function clientstart() {
 
 const botNumber = conn.decodeJid(conn.user?.id) || 'default';
 
-// LOAD PERSISTENT SETTINGS ON STARTUP
-try {
-    const { loadPersistentSettings, startAutoSave } = require('./vinic');
-    await loadPersistentSettings(conn);
-    startAutoSave();
-} catch (error) {
-    const { initializeDatabase } = require('./vinic');
-    initializeDatabase(null, botNumber);
-}
+
 
     // Run cleanup every 30 minutes
     setInterval(cleanupTmpFiles, 30 * 60 * 1000);
@@ -458,10 +488,10 @@ try {
             // Conditionally enable features based on memory
             if (!isLowMemory) {
             
-            await handleAutoReact(m, conn);  
+            
             await checkAndHandleLinks(mek, conn);
             await detectUrls(mek, conn);
-            await handleLinkViolation(mek, conn);
+           
             }
             
             require("./start/kevin")(conn, m, chatUpdate, mek, store);
@@ -783,28 +813,29 @@ conn.ev.on('contacts.update', update => {
     try {
         const botNumber = await conn.decodeJid(conn.user.id);
         
-        // Check welcome setting from config
-        if (global.db.data.settings && global.db.data.settings[botNumber] && global.db.data.settings[botNumber].config) {
-            const config = global.db.data.settings[botNumber].config;
-            
-            // WELCOME FEATURE
-            if (config.welcome) {
-                try {
-                    const groupMetadata = await conn.groupMetadata(anu.id);
-                    const participants = anu.participants;
-                    for (const participant of participants) {
-                        let ppUrl;
-                        try {
-                            ppUrl = await conn.profilePictureUrl(participant, 'image');
-                        } catch {
-                            ppUrl = 'https://i.ibb.co/RBx5SQC/avatar-group-large-v2.png?q=60';
-                        }
-                        const name = (await conn.onWhatsApp(participant))[0]?.notify || participant;
-                        if (anu.action === 'add') {
-                            const memberCount = groupMetadata.participants.length;
-                            await conn.sendMessage(anu.id, {
-                                image: { url: ppUrl },
-                                caption: `
+        // Get welcome setting from database
+        const settings = global.db.getSettings(botNumber);
+        const welcomeSetting = settings?.welcome || false;
+        const admineventSetting = settings?.adminevent || false;
+        
+        // WELCOME FEATURE
+        if (welcomeSetting) {
+            try {
+                const groupMetadata = await conn.groupMetadata(anu.id);
+                const participants = anu.participants;
+                for (const participant of participants) {
+                    let ppUrl;
+                    try {
+                        ppUrl = await conn.profilePictureUrl(participant, 'image');
+                    } catch {
+                        ppUrl = 'https://i.ibb.co/RBx5SQC/avatar-group-large-v2.png?q=60';
+                    }
+                    const name = (await conn.onWhatsApp(participant))[0]?.notify || participant;
+                    if (anu.action === 'add') {
+                        const memberCount = groupMetadata.participants.length;
+                        await conn.sendMessage(anu.id, {
+                            image: { url: ppUrl },
+                            caption: `
    *${global.botname} welcome* @${participant.split('@')[0]}  
    
    *𝙶𝚛𝚘𝚞𝚙𝙽𝚊𝚖𝚎: ${groupMetadata.subject}*
@@ -816,13 +847,13 @@ conn.ev.on('contacts.update', update => {
 𝙲𝚊𝚞𝚜𝚎 𝚌𝚑𝚊𝚘𝚜 𝚒𝚝𝚜 𝚊𝚕𝚠𝚊𝚢𝚜 𝚏𝚞𝚗
 
 > ${global.wm}`,
-                                mentions: [participant]
-                            });
-                        } else if (anu.action === 'remove') {
-                            const memberCount = groupMetadata.participants.length;
-                            await conn.sendMessage(anu.id, {
-                                image: { url: ppUrl },
-                                caption: `
+                            mentions: [participant]
+                        });
+                    } else if (anu.action === 'remove') {
+                        const memberCount = groupMetadata.participants.length;
+                        await conn.sendMessage(anu.id, {
+                            image: { url: ppUrl },
+                            caption: `
   *👋 Goodbye* 😪 @${participant.split('@')[0]}
   
   *Left at: ${moment.tz(timezones).format('HH:mm:ss')},  ${moment.tz(timezones).format('DD/MM/YYYY')}*
@@ -830,218 +861,309 @@ conn.ev.on('contacts.update', update => {
   *We're now ${memberCount} members*.
   
 > ${global.wm}`,
-                                mentions: [participant]
-                            });
-                        }
+                            mentions: [participant]
+                        });
                     }
-                } catch (err) {
-                    console.error('Error in welcome feature:', err);
                 }
+            } catch (err) {
+                console.error('Error in welcome feature:', err);
             }
-            
-            // ADMIN EVENT FEATURE
-            if (config.adminevent) {
-                console.log(anu);
-                if (anu.participants.includes(botNumber)) return;
-                try {
-                    let metadata = await conn.groupMetadata(anu.id);
-                    let participants = anu.participants;
+        }
+        
+        // ADMIN EVENT FEATURE
+        if (admineventSetting) {
+            console.log(anu);
+            if (anu.participants.includes(botNumber)) return;
+            try {
+                let metadata = await conn.groupMetadata(anu.id);
+                let participants = anu.participants;
+                
+                for (let num of participants) {
+                    let check = anu.author !== num && anu.author && anu.author.length > 1;
+                    let tag = check ? [anu.author, num] : [num];
+                    let ppuser;
                     
-                    for (let num of participants) {
-                        let check = anu.author !== num && anu.author && anu.author.length > 1;
-                        let tag = check ? [anu.author, num] : [num];
-                        let ppuser;
-                        
-                        try {
-                            ppuser = await conn.profilePictureUrl(num, 'image');
-                        } catch {
-                            ppuser = 'https://i.ibb.co/RBx5SQC/avatar-group-large-v2.png?q=60';
-                        }
-                        
-                        if (anu.action == "promote") {
-                            // Get usernames for promoted users
-                            let promotedUsernames = [];
-                            for (let participant of participants) {
-                                let name = await conn.getName(participant) || participant.split('@')[0];
-                                promotedUsernames.push(name);
-                            }
-                            
-                            // Get admin name who performed the action
-                            let adminName = await conn.getName(anu.author) || anu.author.split('@')[0];
-                            
-                            const promotionMessage = `*『 GROUP PROMOTION 』*\n\n` +
-                                `👤 *Promoted User${participants.length > 1 ? 's' : ''}:*\n` +
-                                `${promotedUsernames.map(name => `• ${name}`).join('\n')}\n\n` +
-                                `👑 *Promoted By:* ${adminName}\n\n` +
-                                `📅 *Date:* ${new Date().toLocaleString()}`;
-                            
-                            await conn.sendMessage(anu.id, {
-                                text: promotionMessage,
-                                mentions: tag
-                            });
-                        }
-                        
-                        if (anu.action == "demote") {
-                            // Get usernames for demoted users
-                            let demotedUsernames = [];
-                            for (let participant of participants) {
-                                let name = await conn.getName(participant) || participant.split('@')[0];
-                                demotedUsernames.push(name);
-                            }
-                            
-                            // Get admin name who performed the action
-                            let adminName = await conn.getName(anu.author) || anu.author.split('@')[0];
-                            
-                            const demotionMessage = `*『 GROUP DEMOTION 』*\n\n` +
-                                `👤 *Demoted User${participants.length > 1 ? 's' : ''}:*\n` +
-                                `${demotedUsernames.map(name => `• ${name}`).join('\n')}\n\n` +
-                                `👑 *Demoted By:* ${adminName}\n\n` +
-                                `📅 *Date:* ${new Date().toLocaleString()}`;
-                            
-                            await conn.sendMessage(anu.id, {
-                                text: demotionMessage,
-                                mentions: tag
-                            });
-                        }
+                    try {
+                        ppuser = await conn.profilePictureUrl(num, 'image');
+                    } catch {
+                        ppuser = 'https://i.ibb.co/RBx5SQC/avatar-group-large-v2.png?q=60';
                     }
-                } catch (err) {
-                    console.log('Error in admin event feature:', err);
+                    
+                    if (anu.action == "promote") {
+                        // Get usernames for promoted users
+                        let promotedUsernames = [];
+                        for (let participant of participants) {
+                            let name = await conn.getName(participant) || participant.split('@')[0];
+                            promotedUsernames.push(name);
+                        }
+                        
+                        // Get admin name who performed the action
+                        let adminName = await conn.getName(anu.author) || anu.author.split('@')[0];
+                        
+                        const promotionMessage = `*『 GROUP PROMOTION 』*\n\n` +
+                            `👤 *Promoted User${participants.length > 1 ? 's' : ''}:*\n` +
+                            `${promotedUsernames.map(name => `• ${name}`).join('\n')}\n\n` +
+                            `👑 *Promoted By:* ${adminName}\n\n` +
+                            `📅 *Date:* ${new Date().toLocaleString()}`;
+                        
+                        await conn.sendMessage(anu.id, {
+                            text: promotionMessage,
+                            mentions: tag
+                        });
+                    }
+                    
+                    if (anu.action == "demote") {
+                        // Get usernames for demoted users
+                        let demotedUsernames = [];
+                        for (let participant of participants) {
+                            let name = await conn.getName(participant) || participant.split('@')[0];
+                            demotedUsernames.push(name);
+                        }
+                        
+                        // Get admin name who performed the action
+                        let adminName = await conn.getName(anu.author) || anu.author.split('@')[0];
+                        
+                        const demotionMessage = `*『 GROUP DEMOTION 』*\n\n` +
+                            `👤 *Demoted User${participants.length > 1 ? 's' : ''}:*\n` +
+                            `${demotedUsernames.map(name => `• ${name}`).join('\n')}\n\n` +
+                            `👑 *Demoted By:* ${adminName}\n\n` +
+                            `📅 *Date:* ${new Date().toLocaleString()}`;
+                        
+                        await conn.sendMessage(anu.id, {
+                            text: demotionMessage,
+                            mentions: tag
+                        });
+                    }
                 }
-            } 
+            } catch (err) {
+                console.log('Error in admin event feature:', err);
+            }
         } 
     } catch (error) {
         console.error('Error in group-participants.update:', error);
     }
-  }); 
+});
 
   // Initialize global variables for anticall feature
-  if (!global.recentCallers) {
-    global.recentCallers = new Map();
-  }
+if (!global.recentCallers) {
+  global.recentCallers = new Map();
+}
 
-  // Initialize anticall variables with safe defaults
-  if (typeof global.anticall === 'undefined') {
-    global.anticall = true; // Enable anticall by default
-  }
-
-  if (!global.anticallMessage) {
-    global.anticallMessage = `🚨 *𝙲𝙰𝙻𝙻 𝙳𝙴𝚃𝙴𝙲𝚃𝙴𝙳!* 🚨\n\n, *🌹Hi. I am 👑${global.botname}, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kelvin Tech.*
-  
-    *My owner cannot receive calls at this moment. Please avoid unnecessary calling.*
+// Anticall handler with clear messages
+conn.ev.on('call', async (callData) => {
+  try {
+    const botNumber = await conn.decodeJid(conn.user.id);
+    const config = global.db.data.settings[botNumber]?.config;
     
-> ${global.wm}`;
-  }
-
-  // Updated Anticall handler
-  conn.ev.on('call', async (callData) => {
-    try {
-      const botNumber = await conn.decodeJid(conn.user.id);
-      const config = global.db.data.settings[botNumber]?.config;
-      
-      // Check if anticall is enabled
-      if (!config || !config.anticall) return;
-      
-      for (let call of callData) {
-        const from = call.from;
-        const callId = call.id;
-        
-        // Check if caller is owner
-        if (Array.isArray(global.ownernumber) && global.ownernumber.includes(from.split('@')[0])) {
-          console.log(chalk.green(`[ANTICALL] Allowing call from owner: ${from}`));
-          continue;
-        }
-        
-        // Safe check for recentCallers with initialization fallback
-        try {
-          const now = Date.now();
-          const lastWarn = global.recentCallers.get(from) || 0;
-          const COOLDOWN = 30 * 1000; // 30 seconds cooldown per caller
-          if (now - lastWarn < COOLDOWN) {
-            console.log(chalk.yellow(`[ANTICALL] Suppressing repeated warning to ${from}`));
-            // still attempt to reject/block silently
-            try {
-              if (config.anticall === "decline" && typeof conn.rejectCall === 'function') {
-                await conn.rejectCall(callId, from);
-              } else if (config.anticall === "block") {
-                await conn.updateBlockStatus(from, "block");
-              }
-            } catch (e) {}
-            continue;
-          }
-          global.recentCallers.set(from, now);
-          // auto cleanup after cooldown
-          setTimeout(() => global.recentCallers.delete(from), COOLDOWN);
-        } catch (e) {
-          console.error(chalk.red('[ANTICALL] recentCallers check failed:'), e);
-          // Initialize if it's still not working
-          if (!global.recentCallers) global.recentCallers = new Map();
-        }
-        
-        console.log(chalk.yellow(`[ANTICALL] ${config.anticall === "block" ? "Blocking" : "Declining"} call from: ${from}`));
-        
-        // Handle based on anticall mode
-        if (config.anticall === "decline") {
-          // DECLINE MODE: Send warning message and decline call
-          try {
-            const warningMessage = global.anticallMessage || 
-              `🚫 @${call.from.split('@')[0]}, my owner cannot receive audio calls and video calls at this moment. Please avoid unnecessary calling.`;
-            
-            await conn.sendMessage(from, { text: warningMessage });
-            console.log(chalk.green(`[ANTICALL] Warning message sent to: ${from}`));
-          } catch (msgError) {
-            console.error(chalk.red('[ANTICALL] Failed to send message:'), msgError);
-          }
-          
-          try {
-            // Reject the call
-            if (typeof conn.rejectCall === 'function') {
-              await conn.rejectCall(callId, from);
-              console.log(chalk.green(`[ANTICALL] Successfully declined call from: ${from}`));
-            } else {
-              console.log(chalk.yellow('[ANTICALL] conn.rejectCall not available on this baileys build.'));
-            }
-          } catch (rejectError) {
-            console.error(chalk.red('[ANTICALL] Failed to decline call:'), rejectError);
-          }
-          
-        } else if (config.anticall === "block") {
-          // BLOCK MODE: Send message FIRST, then block
-          try {
-            // SEND MESSAGE BEFORE BLOCKING - THIS IS THE KEY FIX
-            const blockMessage = `@${call.from.split('@')[0]},*🌹Hi. I am 👑VINIC-XMD, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kelvin Tech.
-            
-      You have been blocked for calling. My owner does not accept calls.*
-      
-> ${global.wm}  `;
-            await conn.sendMessage(from, { text: blockMessage });
-            console.log(chalk.green(`[ANTICALL] Block warning sent to: ${from}`));
-            
-            // Add a small delay to ensure message is sent before blocking
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            // NOW BLOCK THE USER
-            await conn.updateBlockStatus(from, "block");
-            console.log(chalk.green(`[ANTICALL] Successfully blocked caller: ${from}`));
-            
-          } catch (blockError) {
-            console.error(chalk.red('[ANTICALL] Failed to block caller:'), blockError);
-            
-            // Fallback to decline if block fails
-            try {
-              if (typeof conn.rejectCall === 'function') {
-                await conn.rejectCall(callId, from);
-                console.log(chalk.yellow(`[ANTICALL] Fallback: Declined call after block failed: ${from}`));
-              }
-            } catch (fallbackError) {
-              console.error(chalk.red('[ANTICALL] Fallback decline also failed:'), fallbackError);
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error(chalk.red('[ANTICALL ERROR]'), error);
+    // Check if anticall is enabled from database
+    if (!config || !config.anticall) {
+      console.log(chalk.blue('[ANTICALL] Anticall is disabled in database'));
+      return;
     }
-  });
+    
+    for (let call of callData) {
+      const from = call.from;
+      const callerNumber = from.split('@')[0];
+      const callId = call.id;
+      
+      // Check if caller is owner
+      if (Array.isArray(global.ownernumber) && global.ownernumber.includes(callerNumber)) {
+        console.log(chalk.green(`[ANTICALL] ✅ Allowing call from owner: ${from}`));
+        continue;
+      }
+      
+      // Cooldown check
+      const now = Date.now();
+      const lastWarn = global.recentCallers.get(from) || 0;
+      const COOLDOWN = 30 * 1000; // 30 seconds cooldown per caller
+      
+      if (now - lastWarn < COOLDOWN) {
+        console.log(chalk.yellow(`[ANTICALL] ⏳ Suppressing repeated warning to ${from} (in cooldown)`));
+        continue;
+      }
+      
+      global.recentCallers.set(from, now);
+      setTimeout(() => global.recentCallers.delete(from), COOLDOWN);
+      
+      console.log(chalk.yellow(`[ANTICALL] 🚨 Call detected from: ${from} | Mode: ${config.anticall}`));
+      
+      // Handle based on anticall mode from database
+      if (config.anticall === "decline") {
+        await handleDeclineMode(from, callerNumber, callId, conn);
+      } else if (config.anticall === "block") {
+        await handleBlockMode(from, callerNumber, callId, conn);
+      } else if (config.anticall === "decline_block") {
+        await handleDeclineAndBlockMode(from, callerNumber, callId, conn);
+      }
+    }
+  } catch (error) {
+    console.error(chalk.red('[ANTICALL ERROR] ❌'), error);
+  }
+});
+
+// Handle Decline Mode
+async function handleDeclineMode(from, callerNumber, callId, conn) {
+  try {
+    // Message to caller
+    const callerMessage = `🚫 *Call Declined*\n\n` +
+      `Dear @${callerNumber},\n\n` +
+      `*${global.botname}* is an automated WhatsApp bot and cannot receive calls.\n\n` +
+      `📞 *Call Type:* ${getCallType(callId)}\n` +
+      `⏰ *Time:* ${new Date().toLocaleString()}\n\n` +
+      `Please contact my owner via text message instead.\n\n` +
+      `> ${global.wm}`;
+
+    // Message to bot owner
+    const ownerMessage = `📞 *Call Declined Notification*\n\n` +
+      `👤 *Caller:* @${callerNumber}\n` +
+      `📞 *Call Type:* ${getCallType(callId)}\n` +
+      `⏰ *Time:* ${new Date().toLocaleString()}\n` +
+      `🛡️ *Action:* Call was automatically declined\n\n` +
+      `The caller has been notified that this is a bot account.`;
+
+    // Send message to caller
+    await conn.sendMessage(from, { 
+      text: callerMessage,
+      mentions: [from]
+    });
+    console.log(chalk.green(`[ANTICALL] 📩 Decline message sent to caller: ${from}`));
+
+    // Send notification to all owners
+    if (global.ownernumber && Array.isArray(global.ownernumber)) {
+      for (let owner of global.ownernumber) {
+        const ownerJid = owner.includes('@s.whatsapp.net') ? owner : owner + '@s.whatsapp.net';
+        await conn.sendMessage(ownerJid, { 
+          text: ownerMessage,
+          mentions: [from]
+        });
+      }
+      console.log(chalk.green(`[ANTICALL] 📨 Owner notified about declined call from: ${from}`));
+    }
+
+    // Decline the call
+    if (typeof conn.rejectCall === 'function') {
+      await conn.rejectCall(callId, from);
+      console.log(chalk.green(`[ANTICALL] ✅ Successfully declined call from: ${from}`));
+    }
+
+  } catch (error) {
+    console.error(chalk.red('[ANTICALL DECLINE ERROR] ❌'), error);
+  }
+}
+
+// Handle Block Mode
+async function handleBlockMode(from, callerNumber, callId, conn) {
+  try {
+    // Message to caller before blocking
+    const blockMessage = `🚫 *Account Blocked*\n\n` +
+      `Dear @${callerNumber},\n\n` +
+      `You have been *blocked* for calling *${global.botname}*.\n\n` +
+      `📞 *Call Type:* ${getCallType(callId)}\n` +
+      `⏰ *Time:* ${new Date().toLocaleString()}\n` +
+      `🛡️ *Reason:* Unauthorized call to bot account\n\n` +
+      `This bot does not accept calls. Repeated calling violations may result in permanent blocking.\n\n` +
+      `> ${global.wm}`;
+
+    // Message to bot owner
+    const ownerMessage = `📞 *Call Blocked Notification*\n\n` +
+      `👤 *Caller:* @${callerNumber}\n` +
+      `📞 *Call Type:* ${getCallType(callId)}\n` +
+      `⏰ *Time:* ${new Date().toLocaleString()}\n` +
+      `🛡️ *Action:* Caller has been BLOCKED\n\n` +
+      `The caller has been blocked for attempting to call the bot.`;
+
+    // Send message to caller first
+    await conn.sendMessage(from, { 
+      text: blockMessage,
+      mentions: [from]
+    });
+    console.log(chalk.green(`[ANTICALL] 📩 Block warning sent to: ${from}`));
+
+    // Wait a moment to ensure message is delivered
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Block the user
+    await conn.updateBlockStatus(from, "block");
+    console.log(chalk.green(`[ANTICALL] ✅ Successfully blocked caller: ${from}`));
+
+    // Notify owners
+    if (global.ownernumber && Array.isArray(global.ownernumber)) {
+      for (let owner of global.ownernumber) {
+        const ownerJid = owner.includes('@s.whatsapp.net') ? owner : owner + '@s.whatsapp.net';
+        await conn.sendMessage(ownerJid, { 
+          text: ownerMessage,
+          mentions: [from]
+        });
+      }
+      console.log(chalk.green(`[ANTICALL] 📨 Owner notified about blocked caller: ${from}`));
+    }
+
+  } catch (error) {
+    console.error(chalk.red('[ANTICALL BLOCK ERROR] ❌'), error);
+  }
+}
+
+// Handle Decline and Block Mode
+async function handleDeclineAndBlockMode(from, callerNumber, callId, conn) {
+  try {
+    // Message to caller
+    const callerMessage = `🚫 *Call Declined & Account Blocked*\n\n` +
+      `Dear @${callerNumber},\n\n` +
+      `Your call has been *declined* and your number has been *blocked*.\n\n` +
+      `📞 *Call Type:* ${getCallType(callId)}\n` +
+      `⏰ *Time:* ${new Date().toLocaleString()}\n` +
+      `🛡️ *Action:* Call declined + Account blocked\n\n` +
+      `*${global.botname}* is an automated bot and does not accept calls.\n\n` +
+      `> ${global.wm}`;
+
+    // Message to bot owner
+    const ownerMessage = `📞 *Call Declined & Blocked Notification*\n\n` +
+      `👤 *Caller:* @${callerNumber}\n` +
+      `📞 *Call Type:* ${getCallType(callId)}\n` +
+      `⏰ *Time:* ${new Date().toLocaleString()}\n` +
+      `🛡️ *Action:* Call declined + Caller BLOCKED\n\n` +
+      `The caller has been blocked for attempting to call the bot.`;
+
+    // Send message to caller
+    await conn.sendMessage(from, { 
+      text: callerMessage,
+      mentions: [from]
+    });
+    console.log(chalk.green(`[ANTICALL] 📩 Decline+Block message sent to: ${from}`));
+
+    // Decline the call first
+    if (typeof conn.rejectCall === 'function') {
+      await conn.rejectCall(callId, from);
+      console.log(chalk.green(`[ANTICALL] ✅ Call declined from: ${from}`));
+    }
+
+    // Wait a moment then block
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    await conn.updateBlockStatus(from, "block");
+    console.log(chalk.green(`[ANTICALL] ✅ Caller blocked: ${from}`));
+
+    // Notify owners
+    if (global.ownernumber && Array.isArray(global.ownernumber)) {
+      for (let owner of global.ownernumber) {
+        const ownerJid = owner.includes('@s.whatsapp.net') ? owner : owner + '@s.whatsapp.net';
+        await conn.sendMessage(ownerJid, { 
+          text: ownerMessage,
+          mentions: [from]
+        });
+      }
+      console.log(chalk.green(`[ANTICALL] 📨 Owner notified about decline+block: ${from}`));
+    }
+
+  } catch (error) {
+    console.error(chalk.red('[ANTICALL DECLINE+BLOCK ERROR] ❌'), error);
+  }
+}
+
+// Helper function to get call type
+function getCallType(callId) {
+  // This is a simplified version - you might need to detect call type from call data
+  return "Voice/Video Call";
+}
 
   conn.getFile = async (PATH, returnAsFilename) => {
     let res, filename;
