@@ -2414,34 +2414,41 @@ case 'anticall': {
     break;
 }
 case 'settings': {
-    if (!Access) return reply(mess.owner);
-    
     const botNumber = await conn.decodeJid(conn.user.id);
-    const settings = global.db.getSettings(botNumber);
+    const currentSettings = global.db.getSettings(botNumber);
     
-    let settingsText = `⚙️ *CURRENT BOT SETTINGS*\n\n`;
+    const settingsList = `
+⚙️ *Bot Settings for ${global.botname}*
+
+🔒 *Security Settings:*
+• Antidelete: ${currentSettings?.antidelete ? '✅ ON' : '❌ OFF'}
+• Antiedit: ${currentSettings?.antiedit ? '✅ ON' : '❌ OFF'}
+• Anticall: ${currentSettings?.anticall ? '✅ ON' : '❌ OFF'}
+• Antistatus: ${currentSettings?.antistatus ? '✅ ON' : '❌ OFF'}
+
+🤖 *Automation Settings:*
+• Autoread: ${currentSettings?.autoread ? '✅ ON' : '❌ OFF'}
+• Autoreact: ${currentSettings?.autoreact ? '✅ ON' : '❌ OFF'}
+• Autoviewstatus: ${currentSettings?.autoviewstatus ? '✅ ON' : '❌ OFF'}
+• Autoreactstatus: ${currentSettings?.autoreactstatus ? '✅ ON' : '❌ OFF'}
+• Autorecording: ${currentSettings?.autorecording ? '✅ ON' : '❌ OFF'}
+
+👥 *Group Settings:*
+• Welcome: ${currentSettings?.welcome ? '✅ ON' : '❌ OFF'}
+• Admin Events: ${currentSettings?.adminevent ? '✅ ON' : '❌ OFF'}
+
+🤖 *AI Settings:*
+• AI Chat: ${currentSettings?.AI_CHAT ? '✅ ON' : '❌ OFF'}
+
+*Use commands like:* 
+• ${prefix}antidelete on/off
+• ${prefix}autorecording on/off
+• ${prefix}welcome on/off
+    `;
     
-    // Format settings for display
-    for (const [key, value] of Object.entries(settings)) {
-        let displayValue;
-        
-        if (typeof value === 'boolean') {
-            displayValue = value ? '✅ ON' : '❌ OFF';
-        } else if (value === false) {
-            displayValue = '❌ OFF';
-        } else {
-            displayValue = `📝 ${value}`;
-        }
-        
-        settingsText += `• *${key.toUpperCase()}*: ${displayValue}\n`;
-    }
-    
-    settingsText += `\n💾 *All settings are saved automatically*`;
-    
-    reply(settingsText);
+    await m.reply(settingsList);
     break;
 }
-
 case 'resetsettings': {
     if (!Access) return reply(mess.owner)
     
@@ -9095,85 +9102,71 @@ if (!Access) return reply(mess.owner);
 }
 break
 case 'antilink': {
-    if (!m.isGroup) return reply('❌ This command only works in groups!');
-    if (!isGroupAdmins) return reply('❌ Only admins can use this command!');
+    if (!m.isGroup) return reply('❌ This command can only be used in groups');
+    if (!isGroupAdmins) return reply('❌ You need to be admin to use this command');
     
-    const subcmd = args[0]?.toLowerCase();
+    const groupJid = m.chat;
+    const currentSettings = global.db.getGroupSettings(groupJid);
     
-    if (!subcmd) {
-        return reply(`⚙️ *Anti-Link Settings*\n\nCommands:\n• ${prefix}antilink warn - Enable with warnings\n• ${prefix}antilink kick - Enable with instant kick\n• ${prefix}antilink delete - Enable delete only\n• ${prefix}antilink off - Disable`);
+    if (args[0] === 'delete' || args[0] === 'warn' || args[0] === 'kick') {
+        const action = args[0];
+        const status = args[1] === 'on';
+        
+        if (!currentSettings.antilink) currentSettings.antilink = {};
+        currentSettings.antilink[action] = status;
+        
+        global.db.saveGroupSettings(groupJid, currentSettings);
+        await saveDatabase();
+        
+        reply(`✅ Antilink ${action} ${status ? 'enabled' : 'disabled'}`);
+    } else {
+        const status = currentSettings.antilink || {};
+        reply(`🔗 *Antilink Settings for this group:*
+        
+• Delete: ${status.delete ? '✅ ON' : '❌ OFF'}
+• Warn: ${status.warn ? '✅ ON' : '❌ OFF'}  
+• Kick: ${status.kick ? '✅ ON' : '❌ OFF'}
+
+*Usage:*
+• ${prefix}antilink delete on/off
+• ${prefix}antilink warn on/off
+• ${prefix}antilink kick on/off`);
     }
-    
-    const botNumber = await conn.decodeJid(conn.user.id);
-    
-    // Get current group settings
-    const groupSettings = global.db.getGroupSettings(m.chat) || {};
-    
-    switch (subcmd) {
-        case 'warn':
-        case 'kick':
-        case 'delete':
-            groupSettings.antilink = true;
-            groupSettings.antilinkaction = subcmd;
-            global.db.saveGroupSettings(m.chat, groupSettings);
-            await saveDatabase();
-            reply(`✅ Anti-link enabled with *${subcmd}* action!`);
-            break;
-            
-        case 'off':
-            groupSettings.antilink = false;
-            delete groupSettings.antilinkaction;
-            global.db.saveGroupSettings(m.chat, groupSettings);
-            await saveDatabase();
-            reply('✅ Anti-link disabled!');
-            break;
-            
-        default:
-            reply('❌ Invalid subcommand! Use .antilink for help.');
-    }
-    
+    break;
 }
-break
 case 'antitag': {
-    if (!m.isGroup) return reply('❌ This command only works in groups!');
-    if (!isGroupAdmins) return reply('❌ Only admins can use this command!');
+    if (!m.isGroup) return reply('❌ This command can only be used in groups');
+    if (!isGroupAdmins) return reply('❌ You need to be admin to use this command');
     
-    const subcmd = args[0]?.toLowerCase();
+    const groupJid = m.chat;
+    const currentSettings = global.db.getGroupSettings(groupJid);
     
-    if (!subcmd) {
-        return reply(`⚙️ *Anti-Tag Settings*\n\nCommands:\n• ${prefix}antitag warn - Enable with warnings\n• ${prefix}antitag kick - Enable with instant kick\n• ${prefix}antitag delete - Enable delete only\n• ${prefix}antitag off - Disable`);
+    if (args[0] === 'delete' || args[0] === 'warn' || args[0] === 'kick') {
+        const action = args[0];
+        const status = args[1] === 'on';
+        
+        if (!currentSettings.antitag) currentSettings.antitag = {};
+        currentSettings.antitag[action] = status;
+        
+        global.db.saveGroupSettings(groupJid, currentSettings);
+        await saveDatabase();
+        
+        reply(`✅ Antitag ${action} ${status ? 'enabled' : 'disabled'}`);
+    } else {
+        const status = currentSettings.antitag || {};
+        reply(`🏷️ *Antitag Settings for this group:*
+        
+• Delete: ${status.delete ? '✅ ON' : '❌ OFF'}
+• Warn: ${status.warn ? '✅ ON' : '❌ OFF'}  
+• Kick: ${status.kick ? '✅ ON' : '❌ OFF'}
+
+*Usage:*
+• ${prefix}antitag delete on/off
+• ${prefix}antitag warn on/off
+• ${prefix}antitag kick on/off`);
     }
-    
-    const botNumber = await conn.decodeJid(conn.user.id);
-    
-    // Get current group settings
-    const groupSettings = global.db.getGroupSettings(m.chat) || {};
-    
-    switch (subcmd) {
-        case 'warn':
-        case 'kick':
-        case 'delete':
-            groupSettings.antitag = true;
-            groupSettings.antitagaction = subcmd;
-            global.db.saveGroupSettings(m.chat, groupSettings);
-            await saveDatabase();
-            reply(`✅ Anti-tag enabled with *${subcmd}* action!`);
-            break;
-            
-        case 'off':
-            groupSettings.antitag = false;
-            delete groupSettings.antitagaction;
-            global.db.saveGroupSettings(m.chat, groupSettings);
-            await saveDatabase();
-            reply('✅ Anti-tag disabled!');
-            break;
-            
-        default:
-            reply('❌ Invalid subcommand! Use .antitag for help.');
-    }
-    
+    break;
 }
-break
 case 'antibadword': {
     if (!m.isGroup) return reply('❌ This command only works in groups!');
     if (!isGroupAdmins) return reply('❌ Only admins can use this command!');
@@ -9244,6 +9237,32 @@ case 'antibadword': {
     
 }
 break
+case 'groupsettings': 
+case 'gsettings': {
+    if (!m.isGroup) return reply('❌ This command only works in groups!');
+    
+    const groupSettings = global.db.getGroupSettings(m.chat) || {};
+    const groupName = (await conn.groupMetadata(m.chat)).subject;
+    
+    const settingsList = `
+🏷️ *Group Settings for ${groupName}*
+
+🔗 *Anti-Link:* ${groupSettings.antilink ? `✅ ON (${groupSettings.linkaction || 'delete'})` : '❌ OFF'}
+🚫 *Anti-BadWord:* ${groupSettings.antibadword ? `✅ ON (${groupSettings.badwordaction || 'delete'})` : '❌ OFF'}
+🏷️ *Anti-Tag:* ${groupSettings.antitag ? `✅ ON (${groupSettings.tagaction || 'delete'})` : '❌ OFF'}
+
+${groupSettings.badwords?.length > 0 ? `📝 *Bad Words:* ${groupSettings.badwords.length} words` : ''}
+
+*Commands:*
+• ${prefix}antilink warn/kick/delete/off
+• ${prefix}antibadword warn/kick/delete/off
+• ${prefix}antitag warn/kick/delete/off
+• ${prefix}antibadword add/del/list <word>
+    `;
+    
+    await m.reply(settingsList);
+    break;
+}
 case 'allowlink': {
     if (!m.isGroup) return reply('❌ This command only works in groups!');
     if (!isGroupAdmins && !Access) return reply('❌ Only group admins or bot owners can use this command!');
