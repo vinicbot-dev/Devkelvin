@@ -16,25 +16,6 @@ function initializeDatabase() {
     }
 }
 
-// Save database function
-async function saveDatabase(botNumber = null, settings = null) {
-    try {
-        if (botNumber && settings) {
-            // Save specific bot settings
-            global.db.saveSettings(botNumber, settings);
-        } else {
-            // Save all in-memory data (for backward compatibility)
-            for (const [botNum, config] of Object.entries(global.db.data.settings)) {
-                global.db.saveSettings(botNum, config);
-            }
-        }
-        return true;
-    } catch (error) {
-        console.error('Error saving to database:', error);
-        return false;
-    }
-}
-
 // Load settings from database
 function loadSettingsFromDB(botNumber) {
     try {
@@ -68,39 +49,97 @@ function loadSettingsFromDB(botNumber) {
     return false;
 }
 
-// Save settings to database
-function saveSettingsToDB(botNumber) {
+// Add this function to databases.js
+function loadAllSettings() {
     try {
-        const settings = {
-            antidelete: global.antidelete,
-            antiedit: global.antiedit,
-            autoread: global.autoread,
-            autoreact: global.autoreact,
-            autoviewstatus: global.autoviewstatus,
-            autoreactstatus: global.autoreactstatus,
-            anticall: global.anticall,
-            antistatus: global.antistatus,
-            AI_CHAT: global.AI_CHAT
-        };
+        console.log('🔄 Loading all settings from database...');
         
-        global.db.saveSettings(botNumber, settings);
-        return true;
+        // Get all bot numbers from database
+        const stmt = global.db.db.prepare('SELECT bot_number FROM settings');
+        const bots = stmt.all();
+        
+        let loadedCount = 0;
+        bots.forEach(bot => {
+            if (loadSettingsFromDB(bot.bot_number)) {
+                loadedCount++;
+            }
+        });
+        
+        console.log(`✅ Loaded settings for ${loadedCount} bots`);
+        return loadedCount;
     } catch (error) {
-        console.error('Error saving settings:', error);
-        return false;
+        console.error('Error loading all settings:', error);
+        return 0;
     }
 }
 
+// Add this function to databases.js
+function loadAllGroupSettings() {
+    try {
+        console.log('🔄 Loading all group settings from database...');
+        
+        // Get all group settings from database
+        const stmt = global.db.db.prepare('SELECT group_jid, settings FROM group_settings');
+        const groups = stmt.all();
+        
+        let loadedCount = 0;
+        groups.forEach(group => {
+            try {
+                const settings = JSON.parse(group.settings);
+                // Store in global cache
+                if (!global.db.data.groups) global.db.data.groups = {};
+                global.db.data.groups[group.group_jid] = settings;
+                loadedCount++;
+            } catch (error) {
+                console.error(`Error parsing settings for group ${group.group_jid}:`, error);
+            }
+        });
+        
+        console.log(`✅ Loaded settings for ${loadedCount} groups`);
+        return loadedCount;
+    } catch (error) {
+        console.error('Error loading group settings:', error);
+        return 0;
+    }
+}
+// Save database function
+async function saveDatabase(botNumber = null, settings = null) {
+    try {
+        if (botNumber && settings) {
+            // Save specific bot settings
+            global.db.saveSettings(botNumber, settings);
+        } else {
+            // Save all in-memory data (for backward compatibility)
+            for (const [botNum, config] of Object.entries(global.db.data.settings)) {
+                global.db.saveSettings(botNum, config);
+            }
+        }
+        return true;
+    } catch (error) {
+        console.error('Error saving to database:', error);
+        return false;
+    }
+}
 // Update setting function
 function updateSetting(botNumber, setting, value) {
     try {
+        // Update global variable
         global[setting] = value;
         
         // Get current settings and update
         const currentSettings = global.db.getSettings(botNumber) || {};
         currentSettings[setting] = value;
+        
+        // Save to database
         global.db.saveSettings(botNumber, currentSettings);
         
+        // Also update in-memory cache
+        if (!global.db.data.settings[botNumber]) {
+            global.db.data.settings[botNumber] = {};
+        }
+        global.db.data.settings[botNumber][setting] = value;
+        
+        console.log(`✅ Setting updated: ${setting} = ${value} for bot ${botNumber}`);
         return true;
     } catch (error) {
         console.error('Error updating setting:', error);
@@ -357,10 +396,10 @@ module.exports = {
     // Core database functions
     initializeDatabase,
     saveDatabase,
-    
+    loadAllGroupSettings,
+    loadAllSettings,
     // Settings management
     loadSettingsFromDB,
-    saveSettingsToDB,
     updateSetting,
     
     // User management
@@ -387,8 +426,7 @@ module.exports = {
     restoreDatabase,
     cleanupOldData,
     
-    // Statistics
-    getDatabaseStats
+    
 };
 
 // Auto-reload when file changes
