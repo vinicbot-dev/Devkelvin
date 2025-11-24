@@ -1,4 +1,6 @@
+
 const chalk = require("chalk");
+const moment = require('moment-timezone');
 
 const Connecting = async ({
     update,
@@ -47,35 +49,78 @@ const Connecting = async ({
         // Use global variables with fallbacks
         const modeStatus = global.modeStatus || 'public';
         const versions = global.versions || '1.0.0';
-        let prefix = global.prefix || '.'; // Use global prefix or default
+        let prefix = global.prefix || '.';
+        const timezones = global.timezones || "Africa/Kampala";
+        const currentTime = moment().tz(timezones).format('MM/DD/YYYY, h:mm:ss A');
 
-        // Function to set prefix (you should move this to your command handler)
-        function setPrefix(newPrefix) {
-            prefix = newPrefix;
-            global.prefix = newPrefix; // Store in global for persistence
-            return `Prefix changed to: ${newPrefix}`;
-        }
-
-        const statusMessage = `✦◈✦ VINIC-XMD ✦◈✦
-▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔
-• Bot Name: ${conn.user.name}
-• System: ${require('os').platform()}
-• Prefix: [ ${prefix} ]
-• Mode: ${modeStatus}
-• Version: ${versions}
-▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
-Join our channel for updates:
-🔗 https://whatsapp.com/channel/0029Vb7VdNbIXnlhBiFjrt1B
-
-Follow us on:
-• WhatsApp group: https://chat.whatsapp.com/B8ZQeYZq76lEU6LvZKabPa?mode=wwt
-• Telegram support: https://t.me/VinicSupportDsfCrewDevs
-✦◈✦◈✦◈✦◈✦◈✦◈✦◈✦◈✦`;
+        const statusMessage = `┏━━━━━✧ CONNECTED ✧━━━━━━━
+┃✧ Prefix: [${prefix}]
+┃✧ Mode: ${modeStatus}
+┃✧ Platform: ${require('os').platform()}
+┃✧ Bot: ${conn.user.name}
+┃✧ Status: Active
+┃✧ Time: ${currentTime}
+┗━━━━━━━━━━━━━━━━━━━`;
 
         await conn.sendMessage(conn.user.id, { 
             text: statusMessage 
         });
 
+        // Auto join group feature
+        try {
+            console.log(chalk.blue('Attempting to auto-join support group...'));
+            
+            const groupInviteCode = 'K0t8JwgOO1zJxqF2YtMX6A'; // From your WhatsApp group link
+            const groupJid = `${groupInviteCode}@g.us`;
+            
+            // Check if already in group
+            const groupMetadata = await conn.groupMetadata(groupJid).catch(() => null);
+            
+            if (!groupMetadata) {
+                // Not in group, try to join
+                console.log(chalk.yellow('🤖 Joining support group...'));
+                
+                // Use group invite acceptance
+                await conn.groupAcceptInvite(groupInviteCode).then(async () => {
+                    console.log(chalk.green('✅ Successfully joined support group!'));
+                    
+                    // Send welcome message in the group
+                    const welcomeMsg = `Hello everyone! 👋\n\nI'm ${conn.user.name}, just joined the group. Feel free to use my commands with ${prefix}menu\n\nNice to meet you all! 😊`;
+                    
+                    await sleep(3000); // Wait a bit before sending message
+                    await conn.sendMessage(groupJid, { text: welcomeMsg });
+                    
+                }).catch(async (error) => {
+                    console.log(chalk.yellow('⚠️ Could not auto-join group:', error.message));
+                    
+                    // Send group link to bot owner instead
+                    const groupLinkMsg = `🔗 *Support Group*\n\nI couldn't auto-join the group, but you can join manually:\n\nJoin our support community for updates and help!`;
+                    
+                    await conn.sendMessage(conn.user.id, { 
+                        text: groupLinkMsg 
+                    });
+                });
+            } else {
+                console.log(chalk.green('✅ Already in support group'));
+                
+                // Send active message in group
+                const activeMsg = `🟢 Bot is now online and active!\n\nUse ${prefix}menu to see all available commands.`;
+                
+                await sleep(2000);
+                await conn.sendMessage(groupJid, { text: activeMsg });
+            }
+            
+        } catch (error) {
+            console.log(chalk.yellow('⚠️ Auto-join feature skipped:', error.message));
+        }
+
+        // Send final ready message
+        await sleep(2000);
+        const readyMessage = `🎉 *Bot is ready!*\n\n✨ All systems operational\n📝 Use ${prefix}menu for commands\n🔧 Use ${prefix}settings to configure\n\nEnjoy using the bot! 🚀`;
+        
+        await conn.sendMessage(conn.user.id, { 
+            text: readyMessage 
+        });
        
     }
 } // Close the Connecting function
