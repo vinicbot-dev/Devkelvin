@@ -9237,6 +9237,60 @@ case 'antibadword': {
     
 }
 break
+case 'antigroupmention':
+case 'antistatusmention': {
+    if (!m.isGroup) return reply('❌ This command can only be used in groups');
+    if (!isGroupAdmins) return reply('❌ You need to be admin to use this command');
+    
+    const groupJid = m.chat;
+    const currentSettings = global.db.getGroupSettings(groupJid);
+    
+    if (!args[0]) {
+        const status = currentSettings.antigroupmention || 'off';
+        const action = currentSettings.antigroupmentionaction || 'delete';
+        
+        reply(`🔗 *Anti-Group-Mention Settings*
+        
+• Status: ${status === 'on' ? '✅ ON' : '❌ OFF'}
+• Action: ${action.toUpperCase()}
+
+*Available Actions:*
+• delete - Delete message only
+• warn - Delete + send warning  
+• kick - Delete + kick user
+
+*Usage:*
+• ${prefix}antigroupmention on
+• ${prefix}antigroupmention off
+• ${prefix}antigroupmention action warn/kick/delete`);
+        break;
+    }
+    
+    if (args[0] === 'on' || args[0] === 'off') {
+        currentSettings.antigroupmention = args[0];
+        global.db.saveGroupSettings(groupJid, currentSettings);
+        await saveDatabase();
+        
+        reply(`✅ Anti-group-mention ${args[0] === 'on' ? 'enabled' : 'disabled'}`);
+    } 
+    else if (args[0] === 'action' && args[1]) {
+        const validActions = ['delete', 'warn', 'kick'];
+        if (validActions.includes(args[1].toLowerCase())) {
+            currentSettings.antigroupmentionaction = args[1].toLowerCase();
+            global.db.saveGroupSettings(groupJid, currentSettings);
+            await saveDatabase();
+            
+            reply(`✅ Anti-group-mention action set to: *${args[1].toUpperCase()}*`);
+        } else {
+            reply(`❌ Invalid action. Use: delete, warn, or kick`);
+        }
+    }
+    else {
+        reply(`❌ Invalid usage. Use:\n• ${prefix}antigroupmention on/off\n• ${prefix}antigroupmention action warn/kick/delete`);
+    }
+    
+}
+break
 case 'groupsettings': 
 case 'gsettings': {
     if (!m.isGroup) return reply('❌ This command only works in groups!');
