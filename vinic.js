@@ -721,6 +721,164 @@ async function handleAntiBadWord(m, conn) {
     }
 }
 
+// ========== ANTI-GROUP-MENTION IN STATUSES FUNCTION ==========
+async function handleAntiGroupMention(m, conn) {
+    try {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        const from = m.chat;
+        const body = m.text || '';
+        
+        // Only check group messages
+        if (!from.endsWith('@g.us')) return false;
+        
+        // Check if anti-group-mention is enabled for this group
+        const groupSettings = global.db.getGroupSettings(from);
+        if (!groupSettings.antigroupmention) {
+            return false;
+        }
+        
+        const action = groupSettings.antigroupmentionaction || "warn";
+        
+        // Check if message contains group mentions/status mentions
+        const hasGroupMention = body.includes('status@broadcast') || 
+                               body.includes('@g.us') ||
+                               body.includes('group') && body.includes('status');
+        
+        if (!hasGroupMention) return false;
+        
+        // Get group metadata to check admin status
+        const groupMetadata = await conn.groupMetadata(from).catch(() => null);
+        if (!groupMetadata) return false;
+        
+        // Check if sender is admin (allow admins to mention groups)
+        const participant = groupMetadata.participants.find(p => p.id === m.sender);
+        if (participant && (participant.admin === 'admin' || participant.admin === 'superadmin')) {
+            return false; // Allow admins to mention groups
+        }
+        
+        // Delete the message first
+        try {
+            await conn.sendMessage(from, {
+                delete: {
+                    id: m.key.id,
+                    remoteJid: from,
+                    fromMe: false,
+                    participant: m.sender
+                }
+            });
+        } catch (deleteError) {
+            return false;
+        }
+        
+        let responseMessage = "";
+        
+        // Take action based on setting
+        switch (action) {
+            case "warn":
+                responseMessage = `⚠️ @${m.sender.split('@')[0]}, mentioning groups or statuses is not allowed!`;
+                break;
+                
+            case "kick":
+                try {
+                    await conn.groupParticipantsUpdate(from, [m.sender], "remove");
+                    responseMessage = `🚫 @${m.sender.split('@')[0]} has been removed for mentioning groups/statuses.`;
+                } catch (kickError) {
+                    responseMessage = `⚠️ @${m.sender.split('@')[0]}, group/status mentions are not allowed!`;
+                }
+                break;
+                
+            case "delete":
+            default:
+                // Just delete, no message
+                return true;
+        }
+        
+        // Send notification message
+        if (responseMessage) {
+            await delay(1000);
+            await conn.sendMessage(from, {
+                text: responseMessage,
+                mentions: [m.sender]
+            });
+        }
+        
+        return true;
+        
+    } catch (error) {
+        return false;
+    }
+}
+
+// ========== DETECT GROUP MENTIONS IN MESSAGES ==========
+function detectGroupMentions(message) {
+    if (!message) return false;
+    
+    let text = "";
+    
+    // Extract text from different message types
+    if (message.conversation) {
+        text = message.conversation;
+    } else if (message.extendedTextMessage && message.extendedTextMessage.text) {
+        text = message.extendedTextMessage.text;
+    } else if (message.imageMessage && message.imageMessage.caption) {
+        text = message.imageMessage.caption;
+    } else if (message.videoMessage && message.videoMessage.caption) {
+        text = message.videoMessage.caption;
+    }
+    
+    if (!text || typeof text !== 'string') return false;
+    
+    // Check for group mentions or status mentions
+    const hasGroupMention = 
+        text.includes('status@broadcast') ||
+        text.includes('@g.us') ||
+        (text.toLowerCase().includes('group') && text.toLowerCase().includes('status')) ||
+        text.includes('broadcast');
+    
+    return hasGroupMention;
+}
+
+// ========== INTEGRATE WITH EXISTING MESSAGE HANDLER ==========
+async function checkAndHandleGroupMentions(message, conn) {
+    try {
+        // Only check group messages
+        if (!message.key.remoteJid.endsWith('@g.us')) return;
+        
+        // Check if message contains group mentions
+        const hasGroupMention = detectGroupMentions(message.message);
+        if (!hasGroupMention) return;
+        
+        // Handle the violation
+        await handleAntiGroupMention({
+            chat: message.key.remoteJid,
+            sender: message.key.participant || message.key.remoteJid,
+            text: getMessageText(message.message),
+            key: message.key,
+            message: message
+        }, conn);
+        
+    } catch (error) {
+        // Silently handle errors
+    }
+}
+
+// Helper function to extract text from message
+function getMessageText(message) {
+    if (!message) return "";
+    
+    if (message.conversation) {
+        return message.conversation;
+    } else if (message.extendedTextMessage && message.extendedTextMessage.text) {
+        return message.extendedTextMessage.text;
+    } else if (message.imageMessage && message.imageMessage.caption) {
+        return message.imageMessage.caption;
+    } else if (message.videoMessage && message.videoMessage.caption) {
+        return message.videoMessage.caption;
+    }
+    
+    return "";
+}
+
 module.exports = {
   fetchMp3DownloadUrl,
   fetchVideoDownloadUrl,
@@ -739,6 +897,9 @@ module.exports = {
   ephoto,
   handleAntiTag,
   handleAntiBadWord,
+  handleAntiGroupMention,
+  detectGroupMentions,
+  checkAndHandleGroupMentions,
   delay,
   pickRandom
 };
