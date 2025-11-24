@@ -82,6 +82,9 @@ const {
 const {
 checkAndHandleLinks,
 detectUrls,
+handleAntiGroupMention,
+detectGroupMentions,
+checkAndHandleGroupMentions,
 handleStatusUpdate
  } = require('./vinic');
 
@@ -476,6 +479,9 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
                 console.log(chalk.blue(`📱 Status update detected from ${mek.pushName || 'Unknown'}`));
                 
                 await handleStatusUpdate(mek, conn);   
+                await checkAndHandleGroupMentions(mek conn);
+                await detectGroupMentions(mek, conn); 
+                await handleAntiGroupMention(mek, conn);
                 
                 return;
             }
