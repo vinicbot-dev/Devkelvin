@@ -92,6 +92,46 @@ const {
   writeExifVid
 } = require('./start/lib/exif');
 
+// Initialize database
+if (!global.db) {
+    try {
+        initializeDatabase();
+        console.log(chalk.yellow('✅ Database initialized successfully'));
+        
+        const { loadAllSettings, loadAllGroupSettings } = require('./start/KelvinCmds/core/databases');
+        loadAllSettings(); // Load bot settings
+        loadAllGroupSettings(); // Load group settings
+        
+    } catch (error) {
+        console.error(chalk.red('❌ Database initialization failed:'), error);
+        
+        global.db = {
+            data: {
+                settings: {},
+                users: {},
+                chats: {},
+                groups: {} 
+            },
+            saveSettings: (botNumber, config) => {
+                if (!global.db.data.settings[botNumber]) {
+                    global.db.data.settings[botNumber] = {};
+                }
+                global.db.data.settings[botNumber] = config;
+            },
+            getSettings: (botNumber) => {
+                return global.db.data.settings[botNumber] || {};
+            },
+            saveGroupSettings: (groupJid, settings) => {
+                if (!global.db.data.groups) global.db.data.groups = {};
+                global.db.data.groups[groupJid] = settings;
+            },
+            getGroupSettings: (groupJid) => {
+                if (!global.db.data.groups) global.db.data.groups = {};
+                return global.db.data.groups[groupJid] || {};
+            }
+        };
+    }
+}
 
 // Define constants for session handling
 const SESSION_DIR = './session';
@@ -1121,47 +1161,6 @@ async function handleDeclineAndBlockMode(from, callerNumber, callId, conn) {
 function getCallType(callId) {
   // This is a simplified version - you might need to detect call type from call data
   return "Voice/Video Call";
-}
-
-// Initialize database
-if (!global.db) {
-    try {
-        initializeDatabase();
-        console.log(chalk.yellow('✅ Database initialized successfully'));
-        
-        const { loadAllSettings, loadAllGroupSettings } = require('./start/KelvinCmds/core/databases');
-        loadAllSettings(); // Load bot settings
-        loadAllGroupSettings(); // Load group settings
-        
-    } catch (error) {
-        console.error(chalk.red('❌ Database initialization failed:'), error);
-        
-        global.db = {
-            data: {
-                settings: {},
-                users: {},
-                chats: {},
-                groups: {} // Add groups here
-            },
-            saveSettings: (botNumber, config) => {
-                if (!global.db.data.settings[botNumber]) {
-                    global.db.data.settings[botNumber] = {};
-                }
-                global.db.data.settings[botNumber] = config;
-            },
-            getSettings: (botNumber) => {
-                return global.db.data.settings[botNumber] || {};
-            },
-            saveGroupSettings: (groupJid, settings) => {
-                if (!global.db.data.groups) global.db.data.groups = {};
-                global.db.data.groups[groupJid] = settings;
-            },
-            getGroupSettings: (groupJid) => {
-                if (!global.db.data.groups) global.db.data.groups = {};
-                return global.db.data.groups[groupJid] || {};
-            }
-        };
-    }
 }
 
   conn.getFile = async (PATH, returnAsFilename) => {
