@@ -9254,39 +9254,38 @@ case 'antistatusmention': {
 • Status: ${status === 'on' ? '✅ ON' : '❌ OFF'}
 • Action: ${action.toUpperCase()}
 
-*Available Actions:*
-• delete - Delete message only
-• warn - Delete + send warning  
-• kick - Delete + kick user
-
-*Usage:*
-• ${prefix}antigroupmention on
-• ${prefix}antigroupmention off
-• ${prefix}antigroupmention action warn/kick/delete`);
+*Quick Commands:*
+• ${prefix}antigroupmention on - Enable protection
+• ${prefix}antigroupmention off - Disable protection  
+• ${prefix}antigroupmention delete - Set to delete mode
+• ${prefix}antigroupmention warn - Set to warn mode
+• ${prefix}antigroupmention kick - Set to kick mode`);
         break;
     }
     
-    if (args[0] === 'on' || args[0] === 'off') {
-        currentSettings.antigroupmention = args[0];
+    const arg = args[0].toLowerCase();
+    
+    if (arg === 'on') {
+        currentSettings.antigroupmention = 'on';
         global.db.saveGroupSettings(groupJid, currentSettings);
         await saveDatabase();
-        
-        reply(`✅ Anti-group-mention ${args[0] === 'on' ? 'enabled' : 'disabled'}`);
-    } 
-    else if (args[0] === 'action' && args[1]) {
-        const validActions = ['delete', 'warn', 'kick'];
-        if (validActions.includes(args[1].toLowerCase())) {
-            currentSettings.antigroupmentionaction = args[1].toLowerCase();
-            global.db.saveGroupSettings(groupJid, currentSettings);
-            await saveDatabase();
-            
-            reply(`✅ Anti-group-mention action set to: *${args[1].toUpperCase()}*`);
-        } else {
-            reply(`❌ Invalid action. Use: delete, warn, or kick`);
-        }
+        reply('✅ Anti-group-mention enabled');
+    }
+    else if (arg === 'off') {
+        currentSettings.antigroupmention = 'off';
+        global.db.saveGroupSettings(groupJid, currentSettings);
+        await saveDatabase();
+        reply('❌ Anti-group-mention disabled');
+    }
+    else if (arg === 'delete' || arg === 'warn' || arg === 'kick') {
+        currentSettings.antigroupmentionaction = arg;
+        currentSettings.antigroupmention = 'on'; // Auto-enable when setting action
+        global.db.saveGroupSettings(groupJid, currentSettings);
+        await saveDatabase();
+        reply(`✅ Anti-group-mention set to *${arg.toUpperCase()}* mode and enabled`);
     }
     else {
-        reply(`❌ Invalid usage. Use:\n• ${prefix}antigroupmention on/off\n• ${prefix}antigroupmention action warn/kick/delete`);
+        reply(`❌ Invalid. Use: ${prefix}antigroupmention on/off/delete/warn/kick`);
     }
     
 }
