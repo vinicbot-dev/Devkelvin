@@ -174,7 +174,7 @@ async function getSessionData() {
         }
         
         const sessionData = await response.json();
-        console.log(chalk.blue("[ ✅ ] Session data fetched successfully from server"));
+        console.log("[VINIC-XMD] Session data fetched successfully from server");
         return sessionData;
         
     } catch (error) {
@@ -217,7 +217,7 @@ function initSession(sessionData) {
             }
         }
         
-        console.log(chalk.green('[ ✅ ] Session decrypted and saved successfully'));
+        console.log('[VINIC-XMD] Session decrypted and saved successfully');
         return data;
         
     } catch (error) {
@@ -302,7 +302,7 @@ async function clientstart() {
     try {
         const { version } = await fetchLatestBaileysVersion();
         waVersion = version;
-        console.log(chalk.yellow("[ 🟠 ] Connecting to WhatsApp ⏳️..."));
+        console.log("[ VINIC-XMD] Connecting to WhatsApp ⏳️...");
         
     } catch (error) {
         console.log(chalk.blue(`[⚠️] Using stable fallback version`));
@@ -396,7 +396,7 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
         }
         
         if (connection === 'open') {
-            console.log(chalk.green('✅ Connection stabilized - Bot should stay online longer'));
+            console.log(' [VINIC-XMD] Connection stabilized ');
             
             // Send periodic presence updates to stay active
             setInterval(() => {
