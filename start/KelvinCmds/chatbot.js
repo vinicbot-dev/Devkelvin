@@ -23,21 +23,17 @@ function updateMemory(chatId, message, isUser = true) {
     }
 }
 
-async function handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, prefix) {
+async function handleAIChatbot(m, conn, body, from, isGroup, isCmd, prefix) {
     try {
-        // Get AI chatbot setting from database
-        const settings = global.db.getSettings(botNumber);
-        const aiChatSetting = settings?.AI_CHAT || false;
-        
-        // Check if AI is enabled
-        if (!aiChatSetting) {
-            console.log("AI: Disabled");
+        // Check if AI chatbot is enabled using global variable
+        if (!global.AI_CHAT || global.AI_CHAT === "false") {
+            console.log("🤖 AI: Disabled in global settings");
             return false;
         }
 
         // Prevent bot responding to its own messages or commands
         if (!body || m.key.fromMe || body.startsWith(prefix)) {
-            console.log("AI: Skipping - own message or command");
+            console.log("🤖 AI: Skipping - own message or command");
             return false;
         }
         
@@ -50,6 +46,8 @@ async function handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, p
             return false;
         }
 
+        const botNumber = await conn.decodeJid(conn.user.id);
+
         // Improved mention detection for groups
         let shouldRespond = true;
         
@@ -61,24 +59,24 @@ async function handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, p
             // Check if it's a direct reply to the bot
             const isReplyToBot = m.message?.extendedTextMessage?.contextInfo?.participant === botNumber;
             
-            console.log(`AI Group Check - Mentioned: ${isMentioned}, ReplyToBot: ${isReplyToBot}`);
+          
             
             // Only respond in groups if mentioned or replied to
             if (!isMentioned && !isReplyToBot) {
-                console.log("AI: Not mentioned in group, skipping");
+                console.log("🤖 AI: Not mentioned in group, skipping");
                 return false;
             }
             
             shouldRespond = true;
         } else {
             // In private chats, respond to all messages
-            console.log("AI: Private chat, responding");
+            console.log("🤖 AI: Private chat, responding");
             shouldRespond = true;
         }
 
         if (!shouldRespond) return false;
 
-        console.log("AI: Processing message:", body);
+        console.log("🤖 AI: Processing message:", body);
 
         // Show "typing..." indicator
         await conn.sendPresenceUpdate('composing', from);
@@ -140,11 +138,11 @@ async function handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, p
             text: finalResponse
         }, { quoted: m });
 
-        console.log("AI: Response sent successfully");
+        console.log("🤖 AI: Response sent successfully");
         return true;
 
     } catch (err) {
-        console.error("AI Chatbot Error:", err.message);
+        console.error("❌ AI Chatbot Error:", err.message);
         return false;
     }
 }
