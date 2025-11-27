@@ -1,15 +1,14 @@
-// ========== AUTO-REACT FUNCTION (DATABASE-BASED) ==========
-async function handleAutoReact(m, conn, botNumber) {
+// ========== AUTO-REACT FUNCTION (USING GLOBAL VARIABLE) ==========
+async function handleAutoReact(m, conn) {
     try {
-        // Get auto-react setting from database
-        const settings = global.db.getSettings(botNumber);
-        const autoReactSetting = settings?.autoreact || false;
-        
-        // Check if auto-react is enabled
-        if (!autoReactSetting) return;
+        // Check if auto-react is enabled using global variable
+        if (!global.autoreact) {
+            return;
+        }
 
         // Don't react to bot's own messages
         const sender = m.key.participant || m.key.remoteJid;
+        const botNumber = await conn.decodeJid(conn.user.id);
         if (sender === botNumber) return;
 
         // List of common emoji reactions
@@ -26,8 +25,10 @@ async function handleAutoReact(m, conn, botNumber) {
             }
         });
         
+       
+        
     } catch (error) {
-        console.error("Error in auto-react:", error);
+        console.error("❌ Error in auto-react:", error);
     }
 }
 
