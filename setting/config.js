@@ -1,4 +1,4 @@
-/*
+/* m
   -! Credits By Kevintech 
   Thanks to great lonelysaam 
   Thanks to Malvin King 
@@ -8,9 +8,11 @@
 // setting/config.js
 const fs = require('fs');
 
-// --- Setting Owner ---  
+// --- Setting Owner ---?  
+ //  
 global.owner = ["256742932677"];  
-global.sudo = ["256742932677", "256755585369"];
+global.sudo = ["256742932677", "256755585369"];// Type additional allowed users here
+//NB: They'll be able to use every functions of the bot without restrictions.
 global.ownername = "Kelvin Tech";  
 global.botname = "ᴠɪɴɪᴄ-xᴍᴅ";  
 
@@ -18,7 +20,45 @@ global.botname = "ᴠɪɴɪᴄ-xᴍᴅ";
 global.namachannel = "KEVIN";
 global.idchannel = "120363398454335106@newsletter";
 global.linkchannel = "";
+
+// ========= Setting Status ========= //
+global.antispam = true;
+global.autoread = false;
+global.autoreact = false;
+global.antibug = true;
+global.autobio = false;
+global.autoTyping = false;
+global.autorecording = false;
 global.prefixz = '.';
+
+// ========= Anti-Delete Feature ========= //
+global.antidelete = 'private'; // Options: 'private', 'chat', or 'off'
+
+// ===== Anticall ===========
+global.anticall = 'off';// options :- 'off', 'decline' or 'block'
+// off - Disables anticall
+// decline - Declines incoming calls
+// Block - Declines and blocks callers
+
+// ======= Anti-Edit ==============
+global.antiedit = 'private'; // options: 'private, 'chat', or 'off'
+
+// ====== Global for status ========
+global.autoviewstatus = 'true';    // Enable auto-view status
+global.autoreactstatus = 'true';   // Enable auto-react to status  
+global.statusemoji = '💚';         // Emoji to use for reactions
+
+// ======Antilink globals=======°°
+global.antilinkdelete = true;
+global.antilinkwarn = true;
+global.antilinkkick = false;
+
+
+// ========= Other Global Settings ========= //
+global.welcome = true;
+global.adminevent = true;
+global.AI_CHAT = "false", // Set to "true" to enable AI chatbot by default
+
 
 
 // ========= Add modeStatus and versions ========= //
