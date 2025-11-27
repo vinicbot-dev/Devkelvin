@@ -1,18 +1,13 @@
-async function handleAutoRecording(m, conn, botNumber) {
+// ========== AUTO-RECORDING HANDLER (USING GLOBAL VARIABLE) ==========
+async function handleAutoRecording(m, conn) {
     try {
-        // Get auto-recording setting from database
-        const settings = global.db.getSettings(botNumber);
-        const autoRecordingSetting = settings?.autorecording || false;
-        
-        // Check if auto-recording is enabled
-        if (!autoRecordingSetting) {
+        // Check if auto-recording is enabled using global variable
+        if (!global.autorecording) {
             return;
         }
 
         // Don't respond to own messages
-        if (m.key.fromMe) {
-            return;
-        }
+        if (m.key.fromMe) return;
 
         // Check if it's a group and get participant count safely
         if (m.isGroup) {
@@ -21,11 +16,9 @@ async function handleAutoRecording(m, conn, botNumber) {
                 const participants = groupMetadata.participants || [];
                 
                 // Don't auto-record in large groups to avoid spam
-                if (participants.length > 50) {
-                    return;
-                }
+                if (participants.length > 50) return;
             } catch (error) {
-                console.error("Error getting group metadata:", error);
+                console.error("❌ Error getting group metadata:", error);
                 return;
             }
         }
@@ -33,13 +26,15 @@ async function handleAutoRecording(m, conn, botNumber) {
         // Send recording indicator (voice message recording)
         await conn.sendPresenceUpdate('recording', m.chat);
         
+        
+        
         // Stop recording after 3 seconds
         setTimeout(async () => {
             await conn.sendPresenceUpdate('paused', m.chat);
         }, 3000);
         
     } catch (error) {
-        console.error("Error in auto-recording:", error);
+        console.error("❌ Error in auto-recording:", error);
     }
 }
 
