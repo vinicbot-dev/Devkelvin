@@ -1,9 +1,11 @@
+
 const {
   generateWAMessageFromContent,
   proto,
-  downloadContentFromMessage
+  downloadContentFromMessage,
+  downloadMedaiMesaage
 } = require("@whiskeysockets/baileys");
-const { exec } = require("child_process")
+const { exec, spawn, execSync } = require("child_process")
 const util = require('util')
 const fetch = require('node-fetch')
 const path = require('path')
@@ -13,6 +15,7 @@ const acrcloud = require ('acrcloud');
 const FormData = require('form-data');
 const cheerio = require('cheerio')
 const { performance } = require("perf_hooks");
+const process = require('process');
 const moment = require("moment-timezone")
 const os = require('os');
 const speed = require('performance-now')
@@ -25,6 +28,32 @@ const timestampp = speed();
 const latensi = speed() - timestampp
 
 const { smsg, sendGmail, formatSize, isUrl, generateMessageTag, CheckBandwidth, getBuffer, getSizeMedia, runtime, fetchJson, sleep, getRandom } = require('./start/lib/myfunction')
+
+const { initializeDatabase } = require('./start/KelvinCmds/core/databases');
+
+//delay
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+//error handling
+const errorLog = new Map();
+const ERROR_EXPIRY_TIME = 60000; // 60 seconds
+
+const recordError = (error) => {
+  const now = Date.now();
+  errorLog.set(error, now);
+  setTimeout(() => errorLog.delete(error), ERROR_EXPIRY_TIME);
+};
+
+const shouldLogError = (error) => {
+  const now = Date.now();
+  if (errorLog.has(error)) {
+    const lastLoggedTime = errorLog.get(error);
+    if (now - lastLoggedTime < ERROR_EXPIRY_TIME) {
+      return false;
+    }
+  }
+  return true;
+};
 
 //Version
 const versions = require("./package.json").version;
@@ -40,8 +69,19 @@ const acr = new acrcloud({
     access_secret: 'qVvKAxknV7bUdtxjXS22b5ssvWYxpnVndhy2isXP'
 });
 
-//delay
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+//database 
+global.db = { data: {} };
+global.db.data = JSON.parse(fs.readFileSync("./start/lib/database/database.json")) || {};
+
+if (global.db.data) {
+  global.db.data = {
+    chats: {},
+    settings: {},
+    blacklist: { blacklisted_numbers: [] }, 
+    ...(global.db.data || {}),
+  };
+}
+
 
 // Function to fetch MP3 download URL
 async function fetchMp3DownloadUrl(link) {
@@ -54,6 +94,7 @@ async function fetchMp3DownloadUrl(link) {
       }
       return response.data.result.downloadUrl;
     } catch (error) {
+      console.error('Error with NekoLabs API:', error.message);
       throw error;
     }
   };
@@ -82,6 +123,7 @@ async function fetchMp3DownloadUrl(link) {
         await new Promise(resolve => setTimeout(resolve, 5000));
       }
     } catch (error) {
+      console.error('Error with API2:', error.message);
       throw error;
     }
   };
@@ -91,6 +133,7 @@ async function fetchMp3DownloadUrl(link) {
     try {
       downloadUrl = await fetchDownloadUrl1(link);
     } catch (error) {
+      console.log('Falling back to second API...');
       downloadUrl = await fetchDownloadUrl2(link);
     }
     return downloadUrl;
@@ -109,6 +152,7 @@ async function fetchVideoDownloadUrl(link) {
     }
     return response.data.result;
   } catch (error) {
+    console.error('Error fetching video download URL:', error.message);
     throw error;
   }
 }
@@ -120,7 +164,10 @@ async function saveStatusMessage(m) {
     }
     await m.quoted.copyNForward(m.chat, true);
     conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+    console.log('Status saved successfully!');
   } catch (error) {
+    console.error('Failed to save status message:', error);
     reply(`Error: ${error.message}`);
   }
 }
@@ -173,6 +220,8 @@ async function ephoto(url, texk) {
       return build_server + data.image;
  }
 
+
+
 //obfuscator 
 async function obfus(query) {
       return new Promise((resolve, reject) => {
@@ -203,6 +252,38 @@ const pickRandom = (arr) => {
 return arr[Math.floor(Math.random() * arr.length)]
 }
 
+//================== [ MESSAGE HANDLING FUNCTIONS ] ==================//
+function loadBlacklist() {
+    if (!global.db.data.blacklist) {
+        global.db.data.blacklist = { blacklisted_numbers: [] };
+    }
+    return global.db.data.blacklist;
+}
+// ========== HELPER FUNCTIONS ==========
+
+// Helper function to extract text from message
+function extractMessageText(message) {
+    if (!message) return "";
+    
+    if (message.conversation) {
+        return message.conversation;
+    } else if (message.extendedTextMessage?.text) {
+        return message.extendedTextMessage.text;
+    } else if (message.imageMessage?.caption) {
+        return message.imageMessage.caption;
+    } else if (message.videoMessage?.caption) {
+        return message.videoMessage.caption;
+    } else if (message.documentMessage?.caption) {
+        return message.documentMessage.caption;
+    } else if (message.protocolMessage?.editedMessage) {
+        // Handle edited messages recursively
+        return extractMessageText(message.protocolMessage.editedMessage);
+    }
+    return "";
+}
+
+
+
 // ========== MESSAGE STORAGE FOR ANTI-DELETE ==========
 function loadStoredMessages() {
     try {
@@ -211,6 +292,7 @@ function loadStoredMessages() {
             return JSON.parse(data);
         }
     } catch (error) {
+        console.error('Error loading stored messages:', error);
     }
     return {};
 }
@@ -223,6 +305,7 @@ function saveStoredMessages(messages) {
         }
         fs.writeFileSync('./start/lib/database/deleted_messages.json', JSON.stringify(messages, null, 2));
     } catch (error) {
+        console.error('Error saving stored messages:', error);
     }
 }
 
@@ -234,10 +317,12 @@ function storeMessage(chatId, messageId, messageData) {
             storedMessages[chatId] = {};
         }
         
+        // Extract text content and detect media type
         let textContent = "";
         let mediaType = "text";
         const msgType = Object.keys(messageData.message || {})[0];
         
+        // ========== IMPROVED STATUS DETECTION ==========
         const isStatusMessage = 
             chatId === 'status@broadcast' || 
             (messageData.key && messageData.key.remoteJid === 'status@broadcast') ||
@@ -246,6 +331,7 @@ function storeMessage(chatId, messageId, messageData) {
             ));
         
         if (isStatusMessage) {
+            console.log(`📱 STATUS DETECTED - Chat: ${chatId}, Type: ${msgType}`);
         }
         
         if (msgType === 'conversation') {
@@ -276,10 +362,12 @@ function storeMessage(chatId, messageId, messageData) {
             text: textContent,
             mediaType: mediaType,
             storedAt: Date.now(),
+            // CRITICAL: Mark status messages properly
             isStatus: isStatusMessage,
             remoteJid: messageData.key?.remoteJid || chatId
         };
         
+        // Limit storage per chat to prevent memory issues
         const chatMessages = Object.keys(storedMessages[chatId]);
         if (chatMessages.length > 100) {
             const oldestMessageId = chatMessages[0];
@@ -288,18 +376,20 @@ function storeMessage(chatId, messageId, messageData) {
         
         saveStoredMessages(storedMessages);
         
+        // Debug log for status messages
+        if (isStatusMessage) {
+            console.log(`✅ STATUS STORED - ID: ${messageId}, Type: ${msgType}, Content: ${textContent.substring(0, 50)}...`);
+        }
+        
     } catch (error) {
+        console.error("Error storing message:", error);
     }
 }
-
-// ========== FIXED ANTI-EDIT HANDLER (DATABASE-BASED) ==========
+// ========== ANTI-EDIT HANDLER (USING GLOBAL VARIABLE) ==========
 async function handleAntiEdit(m, conn) {
     try {
-        const botNumber = await conn.decodeJid(conn.user.id);
-        const settings = global.db.getSettings(botNumber);
-        const antiEditSetting = settings?.antiedit || 'off';
-        
-        if (!antiEditSetting || antiEditSetting === 'off' || !m.message?.protocolMessage?.editedMessage) {
+        // Check if anti-edit is enabled and we have an edited message
+        if (!global.antiedit || global.antiedit === 'off' || !m.message?.protocolMessage?.editedMessage) {
             return;
         }
 
@@ -311,11 +401,13 @@ async function handleAntiEdit(m, conn) {
         let originalMsg = storedMessages[chatId]?.[messageId];
 
         if (!originalMsg) {
+            console.log("⚠️ Original message not found in store.json.");
             return;
         }
 
         let sender = originalMsg.key?.participant || originalMsg.key?.remoteJid;
         
+        // Get chat name
         let chatName;
         if (chatId.endsWith("@g.us")) {
             try {
@@ -331,11 +423,13 @@ async function handleAntiEdit(m, conn) {
         let xtipes = moment(originalMsg.messageTimestamp * 1000).tz(`${timezones}`).locale('en').format('HH:mm z');
         let xdptes = moment(originalMsg.messageTimestamp * 1000).tz(`${timezones}`).format("DD/MM/YYYY");
 
+        // Get original text
         let originalText = originalMsg.message?.conversation || 
                           originalMsg.message?.extendedTextMessage?.text ||
                           originalMsg.text ||
                           "[Text not available]";
 
+        // Get edited text
         let editedText = m.message.protocolMessage?.editedMessage?.conversation || 
                         m.message.protocolMessage?.editedMessage?.extendedTextMessage?.text ||
                         "[Edit content not available]";
@@ -364,12 +458,16 @@ ${readmore}
             }
         };
 
+        // Determine target based on mode
         let targetChat;
-        if (antiEditSetting === 'private' || antiEditSetting === 'on') {
-            targetChat = conn.user.id;
-        } else if (antiEditSetting === 'chat') {
-            targetChat = chatId;
+        if (global.antiedit === 'private') {
+            targetChat = conn.user.id; // Send to bot owner
+            console.log(`📤 Anti-edit: Sending to bot owner's inbox`);
+        } else if (global.antiedit === 'chat') {
+            targetChat = chatId; // Send to same chat
+            console.log(`📤 Anti-edit: Sending to same chat`);
         } else {
+            console.log("❌ Invalid anti-edit mode");
             return;
         }
 
@@ -379,32 +477,42 @@ ${readmore}
             { quoted: quotedMessage }
         );
 
+        
+
     } catch (err) {
+        console.error("❌ Error processing edited message:", err);
     }
 }
-
-// ========== FIXED STATUS UPDATE HANDLER (DATABASE-BASED) ==========
+// ========== FIXED STATUS UPDATE HANDLER ==========
 async function handleStatusUpdate(mek, conn) {
     try {
         const botNumber = await conn.decodeJid(conn.user.id);
-        const settings = global.db.getSettings(botNumber);
-        if (!settings) return;
+        if (!global.db.data.settings || !global.db.data.settings[botNumber]) return;
+        
+        const setting = global.db.data.settings[botNumber];
+        if (!setting.config) return;
 
-        // Auto view status - DATABASE-BASED
-        if (settings.autoviewstatus) {
+        // Auto view status
+        if (setting.config.autoviewstatus) {
             try {
+                // Correct way to mark status as viewed in Baileys
                 await conn.readMessages([mek.key]);
+                console.log(`👀 Auto-viewed status from ${mek.pushName || 'Unknown'}`);
             } catch (viewError) {
+                console.error('Error auto-viewing status:', viewError);
             }
         }
 
-        // Auto react to status - DATABASE-BASED
-        if (settings.autoreactstatus) {
+        // Auto react to status - FIXED VERSION
+        if (setting.config.autoreactstatus) {
             try {
                 const reactions = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉'];
                 const randomReaction = reactions[Math.floor(Math.random() * reactions.length)];
                 
+                // For status updates, we need to use the correct approach
+                // Status messages are broadcast messages with special handling
                 if (mek.key && mek.key.remoteJid === 'status@broadcast') {
+                    // Create a proper reaction for status using the status message key
                     const reactionMessage = {
                         react: {
                             text: randomReaction,
@@ -412,15 +520,32 @@ async function handleStatusUpdate(mek, conn) {
                         }
                     };
                     
+                    // Send reaction to the status
                     await conn.sendMessage(mek.key.remoteJid, reactionMessage);
+                    
+                    
+                    
+                    // Add a small delay to avoid rate limiting
                     await delay(1000);
                 }
             } catch (reactError) {
+                console.error('Error auto-reacting to status:', reactError);
+                // Log more details for debugging
+                console.log('Status message structure:', {
+                    key: mek.key,
+                    remoteJid: mek.key?.remoteJid,
+                    id: mek.key?.id,
+                    participant: mek.key?.participant
+                });
             }
         }
     } catch (error) {
+        console.error('Error in status handler:', error);
     }
 }
+
+
+
 
 // ========== FIXED ANTI-LINK DETECTION FUNCTION ==========
 function detectUrls(message) {
@@ -449,56 +574,73 @@ function detectUrls(message) {
     return matches ? matches : [];
 }
 
-// ========== ENHANCED VISIBLE ANTI-LINK FUNCTION ==========
-async function handleVisibleAntiLink(m, conn) {
+// ========== FIXED ANTI-LINK HANDLER - VISIBLE TO ALL ==========
+async function handleLinkViolation(message, conn) {
     try {
+        const chatId = message.key.remoteJid;
+        const sender = message.key.participant || message.key.remoteJid;
+        const messageId = message.key.id;
         const botNumber = await conn.decodeJid(conn.user.id);
-        const from = m.chat;
-        const body = m.text || '';
-        
-        // Check if anti-link is enabled for this group
-        const groupSettings = global.db.getGroupSettings(from);
-        if (!groupSettings.antilink) {
-            return false;
+
+        // Get group settings
+        if (!global.db.data.settings || !global.db.data.settings[botNumber] || 
+            !global.db.data.settings[botNumber].config) {
+            return;
         }
         
-        const action = groupSettings.antilinkaction || "warn";
+        const config = global.db.data.settings[botNumber].config;
         
-        // Detect URLs in the message
-        const urls = detectUrls(m.message);
-        if (urls.length === 0) return false;
+        // Check if group settings exist and anti-link is enabled
+        if (!config.groupSettings || !config.groupSettings[chatId] || !config.groupSettings[chatId].antilink) {
+            return;
+        }
         
+        const groupSettings = config.groupSettings[chatId];
+        const action = groupSettings.antilinkaction || "delete";
+
+        // Check if this is a media message without links in caption
+        const urls = detectUrls(message.message);
+        if (urls.length === 0) {
+            return; // Don't process messages without links
+        }
+
         // Get group metadata to check admin status
-        const groupMetadata = await conn.groupMetadata(from).catch(() => null);
-        if (!groupMetadata) return false;
-        
-        // Check if sender is admin (allow admins to post links)
-        const participant = groupMetadata.participants.find(p => p.id === m.sender);
-        if (participant && (participant.admin === 'admin' || participant.admin === 'superadmin')) {
-            return false; // Allow admins to post links
+        const groupMetadata = await conn.groupMetadata(chatId).catch(() => null);
+        if (!groupMetadata) {
+            return; // Can't get group info
         }
-        
+
+        // Check if sender is admin (allow admins to post links)
+        const participant = groupMetadata.participants.find(p => p.id === sender);
+        if (participant && (participant.admin === 'admin' || participant.admin === 'superadmin')) {
+            return; // Allow admins to post links - NO ACTION TAKEN
+        }
+
         // ========== VISIBLE DELETION FOR EVERYONE ==========
         try {
-            await conn.sendMessage(from, {
+            // This method makes deletion visible to all group members
+            await conn.sendMessage(chatId, {
                 delete: {
-                    id: m.key.id,
-                    remoteJid: from,
+                    id: messageId,
+                    remoteJid: chatId,
                     fromMe: false,
-                    participant: m.sender
+                    participant: sender
                 }
             });
             
+            console.log(`✅ Link message deleted - VISIBLE TO ALL in group ${chatId}`);
+            
         } catch (deleteError) {
-            return false; // If deletion fails, don't proceed with warnings/kicks
+            console.log('❌ Failed to delete message visibly');
+            return; // If deletion fails, don't proceed with warnings/kicks
         }
-        
+
         // Store warning count per user
         if (!global.linkWarnings) global.linkWarnings = new Map();
         
-        const userWarnings = global.linkWarnings.get(m.sender) || { count: 0, lastWarning: 0 };
+        const userWarnings = global.linkWarnings.get(sender) || { count: 0, lastWarning: 0 };
         const now = Date.now();
-        const warningCooldown = 30000; // 30 seconds cooldown between warnings
+        const warningCooldown = 30000;
         
         let responseMessage = "";
         
@@ -507,58 +649,55 @@ async function handleVisibleAntiLink(m, conn) {
             if (now - userWarnings.lastWarning > warningCooldown) {
                 userWarnings.count++;
                 userWarnings.lastWarning = now;
-                global.linkWarnings.set(m.sender, userWarnings);
+                global.linkWarnings.set(sender, userWarnings);
                 
-                responseMessage = `⚠️ @${m.sender.split('@')[0]}, only admins are allowed to send links in this group!\nYour message has been deleted. Warning ${userWarnings.count}/3.`;
+                responseMessage = `⚠️ @${sender.split('@')[0]}, *be aware, only admins are allowed to send links in this group!\nYour message has been deleted. Warning* ${userWarnings.count}/3.`;
                 
                 // Auto-kick after 3 warnings
                 if (userWarnings.count >= 3) {
                     try {
-                        await conn.groupParticipantsUpdate(from, [m.sender], "remove");
-                        responseMessage = `🚫 @${m.sender.split('@')[0]} has been removed for repeatedly posting links.`;
-                        global.linkWarnings.delete(m.sender);
+                        await conn.groupParticipantsUpdate(chatId, [sender], "remove");
+                        responseMessage = `🚫 @${sender.split('@')[0]} *has been removed for repeatedly posting links*.`;
+                        global.linkWarnings.delete(sender);
                     } catch (kickError) {
-                        responseMessage = `⚠️ @${m.sender.split('@')[0]}, links are not allowed! (Failed to remove user after 3 warnings)`;
+                        responseMessage = `⚠️ @${sender.split('@')[0]}, links are not allowed! (Failed to remove user after 3 warnings)`;
                     }
                 }
             } else {
-                return true; // Skip warning to avoid spam, but deletion happened
+                return; // Skip warning to avoid spam
             }
             
         } else if (action === "kick") {
             try {
                 // Kick the user immediately for kick mode
-                await conn.groupParticipantsUpdate(from, [m.sender], "remove");
-                responseMessage = `🚫 @${m.sender.split('@')[0]} has been removed for posting links in the group. Only admins can share links.`;
+                await conn.groupParticipantsUpdate(chatId, [sender], "remove");
+                responseMessage = `🚫 @${sender.split('@')[0]} *has been removed for posting links in the group. Only admins can share links*.`;
                 
                 // Reset warnings for this user
-                global.linkWarnings.delete(m.sender);
+                global.linkWarnings.delete(sender);
             } catch (kickError) {
-                responseMessage = `⚠️ @${m.sender.split('@')[0]}, only admins can send links! (Failed to remove user)`;
+                responseMessage = `⚠️ @${sender.split('@')[0]}, only admins can send links! (Failed to remove user)`;
             }
         } else {
             // Default: delete only (no warning)
             // No additional message for delete-only mode
-            return true;
+            return;
         }
-        
+
         // Send notification message
         if (responseMessage) {
             // Add a small delay so deletion is processed first
             await delay(1000);
-            await conn.sendMessage(from, {
+            await conn.sendMessage(chatId, {
                 text: responseMessage,
-                mentions: [m.sender]
+                mentions: [sender]
             });
         }
         
-        return true;
-        
     } catch (error) {
-        return false;
+        console.error('❌ Error in handleLinkViolation:', error);
     }
 }
-
 // ========== SIMPLIFIED LINK CHECKING FUNCTION ==========
 async function checkAndHandleLinks(message, conn) {
     try {
@@ -571,6 +710,9 @@ async function checkAndHandleLinks(message, conn) {
         if (sender === botNumber) return;
         
         const chatId = message.key.remoteJid;
+        
+        // Initialize database for this chat
+        initializeDatabase(chatId, botNumber);
         
         // Detect URLs in the message first (for efficiency)
         const urls = detectUrls(message.message);
@@ -594,11 +736,11 @@ async function handleAntiTag(m, conn) {
         const sender = m.sender;
         
         // Check if anti-tag is enabled for this group
-        const groupSettings = global.db.getGroupSettings(chatId);
-        if (!groupSettings.antitag) {
+        if (!global.db.data.settings?.[botNumber]?.config?.groupSettings?.[chatId]?.antitag) {
             return;
         }
         
+        const groupSettings = global.db.data.settings[botNumber].config.groupSettings[chatId];
         const action = groupSettings.antitagaction || "warn";
         
         // Get group metadata
@@ -618,12 +760,12 @@ async function handleAntiTag(m, conn) {
             
             switch (action) {
                 case "warn":
-                    responseMessage = `⚠️ @${sender.split('@')[0]}, tagging members is not allowed in this group!`;
+                    responseMessage = `⚠️ @${sender.split('@')[0]}, *tagging members is not allowed in this group!*`;
                     break;
                     
                 case "kick":
                     await conn.groupParticipantsUpdate(chatId, [sender], "remove");
-                    responseMessage = `🚫 @${sender.split('@')[0]} has been removed for tagging members.`;
+                    responseMessage = `🚫 @${sender.split('@')[0]} *has been removed for tagging members*.`;
                     break;
                     
                 case "delete":
@@ -641,6 +783,7 @@ async function handleAntiTag(m, conn) {
         }
         
     } catch (error) {
+        console.error('Anti-tag error:', error);
     }
 }
 
@@ -655,11 +798,11 @@ async function handleAntiBadWord(m, conn) {
         const body = m.text || '';
         
         // Check if anti-badword is enabled for this group
-        const groupSettings = global.db.getGroupSettings(chatId);
-        if (!groupSettings.antibadword) {
+        if (!global.db.data.settings?.[botNumber]?.config?.groupSettings?.[chatId]?.antibadword) {
             return;
         }
         
+        const groupSettings = global.db.data.settings[botNumber].config.groupSettings[chatId];
         const badWords = groupSettings.badwords || [];
         const action = groupSettings.badwordaction || "warn";
         
@@ -692,7 +835,7 @@ async function handleAntiBadWord(m, conn) {
             case "warn":
                 if (userWarnings.count >= 3) {
                     await conn.groupParticipantsUpdate(chatId, [sender], "remove");
-                    responseMessage = `🚫 @${sender.split('@')[0]} has been kicked for using bad words repeatedly.`;
+                    responseMessage = `🚫 @${sender.split('@')[0]} *has been kicked for using bad words repeatedly*.`;
                     global.badwordWarnings.delete(sender);
                 } else {
                     responseMessage = `⚠️ @${sender.split('@')[0]}, bad word detected!\nWord: *${foundWord}*\nWarning: *${userWarnings.count}/3*\n${3 - userWarnings.count} more and you'll be kicked!`;
@@ -701,7 +844,7 @@ async function handleAntiBadWord(m, conn) {
                 
             case "kick":
                 await conn.groupParticipantsUpdate(chatId, [sender], "remove");
-                responseMessage = `🚫 @${sender.split('@')[0]} has been kicked for using bad words.`;
+                responseMessage = `🚫 @${sender.split('@')[0]} *has been kicked for using bad words*.`;
                 break;
                 
             case "delete":
@@ -718,166 +861,12 @@ async function handleAntiBadWord(m, conn) {
         }
         
     } catch (error) {
+        console.error('Anti-badword error:', error);
     }
 }
 
-// ========== ANTI-GROUP-MENTION IN STATUSES FUNCTION ==========
-async function handleAntiGroupMention(m, conn) {
-    try {
-        const botNumber = await conn.decodeJid(conn.user.id);
-        const from = m.chat;
-        const body = m.text || '';
-        
-        // Only check group messages
-        if (!from.endsWith('@g.us')) return false;
-        
-        // Check if anti-group-mention is enabled for this group
-        const groupSettings = global.db.getGroupSettings(from);
-        if (!groupSettings.antigroupmention) {
-            return false;
-        }
-        
-        const action = groupSettings.antigroupmentionaction || "warn";
-        
-        // Check if message contains group mentions/status mentions
-        const hasGroupMention = body.includes('status@broadcast') || 
-                               body.includes('@g.us') ||
-                               body.includes('group') && body.includes('status');
-        
-        if (!hasGroupMention) return false;
-        
-        // Get group metadata to check admin status
-        const groupMetadata = await conn.groupMetadata(from).catch(() => null);
-        if (!groupMetadata) return false;
-        
-        // Check if sender is admin (allow admins to mention groups)
-        const participant = groupMetadata.participants.find(p => p.id === m.sender);
-        if (participant && (participant.admin === 'admin' || participant.admin === 'superadmin')) {
-            return false; // Allow admins to mention groups
-        }
-        
-        // Delete the message first
-        try {
-            await conn.sendMessage(from, {
-                delete: {
-                    id: m.key.id,
-                    remoteJid: from,
-                    fromMe: false,
-                    participant: m.sender
-                }
-            });
-        } catch (deleteError) {
-            return false;
-        }
-        
-        let responseMessage = "";
-        
-        // Take action based on setting
-        switch (action) {
-            case "warn":
-                responseMessage = `⚠️ @${m.sender.split('@')[0]}, mentioning groups or statuses is not allowed!`;
-                break;
-                
-            case "kick":
-                try {
-                    await conn.groupParticipantsUpdate(from, [m.sender], "remove");
-                    responseMessage = `🚫 @${m.sender.split('@')[0]} has been removed for mentioning groups/statuses.`;
-                } catch (kickError) {
-                    responseMessage = `⚠️ @${m.sender.split('@')[0]}, group/status mentions are not allowed!`;
-                }
-                break;
-                
-            case "delete":
-            default:
-                // Just delete, no message
-                return true;
-        }
-        
-        // Send notification message
-        if (responseMessage) {
-            await delay(1000);
-            await conn.sendMessage(from, {
-                text: responseMessage,
-                mentions: [m.sender]
-            });
-        }
-        
-        return true;
-        
-    } catch (error) {
-        return false;
-    }
-}
 
-// ========== DETECT GROUP MENTIONS IN MESSAGES ==========
-function detectGroupMentions(message) {
-    if (!message) return false;
-    
-    let text = "";
-    
-    // Extract text from different message types
-    if (message.conversation) {
-        text = message.conversation;
-    } else if (message.extendedTextMessage && message.extendedTextMessage.text) {
-        text = message.extendedTextMessage.text;
-    } else if (message.imageMessage && message.imageMessage.caption) {
-        text = message.imageMessage.caption;
-    } else if (message.videoMessage && message.videoMessage.caption) {
-        text = message.videoMessage.caption;
-    }
-    
-    if (!text || typeof text !== 'string') return false;
-    
-    // Check for group mentions or status mentions
-    const hasGroupMention = 
-        text.includes('status@broadcast') ||
-        text.includes('@g.us') ||
-        (text.toLowerCase().includes('group') && text.toLowerCase().includes('status')) ||
-        text.includes('broadcast');
-    
-    return hasGroupMention;
-}
 
-// ========== INTEGRATE WITH EXISTING MESSAGE HANDLER ==========
-async function checkAndHandleGroupMentions(message, conn) {
-    try {
-        // Only check group messages
-        if (!message.key.remoteJid.endsWith('@g.us')) return;
-        
-        // Check if message contains group mentions
-        const hasGroupMention = detectGroupMentions(message.message);
-        if (!hasGroupMention) return;
-        
-        // Handle the violation
-        await handleAntiGroupMention({
-            chat: message.key.remoteJid,
-            sender: message.key.participant || message.key.remoteJid,
-            text: getMessageText(message.message),
-            key: message.key,
-            message: message
-        }, conn);
-        
-    } catch (error) {
-        // Silently handle errors
-    }
-}
-
-// Helper function to extract text from message
-function getMessageText(message) {
-    if (!message) return "";
-    
-    if (message.conversation) {
-        return message.conversation;
-    } else if (message.extendedTextMessage && message.extendedTextMessage.text) {
-        return message.extendedTextMessage.text;
-    } else if (message.imageMessage && message.imageMessage.caption) {
-        return message.imageMessage.caption;
-    } else if (message.videoMessage && message.videoMessage.caption) {
-        return message.videoMessage.caption;
-    }
-    
-    return "";
-}
 
 module.exports = {
   fetchMp3DownloadUrl,
@@ -888,25 +877,26 @@ module.exports = {
   handleAntiEdit,
   handleStatusUpdate,
   saveStatusMessage,
+  handleLinkViolation,
   detectUrls,
-  handleVisibleAntiLink,
   loadStoredMessages,
   saveStoredMessages,
   storeMessage,
   checkAndHandleLinks,
   ephoto,
+  loadBlacklist,
   handleAntiTag,
   handleAntiBadWord,
-  handleAntiGroupMention,
-  detectGroupMentions,
-  checkAndHandleGroupMentions,
   delay,
+  recordError,
+  shouldLogError,
   pickRandom
 };
 
 let file = require.resolve(__filename)
 fs.watchFile(file, () => {
   fs.unwatchFile(file)
+  console.log(`Updated '${__filename}'`)
   delete require.cache[file]
   require(file)
 })
