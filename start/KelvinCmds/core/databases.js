@@ -1,439 +1,272 @@
-const fs = require('fs');
-const SQLiteDB = require('../../lib/sqlite');
-// ========== DATABASE MANAGEMENT FUNCTIONS ==========
-
-// Initialize database
-function initializeDatabase() {
+const fs = require('fs')
+function initializeDatabase(from, botNumber) {
     try {
-        if (!global.db) {
-            global.db = new SQLiteDB();
-        }
-        console.log('📊 SQLite database ready');
-        return true;
-    } catch (error) {
-        console.error('❌ Database initialization failed:', error);
-        return false;
-    }
-}
-
-// Load settings from database
-function loadSettingsFromDB(botNumber) {
-    try {
-        const settings = global.db.getSettings(botNumber);
-        if (settings) {
-            // Apply settings to global variables
-            const settingMap = {
-                'antidelete': 'antidelete',
-                'antiedit': 'antiedit',
-                'autoread': 'autoread',
-                'autoreact': 'autoreact',
-                'autoviewstatus': 'autoviewstatus',
-                'autoreactstatus': 'autoreactstatus',
-                'anticall': 'anticall',
-                'welcome': 'welcome',
-                'adminevent': 'adminevent',
-                'antistatus': 'antistatus',
-                'AI_CHAT': 'AI_CHAT'
-            };
-
-            for (const [dbKey, globalKey] of Object.entries(settingMap)) {
-                if (settings[dbKey] !== undefined) {
-                    global[globalKey] = settings[dbKey];
-                }
-            }
-            return true;
-        }
-    } catch (error) {
-        console.error('Error loading settings:', error);
-    }
-    return false;
-}
-
-// Add this function to databases.js
-function loadAllSettings() {
-    try {
-        console.log('🔄 Loading all settings from database...');
-        
-        // Get all bot numbers from database
-        const stmt = global.db.db.prepare('SELECT bot_number FROM settings');
-        const bots = stmt.all();
-        
-        let loadedCount = 0;
-        bots.forEach(bot => {
-            if (loadSettingsFromDB(bot.bot_number)) {
-                loadedCount++;
-            }
-        });
-        
-        console.log(`✅ Loaded settings for ${loadedCount} bots`);
-        return loadedCount;
-    } catch (error) {
-        console.error('Error loading all settings:', error);
-        return 0;
-    }
-}
-
-// Add this function to databases.js
-function loadAllGroupSettings() {
-    try {
-        console.log('🔄 Loading all group settings from database...');
-        
-        // Get all group settings from database
-        const stmt = global.db.db.prepare('SELECT group_jid, settings FROM group_settings');
-        const groups = stmt.all();
-        
-        let loadedCount = 0;
-        groups.forEach(group => {
-            try {
-                const settings = JSON.parse(group.settings);
-                // Store in global cache
-                if (!global.db.data.groups) global.db.data.groups = {};
-                global.db.data.groups[group.group_jid] = settings;
-                loadedCount++;
-            } catch (error) {
-                console.error(`Error parsing settings for group ${group.group_jid}:`, error);
-            }
-        });
-        
-        console.log(`✅ Loaded settings for ${loadedCount} groups`);
-        return loadedCount;
-    } catch (error) {
-        console.error('Error loading group settings:', error);
-        return 0;
-    }
-}
-// Save database function
-async function saveDatabase(botNumber = null, settings = null) {
-    try {
-        if (botNumber && settings) {
-            // Save specific bot settings
-            global.db.saveSettings(botNumber, settings);
-        } else {
-            // Save all in-memory data (for backward compatibility)
-            for (const [botNum, config] of Object.entries(global.db.data.settings)) {
-                global.db.saveSettings(botNum, config);
+        if (!global.db.data) {
+            if (fs.existsSync("../../lib/database/database.json")) {
+                global.db.data = JSON.parse(fs.readFileSync("../../lib/database/database.json")) || {};
+            } else {
+                global.db.data = {};
             }
         }
-        return true;
-    } catch (error) {
-        console.error('Error saving to database:', error);
-        return false;
-    }
-}
-// Update setting function
-function updateSetting(botNumber, setting, value) {
-    try {
-        // Update global variable
-        global[setting] = value;
         
-        // Get current settings and update
-        const currentSettings = global.db.getSettings(botNumber) || {};
-        currentSettings[setting] = value;
-        
-        // Save to database
-        global.db.saveSettings(botNumber, currentSettings);
-        
-        // Also update in-memory cache
+        if (!global.db.data.settings) global.db.data.settings = {};
+        if (!global.db.data.chats) global.db.data.chats = {};
+        if (!global.db.data.blacklist) global.db.data.blacklist = { blacklisted_numbers: [] };
+        if (!global.db.data.groups) global.db.data.groups = {};
+
         if (!global.db.data.settings[botNumber]) {
             global.db.data.settings[botNumber] = {};
         }
-        global.db.data.settings[botNumber][setting] = value;
         
-        console.log(`✅ Setting updated: ${setting} = ${value} for bot ${botNumber}`);
-        return true;
-    } catch (error) {
-        console.error('Error updating setting:', error);
-        return false;
-    }
-}
-
-// ========== USER MANAGEMENT FUNCTIONS ==========
-
-// Get user data
-function getUser(userId) {
-    try {
-        return global.db.getUser(userId);
-    } catch (error) {
-        console.error('Error getting user:', error);
-        return null;
-    }
-}
-
-// Save user data
-function saveUser(userId, name, premium = 0, banned = 0) {
-    try {
-        global.db.saveUser(userId, name, premium, banned);
-        return true;
-    } catch (error) {
-        console.error('Error saving user:', error);
-        return false;
-    }
-}
-
-// Check if user is banned
-function isUserBanned(userId) {
-    try {
-        const user = getUser(userId);
-        return user ? user.banned === 1 : false;
-    } catch (error) {
-        console.error('Error checking user ban status:', error);
-        return false;
-    }
-}
-
-// Ban user
-function banUser(userId) {
-    try {
-        const user = getUser(userId) || {};
-        saveUser(userId, user.name || '', user.premium || 0, 1);
-        return true;
-    } catch (error) {
-        console.error('Error banning user:', error);
-        return false;
-    }
-}
-
-// Unban user
-function unbanUser(userId) {
-    try {
-        const user = getUser(userId) || {};
-        saveUser(userId, user.name || '', user.premium || 0, 0);
-        return true;
-    } catch (error) {
-        console.error('Error unbanning user:', error);
-        return false;
-    }
-}
-
-// ========== GROUP SETTINGS MANAGEMENT ==========
-
-// Get group settings
-function getGroupSettings(groupId) {
-    try {
-        return global.db.getGroupSettings(groupId);
-    } catch (error) {
-        console.error('Error getting group settings:', error);
-        return {};
-    }
-}
-
-// Save group settings
-function saveGroupSettings(groupId, settings) {
-    try {
-        global.db.saveGroupSettings(groupId, settings);
-        return true;
-    } catch (error) {
-        console.error('Error saving group settings:', error);
-        return false;
-    }
-}
-
-// Update group setting
-function updateGroupSetting(groupId, setting, value) {
-    try {
-        const currentSettings = getGroupSettings(groupId);
-        currentSettings[setting] = value;
-        return saveGroupSettings(groupId, currentSettings);
-    } catch (error) {
-        console.error('Error updating group setting:', error);
-        return false;
-    }
-}
-
-// ========== BLACKLIST MANAGEMENT ==========
-
-function loadBlacklist() {
-    try {
-        if (!global.db.data.blacklist) {
-            global.db.data.blacklist = { blacklisted_numbers: [] };
+        let setting = global.db.data.settings[botNumber];
+        if (typeof setting !== "object") global.db.data.settings[botNumber] = {};
+        setting = global.db.data.settings[botNumber]; 
+ 
+        if (!setting.config || typeof setting.config !== "object") {
+            setting.config = {};
         }
-        return global.db.data.blacklist;
-    } catch (error) {
-        console.error('Error loading blacklist:', error);
-        return { blacklisted_numbers: [] };
-    }
-}
-
-function saveBlacklist(blacklistData) {
-    try {
-        global.db.data.blacklist = blacklistData;
-        return true;
-    } catch (error) {
-        console.error('Error saving blacklist:', error);
-        return false;
-    }
-}
-
-function addToBlacklist(number) {
-    try {
-        const blacklist = loadBlacklist();
-        if (!blacklist.blacklisted_numbers.includes(number)) {
-            blacklist.blacklisted_numbers.push(number);
-            return saveBlacklist(blacklist);
-        }
-        return true;
-    } catch (error) {
-        console.error('Error adding to blacklist:', error);
-        return false;
-    }
-}
-
-function removeFromBlacklist(number) {
-    try {
-        const blacklist = loadBlacklist();
-        blacklist.blacklisted_numbers = blacklist.blacklisted_numbers.filter(n => n !== number);
-        return saveBlacklist(blacklist);
-    } catch (error) {
-        console.error('Error removing from blacklist:', error);
-        return false;
-    }
-}
-
-function isBlacklisted(number) {
-    try {
-        const blacklist = loadBlacklist();
-        return blacklist.blacklisted_numbers.includes(number);
-    } catch (error) {
-        console.error('Error checking blacklist:', error);
-        return false;
-    }
-}
-
-// ========== BACKUP AND MAINTENANCE ==========
-
-// Backup database
-async function backupDatabase(backupPath = './backup/database_backup.json') {
-    try {
-        const backupData = {
-            users: global.db.data.users,
-            settings: global.db.data.settings,
-            groups: global.db.data.groups,
-            blacklist: global.db.data.blacklist,
-            backupTimestamp: Date.now()
+        
+        let existingSettings = {};
+        let existingGroupSettings = {};
+        try {
+            if (fs.existsSync("./start/lib/database/database.json")) {
+                const fileData = JSON.parse(fs.readFileSync("./start/lib/database/database.json", "utf8"));
+                if (fileData.settings && fileData.settings[botNumber] && fileData.settings[botNumber].config) {
+                    existingSettings = fileData.settings[botNumber].config;
+                    existingGroupSettings = fileData.settings[botNumber].config.groupSettings || {};
+                }
+            }
+        } catch (e) {}
+        
+        // ========== CRITICAL FIX: PROPER GROUP SETTINGS LOADING ==========
+        const defaultGroupSettings = {
+            antilink: false,
+            antilinkaction: "warn",
+            antitag: false,
+            antitagaction: "warn",
+            antibadword: false,
+            badwordaction: "warn",
+            badwords: [],
+            welcome: true,
+            antidelete: 'off',
+            autoread: false
         };
+        
+        // Initialize groupSettings if it doesn't exist
+        if (!setting.config.groupSettings || typeof setting.config.groupSettings !== "object") {
+            setting.config.groupSettings = {};
+        }
+        
+        // If we have a specific group (from parameter), ensure its settings are initialized
+        if (from && from.endsWith('@g.us')) {
+            if (!setting.config.groupSettings[from]) {
+                setting.config.groupSettings[from] = { ...defaultGroupSettings };
+            } else {
+                // Merge existing group settings with defaults
+                setting.config.groupSettings[from] = {
+                    ...defaultGroupSettings,
+                    ...setting.config.groupSettings[from]
+                };
+            }
+        }
+        
+        // Preserve all existing group settings from database
+        Object.keys(existingGroupSettings).forEach(groupId => {
+            if (!setting.config.groupSettings[groupId]) {
+                setting.config.groupSettings[groupId] = { ...defaultGroupSettings };
+            }
+            // Merge existing settings with defaults
+            setting.config.groupSettings[groupId] = {
+                ...defaultGroupSettings,
+                ...existingGroupSettings[groupId]
+            };
+        });
+        
+        // ========== GLOBAL SETTINGS SYNC ==========
+        const defaultSettings = {
+            prefix: ".",
+            statusantidelete: false,
+            autobio: global.autobio || false,
+            autorecord: global.autorecording || false,
+            autoviewstatus: global.autoviewstatus || false,
+            autoreactstatus: global.autoreactstatus || false,
+            antiedit: global.antiedit || 'private',
+            anticall: global.anticall || 'off',
+            AI_CHAT: global.AI_CHAT || false,
+            antibug: global.antibug || false,
+            ownernumber: global.ownernumber || '',
+            antidelete: global.antidelete || 'private', 
+            autoread: global.autoread || false,
+            welcome: global.welcome || true,
+            adminevent: global.adminevent || true,
+            autoreact: global.autoreact || false,
+            autoTyping: global.autoTyping || false,
+            autorecording: global.autorecording || false,
+            groupSettings: setting.config.groupSettings // Use the initialized groupSettings
+        };
+        
+        // Apply settings from config.js, but don't override existing database settings
+        Object.keys(defaultSettings).forEach(key => {
+            if (!(key in setting.config)) {
+                setting.config[key] = existingSettings[key] !== undefined ? existingSettings[key] : defaultSettings[key];
+            }
+        });
+        
+        // Ensure critical settings are always synced with active globals
+        global.antidelete = setting.config.antidelete;
+        global.autoread = setting.config.autoread;
+        global.autoviewstatus = setting.config.autoviewstatus;
+        global.autoreactstatus = setting.config.autoreactstatus;
+        global.antiedit = setting.config.antiedit;
+        global.autoreact = setting.config.autoreact;
+        global.autoTyping = setting.config.autoTyping;
+        global.autorecording = setting.config.autorecording;
+        global.welcome = setting.config.welcome;
+        global.anticall = setting.config.anticall;
+        global.AI_CHAT = setting.config.AI_CHAT;
+        
+        saveDatabase();
 
-        // Ensure backup directory exists
-        const dir = require('path').dirname(backupPath);
+// Return initialization stats
+return {
+    totalGroups: Object.keys(setting.config.groupSettings || {}).length,
+    antiedit: setting.config.antiedit,
+    antidelete: setting.config.antidelete
+};
+        
+    } catch (err) {
+        console.error('❌ Error initializing database:', err);
+        // Fallback to config.js globals
+        global.antidelete = global.antidelete || 'private';
+        global.autoread = global.autoread || false;
+        global.autoviewstatus = global.autoviewstatus || false;
+    }
+}
+
+// Sync database settings back to global variables
+function syncSettingsToGlobals(botNumber) {
+    try {
+        if (!global.db.data?.settings?.[botNumber]?.config) return;
+        
+        const config = global.db.data.settings[botNumber].config;
+        
+        // Sync all settings to globals
+        global.antidelete = config.antidelete || 'private';
+        global.autoread = config.autoread || false;
+        global.autoviewstatus = config.autoviewstatus || false;
+        global.autoreactstatus = config.autoreactstatus || false;
+        global.antiedit = config.antiedit || 'private';
+        global.autoreact = config.autoreact || false;
+        global.autoTyping = config.autoTyping || false;
+        global.autorecording = config.autorecording || false;
+        global.AI_CHAT = config.AI_CHAT || false;
+        global.welcome = config.welcome || false;
+        global.anticall = config.anticall || 'off';
+        global.autobio = config.autobio || false;
+        
+        console.log('🔄 Settings synced to globals:', {
+            antiedit: global.antiedit,
+            antidelete: global.antidelete,
+            autorecording: global.autorecording
+        });
+        
+    } catch (error) {
+        console.error('Error syncing settings to globals:', error);
+    }
+}
+
+// ========== DATABASE PERSISTENCE FUNCTIONS ==========
+
+// Enhanced saveDatabase with better JSON handling
+async function saveDatabase() {
+    try {
+        if (!global.db.data) {
+            global.db.data = {
+                settings: {},
+                chats: {},
+                blacklist: { blacklisted_numbers: [] }
+            };
+        }
+        
+        const dir = './start/lib/database';
         if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
         }
-
-        fs.writeFileSync(backupPath, JSON.stringify(backupData, null, 2));
-        console.log(`✅ Database backed up to: ${backupPath}`);
-        return true;
-    } catch (error) {
-        console.error('Error backing up database:', error);
-        return false;
-    }
-}
-
-// Restore database from backup
-async function restoreDatabase(backupPath = './backup/database_backup.json') {
-    try {
-        if (!fs.existsSync(backupPath)) {
-            console.error('Backup file not found:', backupPath);
-            return false;
-        }
-
-        const backupData = JSON.parse(fs.readFileSync(backupPath, 'utf8'));
         
-        // Restore data
-        global.db.data.users = backupData.users || {};
-        global.db.data.settings = backupData.settings || {};
-        global.db.data.groups = backupData.groups || {};
-        global.db.data.blacklist = backupData.blacklist || { blacklisted_numbers: [] };
+        fs.writeFileSync("./start/lib/database/database.json", JSON.stringify(global.db.data, null, 2));
+return true;
+} catch (error) {
+console.error('❌ Error saving database:', error);
+return false;
+  }
+}
 
-        console.log('✅ Database restored from backup');
+// Force save settings (call this when settings change)
+async function forceSaveSettings() {
+    try {
+        await saveDatabase();
         return true;
     } catch (error) {
-        console.error('Error restoring database:', error);
+        console.error('❌ Error in forceSaveSettings:', error);
         return false;
     }
 }
 
-// Clean up old data
-function cleanupOldData(maxAge = 30 * 24 * 60 * 60 * 1000) { // 30 days default
+// Sync database settings back to global variables
+function syncSettingsToGlobals(botNumber) {
     try {
-        const now = Date.now();
-        let cleanedCount = 0;
+        if (!global.db.data?.settings?.[botNumber]?.config) return;
+        
+        const config = global.db.data.settings[botNumber].config;
+        
+        // Sync all settings to globals
+        global.antidelete = config.antidelete || 'private';
+        global.autoread = config.autoread || false;
+        global.autoviewstatus = config.autoviewstatus || false;
+        global.autoreactstatus = config.autoreactstatus || false;
+        global.antiedit = config.antiedit || 'private';
+        global.autoreact = config.autoreact || false;
+        global.autoTyping = config.autoTyping || false;
+        global.autorecording = config.autorecording || false;
+        global.AI_CHAT = config.AI_CHAT || false;
+        global.autobio = config.autobio || false;
+        
+        console.log('🔄 Settings synced to globals:', {
+            antiedit: global.antiedit,
+            antidelete: global.antidelete,
+            autorecording: global.autorecording,
+            autoTyping: global.autoTyping,
+            AI_CHAT: global.AI_CHAT
+        });
+        
+    } catch (error) {
+        console.error('Error syncing settings to globals:', error);
+    }
+}
 
-        // Clean old users (inactive for maxAge)
-        for (const [userId, userData] of Object.entries(global.db.data.users)) {
-            if (userData.lastActive && (now - userData.lastActive > maxAge)) {
-                delete global.db.data.users[userId];
-                cleanedCount++;
-            }
+// Auto-save settings periodically
+function startAutoSave() {
+    setInterval(async () => {
+        try {
+            await saveDatabase();
+        } catch (error) {
+            console.error('Auto-save error:', error);
         }
-
-        console.log(`🧹 Cleaned up ${cleanedCount} old records`);
-        return cleanedCount;
-    } catch (error) {
-        console.error('Error cleaning up data:', error);
-        return 0;
-    }
+    }, 1 * 60 * 1000); // Save every 1 minute
 }
-
-// ========== STATISTICS FUNCTIONS ==========
-
-// Get database statistics
-function getDatabaseStats() {
+// Force save settings (call this when settings change)
+async function forceSaveSettings() {
     try {
-        return {
-            totalUsers: Object.keys(global.db.data.users || {}).length,
-            totalGroups: Object.keys(global.db.data.groups || {}).length,
-            totalBots: Object.keys(global.db.data.settings || {}).length,
-            blacklistedUsers: (global.db.data.blacklist?.blacklisted_numbers || []).length,
-            bannedUsers: Object.values(global.db.data.users || {}).filter(user => user.banned === 1).length,
-            premiumUsers: Object.values(global.db.data.users || {}).filter(user => user.premium === 1).length
-        };
+        await saveDatabase();
+        return true;
     } catch (error) {
-        console.error('Error getting database stats:', error);
-        return {};
+        console.error('❌ Error in forceSaveSettings:', error);
+        return false;
     }
 }
 
-module.exports = {
-    // Core database functions
-    initializeDatabase,
-    saveDatabase,
-    loadAllGroupSettings,
-    loadAllSettings,
-    // Settings management
-    loadSettingsFromDB,
-    updateSetting,
-    
-    // User management
-    getUser,
-    saveUser,
-    isUserBanned,
-    banUser,
-    unbanUser,
-    
-    // Group management
-    getGroupSettings,
-    saveGroupSettings,
-    updateGroupSetting,
-    
-    // Blacklist management
-    loadBlacklist,
-    saveBlacklist,
-    addToBlacklist,
-    removeFromBlacklist,
-    isBlacklisted,
-    
-    // Backup and maintenance
-    backupDatabase,
-    restoreDatabase,
-    cleanupOldData,
-    
-    
+module.exports = { forceSaveSettings,
+saveDatabase,
+syncSettingsToGlobals,
+initializeDatabase
 };
-
-// Auto-reload when file changes
-let file = require.resolve(__filename);
-fs.watchFile(file, () => {
-    fs.unwatchFile(file);
-    delete require.cache[file];
-    require(file);
-    console.log('🔄 Database module reloaded');
-});
