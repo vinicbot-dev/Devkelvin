@@ -1,13 +1,13 @@
 console.clear();
 console.log('Starting Vinic-Xmd with Enhanced Longevity...');
+
 // Environment detection for cloud optimization
 const isProduction = process.env.NODE_ENV === 'production';
 const isLowMemory = process.env.MEMORY_LIMIT < 512 || isProduction;
-const chalk = require('chalk');
 
 // Optimize memory usage
 if (isLowMemory) {
-  console.log(chalk.yellow('🚀 Running in optimized mode for cloud/low memory environment'));
+  console.log('🚀 Running in optimized mode for cloud/low memory environment');
 }
 
 const settings = require('./settings');
@@ -15,12 +15,12 @@ const config = require('./setting/config');
 
 // Enhanced error handling for cloud stability
 process.on("uncaughtException", (error) => {
-  console.error(chalk.red('Uncaught Exception:'), error);
+  console.error('Uncaught Exception:', error);
   // Don't exit in cloud environments
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error(chalk.red('Unhandled Rejection at:'), promise, chalk.red('reason:'), reason);
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
 const {
@@ -49,6 +49,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path')
 const more = String.fromCharCode(8206);
+const chalk = require('chalk');
 const _ = require('lodash');
 const NodeCache = require("node-cache");
 const lolcatjs = require('lolcatjs');
@@ -65,7 +66,7 @@ const { File } = require('megajs');
 const { color } = require('./start/lib/color');
 
 const Database = require('better-sqlite3');
-const db = require('./start/KelvinCmds/core/databases');
+const db = require('./start/lib/database/database');
 
 const {
   smsg,
@@ -82,11 +83,15 @@ const {
 const {
 checkAndHandleLinks,
 detectUrls,
-handleAntiGroupMention,
-detectGroupMentions,
-checkAndHandleGroupMentions,
 handleStatusUpdate
  } = require('./vinic');
+ 
+const { 
+forceSaveSettings,
+saveDatabase,
+syncSettingsToGlobals,
+initializeDatabase
+} = require('./start/KelvinCmds/core/databases');
 
 const {
   imageToWebp,
@@ -95,46 +100,6 @@ const {
   writeExifVid
 } = require('./start/lib/exif');
 
-// Initialize database
-if (!global.db) {
-    try {
-        initializeDatabase();
-        console.log(chalk.yellow('✅ Database initialized successfully'));
-        
-        const { loadAllSettings, loadAllGroupSettings } = require('./start/KelvinCmds/core/databases');
-        loadAllSettings(); // Load bot settings
-        loadAllGroupSettings(); // Load group settings
-        
-    } catch (error) {
-        console.error(chalk.red('❌ Database initialization failed:'), error);
-        
-        global.db = {
-            data: {
-                settings: {},
-                users: {},
-                chats: {},
-                groups: {} 
-            },
-            saveSettings: (botNumber, config) => {
-                if (!global.db.data.settings[botNumber]) {
-                    global.db.data.settings[botNumber] = {};
-                }
-                global.db.data.settings[botNumber] = config;
-            },
-            getSettings: (botNumber) => {
-                return global.db.data.settings[botNumber] || {};
-            },
-            saveGroupSettings: (groupJid, settings) => {
-                if (!global.db.data.groups) global.db.data.groups = {};
-                global.db.data.groups[groupJid] = settings;
-            },
-            getGroupSettings: (groupJid) => {
-                if (!global.db.data.groups) global.db.data.groups = {};
-                return global.db.data.groups[groupJid] || {};
-            }
-        };
-    }
-}
 
 // Define constants for session handling
 const SESSION_DIR = './session';
@@ -165,11 +130,12 @@ const yargs = require('yargs/yargs');
 async function getSessionData() {
     try {
         if (!settings.SESSION_ID) {
-            console.warn(chalk.yellow("[ ⏳ ] No SESSION_ID provided - Falling back to QR or pairing code"));
+            console.warn("[ ⏳ ] No SESSION_ID provided - Falling back to QR or pairing code");
             return null;
         }
         
         console.log(chalk.blue("[ 📥 ] Fetching session from server..."));
+        
         const response = await fetch(`https://vinic-xmd-pairing-site-dsf-crew-devs.onrender.com/session?session=${settings.SESSION_ID}`);
         
         if (!response.ok) {
@@ -177,19 +143,19 @@ async function getSessionData() {
         }
         
         const sessionData = await response.json();
-        console.log("[VINIC-XMD] Session data fetched successfully from server");
+        console.log("[ VINIC-XMD] Session data fetched successfully from server");
         return sessionData;
         
     } catch (error) {
-        console.error(chalk.red("[ ❌ ] Error fetching session from server:"), error.message);
-        console.info(chalk.yellow("[ 😑 ] Will attempt pairing code login"));
+        console.error("[ ❌ ] Error fetching session from server:", error.message);
+        console.info("[ 😑 ] Will attempt pairing code login");
         return null;
     }
 }
 
 function initSession(sessionData) {
     if (!sessionData) {
-        console.log(chalk.yellow('No session data from server'));
+        console.log('No session data from server');
         return null;
     }
     
@@ -220,11 +186,11 @@ function initSession(sessionData) {
             }
         }
         
-        console.log('[VINIC-XMD] Session decrypted and saved successfully');
+        console.log('[ VINIC-XMD ] Session decrypted and saved successfully');
         return data;
         
     } catch (error) {
-        console.error(chalk.red('[ ❌ ] Error decrypting session:'), error.message);
+        console.error('[ ❌ ] Error decrypting session:', error.message);
         return null;
     }
 }
@@ -254,11 +220,11 @@ function cleanupTmpFiles() {
         }
       });
       if (deletedCount > 0) {
-        console.log(chalk.blue(`🧹 Cleaned up ${deletedCount} temporary files`));
+        console.log(`🧹 Cleaned up ${deletedCount} temporary files`);
       }
     }
   } catch (error) {
-    console.log(chalk.yellow('Cleanup error:'), error.message);
+    console.log('Cleanup error:', error.message);
   }
 }
 
@@ -274,10 +240,10 @@ function monitorResources() {
     };
     
     if (memoryUsage.heapUsed > 150) { // 150MB threshold for low memory
-      console.warn(chalk.yellow('⚠️ High memory usage:'), memoryUsage);
+      console.warn('⚠️ High memory usage:', memoryUsage);
       if (global.gc) {
         global.gc();
-        console.log(chalk.blue('🗑️ Garbage collection triggered'));
+        console.log('🗑️ Garbage collection triggered');
       }
     }
   }
@@ -297,6 +263,39 @@ async function clientstart() {
         decryptedSession = initSession(serverSessionData);
     }
 
+ // Load settings from JSON database on startup
+async function loadPersistentSettings(conn) {
+    try {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        
+        if (!fs.existsSync("./start/lib/database/database.json")) {
+            initializeDatabase(null, botNumber);
+            return false;
+        }
+        
+        const dbData = JSON.parse(fs.readFileSync("./start/lib/database/database.json", "utf8"));
+        
+        if (dbData.settings && dbData.settings[botNumber] && dbData.settings[botNumber].config) {
+            if (!global.db.data) global.db.data = {};
+            if (!global.db.data.settings) global.db.data.settings = {};
+            if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
+            
+            global.db.data.settings[botNumber].config = { ...dbData.settings[botNumber].config };
+            
+            // Sync to globals after loading
+            syncSettingsToGlobals(botNumber);
+            
+            return true;
+        } else {
+            initializeDatabase(null, botNumber);
+            return false;
+        }
+    } catch (error) {
+        console.error('Error loading persistent settings:', error);
+        return false;
+    }
+}
+
     // Use multi-file auth state
     const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
     
@@ -308,7 +307,7 @@ async function clientstart() {
         console.log("[ VINIC-XMD] Connecting to WhatsApp ⏳️...");
         
     } catch (error) {
-        console.log(chalk.blue(`[⚠️] Using stable fallback version`));
+        console.log(chalk.yellow(`[⚠️] Using stable fallback version`));
         waVersion = [2, 3000, 1017546695];
     }
 
@@ -380,91 +379,7 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
     
     store.bind(conn.ev);
 
-    const MAX_RECONNECT_ATTEMPTS = 50; // Much higher limit
-    
-    conn.ev.on('connection.update', async (update) => {
-        const { connection, lastDisconnect, qr } = update;
-        
-        if (connection === 'close') {
-            const shouldReconnect = 
-                lastDisconnect?.error?.output?.statusCode !== 401; // Logged out
-            
-            if (shouldReconnect) {
-                console.log(chalk.yellow(`🔁 Reconnection in progress...`));
-                
-                setTimeout(clientstart, 5000);
-            } else {
-                console.log(chalk.red('❌ Max reconnection attempts reached or logged out'));
-            }
-        }
-        
-        if (connection === 'open') {
-            console.log(' [VINIC-XMD] Connection stabilized ');
-            
-            // Send periodic presence updates to stay active
-            setInterval(() => {
-                try {
-                    conn.sendPresenceUpdate('available');
-                } catch (e) {
-                    // Silent fail
-                }
-            }, 60000); // Every minute
-        }
-    });
-
-    // 2. MEMORY MANAGEMENT
-    setInterval(() => {
-        if (global.gc) {
-            global.gc();
-        }
-        // Clear any large caches periodically
-        if (global.db && global.db.data && Object.keys(global.db.data).length > 1000) {
-            // Simple cache cleanup - keep only recent data
-            for (let key in global.db.data) {
-                if (key.startsWith('temp_')) {
-                    delete global.db.data[key];
-                }
-            }
-        }
-    }, 10 * 60 * 1000); // Every 10 minutes
-
-    // 3. PERSISTENT SESSION SAVING
-    setInterval(async () => {
-        try {
-            await saveDatabase();
-            // Force save credentials periodically
-            if (typeof saveCreds === 'function') {
-                await saveCreds();
-            }
-        } catch (error) {
-            console.log(chalk.yellow('Auto-save skipped:'), error.message);
-        }
-    }, 2 * 60 * 1000); // Every 2 minutes
-
-    // 4. NETWORK KEEP-ALIVE
-    setInterval(() => {
-        try {
-            // Send a small ping-like operation
-            conn.sendPresenceUpdate('available');
-        } catch (e) {
-            // Ignore errors, just keep trying
-        }
-    }, 30000); // Every 30 seconds
-
-    // 5. PREVENT INACTIVITY DISCONNECT
-    let activityCounter = 0;
-    setInterval(() => {
-        activityCounter++;
-        // Every 5 minutes, simulate activity
-        if (activityCounter % 10 === 0) {
-            try {
-                conn.sendPresenceUpdate('recording');
-            } catch (e) {
-                // Silent fail
-            }
-        }
-    }, 30000); // Every 30 seconds
-
+  
     conn.ev.on('messages.upsert', async chatUpdate => {
         try {
             let mek = chatUpdate.messages[0];
@@ -476,12 +391,9 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
                     return;
                 }
                 
-                console.log(chalk.blue(`📱 Status update detected from ${mek.pushName || 'Unknown'}`));
+                console.log(`📱 Status update detected from ${mek.pushName || 'Unknown'}`);
                 
-                await handleStatusUpdate(mek, conn);   
-                await checkAndHandleGroupMentions(mek, conn);
-                await detectGroupMentions(mek, conn); 
-                await handleAntiGroupMention(mek, conn);
+                
                 
                 return;
             }
@@ -492,10 +404,11 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
             // Conditionally enable features based on memory
             if (!isLowMemory) {
             
-            
-            await checkAndHandleLinks(mek, conn);
+             
+           await checkAndHandleLinks(mek, conn);
             await detectUrls(mek, conn);
-           
+            await handleStatusUpdate(mek, conn); 
+            
             }
             
             require("./start/kevin")(conn, m, chatUpdate, mek, store);
@@ -503,7 +416,6 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
             console.log(chalk.yellow.bold("[ ERROR ] kevin.js :\n") + chalk.redBright(util.format(err)));
         }
  });
- 
  
 conn.ev.on('contacts.update', update => {
    for (let contact of update) {
@@ -813,20 +725,24 @@ conn.ev.on('contacts.update', update => {
     Connecting({ update, conn, Boom, DisconnectReason, sleep, color, clientstart });
   });
   
-  conn.ev.on('group-participants.update', async (anu) => {
+  // ========== FIXED WELCOME FEATURE ==========
+conn.ev.on('group-participants.update', async (anu) => {
     try {
         const botNumber = await conn.decodeJid(conn.user.id);
         
-        // Get welcome setting from database
-        const settings = global.db.getSettings(botNumber);
-        const welcomeSetting = settings?.welcome || false;
-        const admineventSetting = settings?.adminevent || false;
+        // Initialize database for this group
+        initializeDatabase(anu.id, botNumber);
         
-        // WELCOME FEATURE
-        if (welcomeSetting) {
+        // Check welcome setting from config
+        const config = global.db.data.settings[botNumber]?.config;
+        if (!config) return;
+        
+        // WELCOME FEATURE - FIXED
+        if (config.welcome !== false) { // Default to true if not set
             try {
                 const groupMetadata = await conn.groupMetadata(anu.id);
                 const participants = anu.participants;
+                
                 for (const participant of participants) {
                     let ppUrl;
                     try {
@@ -834,39 +750,44 @@ conn.ev.on('contacts.update', update => {
                     } catch {
                         ppUrl = 'https://i.ibb.co/RBx5SQC/avatar-group-large-v2.png?q=60';
                     }
-                    const name = (await conn.onWhatsApp(participant))[0]?.notify || participant;
+                    
+                    const name = await conn.getName(participant) || participant.split('@')[0];
+                    
                     if (anu.action === 'add') {
                         const memberCount = groupMetadata.participants.length;
                         await conn.sendMessage(anu.id, {
                             image: { url: ppUrl },
                             caption: `
-   *${global.botname} welcome* @${participant.split('@')[0]}  
-   
-   *𝙶𝚛𝚘𝚞𝚙𝙽𝚊𝚖𝚎: ${groupMetadata.subject}*
-   
-  *You're our ${memberCount}th member!*
-  
-  *Join time: ${moment.tz(`${timezones}`).format('HH:mm:ss')},  ${moment.tz(`${timezones}`).format('DD/MM/YYYY')}*
+*${global.botname} welcome* @${participant.split('@')[0]}  
+
+*𝙶𝚛𝚘𝚞𝚙 𝙽𝚊𝚖𝚎: ${groupMetadata.subject}*
+
+*You're our ${memberCount}th member!*
+
+*Join time: ${moment.tz(timezones).format('HH:mm:ss')}, ${moment.tz(timezones).format('DD/MM/YYYY')}*
 
 𝙲𝚊𝚞𝚜𝚎 𝚌𝚑𝚊𝚘𝚜 𝚒𝚝𝚜 𝚊𝚕𝚠𝚊𝚢𝚜 𝚏𝚞𝚗
 
 > ${global.wm}`,
                             mentions: [participant]
                         });
+                        console.log(`✅ Welcome message sent for ${name} in ${groupMetadata.subject}`);
+                        
                     } else if (anu.action === 'remove') {
                         const memberCount = groupMetadata.participants.length;
                         await conn.sendMessage(anu.id, {
                             image: { url: ppUrl },
                             caption: `
-  *👋 Goodbye* 😪 @${participant.split('@')[0]}
-  
-  *Left at: ${moment.tz(timezones).format('HH:mm:ss')},  ${moment.tz(timezones).format('DD/MM/YYYY')}*
-  
-  *We're now ${memberCount} members*.
-  
+*👋 Goodbye* 😪 @${participant.split('@')[0]}
+
+*Left at: ${moment.tz(timezones).format('HH:mm:ss')}, ${moment.tz(timezones).format('DD/MM/YYYY')}*
+
+*We're now ${memberCount} members*.
+
 > ${global.wm}`,
                             mentions: [participant]
                         });
+                        console.log(`✅ Goodbye message sent for ${name} in ${groupMetadata.subject}`);
                     }
                 }
             } catch (err) {
@@ -874,10 +795,12 @@ conn.ev.on('contacts.update', update => {
             }
         }
         
-        // ADMIN EVENT FEATURE
-        if (admineventSetting) {
-            console.log(anu);
+        // Continue with your existing ADMIN EVENT FEATURE code...
+        // ADMIN EVENT FEATURE - FIXED
+        if (config.adminevent !== false) { // Default to true if not set
+            console.log('Admin event detected:', anu);
             if (anu.participants.includes(botNumber)) return;
+            
             try {
                 let metadata = await conn.groupMetadata(anu.id);
                 let participants = anu.participants;
@@ -885,20 +808,13 @@ conn.ev.on('contacts.update', update => {
                 for (let num of participants) {
                     let check = anu.author !== num && anu.author && anu.author.length > 1;
                     let tag = check ? [anu.author, num] : [num];
-                    let ppuser;
-                    
-                    try {
-                        ppuser = await conn.profilePictureUrl(num, 'image');
-                    } catch {
-                        ppuser = 'https://i.ibb.co/RBx5SQC/avatar-group-large-v2.png?q=60';
-                    }
                     
                     if (anu.action == "promote") {
                         // Get usernames for promoted users
                         let promotedUsernames = [];
                         for (let participant of participants) {
                             let name = await conn.getName(participant) || participant.split('@')[0];
-                            promotedUsernames.push(name);
+                            promotedUsernames.push(`@${participant.split('@')[0]}`);
                         }
                         
                         // Get admin name who performed the action
@@ -906,14 +822,15 @@ conn.ev.on('contacts.update', update => {
                         
                         const promotionMessage = `*『 GROUP PROMOTION 』*\n\n` +
                             `👤 *Promoted User${participants.length > 1 ? 's' : ''}:*\n` +
-                            `${promotedUsernames.map(name => `• ${name}`).join('\n')}\n\n` +
-                            `👑 *Promoted By:* ${adminName}\n\n` +
+                            `${promotedUsernames.join('\n')}\n\n` +
+                            `👑 *Promoted By:* @${anu.author.split('@')[0]}\n\n` +
                             `📅 *Date:* ${new Date().toLocaleString()}`;
                         
                         await conn.sendMessage(anu.id, {
                             text: promotionMessage,
                             mentions: tag
                         });
+                        console.log(`✅ Promotion message sent in ${metadata.subject}`);
                     }
                     
                     if (anu.action == "demote") {
@@ -921,7 +838,7 @@ conn.ev.on('contacts.update', update => {
                         let demotedUsernames = [];
                         for (let participant of participants) {
                             let name = await conn.getName(participant) || participant.split('@')[0];
-                            demotedUsernames.push(name);
+                            demotedUsernames.push(`@${participant.split('@')[0]}`);
                         }
                         
                         // Get admin name who performed the action
@@ -929,245 +846,122 @@ conn.ev.on('contacts.update', update => {
                         
                         const demotionMessage = `*『 GROUP DEMOTION 』*\n\n` +
                             `👤 *Demoted User${participants.length > 1 ? 's' : ''}:*\n` +
-                            `${demotedUsernames.map(name => `• ${name}`).join('\n')}\n\n` +
-                            `👑 *Demoted By:* ${adminName}\n\n` +
+                            `${demotedUsernames.join('\n')}\n\n` +
+                            `👑 *Demoted By:* @${anu.author.split('@')[0]}\n\n` +
                             `📅 *Date:* ${new Date().toLocaleString()}`;
                         
                         await conn.sendMessage(anu.id, {
                             text: demotionMessage,
                             mentions: tag
                         });
+                        console.log(`✅ Demotion message sent in ${metadata.subject}`);
                     }
                 }
             } catch (err) {
                 console.log('Error in admin event feature:', err);
             }
-        } 
+        }
     } catch (error) {
         console.error('Error in group-participants.update:', error);
     }
 });
 
-  // Initialize global variables for anticall feature
-if (!global.recentCallers) {
-  global.recentCallers = new Map();
-}
-
-// Anticall handler with clear messages
+// ========== FIXED ANTICALL FEATURE ==========
 conn.ev.on('call', async (callData) => {
-  try {
-    const botNumber = await conn.decodeJid(conn.user.id);
-    const config = global.db.data.settings[botNumber]?.config;
-    
-    // Check if anticall is enabled from database
-    if (!config || !config.anticall) {
-      console.log(chalk.blue('[ANTICALL] Anticall is disabled in database'));
-      return;
+    try {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        
+        // Initialize database settings
+        initializeDatabase(null, botNumber);
+        
+        const config = global.db.data.settings[botNumber]?.config;
+        
+        // Check if anticall is enabled (default to true)
+        if (config && config.anticall === false) return;
+        
+        for (let call of callData) {
+            const from = call.from;
+            const callId = call.id;
+            
+            // Check if caller is owner
+            if (Array.isArray(global.ownernumber) && global.ownernumber.includes(from.split('@')[0])) {
+                console.log(chalk.green(`[ANTICALL] Allowing call from owner: ${from}`));
+                continue;
+            }
+            
+            // Safe check for recentCallers with initialization fallback
+            try {
+                const now = Date.now();
+                const lastWarn = global.recentCallers?.get(from) || 0;
+                const COOLDOWN = 30 * 1000; // 30 seconds cooldown per caller
+                
+                if (now - lastWarn < COOLDOWN) {
+                    console.log(chalk.yellow(`[ANTICALL] Suppressing repeated warning to ${from}`));
+                    // Still attempt to reject/block silently
+                    try {
+                        if (typeof conn.rejectCall === 'function') {
+                            await conn.rejectCall(callId, from);
+                        }
+                    } catch (e) {}
+                    continue;
+                }
+                
+                if (!global.recentCallers) global.recentCallers = new Map();
+                global.recentCallers.set(from, now);
+                
+                // Auto cleanup after cooldown
+                setTimeout(() => {
+                    if (global.recentCallers?.has(from)) {
+                        global.recentCallers.delete(from);
+                    }
+                }, COOLDOWN);
+                
+            } catch (e) {
+                console.error(chalk.red('[ANTICALL] recentCallers check failed:'), e);
+                if (!global.recentCallers) global.recentCallers = new Map();
+            }
+            
+            console.log(chalk.yellow(`[ANTICALL] Declining call from: ${from}`));
+            
+            // ========== KEY FIX: SEND MESSAGE TO CHAT ==========
+            try {
+                const callerName = await conn.getName(from) || from.split('@')[0];
+                const warningMessage = `🚫 *CALL DECLINED*\n\n` +
+                    `*Caller:* @${from.split('@')[0]}\n` +
+                    `*Time:* ${moment().tz(timezones).format('HH:mm:ss')}\n` +
+                    `*Date:* ${moment().tz(timezones).format('DD/MM/YYYY')}\n\n` +
+                    `*🌹 Hi, I am ${global.botname}, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kelvin Tech.*\n\n` +
+                    `*My owner cannot receive calls at this moment. Please avoid unnecessary calling.*\n\n` +
+                    `> ${global.wm}`;
+
+                // Send message to the caller's chat
+                await conn.sendMessage(from, { 
+                    text: warningMessage,
+                    mentions: [from]
+                });
+                
+                console.log(chalk.green(`[ANTICALL] Warning message sent to chat: ${from}`));
+                
+            } catch (msgError) {
+                console.error(chalk.red('[ANTICALL] Failed to send message to chat:'), msgError);
+            }
+            
+            // Decline the call after sending message
+            try {
+                if (typeof conn.rejectCall === 'function') {
+                    await conn.rejectCall(callId, from);
+                    console.log(chalk.green(`[ANTICALL] Successfully declined call from: ${from}`));
+                } else {
+                    console.log(chalk.yellow('[ANTICALL] conn.rejectCall not available'));
+                }
+            } catch (rejectError) {
+                console.error(chalk.red('[ANTICALL] Failed to decline call:'), rejectError);
+            }
+        }
+    } catch (error) {
+        console.error(chalk.red('[ANTICALL ERROR]'), error);
     }
-    
-    for (let call of callData) {
-      const from = call.from;
-      const callerNumber = from.split('@')[0];
-      const callId = call.id;
-      
-      // Check if caller is owner
-      if (Array.isArray(global.ownernumber) && global.ownernumber.includes(callerNumber)) {
-        console.log(chalk.green(`[ANTICALL] ✅ Allowing call from owner: ${from}`));
-        continue;
-      }
-      
-      // Cooldown check
-      const now = Date.now();
-      const lastWarn = global.recentCallers.get(from) || 0;
-      const COOLDOWN = 30 * 1000; // 30 seconds cooldown per caller
-      
-      if (now - lastWarn < COOLDOWN) {
-        console.log(chalk.yellow(`[ANTICALL] ⏳ Suppressing repeated warning to ${from} (in cooldown)`));
-        continue;
-      }
-      
-      global.recentCallers.set(from, now);
-      setTimeout(() => global.recentCallers.delete(from), COOLDOWN);
-      
-      console.log(chalk.yellow(`[ANTICALL] 🚨 Call detected from: ${from} | Mode: ${config.anticall}`));
-      
-      // Handle based on anticall mode from database
-      if (config.anticall === "decline") {
-        await handleDeclineMode(from, callerNumber, callId, conn);
-      } else if (config.anticall === "block") {
-        await handleBlockMode(from, callerNumber, callId, conn);
-      } else if (config.anticall === "decline_block") {
-        await handleDeclineAndBlockMode(from, callerNumber, callId, conn);
-      }
-    }
-  } catch (error) {
-    console.error(chalk.red('[ANTICALL ERROR] ❌'), error);
-  }
 });
-
-// Handle Decline Mode
-async function handleDeclineMode(from, callerNumber, callId, conn) {
-  try {
-    // Message to caller
-    const callerMessage = `🚫 *Call Declined*\n\n` +
-      `Dear @${callerNumber},\n\n` +
-      `*${global.botname}* is an automated WhatsApp bot and cannot receive calls.\n\n` +
-      `📞 *Call Type:* ${getCallType(callId)}\n` +
-      `⏰ *Time:* ${new Date().toLocaleString()}\n\n` +
-      `Please contact my owner via text message instead.\n\n` +
-      `> ${global.wm}`;
-
-    // Message to bot owner
-    const ownerMessage = `📞 *Call Declined Notification*\n\n` +
-      `👤 *Caller:* @${callerNumber}\n` +
-      `📞 *Call Type:* ${getCallType(callId)}\n` +
-      `⏰ *Time:* ${new Date().toLocaleString()}\n` +
-      `🛡️ *Action:* Call was automatically declined\n\n` +
-      `The caller has been notified that this is a bot account.`;
-
-    // Send message to caller
-    await conn.sendMessage(from, { 
-      text: callerMessage,
-      mentions: [from]
-    });
-    console.log(chalk.green(`[ANTICALL] 📩 Decline message sent to caller: ${from}`));
-
-    // Send notification to all owners
-    if (global.ownernumber && Array.isArray(global.ownernumber)) {
-      for (let owner of global.ownernumber) {
-        const ownerJid = owner.includes('@s.whatsapp.net') ? owner : owner + '@s.whatsapp.net';
-        await conn.sendMessage(ownerJid, { 
-          text: ownerMessage,
-          mentions: [from]
-        });
-      }
-      console.log(chalk.green(`[ANTICALL] 📨 Owner notified about declined call from: ${from}`));
-    }
-
-    // Decline the call
-    if (typeof conn.rejectCall === 'function') {
-      await conn.rejectCall(callId, from);
-      console.log(chalk.green(`[ANTICALL] ✅ Successfully declined call from: ${from}`));
-    }
-
-  } catch (error) {
-    console.error(chalk.red('[ANTICALL DECLINE ERROR] ❌'), error);
-  }
-}
-
-// Handle Block Mode
-async function handleBlockMode(from, callerNumber, callId, conn) {
-  try {
-    // Message to caller before blocking
-    const blockMessage = `🚫 *Account Blocked*\n\n` +
-      `Dear @${callerNumber},\n\n` +
-      `You have been *blocked* for calling *${global.botname}*.\n\n` +
-      `📞 *Call Type:* ${getCallType(callId)}\n` +
-      `⏰ *Time:* ${new Date().toLocaleString()}\n` +
-      `🛡️ *Reason:* Unauthorized call to bot account\n\n` +
-      `This bot does not accept calls. Repeated calling violations may result in permanent blocking.\n\n` +
-      `> ${global.wm}`;
-
-    // Message to bot owner
-    const ownerMessage = `📞 *Call Blocked Notification*\n\n` +
-      `👤 *Caller:* @${callerNumber}\n` +
-      `📞 *Call Type:* ${getCallType(callId)}\n` +
-      `⏰ *Time:* ${new Date().toLocaleString()}\n` +
-      `🛡️ *Action:* Caller has been BLOCKED\n\n` +
-      `The caller has been blocked for attempting to call the bot.`;
-
-    // Send message to caller first
-    await conn.sendMessage(from, { 
-      text: blockMessage,
-      mentions: [from]
-    });
-    console.log(chalk.green(`[ANTICALL] 📩 Block warning sent to: ${from}`));
-
-    // Wait a moment to ensure message is delivered
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // Block the user
-    await conn.updateBlockStatus(from, "block");
-    console.log(chalk.green(`[ANTICALL] ✅ Successfully blocked caller: ${from}`));
-
-    // Notify owners
-    if (global.ownernumber && Array.isArray(global.ownernumber)) {
-      for (let owner of global.ownernumber) {
-        const ownerJid = owner.includes('@s.whatsapp.net') ? owner : owner + '@s.whatsapp.net';
-        await conn.sendMessage(ownerJid, { 
-          text: ownerMessage,
-          mentions: [from]
-        });
-      }
-      console.log(chalk.green(`[ANTICALL] 📨 Owner notified about blocked caller: ${from}`));
-    }
-
-  } catch (error) {
-    console.error(chalk.red('[ANTICALL BLOCK ERROR] ❌'), error);
-  }
-}
-
-// Handle Decline and Block Mode
-async function handleDeclineAndBlockMode(from, callerNumber, callId, conn) {
-  try {
-    // Message to caller
-    const callerMessage = `🚫 *Call Declined & Account Blocked*\n\n` +
-      `Dear @${callerNumber},\n\n` +
-      `Your call has been *declined* and your number has been *blocked*.\n\n` +
-      `📞 *Call Type:* ${getCallType(callId)}\n` +
-      `⏰ *Time:* ${new Date().toLocaleString()}\n` +
-      `🛡️ *Action:* Call declined + Account blocked\n\n` +
-      `*${global.botname}* is an automated bot and does not accept calls.\n\n` +
-      `> ${global.wm}`;
-
-    // Message to bot owner
-    const ownerMessage = `📞 *Call Declined & Blocked Notification*\n\n` +
-      `👤 *Caller:* @${callerNumber}\n` +
-      `📞 *Call Type:* ${getCallType(callId)}\n` +
-      `⏰ *Time:* ${new Date().toLocaleString()}\n` +
-      `🛡️ *Action:* Call declined + Caller BLOCKED\n\n` +
-      `The caller has been blocked for attempting to call the bot.`;
-
-    // Send message to caller
-    await conn.sendMessage(from, { 
-      text: callerMessage,
-      mentions: [from]
-    });
-    console.log(chalk.green(`[ANTICALL] 📩 Decline+Block message sent to: ${from}`));
-
-    // Decline the call first
-    if (typeof conn.rejectCall === 'function') {
-      await conn.rejectCall(callId, from);
-      console.log(chalk.green(`[ANTICALL] ✅ Call declined from: ${from}`));
-    }
-
-    // Wait a moment then block
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    await conn.updateBlockStatus(from, "block");
-    console.log(chalk.green(`[ANTICALL] ✅ Caller blocked: ${from}`));
-
-    // Notify owners
-    if (global.ownernumber && Array.isArray(global.ownernumber)) {
-      for (let owner of global.ownernumber) {
-        const ownerJid = owner.includes('@s.whatsapp.net') ? owner : owner + '@s.whatsapp.net';
-        await conn.sendMessage(ownerJid, { 
-          text: ownerMessage,
-          mentions: [from]
-        });
-      }
-      console.log(chalk.green(`[ANTICALL] 📨 Owner notified about decline+block: ${from}`));
-    }
-
-  } catch (error) {
-    console.error(chalk.red('[ANTICALL DECLINE+BLOCK ERROR] ❌'), error);
-  }
-}
-
-// Helper function to get call type
-function getCallType(callId) {
-  // This is a simplified version - you might need to detect call type from call data
-  return "Voice/Video Call";
-}
 
   conn.getFile = async (PATH, returnAsFilename) => {
     let res, filename;
