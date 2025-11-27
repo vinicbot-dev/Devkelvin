@@ -1,19 +1,13 @@
-// ========== AUTO-TYPING INDICATOR HANDLER ==========
-async function handleAutoTyping(m, conn, botNumber) {
+// ========== AUTO-TYPING INDICATOR HANDLER (USING GLOBAL VARIABLE) ==========
+async function handleAutoTyping(m, conn) {
     try {
-        // Get auto-typing setting from database
-        const settings = global.db.getSettings(botNumber);
-        const autoTypingSetting = settings?.autotyping || false;
-        
-        // Check if auto-typing is enabled
-        if (!autoTypingSetting) {
+        // Check if auto-typing is enabled using global variable
+        if (!global.autoTyping) {
             return;
         }
 
         // Don't respond to own messages
-        if (m.key.fromMe) {
-            return;
-        }
+        if (m.key.fromMe) return;
 
         // For groups, check participant count to avoid spam
         if (m.isGroup) {
@@ -23,7 +17,7 @@ async function handleAutoTyping(m, conn, botNumber) {
                     return; // Skip large groups to avoid spam
                 }
             } catch (error) {
-                console.error("Error getting group metadata:", error);
+                console.error("❌ Error getting group metadata:", error);
                 return;
             }
         }
@@ -31,13 +25,15 @@ async function handleAutoTyping(m, conn, botNumber) {
         // Send typing indicator
         await conn.sendPresenceUpdate('composing', m.chat);
         
+        
+        
         // Stop typing after 3 seconds
         setTimeout(async () => {
             await conn.sendPresenceUpdate('paused', m.chat);
-        }, 3000);
+        }, 5000);
         
     } catch (error) {
-        console.error("Error in auto-typing:", error);
+        console.error("❌ Error in auto-typing:", error);
     }
 }
 
