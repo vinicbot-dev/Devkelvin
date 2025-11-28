@@ -537,7 +537,7 @@ await handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, prefix);
 
 // ========== ENHANCED VISIBLE ANTI-LINK EXECUTION ==========
 if (m.isGroup && body && !m.key.fromMe) {
-    await handleLinkViolation(m, conn);
+    await handleVisibleAntiLink(m, conn);
 }
 
 // ========== ANTI-DELETE EXECUTION ==========
@@ -819,25 +819,23 @@ case 'antiedit': {
 }
 break
 case 'antidelete': {
-    const mode = args[0]?.toLowerCase();
-    
-    if (['private', 'chat', 'off'].includes(mode)) {
+    const deleteMode = body.slice(10).trim().toLowerCase();
+    if (['private', 'chat', 'off'].includes(deleteMode)) {
         // Update global variable
-        global.antidelete = mode;
+        global.antidelete = deleteMode;
         
         // Save to database
         const botNumber = await conn.decodeJid(conn.user.id);
         if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
         if (!global.db.data.settings[botNumber].config) global.db.data.settings[botNumber].config = {};
         
-        global.db.data.settings[botNumber].config.antidelete = mode;
+        global.db.data.settings[botNumber].config.antidelete = deleteMode;
         await forceSaveSettings();
         
-        reply(`✅ Anti-delete ${mode === 'off' ? 'disabled' : 'set to: ' + mode}`);
+        reply(`✅ Anti-delete set to: ${deleteMode}`);
     } else {
         reply('❌ Invalid mode. Use: private, chat, or off');
     }
-    
 }
 break;
 case 'dbstatus': {
@@ -9003,143 +9001,78 @@ case 'antitag': {
 }
 case 'antibadword': {
     if (!m.isGroup) return reply('❌ This command only works in groups!');
-    
     if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
     
-    const action = args[0]?.toLowerCase();
-    const validActions = ['on', 'off', 'warn', 'kick', 'delete'];
+    const subcmd = args[0]?.toLowerCase();
     
-    if (!validActions.includes(action)) {
-        return reply(`❌ Usage: ${prefix}antibadword on|off|warn|kick|delete\n\n• on/off - Enable/disable anti-badword\n• warn - Warn then kick after 3 warnings\n• kick - Kick immediately\n• delete - Delete only (no warning)`);
+    if (!subcmd) {
+        return reply(`⚙️ *Anti-BadWord Settings*\n\nCommands:\n• ${prefix}antibadword warn - Enable with warnings\n• ${prefix}antibadword kick - Enable with instant kick\n• ${prefix}antibadword delete - Enable delete only\n• ${prefix}antibadword off - Disable\n• ${prefix}antibadword add <word> - Add bad word\n• ${prefix}antibadword del <word> - Remove bad word\n• ${prefix}antibadword list - Show bad words`);
     }
     
     const botNumber = await conn.decodeJid(conn.user.id);
     initializeDatabase(m.chat, botNumber);
     
-    if (action === 'on' || action === 'off') {
-        global.db.data.settings[botNumber].config.groupSettings[m.chat].antibadword = action === 'on';
-        reply(`✅ Anti-badword ${action === 'on' ? 'enabled' : 'disabled'} for this group`);
-    } else {
-        global.db.data.settings[botNumber].config.groupSettings[m.chat].antibadword = true;
-        global.db.data.settings[botNumber].config.groupSettings[m.chat].badwordaction = action;
-        reply(`✅ Anti-badword enabled with action: ${action}`);
+    // Get current group settings
+    const groupSettings = global.db.data.settings[botNumber].config.groupSettings[m.chat];
+    
+    switch (subcmd) {
+        case 'warn':
+        case 'kick':
+        case 'delete':
+            groupSettings.antibadword = true;
+            groupSettings.badwordaction = subcmd;
+            if (!groupSettings.badwords) groupSettings.badwords = [];
+            await forceSaveSettings();
+            reply(`✅ Anti-badword enabled with *${subcmd}* action!`);
+            break;
+            
+        case 'on':
+            groupSettings.antibadword = true;
+            if (!groupSettings.badwordaction) groupSettings.badwordaction = 'warn';
+            if (!groupSettings.badwords) groupSettings.badwords = [];
+            await forceSaveSettings();
+            reply('✅ Anti-badword enabled!');
+            break;
+            
+        case 'off':
+            groupSettings.antibadword = false;
+            await forceSaveSettings();
+            reply('✅ Anti-badword disabled!');
+            break;
+            
+        case 'add':
+            const wordToAdd = args.slice(1).join(' ');
+            if (!wordToAdd) return reply('❌ Please provide a word to add!');
+            if (!groupSettings.badwords) groupSettings.badwords = [];
+            groupSettings.badwords.push(wordToAdd.toLowerCase());
+            await forceSaveSettings();
+            reply(`✅ Added "*${wordToAdd}*" to bad words list!`);
+            break;
+            
+        case 'del':
+        case 'remove':
+            const wordToDel = args.slice(1).join(' ');
+            if (!wordToDel) return reply('❌ Please provide a word to remove!');
+            if (groupSettings.badwords) {
+                groupSettings.badwords = groupSettings.badwords.filter(w => w !== wordToDel.toLowerCase());
+                await forceSaveSettings();
+                reply(`✅ Removed "*${wordToDel}*" from bad words list!`);
+            } else {
+                reply('❌ No bad words in the list!');
+            }
+            break;
+            
+        case 'list':
+            const words = groupSettings.badwords || [];
+            reply(words.length > 0 ? 
+                `📝 *Bad Words List:*\n${words.map(w => `• ${w}`).join('\n')}` : 
+                '❌ No bad words added yet!');
+            break;
+            
+        default:
+            reply('❌ Invalid subcommand! Use .antibadword for help.');
     }
     
-    await forceSaveSettings();
-    break;
-}
-case 'antibadword': {
-    if (!m.isGroup) return reply('❌ This command only works in groups!');
-    
-    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
-    
-    const subCommand = args[0]?.toLowerCase();
-    
-    // Handle: .antibadword add <word>
-    if (subCommand === 'add') {
-        const word = args.slice(1).join(' ').toLowerCase();
-        if (!word) return reply('❌ Please provide a word to add\nUsage: ' + prefix + 'antibadword add <word>');
-        
-        const botNumber = await conn.decodeJid(conn.user.id);
-        initializeDatabase(m.chat, botNumber);
-        
-        if (!global.db.data.settings[botNumber].config.groupSettings[m.chat].badwords) {
-            global.db.data.settings[botNumber].config.groupSettings[m.chat].badwords = [];
-        }
-        
-        const badWords = global.db.data.settings[botNumber].config.groupSettings[m.chat].badwords;
-        
-        if (badWords.includes(word)) {
-            return reply(`❌ "${word}" is already in the bad words list!`);
-        }
-        
-        badWords.push(word);
-        reply(`✅ Added "${word}" to bad words list\nTotal bad words: ${badWords.length}`);
-        
-        await forceSaveSettings();
-        break;
-    }
-    
-    // Handle: .antibadword del <word>
-    if (subCommand === 'del') {
-        const word = args.slice(1).join(' ').toLowerCase();
-        if (!word) return reply('❌ Please provide a word to remove\nUsage: ' + prefix + 'antibadword del <word>');
-        
-        const botNumber = await conn.decodeJid(conn.user.id);
-        initializeDatabase(m.chat, botNumber);
-        
-        const badWords = global.db.data.settings[botNumber].config.groupSettings[m.chat].badwords || [];
-        
-        if (!badWords.includes(word)) {
-            return reply(`❌ "${word}" is not in the bad words list!`);
-        }
-        
-        const index = badWords.indexOf(word);
-        badWords.splice(index, 1);
-        reply(`✅ Removed "${word}" from bad words list\nRemaining words: ${badWords.length}`);
-        
-        await forceSaveSettings();
-        break;
-    }
-    
-    // Handle: .antibadword <mode> (on/off/warn/kick/delete)
-    const validActions = ['on', 'off', 'warn', 'kick', 'delete'];
-    
-    if (!validActions.includes(subCommand)) {
-        return reply(`❌ Usage:\n` +
-            `• ${prefix}antibadword on/off/warn/kick/delete\n` +
-            `• ${prefix}antibadword add <word>\n` +
-            `• ${prefix}antibadword del <word>`);
-    }
-    
-    const botNumber = await conn.decodeJid(conn.user.id);
-    initializeDatabase(m.chat, botNumber);
-    
-    if (subCommand === 'on' || subCommand === 'off') {
-        global.db.data.settings[botNumber].config.groupSettings[m.chat].antibadword = subCommand === 'on';
-        reply(`✅ Anti-badword ${subCommand === 'on' ? 'enabled' : 'disabled'} for this group`);
-    } else {
-        global.db.data.settings[botNumber].config.groupSettings[m.chat].antibadword = true;
-        global.db.data.settings[botNumber].config.groupSettings[m.chat].badwordaction = subCommand;
-        reply(`✅ Anti-badword enabled with action: ${subCommand}`);
-    }
-    
-    await forceSaveSettings();
-    break;
-}
-case 'listbadwords': {
-    if (!m.isGroup) return reply('❌ This command only works in groups!');
-    
-    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
-    
-    const botNumber = await conn.decodeJid(conn.user.id);
-    initializeDatabase(m.chat, botNumber);
-    
-    const badWords = global.db.data.settings[botNumber].config.groupSettings[m.chat].badwords || [];
-    
-    if (badWords.length === 0) {
-        return reply('📝 No bad words configured for this group.\nUse ' + prefix + 'addbadword <word> to add words.');
-    }
-    
-    const wordList = badWords.map((word, index) => `${index + 1}. ${word}`).join('\n');
-    reply(`📝 Bad words list (${badWords.length} words):\n\n${wordList}\n\nUse ${prefix}delbadword <word> to remove words.`);
-    break;
-}
-case 'autoviewstatus': {
-    const action = args[0]?.toLowerCase();
-    if (!['on', 'off'].includes(action)) {
-        return reply(`❌ Usage: ${prefix}autoviewstatus on|off`);
-    }
-    
-    const botNumber = await conn.decodeJid(conn.user.id);
-    initializeDatabase(m.chat, botNumber);
-    
-    global.db.data.settings[botNumber].config.autoviewstatus = action === 'on';
-    global.autoviewstatus = action === 'on';
-    
-    reply(`✅ Auto-view status ${action === 'on' ? 'enabled' : 'disabled'}`);
-    
-    await forceSaveSettings();
     break;
 }
 case 'autoreactstatus': {
