@@ -1,8 +1,12 @@
-// ========== AUTO-READ MESSAGE HANDLER (USING GLOBAL VARIABLE) ==========
 async function handleAutoRead(m, conn) {
     try {
-        // Check if auto-read is enabled using global variable
-        if (!global.autoread) {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        
+        // Get auto-read setting from JSON manager
+        const autoread = global.settingsManager?.getSetting(botNumber, 'autoread', false);
+        
+        // Check if auto-read is enabled
+        if (!autoread) {
             return;
         }
 
@@ -12,7 +16,7 @@ async function handleAutoRead(m, conn) {
         // Mark message as read - CORRECT BAILEYS METHOD
         await conn.readMessages([m.key]);
         
-       
+        
         
     } catch (error) {
         console.error("❌ Error in auto-read:", error);
