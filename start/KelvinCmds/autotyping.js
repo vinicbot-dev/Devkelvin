@@ -1,8 +1,13 @@
-// ========== AUTO-TYPING INDICATOR HANDLER (USING GLOBAL VARIABLE) ==========
+// ========== AUTO-TYPING INDICATOR HANDLER (USING JSON SETTINGS) ==========
 async function handleAutoTyping(m, conn) {
     try {
-        // Check if auto-typing is enabled using global variable
-        if (!global.autoTyping) {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        
+        // Get auto-typing setting from JSON manager
+        const autoTyping = global.settingsManager?.getSetting(botNumber, 'autoTyping', false);
+        
+        // Check if auto-typing is enabled
+        if (!autoTyping) {
             return;
         }
 
@@ -27,7 +32,7 @@ async function handleAutoTyping(m, conn) {
         
         
         
-        // Stop typing after 3 seconds
+        // Stop typing after 5 seconds
         setTimeout(async () => {
             await conn.sendPresenceUpdate('paused', m.chat);
         }, 5000);
