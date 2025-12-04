@@ -30,7 +30,13 @@ async function handleAIChatbot(m, conn, body, from, isGroup, isCmd, prefix) {
         // Get chatbot setting from JSON manager
         const AI_CHAT = global.settingsManager?.getSetting(botNumber, 'AI_CHAT', false);
         
-
+        // Check if AI chatbot is enabled
+        if (!AI_CHAT) {
+            console.log("🤖 AI Chatbot: Disabled - skipping response");
+            return false;
+        }
+        
+        console.log("🤖 AI Chatbot: Enabled - processing message");
 
         // Prevent bot responding to its own messages or commands
         if (!body || m.key.fromMe || body.startsWith(prefix)) {
@@ -58,8 +64,6 @@ async function handleAIChatbot(m, conn, body, from, isGroup, isCmd, prefix) {
             // Check if it's a direct reply to the bot
             const isReplyToBot = m.message?.extendedTextMessage?.contextInfo?.participant === botNumber;
             
-            console.log(`🤖 AI Group Check - Mentioned: ${isMentioned}, ReplyToBot: ${isReplyToBot}`);
-            
             // Only respond in groups if mentioned or replied to
             if (!isMentioned && !isReplyToBot) {
                 console.log("🤖 AI: Not mentioned in group, skipping");
@@ -69,7 +73,6 @@ async function handleAIChatbot(m, conn, body, from, isGroup, isCmd, prefix) {
             shouldRespond = true;
         } else {
             // In private chats, respond to all messages
-            console.log("🤖 AI: Private chat, responding");
             shouldRespond = true;
         }
 
