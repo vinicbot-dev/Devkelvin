@@ -66,7 +66,7 @@ const { File } = require('megajs');
 const { color } = require('./start/lib/color');
 
 const Database = require('better-sqlite3');
-const db = require('./start/lib/database/database');
+const db = require('./data/database.json');
 
 const {
   smsg,
@@ -86,12 +86,7 @@ detectUrls,
 handleStatusUpdate
  } = require('./vinic');
  
-const { 
-forceSaveSettings,
-saveDatabase,
-syncSettingsToGlobals,
-initializeDatabase
-} = require('./start/KelvinCmds/core/databases');
+
 
 const {
   imageToWebp,
@@ -101,9 +96,7 @@ const {
 } = require('./start/lib/exif');
 
 
-// Define constants for session handling
-const SESSION_DIR = './session';
-const CREDS_PATH = `${SESSION_DIR}/creds.json`;
+
 
 // Use system temp directory for cloud platforms
 const TMP_DIR = isProduction 
@@ -127,73 +120,52 @@ const question = (text) => {
 
 const yargs = require('yargs/yargs');
 
-async function getSessionData() {
+//=========SESSION-AUTH=====================
+
+const sessionDir = path.join(__dirname, 'sessions');
+const credsPath = path.join(sessionDir, 'creds.json');
+
+// Create session directory if it doesn't exist
+if (!fs.existsSync(sessionDir)) {
+    fs.mkdirSync(sessionDir, { recursive: true });
+}
+
+async function loadSession() {
     try {
         if (!settings.SESSION_ID) {
-            console.warn("[ ⏳ ] No SESSION_ID provided - Falling back to QR or pairing code");
+            console.log('No SESSION_ID provided - QR login will be generated');
             return null;
         }
+
+        console.log('[ ⏳ ] Downloading creds data...');
+        console.log('[ 🆔️ ] Downloading MEGA.nz session...');
         
-        console.log(chalk.blue("[ 📥 ] Fetching session from server..."));
+        // Remove "malvin~" prefix if present, otherwise use full SESSION_ID
+        const megaFileId = settings.SESSION_ID.startsWith('Vinic-Xmd~') 
+            ? settings.SESSION_ID.replace("Vinic-Xmd~", "") 
+            : settings.SESSION_ID;
+
+        const filer = File.fromURL(`https://mega.nz/file/${megaFileId}`);
+            
+        const data = await new Promise((resolve, reject) => {
+            filer.download((err, data) => {
+                if (err) reject(err);
+                else resolve(data);
+            });
+        });
         
-        const response = await fetch(`https://vinic-xmd-pairing-site-dsf-crew-devs.onrender.com/session?session=${settings.SESSION_ID}`);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        const sessionData = await response.json();
-        console.log("[ VINIC-XMD] Session data fetched successfully from server");
-        return sessionData;
-        
+        fs.writeFileSync(credsPath, data);
+        console.log('[ ✅ ] MEGA session downloaded successfully');
+        return JSON.parse(data.toString());
     } catch (error) {
-        console.error("[ ❌ ] Error fetching session from server:", error.message);
-        console.info("[ 😑 ] Will attempt pairing code login");
+        console.error('❌ Error loading session:', error.message);
+        console.log('Will generate QR code instead');
         return null;
     }
 }
 
-function initSession(sessionData) {
-    if (!sessionData) {
-        console.log('No session data from server');
-        return null;
-    }
-    
-    const crypto = require('crypto');
-    const algorithm = 'aes-256-cbc';
-    const key = Buffer.from(sessionData.key, 'hex');
-    const iv = Buffer.from(sessionData.iv, 'hex');
-    
-    try {
-        const decipher = crypto.createDecipheriv(algorithm, key, iv);
-        let decrypted = decipher.update(sessionData.data, 'hex', 'utf8');
-        decrypted += decipher.final('utf8');
-        
-        const data = JSON.parse(decrypted);
-        
-        // Ensure session directory exists
-        if (!fs.existsSync(SESSION_DIR)) {
-            fs.mkdirSync(SESSION_DIR, { recursive: true });
-        }
-        
-        // Save credentials
-        fs.writeFileSync(CREDS_PATH, JSON.stringify(data.creds, null, 2));
-        
-        // Save sync keys if they exist
-        if (data.syncKeys) {
-            for (const [filename, syncKeyData] of Object.entries(data.syncKeys)) {
-                fs.writeFileSync(path.join(SESSION_DIR, filename), JSON.stringify(syncKeyData, null, 2));
-            }
-        }
-        
-        console.log('[ VINIC-XMD ] Session decrypted and saved successfully');
-        return data;
-        
-    } catch (error) {
-        console.error('[ ❌ ] Error decrypting session:', error.message);
-        return null;
-    }
-}
+//=======SESSION-AUTH==============
+
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -250,54 +222,16 @@ function monitorResources() {
 }
 
 async function clientstart() {
-    // Ensure session directory exists
-    if (!fs.existsSync(SESSION_DIR)) {
-        fs.mkdirSync(SESSION_DIR, { recursive: true });
-    }
-
-    // Get session data from server
-    const serverSessionData = await getSessionData();
-    let decryptedSession = null;
     
-    if (serverSessionData) {
-        decryptedSession = initSession(serverSessionData);
-    }
 
- // Load settings from JSON database on startup
-async function loadPersistentSettings(conn) {
-    try {
-        const botNumber = await conn.decodeJid(conn.user.id);
-        
-        if (!fs.existsSync("./start/lib/database/database.json")) {
-            initializeDatabase(null, botNumber);
-            return false;
-        }
-        
-        const dbData = JSON.parse(fs.readFileSync("./start/lib/database/database.json", "utf8"));
-        
-        if (dbData.settings && dbData.settings[botNumber] && dbData.settings[botNumber].config) {
-            if (!global.db.data) global.db.data = {};
-            if (!global.db.data.settings) global.db.data.settings = {};
-            if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-            
-            global.db.data.settings[botNumber].config = { ...dbData.settings[botNumber].config };
-            
-            // Sync to globals after loading
-            syncSettingsToGlobals(botNumber);
-            
-            return true;
-        } else {
-            initializeDatabase(null, botNumber);
-            return false;
-        }
-    } catch (error) {
-        console.error('Error loading persistent settings:', error);
-        return false;
-    }
-}
+   // Check and download session data
+      const creds = await loadSession();
+      
+
+
 
     // Use multi-file auth state
-    const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
+    const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
     
     // Fetch latest WhatsApp Web version with fallback
     let waVersion;
@@ -314,7 +248,7 @@ async function loadPersistentSettings(conn) {
     // OPTIMIZED CONNECTION FOR LONG-LIVED STABILITY
     const conn = makeWASocket({
         // Critical stability settings
-        printQRInTerminal: !decryptedSession,
+        printQRInTerminal: !usePairingCode,
         syncFullHistory: false, // Disable to save memory
         markOnlineOnConnect: true,
         
@@ -368,6 +302,7 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
 
     // Monitor memory every 10 minutes
     setInterval(monitorResources, 10 * 60 * 1000);
+    
     
     const { makeInMemoryStore } = require("./start/lib/store/");
     const store = makeInMemoryStore({
@@ -437,7 +372,7 @@ conn.ev.on('contacts.update', update => {
     }, { quoted });
   };
 
-  // Add all your other existing conn methods here...
+
   conn.sendImageAsSticker = async (jid, path, quoted, options = {}) => {
     let buff;
     try {
@@ -725,20 +660,16 @@ conn.ev.on('contacts.update', update => {
     Connecting({ update, conn, Boom, DisconnectReason, sleep, color, clientstart });
   });
   
-  // ========== FIXED WELCOME FEATURE ==========
 conn.ev.on('group-participants.update', async (anu) => {
     try {
         const botNumber = await conn.decodeJid(conn.user.id);
         
-        // Initialize database for this group
-        initializeDatabase(anu.id, botNumber);
+        // Get settings from JSON manager
+        const welcomeEnabled = global.settingsManager?.getSetting(botNumber, 'welcome', true);
+        const admineventEnabled = global.settingsManager?.getSetting(botNumber, 'adminevent', true);
         
-        // Check welcome setting from config
-        const config = global.db.data.settings[botNumber]?.config;
-        if (!config) return;
-        
-        // WELCOME FEATURE - FIXED
-        if (config.welcome !== false) { // Default to true if not set
+        // WELCOME FEATURE - USING JSON SETTINGS
+        if (welcomeEnabled) {
             try {
                 const groupMetadata = await conn.groupMetadata(anu.id);
                 const participants = anu.participants;
@@ -795,9 +726,8 @@ conn.ev.on('group-participants.update', async (anu) => {
             }
         }
         
-        // Continue with your existing ADMIN EVENT FEATURE code...
-        // ADMIN EVENT FEATURE - FIXED
-        if (config.adminevent !== false) { // Default to true if not set
+        // ADMIN EVENT FEATURE - USING JSON SETTINGS
+        if (admineventEnabled) {
             console.log('Admin event detected:', anu);
             if (anu.participants.includes(botNumber)) return;
             
@@ -865,26 +795,28 @@ conn.ev.on('group-participants.update', async (anu) => {
         console.error('Error in group-participants.update:', error);
     }
 });
-
-// ========== FIXED ANTICALL FEATURE ==========
 conn.ev.on('call', async (callData) => {
     try {
         const botNumber = await conn.decodeJid(conn.user.id);
         
-        // Initialize database settings
-        initializeDatabase(null, botNumber);
+        // Get anticall setting from JSON manager
+        const anticallSetting = global.settingsManager?.getSetting(botNumber, 'anticall', 'off');
         
-        const config = global.db.data.settings[botNumber]?.config;
-        
-        // Check if anticall is enabled (default to true)
-        if (config && config.anticall === false) return;
+        // Check if anticall is enabled (off, decline, or block)
+        if (!anticallSetting || anticallSetting === 'off') {
+            console.log(chalk.gray('[ANTICALL] Disabled'));
+            return;
+        }
         
         for (let call of callData) {
             const from = call.from;
             const callId = call.id;
             
-            // Check if caller is owner
-            if (Array.isArray(global.ownernumber) && global.ownernumber.includes(from.split('@')[0])) {
+            // Check if caller is owner (allow calls from owner)
+            const ownerNumbers = global.owner || [];
+            const isOwner = ownerNumbers.some(num => from.includes(num.replace('+', '').replace(/[^0-9]/g, '')));
+            
+            if (isOwner) {
                 console.log(chalk.green(`[ANTICALL] Allowing call from owner: ${from}`));
                 continue;
             }
@@ -921,18 +853,30 @@ conn.ev.on('call', async (callData) => {
                 if (!global.recentCallers) global.recentCallers = new Map();
             }
             
-            console.log(chalk.yellow(`[ANTICALL] Declining call from: ${from}`));
+            console.log(chalk.yellow(`[ANTICALL] ${anticallSetting} call from: ${from}`));
             
-            // ========== KEY FIX: SEND MESSAGE TO CHAT ==========
+            // ========== SEND MESSAGE TO CHAT ==========
             try {
                 const callerName = await conn.getName(from) || from.split('@')[0];
-                const warningMessage = `🚫 *CALL DECLINED*\n\n` +
-                    `*Caller:* @${from.split('@')[0]}\n` +
-                    `*Time:* ${moment().tz(timezones).format('HH:mm:ss')}\n` +
-                    `*Date:* ${moment().tz(timezones).format('DD/MM/YYYY')}\n\n` +
-                    `*🌹 Hi, I am ${global.botname}, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kelvin Tech.*\n\n` +
-                    `*My owner cannot receive calls at this moment. Please avoid unnecessary calling.*\n\n` +
-                    `> ${global.wm}`;
+                let warningMessage = '';
+                
+                if (anticallSetting === 'block') {
+                    warningMessage = `🚫 *CALL BLOCKED*\n\n` +
+                        `*Caller:* @${from.split('@')[0]}\n` +
+                        `*Time:* ${moment().tz(timezones).format('HH:mm:ss')}\n` +
+                        `*Date:* ${moment().tz(timezones).format('DD/MM/YYYY')}\n\n` +
+                        `*🌹 Hi, I am ${global.botname}, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kelvin Tech.*\n\n` +
+                        `*My owner cannot receive calls at this moment. Calls are automatically blocked.*\n\n` +
+                        `> ${global.wm}`;
+                } else {
+                    warningMessage = `🚫 *CALL DECLINED*\n\n` +
+                        `*Caller:* @${from.split('@')[0]}\n` +
+                        `*Time:* ${moment().tz(timezones).format('HH:mm:ss')}\n` +
+                        `*Date:* ${moment().tz(timezones).format('DD/MM/YYYY')}\n\n` +
+                        `*🌹 Hi, I am ${global.botname}, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kelvin Tech.*\n\n` +
+                        `*My owner cannot receive calls at this moment. Please avoid unnecessary calling.*\n\n` +
+                        `> ${global.wm}`;
+                }
 
                 // Send message to the caller's chat
                 await conn.sendMessage(from, { 
@@ -946,16 +890,26 @@ conn.ev.on('call', async (callData) => {
                 console.error(chalk.red('[ANTICALL] Failed to send message to chat:'), msgError);
             }
             
-            // Decline the call after sending message
+            // Decline or block the call
             try {
                 if (typeof conn.rejectCall === 'function') {
                     await conn.rejectCall(callId, from);
-                    console.log(chalk.green(`[ANTICALL] Successfully declined call from: ${from}`));
+                    console.log(chalk.green(`[ANTICALL] Successfully ${anticallSetting === 'block' ? 'blocked' : 'declined'} call from: ${from}`));
+                    
+                    // If mode is block, also block the user
+                    if (anticallSetting === 'block') {
+                        try {
+                            await conn.updateBlockStatus(from, 'block');
+                            console.log(chalk.red(`[ANTICALL] Blocked user: ${from}`));
+                        } catch (blockError) {
+                            console.error(chalk.red('[ANTICALL] Failed to block user:'), blockError);
+                        }
+                    }
                 } else {
                     console.log(chalk.yellow('[ANTICALL] conn.rejectCall not available'));
                 }
             } catch (rejectError) {
-                console.error(chalk.red('[ANTICALL] Failed to decline call:'), rejectError);
+                console.error(chalk.red('[ANTICALL] Failed to decline/block call:'), rejectError);
             }
         }
     } catch (error) {
