@@ -798,7 +798,7 @@ case 'antistatus': {
     break;
 }
 case 'antiedit': {
-    if (!Access) return reply('❌ Owner only command');
+    if (!Access) return reply(mess.owner);
     
     const subcommand = args[0]?.toLowerCase();
     const value = args[1]?.toLowerCase();
@@ -869,7 +869,7 @@ Enabled: ${getSetting(botNumber, 'antiedit', 'off') !== 'off' ? '✅' : '❌'}
     break;
 }
 case 'antidelete': {
-    if (!Access) return reply('❌ Owner only command');
+    if (!Access) return reply(mess.owner);
     
     const subcommand = args[0]?.toLowerCase();
     const value = args[1]?.toLowerCase();
@@ -2074,7 +2074,7 @@ Status updates are automatically marked as read when enabled.`);
     break;
 }
 case 'welcome': {
-    if (!Access) return reply('❌ Owner only command');
+    if (!Access) return reply(mess.owner);
     
     const subcommand = args[0]?.toLowerCase();
     
@@ -2127,7 +2127,7 @@ Send ${prefix}welcome on/off to toggle`);
 }
 
 case 'adminevent': {
-    if (!Access) return reply('❌ Owner only command');
+    if (!Access) return reply(mess.owner);
     
     const subcommand = args[0]?.toLowerCase();
     
@@ -2178,7 +2178,7 @@ Send ${prefix}adminevent on/off to toggle`);
     break;
 }
 case 'anticall': {
-    if (!Access) return reply('❌ Owner only command');
+    if (!Access) return reply(mess.owner);
     
     const subcommand = args[0]?.toLowerCase();
     
@@ -2265,7 +2265,7 @@ Try calling the bot to test the feature.`);
 }
 case 'settings':
 case 'config': {
-    if (!Access) return reply('❌ Owner only command');
+    if (!Access) return reply(mess.owner);
     
     // Get all settings
     const antidelete = getSetting(botNumber, 'antidelete', 'off');
@@ -2565,7 +2565,7 @@ case "groupid": {
 }
 break
 case 'autorecording': {
-    if (!Access) return reply('❌ Owner only command');
+    if (!Access) return reply(mess.owner);
     const mode = args[0]?.toLowerCase();
     if (!mode || !['on', 'off'].includes(mode)) {
         return reply(`❌ Usage: ${prefix}autorecording <on/off>\nExample: ${prefix}autorecording on`);
@@ -2579,7 +2579,8 @@ case 'autorecording': {
 
 case 'autotypings':
 case 'autotyping': {
-    if (!Access) return reply('❌ Owner only command');
+    if (!Access) return reply(mess.owner);
+    
     const mode = args[0]?.toLowerCase();
     if (!mode || !['on', 'off'].includes(mode)) {
         return reply(`❌ Usage: ${prefix}autotyping <on/off>\nExample: ${prefix}autotyping on`);
@@ -2592,7 +2593,8 @@ case 'autotyping': {
 }
 
 case 'autoread': {
-    if (!Access) return reply('❌ Owner only command');
+    if (!Access) return reply(mess.owner);
+    
     const mode = args[0]?.toLowerCase();
     if (!mode || !['on', 'off'].includes(mode)) {
         return reply(`❌ Usage: ${prefix}autoread <on/off>\nExample: ${prefix}autoread on`);
@@ -2605,7 +2607,8 @@ case 'autoread': {
 }
 
 case 'autoreact': {
-    if (!Access) return reply('❌ Owner only command');
+    if (!Access) return reply(mess.owner);
+    
     const mode = args[0]?.toLowerCase();
     if (!mode || !['on', 'off'].includes(mode)) {
         return reply(`❌ Usage: ${prefix}autoreact <on/off>\nExample: ${prefix}autoreact on`);
