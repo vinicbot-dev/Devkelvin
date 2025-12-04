@@ -15,7 +15,6 @@ const acrcloud = require ('acrcloud');
 const FormData = require('form-data');
 const cheerio = require('cheerio')
 const { performance } = require("perf_hooks");
-const process = require('process');
 const moment = require("moment-timezone")
 const os = require('os');
 const speed = require('performance-now')
@@ -29,7 +28,6 @@ const latensi = speed() - timestampp
 
 const { smsg, sendGmail, formatSize, isUrl, generateMessageTag, CheckBandwidth, getBuffer, getSizeMedia, runtime, fetchJson, sleep, getRandom } = require('./start/lib/myfunction')
 
-const { initializeDatabase } = require('./start/KelvinCmds/core/databases');
 
 //delay
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -71,7 +69,7 @@ const acr = new acrcloud({
 
 //database 
 global.db = { data: {} };
-global.db.data = JSON.parse(fs.readFileSync("./start/lib/database/database.json")) || {};
+global.db.data = JSON.parse(fs.readFileSync("./data/database.json")) || {};
 
 if (global.db.data) {
   global.db.data = {
@@ -385,11 +383,16 @@ function storeMessage(chatId, messageId, messageData) {
         console.error("Error storing message:", error);
     }
 }
-// ========== ANTI-EDIT HANDLER (USING GLOBAL VARIABLE) ==========
 async function handleAntiEdit(m, conn) {
     try {
+        // Get bot number
+        const botNumber = await conn.decodeJid(conn.user.id);
+        
+        // Get anti-edit setting from JSON manager
+        const antieditSetting = global.settingsManager?.getSetting(botNumber, 'antiedit', 'off');
+        
         // Check if anti-edit is enabled and we have an edited message
-        if (!global.antiedit || global.antiedit === 'off' || !m.message?.protocolMessage?.editedMessage) {
+        if (!antieditSetting || antieditSetting === 'off' || !m.message?.protocolMessage?.editedMessage) {
             return;
         }
 
@@ -458,12 +461,12 @@ ${readmore}
             }
         };
 
-        // Determine target based on mode
+        // Determine target based on mode from JSON settings
         let targetChat;
-        if (global.antiedit === 'private') {
+        if (antieditSetting === 'private') {
             targetChat = conn.user.id; // Send to bot owner
             console.log(`📤 Anti-edit: Sending to bot owner's inbox`);
-        } else if (global.antiedit === 'chat') {
+        } else if (antieditSetting === 'chat') {
             targetChat = chatId; // Send to same chat
             console.log(`📤 Anti-edit: Sending to same chat`);
         } else {
@@ -477,23 +480,21 @@ ${readmore}
             { quoted: quotedMessage }
         );
 
-        
-
     } catch (err) {
         console.error("❌ Error processing edited message:", err);
     }
 }
-// ========== FIXED STATUS UPDATE HANDLER ==========
 async function handleStatusUpdate(mek, conn) {
     try {
         const botNumber = await conn.decodeJid(conn.user.id);
-        if (!global.db.data.settings || !global.db.data.settings[botNumber]) return;
         
-        const setting = global.db.data.settings[botNumber];
-        if (!setting.config) return;
+        // Get settings from JSON manager
+        const autoviewstatus = global.settingsManager?.getSetting(botNumber, 'autoviewstatus', false);
+        const autoreactstatus = global.settingsManager?.getSetting(botNumber, 'autoreactstatus', false);
+        const statusemoji = global.settingsManager?.getSetting(botNumber, 'statusemoji', '💚');
 
         // Auto view status
-        if (setting.config.autoviewstatus) {
+        if (autoviewstatus) {
             try {
                 // Correct way to mark status as viewed in Baileys
                 await conn.readMessages([mek.key]);
@@ -504,10 +505,16 @@ async function handleStatusUpdate(mek, conn) {
         }
 
         // Auto react to status - FIXED VERSION
-        if (setting.config.autoreactstatus) {
+        if (autoreactstatus) {
             try {
-                const reactions = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉'];
-                const randomReaction = reactions[Math.floor(Math.random() * reactions.length)];
+                // Use custom emoji if set, otherwise use random from list
+                let reactionEmoji = statusemoji || '💚';
+                
+                // If custom emoji not set or default, use random from list
+                if (!reactionEmoji || reactionEmoji === '💚') {
+                    const reactions = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉'];
+                    reactionEmoji = reactions[Math.floor(Math.random() * reactions.length)];
+                }
                 
                 // For status updates, we need to use the correct approach
                 // Status messages are broadcast messages with special handling
@@ -515,7 +522,7 @@ async function handleStatusUpdate(mek, conn) {
                     // Create a proper reaction for status using the status message key
                     const reactionMessage = {
                         react: {
-                            text: randomReaction,
+                            text: reactionEmoji,
                             key: mek.key
                         }
                     };
@@ -523,28 +530,19 @@ async function handleStatusUpdate(mek, conn) {
                     // Send reaction to the status
                     await conn.sendMessage(mek.key.remoteJid, reactionMessage);
                     
-                    
+                    console.log(`🎭 Auto-reacted ${reactionEmoji} to status from ${mek.pushName || 'Unknown'}`);
                     
                     // Add a small delay to avoid rate limiting
                     await delay(1000);
                 }
             } catch (reactError) {
                 console.error('Error auto-reacting to status:', reactError);
-                // Log more details for debugging
-                console.log('Status message structure:', {
-                    key: mek.key,
-                    remoteJid: mek.key?.remoteJid,
-                    id: mek.key?.id,
-                    participant: mek.key?.participant
-                });
             }
         }
     } catch (error) {
         console.error('Error in status handler:', error);
     }
 }
-
-
 
 
 // ========== FIXED ANTI-LINK DETECTION FUNCTION ==========
@@ -574,51 +572,31 @@ function detectUrls(message) {
     return matches ? matches : [];
 }
 
-// ========== FIXED ANTI-LINK HANDLER - VISIBLE TO ALL ==========
 async function handleLinkViolation(message, conn) {
     try {
+        const botNumber = await conn.decodeJid(conn.user.id);
         const chatId = message.key.remoteJid;
         const sender = message.key.participant || message.key.remoteJid;
         const messageId = message.key.id;
-        const botNumber = await conn.decodeJid(conn.user.id);
 
-        // Get group settings
-        if (!global.db.data.settings || !global.db.data.settings[botNumber] || 
-            !global.db.data.settings[botNumber].config) {
-            return;
-        }
+        // Get anti-link settings
+        const isEnabled = global.settingsManager?.getSetting(botNumber, 'antilinkdelete', true);
+        const mode = global.settingsManager?.getSetting(botNumber, 'antilinkaction', 'delete');
         
-        const config = global.db.data.settings[botNumber].config;
-        
-        // Check if group settings exist and anti-link is enabled
-        if (!config.groupSettings || !config.groupSettings[chatId] || !config.groupSettings[chatId].antilink) {
-            return;
-        }
-        
-        const groupSettings = config.groupSettings[chatId];
-        const action = groupSettings.antilinkaction || "delete";
-
-        // Check if this is a media message without links in caption
-        const urls = detectUrls(message.message);
-        if (urls.length === 0) {
-            return; // Don't process messages without links
-        }
+        if (!isEnabled) return;
 
         // Get group metadata to check admin status
         const groupMetadata = await conn.groupMetadata(chatId).catch(() => null);
-        if (!groupMetadata) {
-            return; // Can't get group info
-        }
+        if (!groupMetadata) return;
 
         // Check if sender is admin (allow admins to post links)
         const participant = groupMetadata.participants.find(p => p.id === sender);
         if (participant && (participant.admin === 'admin' || participant.admin === 'superadmin')) {
-            return; // Allow admins to post links - NO ACTION TAKEN
+            return; // Allow admins to post links
         }
 
-        // ========== VISIBLE DELETION FOR EVERYONE ==========
+        // ========== VISIBLE DELETION ==========
         try {
-            // This method makes deletion visible to all group members
             await conn.sendMessage(chatId, {
                 delete: {
                     id: messageId,
@@ -628,30 +606,25 @@ async function handleLinkViolation(message, conn) {
                 }
             });
             
-            console.log(`✅ Link message deleted - VISIBLE TO ALL in group ${chatId}`);
+            console.log(`✅ Link message deleted from ${sender}`);
             
         } catch (deleteError) {
-            console.log('❌ Failed to delete message visibly');
-            return; // If deletion fails, don't proceed with warnings/kicks
+            console.log('❌ Failed to delete message');
+            return;
         }
 
-        // Store warning count per user
-        if (!global.linkWarnings) global.linkWarnings = new Map();
-        
-        const userWarnings = global.linkWarnings.get(sender) || { count: 0, lastWarning: 0 };
-        const now = Date.now();
-        const warningCooldown = 30000;
-        
-        let responseMessage = "";
-        
-        // Take action based on setting
-        if (action === "warn") {
-            if (now - userWarnings.lastWarning > warningCooldown) {
+        // Handle based on mode
+        switch(mode) {
+            case 'warn': {
+                // Initialize warnings
+                if (!global.linkWarnings) global.linkWarnings = new Map();
+                const userWarnings = global.linkWarnings.get(sender) || { count: 0, lastWarning: 0 };
+                
                 userWarnings.count++;
-                userWarnings.lastWarning = now;
+                userWarnings.lastWarning = Date.now();
                 global.linkWarnings.set(sender, userWarnings);
                 
-                responseMessage = `⚠️ @${sender.split('@')[0]}, *be aware, only admins are allowed to send links in this group!\nYour message has been deleted. Warning* ${userWarnings.count}/3.`;
+                let responseMessage = `⚠️ @${sender.split('@')[0]}, only admins can send links!\nWarning: *${userWarnings.count}/3*`;
                 
                 // Auto-kick after 3 warnings
                 if (userWarnings.count >= 3) {
@@ -660,44 +633,48 @@ async function handleLinkViolation(message, conn) {
                         responseMessage = `🚫 @${sender.split('@')[0]} *has been removed for repeatedly posting links*.`;
                         global.linkWarnings.delete(sender);
                     } catch (kickError) {
-                        responseMessage = `⚠️ @${sender.split('@')[0]}, links are not allowed! (Failed to remove user after 3 warnings)`;
+                        responseMessage = `⚠️ @${sender.split('@')[0]}, links are not allowed! (Failed to remove)`;
                     }
                 }
-            } else {
-                return; // Skip warning to avoid spam
+                
+                await delay(1000);
+                await conn.sendMessage(chatId, {
+                    text: responseMessage,
+                    mentions: [sender]
+                });
+                break;
             }
             
-        } else if (action === "kick") {
-            try {
-                // Kick the user immediately for kick mode
-                await conn.groupParticipantsUpdate(chatId, [sender], "remove");
-                responseMessage = `🚫 @${sender.split('@')[0]} *has been removed for posting links in the group. Only admins can share links*.`;
-                
-                // Reset warnings for this user
-                global.linkWarnings.delete(sender);
-            } catch (kickError) {
-                responseMessage = `⚠️ @${sender.split('@')[0]}, only admins can send links! (Failed to remove user)`;
+            case 'kick': {
+                try {
+                    await conn.groupParticipantsUpdate(chatId, [sender], "remove");
+                    await delay(1000);
+                    await conn.sendMessage(chatId, {
+                        text: `🚫 @${sender.split('@')[0]} *has been removed for posting links*.`,
+                        mentions: [sender]
+                    });
+                } catch (kickError) {
+                    await delay(1000);
+                    await conn.sendMessage(chatId, {
+                        text: `⚠️ @${sender.split('@')[0]}, links are not allowed! (Failed to remove)`,
+                        mentions: [sender]
+                    });
+                }
+                break;
             }
-        } else {
-            // Default: delete only (no warning)
-            // No additional message for delete-only mode
-            return;
-        }
-
-        // Send notification message
-        if (responseMessage) {
-            // Add a small delay so deletion is processed first
-            await delay(1000);
-            await conn.sendMessage(chatId, {
-                text: responseMessage,
-                mentions: [sender]
-            });
+            
+            case 'delete':
+            default: {
+                // Just delete the message, no warning
+                break;
+            }
         }
         
     } catch (error) {
         console.error('❌ Error in handleLinkViolation:', error);
     }
 }
+
 // ========== SIMPLIFIED LINK CHECKING FUNCTION ==========
 async function checkAndHandleLinks(message, conn) {
     try {
@@ -711,8 +688,6 @@ async function checkAndHandleLinks(message, conn) {
         
         const chatId = message.key.remoteJid;
         
-        // Initialize database for this chat
-        initializeDatabase(chatId, botNumber);
         
         // Detect URLs in the message first (for efficiency)
         const urls = detectUrls(message.message);
@@ -726,7 +701,6 @@ async function checkAndHandleLinks(message, conn) {
     }
 }
 
-// ========== ANTI-TAG SYSTEM ==========
 async function handleAntiTag(m, conn) {
     try {
         if (!m.isGroup) return;
@@ -735,13 +709,11 @@ async function handleAntiTag(m, conn) {
         const chatId = m.chat;
         const sender = m.sender;
         
-        // Check if anti-tag is enabled for this group
-        if (!global.db.data.settings?.[botNumber]?.config?.groupSettings?.[chatId]?.antitag) {
-            return;
-        }
+        // Get anti-tag settings
+        const isEnabled = global.settingsManager?.getSetting(botNumber, 'antitag', false);
+        const mode = global.settingsManager?.getSetting(botNumber, 'antitagaction', 'delete');
         
-        const groupSettings = global.db.data.settings[botNumber].config.groupSettings[chatId];
-        const action = groupSettings.antitagaction || "warn";
+        if (!isEnabled) return;
         
         // Get group metadata
         const groupMetadata = await conn.groupMetadata(chatId);
@@ -754,31 +726,45 @@ async function handleAntiTag(m, conn) {
         
         if (mentionedUsers.length > 0 && !isSenderAdmin && isBotAdmin) {
             // Delete the message
-            await conn.sendMessage(chatId, { delete: m.key });
-            
-            let responseMessage = "";
-            
-            switch (action) {
-                case "warn":
-                    responseMessage = `⚠️ @${sender.split('@')[0]}, *tagging members is not allowed in this group!*`;
-                    break;
-                    
-                case "kick":
-                    await conn.groupParticipantsUpdate(chatId, [sender], "remove");
-                    responseMessage = `🚫 @${sender.split('@')[0]} *has been removed for tagging members*.`;
-                    break;
-                    
-                case "delete":
-                default:
-                    // Just delete, no message
-                    return;
+            try {
+                await conn.sendMessage(chatId, { delete: m.key });
+                console.log(`✅ Deleted tag message from ${sender}`);
+            } catch (deleteError) {
+                console.log('❌ Failed to delete message');
+                return;
             }
             
-            if (responseMessage) {
-                await conn.sendMessage(chatId, {
-                    text: responseMessage,
-                    mentions: [sender]
-                });
+            // Handle based on mode
+            switch(mode) {
+                case 'warn': {
+                    await conn.sendMessage(chatId, {
+                        text: `⚠️ @${sender.split('@')[0]}, tagging members is not allowed!`,
+                        mentions: [sender]
+                    });
+                    break;
+                }
+                
+                case 'kick': {
+                    try {
+                        await conn.groupParticipantsUpdate(chatId, [sender], "remove");
+                        await conn.sendMessage(chatId, {
+                            text: `🚫 @${sender.split('@')[0]} *has been removed for tagging members*.`,
+                            mentions: [sender]
+                        });
+                    } catch (kickError) {
+                        await conn.sendMessage(chatId, {
+                            text: `⚠️ @${sender.split('@')[0]}, tagging is not allowed! (Failed to remove)`,
+                            mentions: [sender]
+                        });
+                    }
+                    break;
+                }
+                
+                case 'delete':
+                default: {
+                    // Just delete, no message
+                    break;
+                }
             }
         }
         
@@ -787,7 +773,6 @@ async function handleAntiTag(m, conn) {
     }
 }
 
-// ========== ANTI-BADWORD SYSTEM ==========
 async function handleAntiBadWord(m, conn) {
     try {
         if (!m.isGroup) return;
@@ -797,17 +782,19 @@ async function handleAntiBadWord(m, conn) {
         const sender = m.sender;
         const body = m.text || '';
         
-        // Check if anti-badword is enabled for this group
-        if (!global.db.data.settings?.[botNumber]?.config?.groupSettings?.[chatId]?.antibadword) {
-            return;
-        }
+        // Get anti-badword settings
+        const isEnabled = global.settingsManager?.getSetting(botNumber, 'antibadword', false);
+        const mode = global.settingsManager?.getSetting(botNumber, 'antibadwordaction', 'delete');
+        const badWords = global.settingsManager?.getSetting(botNumber, 'badwords', []);
         
-        const groupSettings = global.db.data.settings[botNumber].config.groupSettings[chatId];
-        const badWords = groupSettings.badwords || [];
-        const action = groupSettings.badwordaction || "warn";
+        if (!isEnabled || badWords.length === 0) return;
         
         // Check if message contains bad words
-        const foundWord = badWords.find(word => body.toLowerCase().includes(word.toLowerCase()));
+        const foundWord = badWords.find(word => {
+            const regex = new RegExp(`\\b${word}\\b`, 'i');
+            return regex.test(body);
+        });
+        
         if (!foundWord) return;
         
         // Get group metadata
@@ -816,48 +803,70 @@ async function handleAntiBadWord(m, conn) {
         const isBotAdmin = groupAdmins.includes(botNumber);
         const isSenderAdmin = groupAdmins.includes(sender);
         
+        // Skip if sender is admin or bot is not admin
         if (isSenderAdmin || !isBotAdmin) return;
         
-        // Initialize warnings
-        if (!global.badwordWarnings) global.badwordWarnings = new Map();
-        const userWarnings = global.badwordWarnings.get(sender) || { count: 0, lastWarning: 0 };
-        
-        // Delete the message
-        await conn.sendMessage(chatId, { delete: m.key });
-        
-        userWarnings.count++;
-        userWarnings.lastWarning = Date.now();
-        global.badwordWarnings.set(sender, userWarnings);
-        
-        let responseMessage = "";
-        
-        switch (action) {
-            case "warn":
-                if (userWarnings.count >= 3) {
-                    await conn.groupParticipantsUpdate(chatId, [sender], "remove");
-                    responseMessage = `🚫 @${sender.split('@')[0]} *has been kicked for using bad words repeatedly*.`;
-                    global.badwordWarnings.delete(sender);
-                } else {
-                    responseMessage = `⚠️ @${sender.split('@')[0]}, bad word detected!\nWord: *${foundWord}*\nWarning: *${userWarnings.count}/3*\n${3 - userWarnings.count} more and you'll be kicked!`;
-                }
-                break;
-                
-            case "kick":
-                await conn.groupParticipantsUpdate(chatId, [sender], "remove");
-                responseMessage = `🚫 @${sender.split('@')[0]} *has been kicked for using bad words*.`;
-                break;
-                
-            case "delete":
-            default:
-                // Just delete, no message
-                return;
+        // Delete the message first
+        try {
+            await conn.sendMessage(chatId, { delete: m.key });
+            console.log(`✅ Deleted bad word message from ${sender}`);
+        } catch (deleteError) {
+            console.log('❌ Failed to delete message');
+            return;
         }
         
-        if (responseMessage) {
-            await conn.sendMessage(chatId, {
-                text: responseMessage,
-                mentions: [sender]
-            });
+        // Handle based on mode
+        switch(mode) {
+            case 'warn': {
+                // Initialize warnings
+                if (!global.badwordWarnings) global.badwordWarnings = new Map();
+                const userWarnings = global.badwordWarnings.get(sender) || { count: 0, lastWarning: 0 };
+                
+                userWarnings.count++;
+                userWarnings.lastWarning = Date.now();
+                global.badwordWarnings.set(sender, userWarnings);
+                
+                let responseMessage = `⚠️ @${sender.split('@')[0]}, bad word detected!\nWord: *${foundWord}*\nWarning: *${userWarnings.count}/3*`;
+                
+                // Auto-kick after 3 warnings
+                if (userWarnings.count >= 3) {
+                    try {
+                        await conn.groupParticipantsUpdate(chatId, [sender], "remove");
+                        responseMessage = `🚫 @${sender.split('@')[0]} *has been kicked for using bad words repeatedly*.\nWord: *${foundWord}*`;
+                        global.badwordWarnings.delete(sender);
+                    } catch (kickError) {
+                        responseMessage = `⚠️ @${sender.split('@')[0]}, bad word detected! (Failed to kick)`;
+                    }
+                }
+                
+                await conn.sendMessage(chatId, {
+                    text: responseMessage,
+                    mentions: [sender]
+                });
+                break;
+            }
+            
+            case 'kick': {
+                try {
+                    await conn.groupParticipantsUpdate(chatId, [sender], "remove");
+                    await conn.sendMessage(chatId, {
+                        text: `🚫 @${sender.split('@')[0]} *has been kicked for using bad words*.\nWord: *${foundWord}*`,
+                        mentions: [sender]
+                    });
+                } catch (kickError) {
+                    await conn.sendMessage(chatId, {
+                        text: `⚠️ @${sender.split('@')[0]}, bad word detected! (Failed to kick)`,
+                        mentions: [sender]
+                    });
+                }
+                break;
+            }
+            
+            case 'delete':
+            default: {
+                // Just delete the message, no warning
+                break;
+            }
         }
         
     } catch (error) {
