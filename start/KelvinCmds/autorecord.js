@@ -1,8 +1,13 @@
-// ========== AUTO-RECORDING HANDLER (USING GLOBAL VARIABLE) ==========
+// ========== AUTO-RECORDING HANDLER (USING JSON SETTINGS) ==========
 async function handleAutoRecording(m, conn) {
     try {
-        // Check if auto-recording is enabled using global variable
-        if (!global.autorecording) {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        
+        // Get auto-recording setting from JSON manager
+        const autorecording = global.settingsManager?.getSetting(botNumber, 'autorecording', false);
+        
+        // Check if auto-recording is enabled
+        if (!autorecording) {
             return;
         }
 
@@ -26,12 +31,12 @@ async function handleAutoRecording(m, conn) {
         // Send recording indicator (voice message recording)
         await conn.sendPresenceUpdate('recording', m.chat);
         
-        
+       
         
         // Stop recording after 3 seconds
         setTimeout(async () => {
             await conn.sendPresenceUpdate('paused', m.chat);
-        }, 3000);
+        }, 5000);
         
     } catch (error) {
         console.error("❌ Error in auto-recording:", error);
