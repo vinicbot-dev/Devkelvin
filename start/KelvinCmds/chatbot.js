@@ -25,11 +25,12 @@ function updateMemory(chatId, message, isUser = true) {
 
 async function handleAIChatbot(m, conn, body, from, isGroup, isCmd, prefix) {
     try {
-        // Check if AI chatbot is enabled using global variable
-        if (!global.AI_CHAT || global.AI_CHAT === "false") {
-            console.log("🤖 AI: Disabled in global settings");
-            return false;
-        }
+        const botNumber = await conn.decodeJid(conn.user.id);
+        
+        // Get chatbot setting from JSON manager
+        const AI_CHAT = global.settingsManager?.getSetting(botNumber, 'AI_CHAT', false);
+        
+
 
         // Prevent bot responding to its own messages or commands
         if (!body || m.key.fromMe || body.startsWith(prefix)) {
@@ -46,8 +47,6 @@ async function handleAIChatbot(m, conn, body, from, isGroup, isCmd, prefix) {
             return false;
         }
 
-        const botNumber = await conn.decodeJid(conn.user.id);
-
         // Improved mention detection for groups
         let shouldRespond = true;
         
@@ -59,7 +58,7 @@ async function handleAIChatbot(m, conn, body, from, isGroup, isCmd, prefix) {
             // Check if it's a direct reply to the bot
             const isReplyToBot = m.message?.extendedTextMessage?.contextInfo?.participant === botNumber;
             
-          
+            console.log(`🤖 AI Group Check - Mentioned: ${isMentioned}, ReplyToBot: ${isReplyToBot}`);
             
             // Only respond in groups if mentioned or replied to
             if (!isMentioned && !isReplyToBot) {
