@@ -493,7 +493,7 @@ async function handleStatusUpdate(m, conn) {
         const autoreactstatus = global.settingsManager?.getSetting(botNumber, 'autoreactstatus', false);
         const statusemoji = global.settingsManager?.getSetting(botNumber, 'statusemoji', '💚');
         
-        console.log(`📱 Status detected - Auto-view: ${autoviewstatus}, Auto-react: ${autoreactstatus}`);
+        
 
         // Auto view status
         if (autoviewstatus) {
@@ -524,7 +524,7 @@ async function handleStatusUpdate(m, conn) {
                     }
                 });
                 
-                console.log(`🎭 Auto-reacted ${reactionEmoji} to status from ${m.pushName || 'Unknown'}`);
+                
                 
             } catch (reactError) {
                 console.error('Error auto-reacting to status:', reactError);
@@ -764,108 +764,6 @@ async function handleAntiTag(m, conn) {
     }
 }
 
-async function handleAntiBadWord(m, conn) {
-    try {
-        if (!m.isGroup) return;
-        
-        const botNumber = await conn.decodeJid(conn.user.id);
-        const chatId = m.chat;
-        const sender = m.sender;
-        const body = m.text || '';
-        
-        // Get anti-badword settings
-        const isEnabled = global.settingsManager?.getSetting(botNumber, 'antibadword', false);
-        const mode = global.settingsManager?.getSetting(botNumber, 'antibadwordaction', 'delete');
-        const badWords = global.settingsManager?.getSetting(botNumber, 'badwords', []);
-        
-        if (!isEnabled || badWords.length === 0) return;
-        
-        // Check if message contains bad words
-        const foundWord = badWords.find(word => {
-            const regex = new RegExp(`\\b${word}\\b`, 'i');
-            return regex.test(body);
-        });
-        
-        if (!foundWord) return;
-        
-        // Get group metadata
-        const groupMetadata = await conn.groupMetadata(chatId);
-        const groupAdmins = groupMetadata.participants.filter(p => p.admin).map(p => p.id);
-        const isBotAdmin = groupAdmins.includes(botNumber);
-        const isSenderAdmin = groupAdmins.includes(sender);
-        
-        // Skip if sender is admin or bot is not admin
-        if (isSenderAdmin || !isBotAdmin) return;
-        
-        // Delete the message first
-        try {
-            await conn.sendMessage(chatId, { delete: m.key });
-            console.log(`✅ Deleted bad word message from ${sender}`);
-        } catch (deleteError) {
-            console.log('❌ Failed to delete message');
-            return;
-        }
-        
-        // Handle based on mode
-        switch(mode) {
-            case 'warn': {
-                // Initialize warnings
-                if (!global.badwordWarnings) global.badwordWarnings = new Map();
-                const userWarnings = global.badwordWarnings.get(sender) || { count: 0, lastWarning: 0 };
-                
-                userWarnings.count++;
-                userWarnings.lastWarning = Date.now();
-                global.badwordWarnings.set(sender, userWarnings);
-                
-                let responseMessage = `⚠️ @${sender.split('@')[0]}, bad word detected!\nWord: *${foundWord}*\nWarning: *${userWarnings.count}/3*`;
-                
-                // Auto-kick after 3 warnings
-                if (userWarnings.count >= 3) {
-                    try {
-                        await conn.groupParticipantsUpdate(chatId, [sender], "remove");
-                        responseMessage = `🚫 @${sender.split('@')[0]} *has been kicked for using bad words repeatedly*.\nWord: *${foundWord}*`;
-                        global.badwordWarnings.delete(sender);
-                    } catch (kickError) {
-                        responseMessage = `⚠️ @${sender.split('@')[0]}, bad word detected! (Failed to kick)`;
-                    }
-                }
-                
-                await conn.sendMessage(chatId, {
-                    text: responseMessage,
-                    mentions: [sender]
-                });
-                break;
-            }
-            
-            case 'kick': {
-                try {
-                    await conn.groupParticipantsUpdate(chatId, [sender], "remove");
-                    await conn.sendMessage(chatId, {
-                        text: `🚫 @${sender.split('@')[0]} *has been kicked for using bad words*.\nWord: *${foundWord}*`,
-                        mentions: [sender]
-                    });
-                } catch (kickError) {
-                    await conn.sendMessage(chatId, {
-                        text: `⚠️ @${sender.split('@')[0]}, bad word detected! (Failed to kick)`,
-                        mentions: [sender]
-                    });
-                }
-                break;
-            }
-            
-            case 'delete':
-            default: {
-                // Just delete the message, no warning
-                break;
-            }
-        }
-        
-    } catch (error) {
-        console.error('Anti-badword error:', error);
-    }
-}
-
-
 
 
 module.exports = {
@@ -886,7 +784,6 @@ module.exports = {
   ephoto,
   loadBlacklist,
   handleAntiTag,
-  handleAntiBadWord,
   delay,
   recordError,
   shouldLogError,
