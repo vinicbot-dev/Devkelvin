@@ -1,8 +1,22 @@
-// ========== FIXED ANTI-DELETE MESSAGE HANDLER (USING GLOBAL VARIABLE) ==========
+const timezones = global.timezones || "Africa/Kampala"; // Default to Uganda timezone
+const moment = require("moment-timezone")
+const more = String.fromCharCode(8206);
+const readmore = more.repeat(4001);
+
+const { 
+loadStoredMessages,
+saveStoredMessages,
+storeMessage } = require('../../vinic');
+
 async function handleAntiDelete(m, conn) {
     try {
-        // Check if anti-delete is enabled using global variable
-        if (!global.antidelete || global.antidelete === 'off') {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        
+        // Get anti-delete setting from JSON manager
+        const antideleteSetting = global.settingsManager?.getSetting(botNumber, 'antidelete', 'off');
+        
+        // Check if anti-delete is enabled
+        if (!antideleteSetting || antideleteSetting === 'off') {
             console.log("❌ Anti-delete disabled");
             return;
         }
@@ -12,7 +26,7 @@ async function handleAntiDelete(m, conn) {
         let deletedBy = m.sender;
         const isGroup = chatId.endsWith('@g.us');
 
-       
+        
 
         let storedMessages = loadStoredMessages();
         let deletedMsg = storedMessages[chatId]?.[messageId];
@@ -43,10 +57,10 @@ async function handleAntiDelete(m, conn) {
 
         // Determine target chat based on antidelete mode
         let targetChat;
-        if (global.antidelete === 'private') {
+        if (antideleteSetting === 'private') {
             targetChat = conn.user.id; // Bot owner's inbox
-            console.log(`📤 Sending to: Bot Owner's Inbox`);
-        } else if (global.antidelete === 'chat') {
+           
+        } else if (antideleteSetting === 'chat') {
             targetChat = chatId; // Same chat where deletion happened
             
         } else {
@@ -143,7 +157,7 @@ ${readmore}
             );
         }
 
-      
+        
 
     } catch (err) {
         console.error("❌ Error processing deleted message:", err);
