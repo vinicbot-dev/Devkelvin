@@ -1,14 +1,18 @@
-// ========== AUTO-REACT FUNCTION (USING GLOBAL VARIABLE) ==========
+// ========== AUTO-REACT FUNCTION (USING JSON SETTINGS) ==========
 async function handleAutoReact(m, conn) {
     try {
-        // Check if auto-react is enabled using global variable
-        if (!global.autoreact) {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        
+        // Get auto-react setting from JSON manager
+        const autoreact = global.settingsManager?.getSetting(botNumber, 'autoreact', false);
+        
+        // Check if auto-react is enabled
+        if (!autoreact) {
             return;
         }
 
         // Don't react to bot's own messages
         const sender = m.key.participant || m.key.remoteJid;
-        const botNumber = await conn.decodeJid(conn.user.id);
         if (sender === botNumber) return;
 
         // List of common emoji reactions
@@ -25,7 +29,7 @@ async function handleAutoReact(m, conn) {
             }
         });
         
-       
+        
         
     } catch (error) {
         console.error("❌ Error in auto-react:", error);
