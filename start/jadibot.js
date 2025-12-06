@@ -9,7 +9,7 @@
 
 console.clear();
 console.log('starting...');
-require('../setting/config');
+require('../config');
 process.on("uncaughtException", console.error); 
 
 const {
