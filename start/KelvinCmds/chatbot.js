@@ -32,7 +32,6 @@ async function handleAIChatbot(m, conn, body, from, isGroup, isCmd, prefix) {
         
         // Check if AI chatbot is enabled
         if (!AI_CHAT) {
-            console.log("🤖 AI Chatbot: Disabled - skipping response");
             return false;
         }
         
