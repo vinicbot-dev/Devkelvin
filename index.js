@@ -11,7 +11,7 @@ if (isLowMemory) {
 }
 
 const settings = require('./settings');
-const config = require('./setting/config');
+const config = require('./config');
 
 // Enhanced error handling for cloud stability
 process.on("uncaughtException", (error) => {
@@ -326,7 +326,7 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
                     return;
                 }
                 
-                console.log(`📱 Status update detected from ${mek.pushName || 'Unknown'}`);
+                
                 
                 
                 
