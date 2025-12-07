@@ -1,4 +1,4 @@
-const timezones = global.timezones || "Africa/Kampala"; // Default to Uganda timezone
+const timezones = global.timezones || "Africa/Kampala";
 const moment = require("moment-timezone")
 const more = String.fromCharCode(8206);
 const readmore = more.repeat(4001);
@@ -12,12 +12,11 @@ async function handleAntiDelete(m, conn) {
     try {
         const botNumber = await conn.decodeJid(conn.user.id);
         
-        // Get anti-delete setting from JSON manager
+        // Get anti-delete setting from database
         const antideleteSetting = global.settingsManager?.getSetting(botNumber, 'antidelete', 'off');
         
         // Check if anti-delete is enabled
         if (!antideleteSetting || antideleteSetting === 'off') {
-            console.log("❌ Anti-delete disabled");
             return;
         }
 
@@ -26,13 +25,12 @@ async function handleAntiDelete(m, conn) {
         let deletedBy = m.sender;
         const isGroup = chatId.endsWith('@g.us');
 
-        
+        console.log(`🔍 Anti-delete triggered - Mode: ${antiDeleteSetting}, Chat: ${chatId}`);
 
         let storedMessages = loadStoredMessages();
         let deletedMsg = storedMessages[chatId]?.[messageId];
 
         if (!deletedMsg) {
-            console.log("⚠️ Deleted message not found in database.");
             return;
         }
 
@@ -64,7 +62,6 @@ async function handleAntiDelete(m, conn) {
             targetChat = chatId; // Same chat where deletion happened
             
         } else {
-            console.log("❌ Invalid anti-delete mode");
             return;
         }
 
