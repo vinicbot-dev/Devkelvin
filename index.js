@@ -140,8 +140,8 @@ async function loadSession() {
         console.log('[ 🆔️ ] Downloading MEGA.nz session...');
         
         // Remove "malvin~" prefix if present, otherwise use full SESSION_ID
-        const megaFileId = settings.SESSION_ID.startsWith('Jexpliot~') 
-            ? settings.SESSION_ID.replace("Jexpliot~", "") 
+        const megaFileId = settings.SESSION_ID.startsWith('Jexploit~') 
+            ? settings.SESSION_ID.replace("Jexploit~", "") 
             : settings.SESSION_ID;
 
         const filer = File.fromURL(`https://mega.nz/file/${megaFileId}`);
