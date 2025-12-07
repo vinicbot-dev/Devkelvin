@@ -681,7 +681,6 @@ async function handleLinkViolation(message, conn) {
     }
 }
 
-// ========== SIMPLIFIED LINK CHECKING FUNCTION ==========
 async function checkAndHandleLinks(message, conn) {
     try {
         // Only check group messages
@@ -693,7 +692,6 @@ async function checkAndHandleLinks(message, conn) {
         if (sender === botNumber) return;
         
         const chatId = message.key.remoteJid;
-        
         
         // Detect URLs in the message first (for efficiency)
         const urls = detectUrls(message.message);
@@ -795,7 +793,6 @@ module.exports = {
   loadStoredMessages,
   saveStoredMessages,
   storeMessage,
-  checkAndHandleLinks,
   ephoto,
   loadBlacklist,
   handleAntiTag,
