@@ -4,15 +4,15 @@ const fetch = require('node-fetch');
 async function githubCommand(conn, chatId, message) {
   try {
     // Use your GitHub repository
-    const res = await fetch('https://api.github.com/repos/Kevintech-hub/Vinic-Xmd-');
+    const res = await fetch('https://api.github.com/repos/Kevintech-hub/JexpliotBot-');
     if (!res.ok) throw new Error('Failed to fetch repo');
     const json = await res.json();
 
-    const botName = global.botname || 'Vinic-Xmd';
+    const botName = global.botname || 'Jexpliot';
     const ownerName = global.ownername || 'Kelvin Tech';
     
     const txt = `
-🤖 *VINIC-XMD BOT REPOSITORY*
+🤖 *JEXPLIOT BOT REPOSITORY*
 
 📁 *Repository:* ${json.name}
 ⭐ *Stars:* ${json.stargazers_count}
@@ -28,7 +28,7 @@ async function githubCommand(conn, chatId, message) {
 https://vinic-xmd-pairing-site-dsf-crew-devs.onrender.com/
 
 💡 *Please fork and star the repository!*
-✨ *Powered by Vinic-Xmd*
+✨ *Powered by Jexpliot*
 `;
 
     // Try to send with image first, fallback to text
@@ -36,7 +36,7 @@ https://vinic-xmd-pairing-site-dsf-crew-devs.onrender.com/
         await conn.sendMessage(
             chatId,
             {
-                image: { url: 'https://files.catbox.moe/uw1n4n.jpg' }, // Your bot image
+                image: { url: 'https://files.catbox.moe/9sazwf.jpg' }, // Your bot image
                 caption: txt
             },
             { quoted: message }
