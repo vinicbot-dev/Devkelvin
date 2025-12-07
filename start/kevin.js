@@ -77,7 +77,8 @@ const {
   ephoto,
   loadBlacklist,
   handleAntiTag,
-  handleLinkViolation,
+  checkAndHandleLinks,
+  detectUrls,
   delay,
   recordError,
   shouldLogError } = require('../vinic')
@@ -89,7 +90,7 @@ getAllSettings,
 } = require('./Core/settingManager');
 
 const {  takeCommand, musicCommand, ytplayCommand, handleMediafireDownload,  InstagramCommand, telestickerCommand, playCommand } = require('./KelvinCmds/commands')
-const { getInactiveUsers, addUserMessage, getActiveUsers } = require('./KelvinCmds/group')
+const { getInactiveUsers, isAdmin, addUserMessage, getActiveUsers } = require('./KelvinCmds/group')
 const { KelvinVideo } = require('./KelvinCmds/video');
 const { tiktokSearch } = require('./KelvinCmds/TikTok');
 const { playstoreSearch } = require('./KelvinCmds/playstore');
@@ -201,13 +202,24 @@ const groupMetadata = m.isGroup
 const groupName = m.isGroup && groupMetadata ? groupMetadata.subject : "";
 const participants = m.isGroup && groupMetadata ? groupMetadata.participants : [];
 const groupAdmins = m.isGroup ? await getGroupAdmins(participants) : [];
-const isGroupAdmins = m.isGroup ? groupAdmins.includes(m.sender) : false;
 const isBotAdmins = m.isGroup ? groupAdmins.includes(botNumber) : false;
 const isBot = botNumber.includes(senderNumber);
 const groupOwner = m.isGroup && groupMetadata ? groupMetadata.owner : "";
 const isGroupOwner = m.isGroup
   ? (groupOwner ? groupOwner : groupAdmins).includes(m.sender)
   : false;
+// Update your isGroupAdmins check
+const isGroupAdmins = m.isGroup ? 
+    await (async () => {
+        try {
+            const metadata = await m.getGroupMetadata();
+            const participant = metadata.participants.find(p => p.id === m.sender);
+            return participant && (participant.admin === 'admin' || participant.admin === 'superadmin');
+        } catch {
+            return false;
+        }
+    })() : false;
+
   
 const peler = fs.readFileSync('./start/lib/media/reboot.jpg')
 const cina = fs.readFileSync('./start/lib/media/x.jpg')
@@ -321,157 +333,27 @@ async function webp2mp4(source) {
   }
 //*---------------------------------------------------------------*//
 
-
-
-// ========== FIXED ANTI-STATUS DELETE HANDLER ==========
-async function handleAntiStatusDelete(m, conn, from, isGroup, botNumber) {
+async function checkAndHandleLinks(message, conn) {
     try {
-        // Check if anti-status delete is enabled
-        if (!global.antistatus) {
-            console.log("❌ Anti-status delete disabled");
-            return;
-        }
-
-        let messageId = m.message.protocolMessage.key.id;
-        let chatId = m.chat;
-        let deletedBy = m.sender;
-
-        console.log(`🔍 Checking for deleted status - Message ID: ${messageId}, Chat: ${chatId}`);
-
-        // Check if this is a status deletion - FIXED DETECTION
-        let storedMessages = loadStoredMessages();
-        let deletedMsg = storedMessages[chatId]?.[messageId];
-
-        if (!deletedMsg) {
-            console.log("⚠️ Deleted message not found in database.");
-            return;
-        }
-
-        // IMPROVED STATUS DETECTION - Check if it's actually a status
-        const isStatus = 
-            deletedMsg.key.remoteJid === 'status@broadcast' || 
-            chatId === 'status@broadcast' ||
-            (deletedMsg.message && (
-                deletedMsg.message.extendedTextMessage?.text?.includes('status') ||
-                deletedMsg.message.imageMessage?.caption?.includes('status') ||
-                deletedMsg.message.videoMessage?.caption?.includes('status') ||
-                // Check for status-specific message structure
-                Object.keys(deletedMsg.message || {}).some(key => 
-                    key.includes('protocolMessage') || 
-                    key.includes('broadcast')
-                )
-            ));
-
-        console.log(`📱 Status Detection Result:
-        - RemoteJid: ${deletedMsg.key.remoteJid}
-        - ChatId: ${chatId}
-        - Is Status: ${isStatus}`);
-
-        if (!isStatus) {
-            console.log("❌ Not a status deletion, skipping");
-            return;
-        }
-
-        let sender = deletedMsg.key.participant || deletedMsg.key.remoteJid || deletedMsg.remoteJid;
-        let chatName = "Status Update";
-
-        let xtipes = moment(deletedMsg.messageTimestamp * 1000).tz(`${timezones}`).locale('en').format('HH:mm z');
-        let xdptes = moment(deletedMsg.messageTimestamp * 1000).tz(`${timezones}`).format("DD/MM/YYYY");
-
-        console.log(`🚨 STATUS DELETION DETECTED - From: ${sender}, Time: ${xtipes}`);
-
-        // Handle status recovery and notification
-        try {
-            let statusInfo = `🚨 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝚂𝚃𝙰𝚃𝚄𝚂!* 🚨
-${readmore}
-👤 *Sender:* @${sender.split('@')[0]}
-⏰ *Time Posted:* ${xtipes}
-📅 *Date Posted:* ${xdptes}
-🗑️ *Deleted By:* @${deletedBy.split('@')[0]}
-
-💬 *Status Content:*`;
-
-            // Try to recover and forward the original status content
-            let forwardedContent = null;
-            try {
-                console.log("🔄 Attempting to recover status content...");
-                
-                // Create a proper forwardable message
-                const forwardMessage = {
-                    key: deletedMsg.key,
-                    message: deletedMsg.message
-                };
-
-                // Send to bot owner's inbox (private mode)
-                forwardedContent = await conn.sendMessage(
-                    conn.user.id, // Always send to bot owner's inbox when private mode
-                    { 
-                        forward: forwardMessage,
-                        contextInfo: { 
-                            isForwarded: true,
-                            forwardingScore: 999,
-                            participant: sender
-                        }
-                    }
-                );
-                console.log("✅ Status content recovered and forwarded to inbox");
-                
-            } catch (forwardError) {
-                console.log("❌ Could not forward status content:", forwardError);
-                // If forwarding fails, extract text content
-                let textContent = "";
-                if (deletedMsg.message?.conversation) {
-                    textContent = deletedMsg.message.conversation;
-                } else if (deletedMsg.message?.extendedTextMessage?.text) {
-                    textContent = deletedMsg.message.extendedTextMessage.text;
-                } else if (deletedMsg.message?.imageMessage?.caption) {
-                    textContent = deletedMsg.message.imageMessage.caption;
-                } else if (deletedMsg.message?.videoMessage?.caption) {
-                    textContent = deletedMsg.message.videoMessage.caption;
-                }
-                
-                if (textContent) {
-                    statusInfo += `\n${textContent}`;
-                } else {
-                    statusInfo += `\n[Media Status - Content unavailable]`;
-                }
-            }
-
-            // ALWAYS send to bot owner's inbox when private mode is enabled
-            const targetChat = conn.user.id; // Bot owner's inbox
-            
-            console.log(`📤 Sending status deletion alert to bot owner's inbox: ${targetChat}`);
-            
-            await conn.sendMessage(
-                targetChat, 
-                { 
-                    text: statusInfo, 
-                    mentions: [sender, deletedBy] 
-                },
-                forwardedContent ? { quoted: forwardedContent } : {}
-            );
-            
-            console.log("✅ Status deletion captured and sent to bot owner's inbox");
-            
-        } catch (error) {
-            console.error("❌ Status recovery failed:", error);
-            let errorText = `🚨 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝚂𝚃𝙰𝚃𝚄𝚂!* 🚨
-${readmore}
-👤 *Sender:* @${sender.split('@')[0]}
-⏰ *Time:* ${xtipes}
-📅 *Date:* ${xdptes}
-🗑️ *Deleted By:* @${deletedBy.split('@')[0]}
-
-❌ *Error:* Could not recover status content`;
-
-            await conn.sendMessage(
-                conn.user.id, // Always send to bot owner even on error
-                { text: errorText, mentions: [sender, deletedBy] }
-            );
-        }
-
-    } catch (err) {
-        console.error("❌ Error processing deleted status:", err);
+        // Only check group messages
+        if (!message.key.remoteJid.endsWith('@g.us')) return;
+        
+        // Ignore messages from the bot itself
+        const botNumber = await conn.decodeJid(conn.user.id);
+        const sender = message.key.participant || message.key.remoteJid;
+        if (sender === botNumber) return;
+        
+        const chatId = message.key.remoteJid;
+        
+        // Detect URLs in the message first (for efficiency)
+        const urls = detectUrls(message.message);
+        if (urls.length === 0) return;
+        
+        // Now check anti-link settings
+        await handleLinkViolation(message, conn);
+        
+    } catch (error) {
+        // Silently handle errors
     }
 }
 
@@ -498,13 +380,13 @@ const timez = moment(Date.now()).tz(`${timezones}`).locale('en').format('HH:mm:s
 const datez = moment(Date.now()).tz(`${timezones}`).format("DD/MM/YYYY");
 
 if (m.message) {
-  console.log(chalk.hex('#FF0000').bold(`┏━━━━━━━━━━━━━『 🌟 VINIC-XMD 🌟 』━━━━━━━━━━━━━─`));
-  console.log(chalk.hex('#FF7F00').bold(`»  Sent Time: ${dayz}, ${timez}`));
-  console.log(chalk.hex('#FFFF00').bold(`»  Message Type: ${m.mtype}`));
-  console.log(chalk.hex('#00FF00').bold(`»  Sender Name: ${pushname || 'N/A'}`));
-  console.log(chalk.hex('#0000FF').bold(`»  Chat ID: ${m.chat.split('@')[0]}`));
-  console.log(chalk.hex('#4B0082').bold(`»  Message: ${budy || 'N/A'}`));
-  console.log(chalk.hex('#8B00FF').bold('┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━─ ⳹\n\n'));
+  lolcatjs.fromString(`┏━━━━━━━━━━━━━『  JEXPLIOT  』━━━━━━━━━━━━━─`);
+  lolcatjs.fromString(`»  Sent Time: ${dayz}, ${timez}`);
+  lolcatjs.fromString(`»  Message Type: ${m.mtype || 'N/A'}`);
+  lolcatjs.fromString(`»  Sender Name: ${pushname || 'N/A'}`);
+  lolcatjs.fromString(`»  Chat ID: ${m.chat?.split('@')[0] || 'N/A'}`);
+  lolcatjs.fromString(`»  Message: ${budy || 'N/A'}`);
+  lolcatjs.fromString('┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━─ ⳹\n\n');
 }
 //<================================================>//
         conn.sendPresenceUpdate('uavailable', from)
@@ -539,7 +421,7 @@ await handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, prefix);
 
 // ========== ENHANCED VISIBLE ANTI-LINK EXECUTION ==========
 if (m.isGroup && body && !m.key.fromMe) {
-    await handleLinkViolation(m, conn);
+    await checkAndHandleLinks(m, conn);
 }
 
 // ========== ANTI-DELETE EXECUTION ==========
@@ -548,12 +430,7 @@ if (global.antidelete && m.message?.protocolMessage?.type === 0 && m.message?.pr
 }
 
 
-// ========== ANTI-STATUS DELETE EXECUTION ==========
-if (global.antistatus && m.message?.protocolMessage?.type === 0 && m.message?.protocolMessage?.key) {
-    console.log("🔍 Anti-status delete triggered - checking if it's a status...");
-    console.log("Message details:", JSON.stringify(m.message.protocolMessage, null, 2));
-    await handleAntiStatusDelete(m, conn, from, isGroup, botNumber);
-}
+
 
 // ========== ANTI-EDIT EXECUTION ==========
 if (global.antiedit && m.message?.protocolMessage?.editedMessage) {
@@ -1057,7 +934,7 @@ case "setbotname": {
     if (!Access) return reply(mess.owner);
     
     if (!text) {
-        return reply(`🤖 *SET BOT NAME*\n\n*Usage:* ${prefix}setbotname [new name]\n*Example:* ${prefix}setbotname Vinic-Xmd Pro\n\n*Current bot name:* ${global.botname || 'Not set'}`);
+        return reply(`🤖 *SET BOT NAME*\n\n*Usage:* ${prefix}setbotname [new name]\n*Example:* ${prefix}setbotname Jexpliot Pro\n\n*Current bot name:* ${global.botname || 'Not set'}`);
     }
 
     try {
@@ -1087,7 +964,7 @@ case "setbotname": {
         if (!setting.config) setting.config = {};
 
         // Store the old name for comparison
-        const oldName = setting.config.botname || global.botname || 'Vinic-Xmd';
+        const oldName = setting.config.botname || global.botname || 'Jexpliot';
 
         // Set the new bot name in config
         setting.config.botname = text.trim();
@@ -1343,7 +1220,7 @@ case "version": {
             contextInfo: {
                 mentionedJid: [m.sender],
                 externalAdReply: {
-                    title: "Vinic-Xmd Update Check",
+                    title: "Jexpliot Update Check",
                     body: `Version: ${localVersion} | Commands: ${caseCount} | Status: ${needsUpdate ? 'Outdated' : 'Up-to-date'}`,
                     thumbnail: await getBuffer('https://files.catbox.moe/uy3kq9.jpg').catch(() => null),
                     mediaType: 1,
@@ -1635,7 +1512,7 @@ break
 case 'creategc': 
 case 'creategroup': {
 if (!Access) return reply(mess.owner)
-if (!args.join(" ")) return reply(`*Example: ${prefix + command} Vinic-Xmd updats*`);
+if (!args.join(" ")) return reply(`*Example: ${prefix + command} Jexpliot updats*`);
 try {
 let cret = await conn.groupCreate(args.join(" "), [])
 let response = await conn.groupInviteCode(cret.id)
@@ -1680,7 +1557,7 @@ break
 case "public": {
 if (!Access) return reply(mess.owner) 
 conn.public = true
-reply(`*Vinic-Xmd successfully changed to public mode*`)
+reply(`*${global.botname} successfully changed to public mode*`)
 }
 break
 case 'readviewonce': case 'vv': {
@@ -1751,7 +1628,7 @@ case "reboot": {
     if (!Access) return reply(mess.owner);
     
     try {
-        await reply("🔄 *Restarting Vinic-Xmd Bot...*\n\nPlease wait 10-15 seconds for the bot to restart.");
+        await reply(`🔄 *Restarting ${global.botname} Bot...*\n\nPlease wait 10-15 seconds for the bot to restart.`);
         
         // A small delay to ensure the message is sent
         await sleep(2000);
@@ -2274,7 +2151,7 @@ break
 case "private": {
 if (!Access) return reply(mess.owner) 
 conn.public = false
-reply(`*Vinic-Xmd successfully changed to private mode*  ${command}.`)
+reply(`*${global.botname} successfully changed to private mode*.`)
 }
 break
 case "join": {
@@ -2610,7 +2487,7 @@ https://github.com/${repoOwner}/${repoName}
         contextInfo: {
           mentionedJid: [m.sender],
           externalAdReply: {
-            title: "Vinic-Xmd Repository",
+            title: "Jexpliot Repository",
             body: `⭐ Star the repo to support development!`,
             thumbnail: await getBuffer('https://files.catbox.moe/uy3kq9.jpg'), // Fallback thumbnail
             mediaType: 1,
@@ -2922,7 +2799,7 @@ break;
   case 'add2': {
                 if (!m.isGroup) return m.reply(mess.group)
                 if(!Access) return m.reply(mess.owner)
-                if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+                if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
                 let blockwwww = m.quoted ? m.quoted.sender : text.replace(/[^0-9]/g, '') + '@s.whatsapp.net'
                 await conn.groupParticipantsUpdate(m.chat, [blockwwww], 'add')
                 m.reply(mess.done)
@@ -2935,7 +2812,7 @@ break;
 case "disp90days": { 
  if (!m.isGroup) return reply (mess.group); 
 
- if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+ if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
 
                      await conn.groupToggleEphemeral(m.chat, 90*24*3600); 
  m.reply('Dissapearing messages successfully turned on for 90 days!'); 
@@ -2945,7 +2822,7 @@ case "disp90days": {
 case "dispoff": { 
  if (!m.isGroup) return reply (mess.group); 
 
-if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
 
                      await conn.groupToggleEphemeral(m.chat, 0); 
  m.reply('Dissapearing messages successfully turned off!'); 
@@ -2956,7 +2833,7 @@ if (!isGroupAdmins) return reply('❌ You need to be an admin to use this comman
 case "disp24hours": { 
 if (!m.isGroup) return reply (mess.group); 
 
- if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+ if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
 
                      await conn.groupToggleEphemeral(m.chat, 1*24*3600); 
  m.reply('Dissapearing messages successfully turned on for 24hrs!'); 
@@ -2970,7 +2847,7 @@ case "developer": {
     const devInfo = {
       name: "Kevin Tech",      // Developer name
       number: "256755585369",  // Developer WhatsApp number (without + or @)
-      organization: "Vinic-Xmd Development Team",
+      organization: "Jexpliot Development Team",
       note: "Bot Developer"
     };
 
@@ -4476,7 +4353,7 @@ try {
 27. Revelation
 
 
-💢 Vinic-Xmd 💢
+💢 ${global.botname} 💢
 `;
 
         // Remplacer ce lien par l'URL de l'image que tu m'enverras
@@ -4580,7 +4457,7 @@ case 'xplay': {
             `🎵 *Title:* ${title}\n` +
             `⏱ *Duration:* ${duration}\n` +
             `📺 *YouTube:* ${result.videoUrl || "Unknown"}\n\n` +
-            `🔥 Brought to you by *Vinic-Xmd*`,
+            `🔥 Brought to you by *${global.botname}*`,
         },
         { quoted: mek }
       );
@@ -5252,9 +5129,10 @@ if (!text) return reply(`*Please provide a Facebook video url!*`);
 break
 case 'tiktok':
 case 'tt': {
-    if (!text) return reply(bot, `Use: ${prefix + command} <tiktok_link>`, m)
+    if (!text) return reply(conn, `Use: ${prefix + command} <tiktok_link>`, m)
     
-    await reply(bot, 'Please wait Vinic-Xmd 💪 its fetching you video...', m)
+    await reply(conn, `Please wait ${global.botname} 💪 its fetching you video...`, m)
+    
     
     try {
         let data = await fg.tiktok(text)
@@ -5391,7 +5269,7 @@ try {
 ┃ 📅 *Updated On:* ${app.updated}
 ┃ 👨‍💻 *Developer:* ${app.developer.name}
 ╰━━━━━━━━━━━━━━━┈⊷
-🔗 *Powered By Vinic-Xmd *`;
+🔗 *Powered By Jexpliot *`;
 
     await conn.sendMessage(from, { react: { text: "⬆️", key: m.key } });
 
@@ -6025,7 +5903,7 @@ case 'chatgpt': {
         }
         
         // Format the response
-        const finalResponse = `🤖 *GPT RESPONSE*\n\n${response}\n\n*Powered by Vinic-Xmd AI*`;
+        const finalResponse = `🤖 *GPT RESPONSE*\n\n${response}\n\n*Powered by Jexpliot AI*`;
         
         await reply(finalResponse);
         
@@ -6051,12 +5929,12 @@ if (!filtered.length) {
 }
     filtered.sort((a, b) => (a.country || "").localeCompare(b.country || ""));
 
-    let text = `*🌍 Vinic-Xmd Verified Helpers*\n\n`;
+    let text = `*🌍 Jexpliot Verified Helpers*\n\n`;
     filtered.forEach((helper, index) => {
       text += `${index + 1}. ${helper.flag || ""} *${helper.country || "N/A"}*\n   • ${helper.name || "N/A"}: ${helper.number || "N/A"}\n\n`;
     });
 
-    text += `✅ Vinic-Xmd Team\n`;
+    text += `✅ Jexpliot Team\n`;
     text += `📢 For more information and updates? Join our support group:\n👉 https://chat.whatsapp.com/IixDQqcKOuE8eKGHmQqUod?mode=ems_copy_c\n`;
     text += `⚠️ Charges may apply depending on the service provided.`;
 
@@ -6068,7 +5946,7 @@ case "flux": {
 if (!text) return reply(`*Usage:* ${command} <prompt>\n\n*Example:* ${command} cat`);
     
 
-    await reply('> *Vinic-Xmd ᴘʀᴏᴄᴇssɪɴɢ ɪᴍᴀɢᴇ...*');
+    await reply('> *Jexpliot ᴘʀᴏᴄᴇssɪɴɢ ɪᴍᴀɢᴇ...*');
 
     const apiUrl = `https://apis.davidcyriltech.my.id/flux?prompt=${encodeURIComponent(text)}`;
 
@@ -6318,7 +6196,7 @@ try {
     await conn.sendMessage(from, {
         image: { url: `https://image.thum.io/get/fullpage/${url}` },
         caption: "- 🖼️ *Screenshot Generated*\n\n" +
-                "> ᴘᴏᴡᴇʀᴇᴅ ʙʏ Vinic-Xmd 💪 💜"
+                `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ${global.botname}💪 💜`
     }, { quoted: mek });
 
   } catch (error) {
@@ -7047,7 +6925,7 @@ try {
 
     // Create the response message
     const message = `
-*Vinic-Xmd npm search*
+*${global.botname} npm search*
 
 *👀 NPM PACKAGE:* ${packageName}
 *📄 DESCRIPTION:* ${description}
@@ -7068,7 +6946,7 @@ try {
 break
 case "kevinfarm": {
 const familyList = `
-         *[ • VINIC-XMD 𝖥𝖠𝖬𝖨𝖫𝖸 • ]*
+         *[ • JEXPLIOT 𝖥𝖠𝖬𝖨𝖫𝖸 • ]*
 
     [ • KEVIN: KING👸 ]
        *•────────────•⟢*
@@ -8010,7 +7888,7 @@ try {
         console.log('JSON response:', json);
 
         // Format the pickup line message
-        const pickupLine = `*Here's a pickup line for you:*\n\n"${json.pickupline}"\n\n> *© ᴅʀᴏᴘᴘᴇᴅ ʙʏ Vinic-Xmd*`;
+        const pickupLine = `*Here's a pickup line for you:*\n\n"${json.pickupline}"\n\n> *© ᴅʀᴏᴘᴘᴇᴅ ʙʏ ${global.botname}*`;
 
         // Send the pickup line to the chat
         await conn.sendMessage(from, { text: pickupLine }, { quoted: m });
@@ -8166,8 +8044,7 @@ try {
 break 
 case "hidetag": case "h": {
 if (!m.isGroup) return reply(mess.group)
-if (!isAdmins && !Access) return reply(mess.admin)
-if (!isBotAdmins) return reply(mess.botadmin)
+if (!isAdmin && !Access) return reply(mess.admin)
 let members = groupMembers.map(a => a.id)
 conn.sendMessage(m.chat, {text : q ? q : 'Jexploit Is Always Here', mentions: members}, {quoted:m})
 }
@@ -8282,7 +8159,7 @@ break
 case 'kickinactive':
 case 'removeinactive': {
     if (!m.isGroup) return reply(mess.group);
-    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+    if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
 
     try {
         const metadata = await conn.groupMetadata(from);
@@ -8344,7 +8221,7 @@ case 'removeinactive': {
 }
 case 'cancelkick': {
     if (!m.isGroup) return reply(mess.group);
-    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+    if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
 
     try {
         if (global.kickQueue && global.kickQueue.has(m.chat)) {
@@ -8378,7 +8255,7 @@ case 'cancelkick': {
 case 'kickall':
 case 'removeall': {
     if (!m.isGroup) return reply(mess.group);
-    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+    if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
 
     try {
         const metadata = await conn.groupMetadata(from);
@@ -8454,7 +8331,7 @@ case 'removeall': {
 }
 case "tagall": {
     if (!m.isGroup) return reply(mess.group);
-    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+    if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
 
     let me = m.sender;
     let q = m.text.split(' ').slice(1).join(' ').trim(); // Extract the message after the command
@@ -8479,7 +8356,7 @@ break
 case "mute":
 case "close": {
   if (!m.isGroup) return reply('❌ This command can only be used in groups.');
-    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+    if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
     
 
         conn.groupSettingUpdate(m.chat, "announcement");
@@ -8488,7 +8365,7 @@ case "close": {
 break
 case "delgrouppp": {
         if (!m.isGroup) return reply(mess.group);
-        if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+        if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
         
         await conn.removeProfilePicture(from);
         reply("Group profile picture has been successfully removed.");
@@ -8530,7 +8407,7 @@ try {
             document: fs.readFileSync(nmfilect), 
             mimetype: 'text/vcard', 
             fileName: 'Vinic-Xmd.vcf', 
-            caption: `\nDone saving.\nGroup Name: *${cmiggc.subject}*\nContacts: *${cmiggc.participants.length}*\n> Powered by Vinic-Xmd `}, { quoted: mek });
+            caption: `\nDone saving.\nGroup Name: *${cmiggc.subject}*\nContacts: *${cmiggc.participants.length}*\n> Powered by ${global.botname} `}, { quoted: mek });
 
         fs.unlinkSync(nmfilect); // Cleanup the file after sending
     } catch (err) {
@@ -8540,7 +8417,7 @@ try {
 break
 case 'approve': {
 if (!m.isGroup) return reply(mess.group)
-if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
 
 const responseList = await conn.groupRequestParticipantsList(m.chat);
 
@@ -8554,13 +8431,13 @@ for (const participan of responseList) {
     );
     console.log(response);
 }
-reply("*Vinic-Xmd has approved all pending requests✅*");
+reply(`*${global.botname} has approved all pending requests✅*`);
 
 }
 break
 case "approveall": {
 if (!m.isGroup) return reply(mess.group);
-    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');     
+    if (!isAdmin) return reply('❌ You need to be an admin to use this command.');     
      const groupId = m.chat;
  
      await approveAllRequests(m, groupId);
@@ -8936,7 +8813,7 @@ case "adminapproval": {
 break
 case "closetime": {
 if (!m.isGroup) return reply('❌ This command can only be used in groups.');
-    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+    if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
     
 
     // Check if both arguments are provided
@@ -9072,7 +8949,7 @@ case 'antiedit': {
 }
 case 'antilink': {
     if (!m.isGroup) return reply(mess.group);
-    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+    if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
     
     const subcommand = args[0]?.toLowerCase();
     const action = args[1]?.toLowerCase();
@@ -9120,7 +8997,7 @@ Current Mode: ${getSetting(botNumber, 'antilinkaction', 'delete')}`);
 }
 case 'antitag': {
     if (!m.isGroup) return reply(mess.group);
-    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+    if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
     
     const subcommand = args[0]?.toLowerCase();
     const action = args[1]?.toLowerCase();
@@ -9168,7 +9045,7 @@ Current Mode: ${getSetting(botNumber, 'antitagaction', 'delete')}`);
 }
 case 'antibadword': {
     if (!m.isGroup) return reply(mess.group);
-    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+    if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
     
     const subcommand = args[0]?.toLowerCase();
     const word = args[1];
@@ -9261,7 +9138,7 @@ Usage: ${prefix}antibadword <command>`);
 case "setgrouppp":
 case "setppgroup": {
  if (!m.isGroup) return reply(mess.group);
-if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
 
     if (!quoted) return reply(`*Send or reply to an image with the caption ${prefix + command}*`);
     if (!/image/.test(mime)) return reply(`*Send or reply to an image with the caption ${prefix + command}*`);
@@ -9392,7 +9269,7 @@ break
 case "kick": {
         
         if (!m.isGroup) return reply(mess.group);
-        if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+        if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
     
 
         let bck = m.mentionedJid[0]
@@ -9408,7 +9285,7 @@ case "kick2": {
 try {
       
         if (!m.isGroup) return reply(mess.group);
-        if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+        if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
     
         const userId = mentionedJid?.[0] || m.quoted?.sender;
         if (!userId) return reply("ℹ️ Please mention or quote the user to kick");
@@ -9553,7 +9430,7 @@ try {
 break
 case "resetlinkgc": {
 if (!m.isGroup) return reply(mess.group)
-if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
 
 conn.groupRevokeInvite(from)
 reply("*group link reseted by admin*" )
