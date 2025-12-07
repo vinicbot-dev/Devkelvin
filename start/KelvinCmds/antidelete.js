@@ -25,7 +25,7 @@ async function handleAntiDelete(m, conn) {
         let deletedBy = m.sender;
         const isGroup = chatId.endsWith('@g.us');
 
-        console.log(`🔍 Anti-delete triggered - Mode: ${antiDeleteSetting}, Chat: ${chatId}`);
+        
 
         let storedMessages = loadStoredMessages();
         let deletedMsg = storedMessages[chatId]?.[messageId];
