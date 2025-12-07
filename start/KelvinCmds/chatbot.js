@@ -130,7 +130,7 @@ async function handleAIChatbot(m, conn, body, from, isGroup, isCmd, prefix) {
         }
 
         // Add footer to response
-        const finalResponse = `${response}\n\n> *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴠɪɴɪᴄ-xᴍᴅ ᴀɪ*`;
+          const finalResponse = `${response}\n\n> *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴊᴇxᴘʟᴏɪᴛ ᴀɪ*`;
         
         // Add AI response to memory
         updateMemory(from, response, false);
