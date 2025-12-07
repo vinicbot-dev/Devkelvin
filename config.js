@@ -14,7 +14,7 @@ global.owner = ["256742932677"];
 global.sudo = ["256742932677", "256755585369"];// Type additional allowed users here
 //NB: They'll be able to use every functions of the bot without restrictions.
 global.ownername = "Kelvin Tech";  
-global.botname = "ᴠɪɴɪᴄ-xᴍᴅ";  
+global.botname = "Jexploit";  
 
 // ========= Setting Channel ========= //
 global.namachannel = "KEVIN";
@@ -68,7 +68,7 @@ global.versions = "1.3.8";
 // ========= Setting WM ========= //
 global.packname = 'Vinic';
 global.author = 'Xmd';
-global.wm = '©Vinic-Xmd is awesome 🔥';
+global.wm = '©Jexploit is awesome 🔥';
 
 // === For only developer ============
 global.api = "https://xploaderapi-f5e63b.platform.cypherx.space";
