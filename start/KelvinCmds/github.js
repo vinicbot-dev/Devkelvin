@@ -4,15 +4,14 @@ const fetch = require('node-fetch');
 async function githubCommand(conn, chatId, message) {
   try {
     // Use your GitHub repository
-    const res = await fetch('https://api.github.com/repos/Kevintech-hub/JexpliotBot-');
-    if (!res.ok) throw new Error('Failed to fetch repo');
+      const res = await fetch('https://api.github.com/repos/Kevintech-hub/Jexploit-Bot');
     const json = await res.json();
 
-    const botName = global.botname || 'Jexpliot';
+    const botName = global.botname || 'Jexploit';
     const ownerName = global.ownername || 'Kelvin Tech';
     
     const txt = `
-🤖 *JEXPLIOT BOT REPOSITORY*
+🤖 *JEXPLOIT BOT REPOSITORY*
 
 📁 *Repository:* ${json.name}
 ⭐ *Stars:* ${json.stargazers_count}
