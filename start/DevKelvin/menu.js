@@ -156,7 +156,7 @@ async function generateMenu(conn, m, prefix, global) {
                       'hug', 'happy', 'cry'],
         },
         features: {
-            title: ' *FEATURES MENU*',
+            title: ' *SETTING MENU*',
             commands: ['antidelete', 'anticall', 'antibug', 'autorecording', 'antistatus', 'autotyping', 
                       'welcome', 'chatbot', 'autoread', 'adminevent', 'autoviewstatus', 
                       'autoreactstatus', 'antiedit', 'setmenu1', 'setmenu2', 'setmenu3', 'setmenu4', 'setmenu5', 'setmenu6'],
@@ -279,8 +279,8 @@ async function sendMenu(conn, m, prefix, global) {
         
         // Array of image URLs to choose from randomly
         const imageUrls = [
-            'https://files.catbox.moe/ptpl5c.jpeg',
-            'https://files.catbox.moe/uw1n4n.jpg'
+            'https://files.catbox.moe/9sazwf.jpg',
+            'https://files.catbox.moe/w5vwcu.jpg'
         ];
         
         // Array of audio URLs to choose from randomly
