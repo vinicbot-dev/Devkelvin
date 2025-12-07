@@ -380,7 +380,7 @@ const timez = moment(Date.now()).tz(`${timezones}`).locale('en').format('HH:mm:s
 const datez = moment(Date.now()).tz(`${timezones}`).format("DD/MM/YYYY");
 
 if (m.message) {
-  lolcatjs.fromString(`┏━━━━━━━━━━━━━『  JEXPLIOT  』━━━━━━━━━━━━━─`);
+  lolcatjs.fromString(`┏━━━━━━━━━━━━━『  JEXPLOIT  』━━━━━━━━━━━━━─`);
   lolcatjs.fromString(`»  Sent Time: ${dayz}, ${timez}`);
   lolcatjs.fromString(`»  Message Type: ${m.mtype || 'N/A'}`);
   lolcatjs.fromString(`»  Sender Name: ${pushname || 'N/A'}`);
@@ -934,7 +934,7 @@ case "setbotname": {
     if (!Access) return reply(mess.owner);
     
     if (!text) {
-        return reply(`🤖 *SET BOT NAME*\n\n*Usage:* ${prefix}setbotname [new name]\n*Example:* ${prefix}setbotname Jexpliot Pro\n\n*Current bot name:* ${global.botname || 'Not set'}`);
+        return reply(`🤖 *SET BOT NAME*\n\n*Usage:* ${prefix}setbotname [new name]\n*Example:* ${prefix}setbotname Jexploit Pro\n\n*Current bot name:* ${global.botname || 'Not set'}`);
     }
 
     try {
@@ -964,7 +964,7 @@ case "setbotname": {
         if (!setting.config) setting.config = {};
 
         // Store the old name for comparison
-        const oldName = setting.config.botname || global.botname || 'Jexpliot';
+        const oldName = setting.config.botname || global.botname || 'Jexploit';
 
         // Set the new bot name in config
         setting.config.botname = text.trim();
@@ -1512,7 +1512,7 @@ break
 case 'creategc': 
 case 'creategroup': {
 if (!Access) return reply(mess.owner)
-if (!args.join(" ")) return reply(`*Example: ${prefix + command} Jexpliot updats*`);
+if (!args.join(" ")) return reply(`*Example: ${prefix + command} Jexploit updats*`);
 try {
 let cret = await conn.groupCreate(args.join(" "), [])
 let response = await conn.groupInviteCode(cret.id)
@@ -2444,14 +2444,14 @@ case "sc": {
   try {
     // GitHub repository details
     const repoOwner = "Kevintech-hub";
-    const repoName = "JexpliotBot";
+    const repoName = "Jexploit-Bot";
     const apiUrl = `https://api.github.com/repos/${repoOwner}/${repoName}`;
     
     // Fetch repository data with error handling
     const { data } = await axios.get(apiUrl, {
       timeout: 5000, // 5 second timeout
       headers: {
-        'User-Agent': 'Jexpliot-Bot' // GitHub requires user-agent
+        'User-Agent': 'Jexploit-Bot' // GitHub requires user-agent
       }
     }).catch(err => {
       console.error('GitHub API Error:', err);
@@ -2487,7 +2487,7 @@ https://github.com/${repoOwner}/${repoName}
         contextInfo: {
           mentionedJid: [m.sender],
           externalAdReply: {
-            title: "Jexpliot Repository",
+            title: "Jexploit Repository",
             body: `⭐ Star the repo to support development!`,
             thumbnail: await getBuffer('https://files.catbox.moe/uy3kq9.jpg'), // Fallback thumbnail
             mediaType: 1,
@@ -2651,7 +2651,7 @@ Once your done creating and verifying the two account, move over to the next ste
 
 *NEXT STEPS*
 Next step is to fork the bot repository. Click the link
-https://github.com/Kevintech-hub/JexpliotBot
+https://github.com/Kevintech-hub/Jexploit-Bot
 
 Then download the zip file.
 
@@ -2678,7 +2678,7 @@ Start server Enjoy 😉
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
                     newsletterJid: '120363401548261516@newsletter',
-                    newsletterName: '🪀『JEXPLIOT』🪀',
+                    newsletterName: '🪀『JEXPLOIT』🪀',
                     serverMessageId: 143
                 }
             }
@@ -2848,7 +2848,7 @@ case "developer": {
     const devInfo = {
       name: "Kevin Tech",      // Developer name
       number: "256755585369",  // Developer WhatsApp number (without + or @)
-      organization: "Jexpliot Development Team",
+      organization: "Jexploit Development Team",
       note: "Bot Developer"
     };
 
@@ -5270,7 +5270,7 @@ try {
 ┃ 📅 *Updated On:* ${app.updated}
 ┃ 👨‍💻 *Developer:* ${app.developer.name}
 ╰━━━━━━━━━━━━━━━┈⊷
-🔗 *Powered By Jexpliot *`;
+🔗 *Powered By Jexploit *`;
 
     await conn.sendMessage(from, { react: { text: "⬆️", key: m.key } });
 
@@ -5904,7 +5904,7 @@ case 'chatgpt': {
         }
         
         // Format the response
-        const finalResponse = `🤖 *GPT RESPONSE*\n\n${response}\n\n*Powered by Jexpliot AI*`;
+        const finalResponse = `🤖 *GPT RESPONSE*\n\n${response}\n\n*Powered by Jexploit AI*`;
         
         await reply(finalResponse);
         
@@ -5930,12 +5930,12 @@ if (!filtered.length) {
 }
     filtered.sort((a, b) => (a.country || "").localeCompare(b.country || ""));
 
-    let text = `*🌍 Jexpliot Verified Helpers*\n\n`;
+    let text = `*🌍 Jexploit Verified Helpers*\n\n`;
     filtered.forEach((helper, index) => {
       text += `${index + 1}. ${helper.flag || ""} *${helper.country || "N/A"}*\n   • ${helper.name || "N/A"}: ${helper.number || "N/A"}\n\n`;
     });
 
-    text += `✅ Jexpliot Team\n`;
+    text += `✅ Jexploit Team\n`;
     text += `📢 For more information and updates? Join our support group:\n👉 https://chat.whatsapp.com/IixDQqcKOuE8eKGHmQqUod?mode=ems_copy_c\n`;
     text += `⚠️ Charges may apply depending on the service provided.`;
 
@@ -5947,7 +5947,7 @@ case "flux": {
 if (!text) return reply(`*Usage:* ${command} <prompt>\n\n*Example:* ${command} cat`);
     
 
-    await reply('> *Jexpliot ᴘʀᴏᴄᴇssɪɴɢ ɪᴍᴀɢᴇ...*');
+    await reply('> *Jexploit ᴘʀᴏᴄᴇssɪɴɢ ɪᴍᴀɢᴇ...*');
 
     const apiUrl = `https://apis.davidcyriltech.my.id/flux?prompt=${encodeURIComponent(text)}`;
 
@@ -6947,7 +6947,7 @@ try {
 break
 case "kevinfarm": {
 const familyList = `
-         *[ • JEXPLIOT 𝖥𝖠𝖬𝖨𝖫𝖸 • ]*
+         *[ • JEXPLOIT 𝖥𝖠𝖬𝖨𝖫𝖸 • ]*
 
     [ • KEVIN: KING👸 ]
        *•────────────•⟢*
