@@ -81,7 +81,6 @@ const {
 } = require('./start/lib/myfunction');
 
 const {
-checkAndHandleLinks,
 detectUrls,
 handleStatusUpdate
  } = require('./vinic');
@@ -141,8 +140,8 @@ async function loadSession() {
         console.log('[ 🆔️ ] Downloading MEGA.nz session...');
         
         // Remove "malvin~" prefix if present, otherwise use full SESSION_ID
-        const megaFileId = settings.SESSION_ID.startsWith('Vinic-Xmd~') 
-            ? settings.SESSION_ID.replace("Vinic-Xmd~", "") 
+        const megaFileId = settings.SESSION_ID.startsWith('Jexpliot~') 
+            ? settings.SESSION_ID.replace("Jexpliot~", "") 
             : settings.SESSION_ID;
 
         const filer = File.fromURL(`https://mega.nz/file/${megaFileId}`);
@@ -326,7 +325,8 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
                     return;
                 }
                 
-                
+               
+            await detectUrls(mek, conn);
                 
                 
                 
@@ -340,8 +340,6 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
             if (!isLowMemory) {
             
              
-           await checkAndHandleLinks(mek, conn);
-            await detectUrls(mek, conn);
             await handleStatusUpdate(mek, conn); 
             
             }
