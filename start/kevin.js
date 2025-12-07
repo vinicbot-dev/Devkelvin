@@ -2444,14 +2444,14 @@ case "sc": {
   try {
     // GitHub repository details
     const repoOwner = "Kevintech-hub";
-    const repoName = "Vinic-Xmd-";
+    const repoName = "JexpliotBot";
     const apiUrl = `https://api.github.com/repos/${repoOwner}/${repoName}`;
     
     // Fetch repository data with error handling
     const { data } = await axios.get(apiUrl, {
       timeout: 5000, // 5 second timeout
       headers: {
-        'User-Agent': 'Vinic-Xmd-Bot' // GitHub requires user-agent
+        'User-Agent': 'Jexpliot-Bot' // GitHub requires user-agent
       }
     }).catch(err => {
       console.error('GitHub API Error:', err);
@@ -2651,7 +2651,7 @@ Once your done creating and verifying the two account, move over to the next ste
 
 *NEXT STEPS*
 Next step is to fork the bot repository. Click the link
-https://github.com/Kevintech-hub/Vinic-Xmd-
+https://github.com/Kevintech-hub/JexpliotBot
 
 Then download the zip file.
 
@@ -2670,7 +2670,7 @@ Start server Enjoy 😉
         `.trim();
 
         await conn.sendMessage(from, {
-            image: { url: 'https://files.catbox.moe/ptpl5c.jpeg' },
+            image: { url: 'https://files.catbox.moe/9sazwf.jpg' },
             caption: message,
             contextInfo: {
                 mentionedJid: [m.sender],
@@ -2678,7 +2678,7 @@ Start server Enjoy 😉
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
                     newsletterJid: '120363401548261516@newsletter',
-                    newsletterName: '🪀『Vinic-Xmd』🪀',
+                    newsletterName: '🪀『JEXPLIOT』🪀',
                     serverMessageId: 143
                 }
             }
@@ -2758,6 +2758,7 @@ const serverInfo = `Server Information:\n
 
 await reply(serverInfo)
 }
+break
 //======[OTHER MUNE CMDS]====
 case 'weather': {
                       try {
