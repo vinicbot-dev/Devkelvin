@@ -2548,9 +2548,8 @@ case "alive": {
     
     // Array of image URLs
     const imageUrls = [
-        "https://files.catbox.moe/uw1n4n.jpg",
-        "https://files.catbox.moe/rv7k2o.jpg",
-        "https://files.catbox.moe/ucx5mq.jpg"
+        "https://files.catbox.moe/1a4dbr.jpg",
+        "https://files.catbox.moe/9sazwf.jpg"
     ];
     
     // Array of audio URLs
@@ -2602,7 +2601,7 @@ case 'botinfo': {
 │ • Runtime  : ${runtime(process.uptime())}
 ╰─────────────`
 
-  const imageUrl = "https://files.catbox.moe/uy3kq9.jpg";
+  const imageUrl = "https://files.catbox.moe/1a4dbr.jpg";
   
   // Array of audio URLs
   const audioUrls = [
