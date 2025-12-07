@@ -77,6 +77,7 @@ const {
   ephoto,
   loadBlacklist,
   handleAntiTag,
+  handleLinkViolation,
   checkAndHandleLinks,
   detectUrls,
   delay,
@@ -349,7 +350,7 @@ async function checkAndHandleLinks(message, conn) {
         const urls = detectUrls(message.message);
         if (urls.length === 0) return;
         
-        // Now check anti-link settings
+             // Now check anti-link settings
         await handleLinkViolation(message, conn);
         
     } catch (error) {
@@ -421,7 +422,10 @@ await handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, prefix);
 
 // ========== ENHANCED VISIBLE ANTI-LINK EXECUTION ==========
 if (m.isGroup && body && !m.key.fromMe) {
-    await checkAndHandleLinks(m, conn);
+    await checkAndHandleLinks({
+        key: m.key,
+        message: m.message
+    }, conn);
 }
 
 // ========== ANTI-DELETE EXECUTION ==========
