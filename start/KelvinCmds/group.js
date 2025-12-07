@@ -89,4 +89,40 @@ function getInactiveUsers(groupJid, allParticipants) {
     }
 }
 
-module.exports = { getActiveUsers, getInactiveUsers, addUserMessage }
+// Better admin tracking function
+async function isAdmin(sender, m, botId) {
+    try {
+        // If not a group, return false
+        if (!m.isGroup) return false;
+        
+        // Get group metadata
+        const groupMetadata = m.isGroup ? await m.getGroupMetadata() : null;
+        if (!groupMetadata) return false;
+        
+        // Get participants/admins
+        const participants = groupMetadata.participants || [];
+        
+        // Find the sender in participants
+        const senderParticipant = participants.find(p => p.id === sender);
+        
+        // Check if sender is admin
+        if (senderParticipant && 
+            (senderParticipant.admin === 'admin' || 
+             senderParticipant.admin === 'superadmin')) {
+            return true;
+        }
+        
+        // Check if sender is the bot itself
+        if (sender === botId) return true;
+        
+        return false;
+    } catch (error) {
+        console.error('Error checking admin status:', error);
+        return false;
+    }
+}
+
+
+
+
+module.exports = { getActiveUsers, isAdmin, getInactiveUsers, addUserMessage }
