@@ -2319,7 +2319,7 @@ case 'autorecording': {
     break;
 }
 
-case 'autotypings':
+case 'autotyping':
 case 'typing': {
     if (!Access) return reply(mess.owner);
     
