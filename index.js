@@ -237,7 +237,7 @@ async function clientstart() {
     try {
         const { version } = await fetchLatestBaileysVersion();
         waVersion = version;
-        console.log("[ VINIC-XMD] Connecting to WhatsApp ⏳️...");
+        console.log("[ JEXPLOIT] Connecting to WhatsApp ⏳️...");
         
     } catch (error) {
         console.log(chalk.yellow(`[⚠️] Using stable fallback version`));
