@@ -2357,7 +2357,7 @@ const startTime = performance.now();
       const latency = `${(endTime - startTime).toFixed(2)} ms`;
       
       await conn.sendMessage(m.chat, {
-        text: `*🏓 ${botname} Speed:* ${latency}`,
+        text: `*🏓 ${getSetting(botNumber, 'botname', 'JEXPLOIT')} Speed:* ${latency}`,
         edit: sentMessage.key, 
         contextInfo: { quotedMessage: m.message }
       });
