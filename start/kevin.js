@@ -88,10 +88,14 @@ const {
 getSetting,
 updateSetting,
 getAllSettings,
+getSudo,
+addSudo,
+removeSudo,
+hasSudo
 } = require('./Core/settingManager');
 
 const {  takeCommand, musicCommand, ytplayCommand, handleMediafireDownload,  InstagramCommand, telestickerCommand, playCommand } = require('./KelvinCmds/commands')
-const { getInactiveUsers, isAdmin, addUserMessage, getActiveUsers } = require('./KelvinCmds/group')
+const { getInactiveUsers, isAdmin, checkAdminStatus, addUserMessage, getActiveUsers } = require('./KelvinCmds/group')
 const { KelvinVideo } = require('./KelvinCmds/video');
 const { tiktokSearch } = require('./KelvinCmds/TikTok');
 const { playstoreSearch } = require('./KelvinCmds/playstore');
@@ -102,7 +106,7 @@ const { handleAutoTyping } = require('./KelvinCmds/autotyping');
 const { handleAIChatbot } = require('./KelvinCmds/chatbot');
 const { handleAutoRecording } = require('./KelvinCmds/autorecord');
 const { handleAntiDelete } = require('./KelvinCmds/antidelete');
-const { generateSettingsText } = require('./KelvinCmds/owner');
+const { generateSettingsText, } = require('./KelvinCmds/owner');
 const {fetchReactionImage} = require('./lib/reaction')
 const { toAudio } = require('./lib/converter');
 const { remini } = require('./lib/remini')
@@ -135,16 +139,20 @@ const isGroup = from.endsWith("@g.us")
 const kontributor = JSON.parse(fs.readFileSync('./start/lib/database/owner.json'))
 const botNumber = await conn.decodeJid(conn.user.id)
 
+
 function checkAccess(sender) {
     // Normalize the sender number
     const normalizedSender = sender.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
+    
+    // Get sudo users from database.json
+    const sudoUsers = getSudo(botNumber) || [];
     
     // Create array of all authorized numbers (normalized)
     const authorizedNumbers = [
         botNumber,
         devKelvin,
         ...(global.owner || []),
-        ...(global.sudo || [])
+        ...sudoUsers // Get from database.json instead of global.sudo
     ].map(num => num.replace(/[^0-9]/g, "") + "@s.whatsapp.net");
     
     // Check if sender is in authorized list
@@ -205,25 +213,15 @@ const participants = m.isGroup && groupMetadata ? groupMetadata.participants : [
 const groupAdmins = m.isGroup ? await getGroupAdmins(participants) : [];
 const isBotAdmins = m.isGroup ? groupAdmins.includes(botNumber) : false;
 const isBot = botNumber.includes(senderNumber);
+const isUserAdmin = m.isGroup ? await checkAdminStatus(m, conn) : false;
 const groupOwner = m.isGroup && groupMetadata ? groupMetadata.owner : "";
 const isGroupOwner = m.isGroup
   ? (groupOwner ? groupOwner : groupAdmins).includes(m.sender)
   : false;
-// Update your isGroupAdmins check
-const isGroupAdmins = m.isGroup ? 
-    await (async () => {
-        try {
-            const metadata = await m.getGroupMetadata();
-            const participant = metadata.participants.find(p => p.id === m.sender);
-            return participant && (participant.admin === 'admin' || participant.admin === 'superadmin');
-        } catch {
-            return false;
-        }
-    })() : false;
-
+const isGroupAdmins = m.isGroup ? groupAdmins.includes(m.sender) : false;
   
-const peler = fs.readFileSync('./start/lib/media/reboot.jpg')
-const cina = fs.readFileSync('./start/lib/media/x.jpg')
+const peler = fs.readFileSync('./start/lib/media/Jexploit.jpg')
+const cina = fs.readFileSync('./start/lib/media/Jex.jpg')
 function getRandomImage() {
 const randomIndex = Math.floor(Math.random() * cina.length)
 return cina[randomIndex]
@@ -407,7 +405,7 @@ const reply = (teks) => {
     title: "",
     body: `${pushname}`,
     thumbnail: peler,
-    sourceUrl: 'https://www.Vinic.site',
+    sourceUrl: 'JEXPLOIT BOT',
     renderLargerThumbnail: false,
                     }
                 }
@@ -758,100 +756,133 @@ Note: This only works for messages sent AFTER anti-delete was enabled.`);
     }
     break;
 }
-//======[OWNER CMDS]======//
 case "addowner": 
 case "addsudo": {
-  if (!Access) return reply(mess.owner);
-  
-  if (m.chat.endsWith('@g.us') && !(m.mentionedJid && m.mentionedJid[0]) && !(m.quoted && m.quoted.sender)) {
-    return reply('Reply to or tag a person!');
-  }
+    if (!Access) return reply(mess.owner);
+    
+    if (m.chat.endsWith('@g.us') && !(m.mentionedJid && m.mentionedJid[0]) && !(m.quoted && m.quoted.sender)) {
+        return reply('Reply to or tag a person!');
+    }
 
-  let mentionedUser = m.mentionedJid && m.mentionedJid[0];
-  let quotedUser = m.quoted && m.quoted.sender;
-  let userToAdd = mentionedUser || quotedUser || (text ? text.replace(/\D/g, "") + "@s.whatsapp.net" : null) || m.chat;
+    let mentionedUser = m.mentionedJid && m.mentionedJid[0];
+    let quotedUser = m.quoted && m.quoted.sender;
+    let userToAdd = mentionedUser || quotedUser || (text ? text.replace(/\D/g, "") + "@s.whatsapp.net" : null) || m.chat;
 
-  if (!userToAdd) return reply('Mention a user or reply to their message to add them to the sudo list.');
+    if (!userToAdd) return reply('Mention a user or reply to their message to add them to the sudo list.');
 
-  const sudoList = global.sudo; 
-
-  if (!sudoList.includes(userToAdd)) {
-    sudoList.push(userToAdd);
-    await reply(`+${userToAdd.split('@')[0]} added to the sudo list and are be able to use any function of the bot even in private mode.`);
-  } else {
-    await reply(`+${userToAdd.split('@')[0]} is already a sudo user.`);
-  }  
+    // Add to database.json
+    const success = await addSudo(botNumber, userToAdd);
+    
+    if (success) {
+        // Also update global.sudo for immediate use
+        if (!global.sudo) global.sudo = [];
+        if (!global.sudo.includes(userToAdd)) {
+            global.sudo.push(userToAdd);
+        }
+        await reply(`✅ +${userToAdd.split('@')[0]} added to the sudo list.\nThey can now use any function of the bot even in private mode.`);
+    } else {
+        await reply(`ℹ️ +${userToAdd.split('@')[0]} is already a sudo user.`);
+    }  
+    break;
 }
-break
 case "listsudo": {
     if (!Access) return reply(mess.owner);
-    const sudoList = global.db.sudo;
-
-    // Add proper validation
-    if (!sudoList || !Array.isArray(sudoList)) {
-        reply('The sudo list is not properly initialized or empty.');
-        return;
-    }
+    
+    // Get sudo list from database.json
+    const sudoList = getSudo(botNumber);
+    
+    // Also sync with global.sudo for consistency
+    global.sudo = sudoList;
 
     if (sudoList.length === 0) {
-        reply('The sudo list is empty.');
+        reply('📝 The sudo list is empty.');
     } else {
-        reply(`Sudo users:\n${sudoList.join('\n')}`);
+        let sudoText = '👑 *SUDO USERS LIST*\n\n';
+        sudoList.forEach((jid, index) => {
+            const number = jid.split('@')[0];
+            sudoText += `${index + 1}. wa.me/${number}\n`;
+        });
+        sudoText += `\nTotal: ${sudoList.length} user(s)`;
+        reply(sudoText);
     }
+    break;
 }
-break
+
+case "delsudo":
+case "removesudo": {
+    if (!Access) return reply(mess.owner);
+    
+    if (m.chat.endsWith('@g.us') && !(m.mentionedJid && m.mentionedJid[0]) && !(m.quoted && m.quoted.sender)) {
+        return reply('Reply to or tag a person to remove!');
+    }
+
+    let mentionedUser = m.mentionedJid && m.mentionedJid[0];
+    let quotedUser = m.quoted && m.quoted.sender;
+    let userToRemove = mentionedUser || quotedUser || (text ? text.replace(/\D/g, "") + "@s.whatsapp.net" : null);
+
+    if (!userToRemove) return reply('Mention a user or reply to their message to remove them from sudo list.');
+
+    // Remove from database.json
+    const success = await removeSudo(botNumber, userToRemove);
+    
+    if (success) {
+        // Also update global.sudo
+        if (global.sudo) {
+            const index = global.sudo.indexOf(userToRemove);
+            if (index > -1) {
+                global.sudo.splice(index, 1);
+            }
+        }
+        await reply(`✅ +${userToRemove.split('@')[0]} removed from sudo list.`);
+    } else {
+        await reply(`❌ +${userToRemove.split('@')[0]} is not in sudo list.`);
+    }
+    break;
+}
 case "setownernumber": {
-if (!Access) return reply(mess.owner);
-if (args.length < 1) return reply(`Example: ${prefix + command} 256755585369\n\nThis will change the owner's number in the database`);
+    if (!Access) return reply(mess.owner);
+    
+    if (args.length < 1) return reply(`Example: ${prefix + command} 256755585369\n\nThis will change the owner's number in the database`);
 
-// Join all arguments to capture the full number including spaces
-let fullInput = args.join(' ');
-let newNumber = fullInput.replace(/\D/g, '');
+    // Join all arguments to capture the full number including spaces
+    let fullInput = args.join(' ');
+    let newNumber = fullInput.replace(/\D/g, '');
 
-console.log(`Input: ${fullInput}, Extracted Number: ${newNumber}`); // Debug log
+    console.log(`Input: ${fullInput}, Extracted Number: ${newNumber}`); // Debug log
 
-if (newNumber.startsWith('0')) {
-  return reply("⚠️ Phone numbers should not start with *0*. Use the full international format (e.g., *256...* instead of *07...*)");
-}
+    if (newNumber.startsWith('0')) {
+        return reply("⚠️ Phone numbers should not start with *0*. Use the full international format (e.g., *256...* instead of *07...*)");
+    }
 
-if (newNumber.length < 5 || newNumber.length > 15) {
-  return reply(`⚠️ Please provide a valid phone number (5-15 digits)\n\nYou provided: ${newNumber.length} digits: ${newNumber}`);
-}
+    if (newNumber.length < 5 || newNumber.length > 15) {
+        return reply(`⚠️ Please provide a valid phone number (5-15 digits)\n\nYou provided: ${newNumber.length} digits: ${newNumber}`);
+    }
 
-// Update database config
-if (!global.db.data.settings) global.db.data.settings = {};
-if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-let setting = global.db.data.settings[botNumber];
-if (!setting.config) setting.config = {};
+    // Store the old number for comparison
+    const oldNumber = getSetting(botNumber, 'ownernumber', 'Not set');
 
-// Store old number for message
-const oldNumber = setting.config.ownernumber || global.ownernumber || 'Not set';
+    // Update owner number in SettingsManager
+    await updateSetting(botNumber, 'ownernumber', newNumber);
 
-// Update owner number
-setting.config.ownernumber = newNumber;
-global.ownernumber = newNumber;
+    // Update owner array in global
+    const newOwnerJid = newNumber + "@s.whatsapp.net";
+    global.owner = [newOwnerJid]; // Replace entire array with new owner
 
-// Update owner array
-const newOwnerJid = newNumber.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
-if (!global.owner) global.owner = [];
-global.owner = [newOwnerJid]; // Replace entire array with new owner
+    // Update sudo array if needed
+    if (!global.sudo) global.sudo = [];
+    if (!global.sudo.includes(newOwnerJid)) {
+        global.sudo.push(newOwnerJid);
+    }
 
-// Update sudo array
-if (!global.sudo) global.sudo = [];
-if (!global.sudo.includes(newOwnerJid)) {
-    global.sudo.push(newOwnerJid);
-}
-
-
-
-reply(`✅ Owner number changed from *${oldNumber}* to *${newNumber}* successfully.\n\nNew owner has been granted full access.`);
+    reply(`✅ Owner number set to: ${newNumber}`);
+    
 }
 break
 case "setownername": {
     if (!Access) return reply(mess.owner);
     
     if (!text) {
-        return reply(`👑 *SET OWNER NAME*\n\n*Usage:* ${prefix}setownername [new owner name]\n*Example:* ${prefix}setownername Kelvin Tech\n\n*Current owner name:* ${global.ownername || 'Not set'}`);
+        return reply(`👑 *SET OWNER NAME*\n\n*Usage:* ${prefix}setownername [new owner name]\n*Example:* ${prefix}setownername Kelvin Tech\n\n*Current owner name:* ${getSetting(botNumber, 'ownername', 'Not set')}`);
     }
 
     try {
@@ -864,81 +895,24 @@ case "setownername": {
             return reply('❌ *Owner name too short!* Minimum 2 characters required.');
         }
 
-        // Send loading reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "⏳",
-                key: m.key
-            }
-        });
+        // Set the new owner name using SettingsManager
+        await updateSetting(botNumber, 'ownername', text.trim());
 
-        // Fix: Use setting.config structure
-        if (!global.db.data.settings) global.db.data.settings = {};
-        if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-        let setting = global.db.data.settings[botNumber];
-
-        // Initialize config if it doesn't exist
-        if (!setting.config) setting.config = {};
-
-        // Store the old name for comparison
-        const oldName = setting.config.ownername || global.ownername || 'Kelvin Tech';
-
-        // Set the new owner name in config
-        setting.config.ownername = text.trim();
-
-        // Also update the global variable
-        global.ownername = text.trim();
-
-        
-
-        // Success reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "✅",
-                key: m.key
-            }
-        });
-
-        // Success message
-        const successMessage = `✅ *OWNER NAME UPDATED SUCCESSFULLY!*\n\n` +
-            `*Old Name:* ${oldName}\n` +
-            `*New Name:* ${text.trim()}\n\n` +
-            `The owner name has been updated across all systems and will be displayed in bot information.`;
-
-        await reply(successMessage);
-
-        // Optional: Update bot's "about" info with new owner name
-        try {
-            const aboutText = `🤖 ${global.botname || 'Vinic-Xmd'} | 👑 ${text.trim()}`;
-            await conn.updateProfileStatus(aboutText);
-            await reply('📝 *Bot about info also updated!*');
-        } catch (aboutError) {
-            console.log('Note: Could not update bot about info:', aboutError.message);
-            // This is not critical, so we don't show error to user
-        }
+        // Simple success message
+        reply(`✅ Owner name set to: ${text.trim()}`);
 
     } catch (error) {
         console.error('Error in setownername command:', error);
-        
-        // Error reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "❌",
-                key: m.key
-            }
-        });
-        
         reply('❌ *Failed to update owner name.* Please try again.');
     }
-    
+   
 }
 break
-case "setbotname":
 case "setbotname": {
     if (!Access) return reply(mess.owner);
     
     if (!text) {
-        return reply(`🤖 *SET BOT NAME*\n\n*Usage:* ${prefix}setbotname [new name]\n*Example:* ${prefix}setbotname Jexploit Pro\n\n*Current bot name:* ${global.botname || 'Not set'}`);
+        return reply(`🤖 *SET BOT NAME*\n\n*Usage:* ${prefix}setbotname [new name]\n*Example:* ${prefix}setbotname Jexploit Pro\n\n*Current bot name:* ${getSetting(botNumber, 'botname', 'Not set')}`);
     }
 
     try {
@@ -951,61 +925,14 @@ case "setbotname": {
             return reply('❌ *Bot name too short!* Minimum 2 characters required.');
         }
 
-        // Send loading reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "⏳",
-                key: m.key
-            }
-        });
+        // Set the new bot name using SettingsManager
+        await updateSetting(botNumber, 'botname', text.trim());
 
-        // Fix: Use setting.config structure
-        if (!global.db.data.settings) global.db.data.settings = {};
-        if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-        let setting = global.db.data.settings[botNumber];
-
-        // Initialize config if it doesn't exist
-        if (!setting.config) setting.config = {};
-
-        // Store the old name for comparison
-        const oldName = setting.config.botname || global.botname || 'Jexploit';
-
-        // Set the new bot name in config
-        setting.config.botname = text.trim();
-
-        // Also update the global variable
-        global.botname = text.trim();
-
-        
-
-        // Success reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "✅",
-                key: m.key
-            }
-        });
-
-        // Success message
-        const successMessage = `✅ *BOT NAME UPDATED SUCCESSFULLY!*\n\n` +
-            `*Old Name:* ${oldName}\n` +
-            `*New Name:* ${text.trim()}\n\n` +
-            `The bot name has been updated across all systems.`;
-
-        await reply(successMessage);
-
+        // Simple success message
+        reply(`✅ Bot name set to: ${text.trim()}`);
 
     } catch (error) {
         console.error('Error in setbotname command:', error);
-        
-        // Error reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "❌",
-                key: m.key
-            }
-        });
-        
         reply('❌ *Failed to update bot name.* Please try again.');
     }
     
@@ -1560,8 +1487,8 @@ if (!Access) return reply(mess.owner);
 break
 case "public": {
 if (!Access) return reply(mess.owner) 
-conn.public = true
-reply(`*${global.botname} successfully changed to public mode*`)
+conn.public = false
+reply(`*${getSetting(botNumber, 'botname', 'JEXPLOIT')} successfully changed to private mode*.`)
 }
 break
 case 'readviewonce': case 'vv': {
@@ -1632,7 +1559,7 @@ case "reboot": {
     if (!Access) return reply(mess.owner);
     
     try {
-        await reply(`🔄 *Restarting ${global.botname} Bot...*\n\nPlease wait 10-15 seconds for the bot to restart.`);
+        await reply(`🔄 *Restarting ${getSetting(botNumber, 'botname', 'Jexpoit')} Bot...*\n\nPlease wait 10-15 seconds for the bot to restart.`);
         
         // A small delay to ensure the message is sent
         await sleep(2000);
@@ -2155,7 +2082,7 @@ break
 case "private": {
 if (!Access) return reply(mess.owner) 
 conn.public = false
-reply(`*${global.botname} successfully changed to private mode*.`)
+reply(`*${getSetting(botNumber, 'botname', 'Jexpoit')} successfully changed to private mode*.`)
 }
 break
 case "join": {
@@ -2410,7 +2337,7 @@ if (!Access) return reply(mess.owner);
 break
 case "setbio": {
 if (!Access) return reply(mess.owner);
-    if (!text) return reply(`*Text needed*\nExample: ${prefix + command} ${global.botname}`);
+if (!text) return reply(`*Text needed*\nExample: ${prefix + command} ${getSetting(botNumber, 'botname', 'Jexploit')}`);
 
     await conn.updateProfileStatus(text);
     reply(`*Successfully updated bio to "${text}"*`);
@@ -2573,7 +2500,7 @@ case "alive": {
         m.chat, 
         { 
             image: { url: randomImageUrl },
-            caption: `*🌹Hi. I am 👑${global.botname}, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime:${botUptime}*`
+            caption: `*🌹Hi. I am 👑 ${getSetting(botNumber, 'botname', 'JEXPLOIT')}, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime:${botUptime}*`
         },
         { quoted: m }
     );
@@ -2620,7 +2547,7 @@ case 'botinfo': {
       m.chat, 
       { 
           image: { url: imageUrl },
-          caption: `*🌹Hi. I am 👑${global.botname}, a friendly WhatsApp bot.*${botInfo}`
+          caption: `*🌹Hi. I am 👑 ${getSetting(botNumber, 'botname', 'Jexpoit')}, a friendly WhatsApp bot.*${botInfo}`
       },
       { quoted: m }
   );
@@ -3106,66 +3033,38 @@ case "math": {
 break
 case "owner": {
     try {
-        // Get the owner number(s) from global config
-        let ownerNumbers = [];
+        // Get the owner number from SettingsManager
+        const ownernumber = getSetting(botNumber, 'ownernumber', '256742932677');
+        const ownername = getSetting(botNumber, 'ownername', 'Owner');
         
-        // Handle different formats of owner configuration
-        if (Array.isArray(global.owner)) {
-            // If owner is an array of numbers
-            ownerNumbers = global.owner.map(num => {
-                const cleanNum = num.replace(/[^0-9]/g, '');
-                return cleanNum + '@s.whatsapp.net';
-            });
-        } else if (typeof global.owner === 'string') {
-            // If owner is a single string/number
-            const cleanNum = global.owner.replace(/[^0-9]/g, '');
-            ownerNumbers = [cleanNum + '@s.whatsapp.net'];
-        } else if (global.ownernumber) {
-            // Fallback to ownernumber if it exists
-            const cleanNum = String(global.ownernumber).replace(/[^0-9]/g, '');
-            ownerNumbers = [cleanNum + '@s.whatsapp.net'];
-        } else {
-            // Default fallback
-            ownerNumbers = ['256742932677@s.whatsapp.net'];
-        }
+        // Format the number
+        const cleanNumber = String(ownernumber).replace(/\D/g, '');
+        const ownerJid = cleanNumber + '@s.whatsapp.net';
+        
+        // Create contact vcard
+        const ownerContact = [{
+            displayName: ownername,
+            vcard: `BEGIN:VCARD\nVERSION:3.0\nN:${ownername}\nFN:${ownername}\nitem1.TEL;waid=${cleanNumber}:${cleanNumber}\nitem1.X-ABLabel:Mobile\nEND:VCARD`,
+        }];
 
-        const ownerList = [];
-
-        for (const number of ownerNumbers) {
-            try {
-                const displayName = await conn.getName(number).catch(() => 'Owner');
-                ownerList.push({
-                    displayName: displayName,
-                    vcard: `BEGIN:VCARD\nVERSION:3.0\nN:${displayName}\nFN:${displayName}\nitem1.TEL;waid=${number.split('@')[0]}:${number.split('@')[0]}\nitem1.X-ABLabel:Mobile\nEND:VCARD`,
-                });
-            } catch (error) {
-                console.error(`Error getting name for ${number}:`, error);
-                // Add with basic info even if name fetch fails
-                ownerList.push({
-                    displayName: 'Bot Owner',
-                    vcard: `BEGIN:VCARD\nVERSION:3.0\nN:Owner\nFN:Owner\nitem1.TEL;waid=${number.split('@')[0]}:${number.split('@')[0]}\nitem1.X-ABLabel:Mobile\nEND:VCARD`,
-                });
-            }
-        }
-
+        // Send the contact
         await conn.sendMessage(
             m.chat,
             { 
                 contacts: { 
-                    displayName: `${ownerList.length} Owner Contact`, 
-                    contacts: ownerList 
-                }, 
-                mentions: [sender] 
+                    displayName: `Owner Contact`, 
+                    contacts: ownerContact 
+                }
             },
             { quoted: m }
         );
+        
+        // Also send a text message with owner info
+        reply(`👑 *Owner Information*\n\n• *Name:* ${ownername}\n• *Number:* ${cleanNumber}\n• *WhatsApp:* wa.me/${cleanNumber}`);
+        
     } catch (error) {
         console.error('Error sending owner contact:', error.message);
-        await conn.sendMessage(
-            m.chat,
-            { text: `*Error:* ${error.message}` },
-            { quoted: m }
-        );
+        reply(`❌ Error: ${error.message}`);
     }
     
 }
@@ -4357,7 +4256,7 @@ try {
 27. Revelation
 
 
-💢 ${global.botname} 💢
+💢 ${getSetting(botNumber, 'botname', 'Jexpoit')} 💢
 `;
 
         // Remplacer ce lien par l'URL de l'image que tu m'enverras
@@ -4461,7 +4360,7 @@ case 'xplay': {
             `🎵 *Title:* ${title}\n` +
             `⏱ *Duration:* ${duration}\n` +
             `📺 *YouTube:* ${result.videoUrl || "Unknown"}\n\n` +
-            `🔥 Brought to you by *${global.botname}*`,
+            `🔥 Brought to you by *${getSetting(botNumber, 'botname', 'Jexpoit')}*`,
         },
         { quoted: mek }
       );
@@ -5121,7 +5020,7 @@ if (!text) return reply(`*Please provide a Facebook video url!*`);
       await conn.sendMessage(m.chat, {
         video: {
           url: dlurl,
-          caption: global.botname
+          caption: `${getSetting(botNumber, 'botname', 'Jexpoit')}`
         }
       }, {
         quoted: m
@@ -5135,7 +5034,7 @@ case 'tiktok':
 case 'tt': {
     if (!text) return reply(conn, `Use: ${prefix + command} <tiktok_link>`, m)
     
-    await reply(conn, `Please wait ${global.botname} 💪 its fetching you video...`, m)
+    await reply(conn, `Please wait ${getSetting(botNumber, 'botname', 'Jexpoit')} 💪 its fetching you video...`, m)
     
     
     try {
@@ -6200,7 +6099,7 @@ try {
     await conn.sendMessage(from, {
         image: { url: `https://image.thum.io/get/fullpage/${url}` },
         caption: "- 🖼️ *Screenshot Generated*\n\n" +
-                `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ${global.botname}💪 💜`
+                `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ${getSetting(botNumber, 'botname', 'Jexpoit')}💪 💜`
     }, { quoted: mek });
 
   } catch (error) {
@@ -6929,7 +6828,7 @@ try {
 
     // Create the response message
     const message = `
-*${global.botname} npm search*
+*${getSetting(botNumber, 'botname', 'Jexpoit')} npm search*
 
 *👀 NPM PACKAGE:* ${packageName}
 *📄 DESCRIPTION:* ${description}
@@ -7892,7 +7791,7 @@ try {
         console.log('JSON response:', json);
 
         // Format the pickup line message
-        const pickupLine = `*Here's a pickup line for you:*\n\n"${json.pickupline}"\n\n> *© ᴅʀᴏᴘᴘᴇᴅ ʙʏ ${global.botname}*`;
+        const pickupLine = `*Here's a pickup line for you:*\n\n"${json.pickupline}"\n\n> *© ᴅʀᴏᴘᴘᴇᴅ ʙʏ ${getSetting(botNumber, 'botname', 'Jexpoit')}*`;
 
         // Send the pickup line to the chat
         await conn.sendMessage(from, { text: pickupLine }, { quoted: m });
@@ -8411,7 +8310,7 @@ try {
             document: fs.readFileSync(nmfilect), 
             mimetype: 'text/vcard', 
             fileName: 'Vinic-Xmd.vcf', 
-            caption: `\nDone saving.\nGroup Name: *${cmiggc.subject}*\nContacts: *${cmiggc.participants.length}*\n> Powered by ${global.botname} `}, { quoted: mek });
+            caption: `\nDone saving.\nGroup Name: *${cmiggc.subject}*\nContacts: *${cmiggc.participants.length}*\n> Powered by ${getSetting(botNumber, 'botname', 'Jexpoit')} `}, { quoted: mek });
 
         fs.unlinkSync(nmfilect); // Cleanup the file after sending
     } catch (err) {
@@ -8435,7 +8334,7 @@ for (const participan of responseList) {
     );
     console.log(response);
 }
-reply(`*${global.botname} has approved all pending requests✅*`);
+reply(`*${getSetting(botNumber, 'botname', 'Jexpoit')} has approved all pending requests✅*`);
 
 }
 break
@@ -8953,8 +8852,10 @@ case 'antiedit': {
 }
 case 'antilink': {
     if (!m.isGroup) return reply(mess.group);
-    if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
-    
+
+    if (!isAdmin) {
+    return reply('❌ You need to be an admin to use this command.');
+}
     const subcommand = args[0]?.toLowerCase();
     const action = args[1]?.toLowerCase();
     
