@@ -57,6 +57,52 @@ class SettingsManager {
         return this.settings[botNumber] || {};
     }
 
+   
+    getSudo(botNumber) {
+        if (!this.settings[botNumber]) {
+            this.settings[botNumber] = {};
+        }
+        if (!this.settings[botNumber].sudo) {
+            this.settings[botNumber].sudo = [];
+        }
+        return this.settings[botNumber].sudo;
+    }
+
+    addSudo(botNumber, userJid) {
+        if (!this.settings[botNumber]) {
+            this.settings[botNumber] = {};
+        }
+        if (!this.settings[botNumber].sudo) {
+            this.settings[botNumber].sudo = [];
+        }
+        
+        if (!this.settings[botNumber].sudo.includes(userJid)) {
+            this.settings[botNumber].sudo.push(userJid);
+            return this.saveSettings();
+        }
+        return false; // Already exists
+    }
+
+    removeSudo(botNumber, userJid) {
+        if (!this.settings[botNumber] || !this.settings[botNumber].sudo) {
+            return false;
+        }
+        
+        const index = this.settings[botNumber].sudo.indexOf(userJid);
+        if (index > -1) {
+            this.settings[botNumber].sudo.splice(index, 1);
+            return this.saveSettings();
+        }
+        return false; // Not found
+    }
+
+    hasSudo(botNumber, userJid) {
+        if (!this.settings[botNumber] || !this.settings[botNumber].sudo) {
+            return false;
+        }
+        return this.settings[botNumber].sudo.includes(userJid);
+    }
+
     syncToGlobals(botNumber) {
         if (!this.settings[botNumber]) return;
         
@@ -77,6 +123,7 @@ class SettingsManager {
         if (settings.antibug !== undefined) global.antibug = settings.antibug;
         if (settings.anticall !== undefined) global.anticall = settings.anticall;
         if (settings.autobio !== undefined) global.autobio = settings.autobio;
+        if (settings.prefix !== undefined) global.prefix = settings.prefix;
         
         console.log(`✅ Settings synced to globals for ${botNumber}`);
     }
@@ -85,7 +132,23 @@ class SettingsManager {
 // Create singleton instance
 const settingsManager = new SettingsManager();
 
-// Export functions for getSetting and updateSetting (alias for setSetting)
+
+function getSudo(botNumber) {
+    return settingsManager.getSudo(botNumber);
+}
+
+function addSudo(botNumber, userJid) {
+    return settingsManager.addSudo(botNumber, userJid);
+}
+
+function removeSudo(botNumber, userJid) {
+    return settingsManager.removeSudo(botNumber, userJid);
+}
+
+function hasSudo(botNumber, userJid) {
+    return settingsManager.hasSudo(botNumber, userJid);
+}
+
 function getSetting(botNumber, key, defaultValue = null) {
     return settingsManager.getSetting(botNumber, key, defaultValue);
 }
@@ -106,6 +169,10 @@ function syncToGlobals(botNumber) {
 module.exports = {
     settingsManager, // The singleton instance
     getSetting,
+    getSudo,
+    addSudo,
+    removeSudo,
+    hasSudo,
     updateSetting,
     getAllSettings,
     syncToGlobals,
