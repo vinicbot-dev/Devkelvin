@@ -239,7 +239,7 @@ async function generateMenu(conn, m, prefix, global) {
 
     // Function to format the menu using current preset
     const formatMenu = () => {
-        let menu = `╭═✦〔 🤖 ᴠɪɴɪᴄ xᴅ 〕✦═╮\n`;
+        let menu = `╭═✦〔 🤖 JEXPLOIT 〕✦═╮\n`;
         menu += menuSections.header.content.map(line => `┃ ${line}`).join('\n') + '\n';
         menu += `╰═✦═════════════╯\n\n`;
 
