@@ -4,8 +4,10 @@ const path = require('path');
 const more = String.fromCharCode(8206);
 const readmore = more.repeat(4001);
 
+const { getSetting } = require('../../start/Core/settingManager');
 // File to store menu configuration - using temp directory
 const menuConfigPath = path.join(__dirname, '../temp/menu_config.json');
+
 
 // Six preset menu arrangements
 const menuPresets = {
@@ -87,6 +89,8 @@ const progressBar = (used, total, size = 10) => {
 
 // Function to generate the menu
 async function generateMenu(conn, m, prefix, global) {
+    const botNumber = await conn.decodeJid(conn.user.id);
+    
     // Load current menu configuration
     const menuConfig = loadMenuConfig();
     const currentPreset = menuConfig.preset || defaultPreset;
@@ -100,11 +104,11 @@ async function generateMenu(conn, m, prefix, global) {
     // Define menu sections for organization
     const menuSections = {
         header: {
-            title: '🔥ᴠɪɴɪᴄ xᴍᴅ🔮',
+            title: '🔥JEXPLOIT 🔮',
             content: [
-                `👤 ᴜsᴇʀ: ${global.ownername}`,
-                `🤖 ʙᴏᴛɴᴀᴍᴇ: ${global.botname}`,
-                `🌍 ᴍᴏᴅᴇ: ${conn.public ? 'ᴘᴜʙʟɪᴄ' : 'ᴘʀɪᴠᴀᴛᴇ'}`,
+                `👤 ᴜsᴇʀ: ${getSetting(botNumber, 'ownername', 'Not set')}`,
+                `🤖 ʙᴏᴛɴᴀᴍᴇ: ${getSetting(botNumber, 'botname', 'Jexploit')}`,
+                `🌍 ᴍᴏᴅᴇ: ${conn.public ? 'ᴘᴜʟʙɪᴄ' : 'ᴘʀɪᴠᴀᴛᴇ'}`,
                 `🛠️ ᴘʀᴇғɪx: [ ${prefix} ]`,
                 `📈 ᴄᴍᴅs: 100+`,
                 `🧪 ᴠᴇʀsɪᴏɴ: ${global.versions}`,
@@ -302,7 +306,7 @@ async function sendMenu(conn, m, prefix, global) {
                 mentionedJid: [m.sender],
                 forwardedNewsletterMessageInfo: {
                     newsletterName: '🔮 ᴊᴏɪɴ ᴋᴇʟᴠɪɴ ᴛᴇᴄʜ🔮',
-                    newsletterJid: '120363423330269983@newsletter',
+                    newsletterJid: '120363405241240098@newsletter',
                 },
                 isForwarded: true,
                 showAdAttribution: true,
