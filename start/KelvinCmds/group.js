@@ -90,13 +90,13 @@ function getInactiveUsers(groupJid, allParticipants) {
 }
 
 // Better admin tracking function
-async function isAdmin(sender, m, botId) {
+async function isAdmin(sender, m, botId, conn) {
     try {
         // If not a group, return false
         if (!m.isGroup) return false;
         
-        // Get group metadata
-        const groupMetadata = m.isGroup ? await m.getGroupMetadata() : null;
+        // Get group metadata using conn
+        const groupMetadata = await conn.groupMetadata(m.chat);
         if (!groupMetadata) return false;
         
         // Get participants/admins
@@ -122,7 +122,17 @@ async function isAdmin(sender, m, botId) {
     }
 }
 
+// Admin check helper function
+async function checkAdminStatus(m, conn) {
+    if (!m.isGroup) return false;
+    
+    try {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        return await isAdmin(m.sender, m, botNumber, conn);
+    } catch (error) {
+        console.error('Error in checkAdminStatus:', error);
+        return false;
+    }
+}
 
-
-
-module.exports = { getActiveUsers, isAdmin, getInactiveUsers, addUserMessage }
+module.exports = { getActiveUsers, isAdmin, getInactiveUsers, checkAdminStatus, addUserMessage }
