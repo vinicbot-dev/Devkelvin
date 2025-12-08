@@ -7,6 +7,7 @@ const { getSetting } = require('../../start/Core/settingManager.js');
  * @returns {string} Formatted settings text
  */
 function generateSettingsText(botNumber, prefix) {
+   
     // Get all settings
     const antidelete = getSetting(botNumber, 'antidelete', 'off');
     const antiedit = getSetting(botNumber, 'antiedit', 'off');
@@ -28,32 +29,31 @@ function generateSettingsText(botNumber, prefix) {
     const autoreactstatus = getSetting(botNumber, 'autoreactstatus', false);
     const statusemoji = getSetting(botNumber, 'statusemoji', '💚');
     
-    return `⚙️ *BOT SETTINGS STATUS*
-    
-📛 *Prefix:* ${prefix}
-🗑️ *Anti-Delete:* ${antidelete !== 'off' ? '✅ ' + antidelete : '❌'}
-✏️ *Anti-Edit:* ${antiedit !== 'off' ? '✅ ' + antiedit : '❌'}
-📞 *Anti-Call:* ${anticall !== 'off' ? '✅ ' + anticall : '❌'}
-🎙️ *Auto-Recording:* ${autorecording ? '✅' : '❌'}
-⌨️ *Auto-Typing:* ${autoTyping ? '✅' : '❌'}
-👀 *Auto-Read:* ${autoread ? '✅' : '❌'}
-🎭 *Auto-React:* ${autoreact ? '✅' : '❌'}
-👀 *Auto-View Status:* ${autoviewstatus ? '✅' : '❌'}
-🎭 *Auto-React Status:* ${autoreactstatus ? '✅ ' + statusemoji : '❌'}
-🤖 *AI Chatbot:* ${AI_CHAT ? '✅' : '❌'}
-🔗 *Anti-Link:* ${antilinkdelete ? '✅ ' + antilinkaction : '❌'}
-🛡️ *Anti-Badword:* ${antibadword ? '✅ ' + antibadwordaction : '❌'}
-🏷️ *Anti-Tag:* ${antitag ? '✅ ' + antitagaction : '❌'}
-👋 *Welcome:* ${welcome ? '✅' : '❌'}
-👑 *Admin Events:* ${adminevent ? '✅' : '❌'}
+    return `*BOT SETTINGS STATUS*
 
-🔧 *Commands:*
-• *${prefix}setprefix* <new> - Change prefix (1-3 chars)
-• *${prefix}set* <option> <value> - Change other settings
-• *${prefix}settings* - View current settings
+Prefix: ${prefix}
+Anti-Delete: ${antidelete !== 'off' ? 'ON (' + antidelete + ')' : 'OFF'}
+Anti-Edit: ${antiedit !== 'off' ? 'ON (' + antiedit + ')' : 'OFF'}
+Anti-Call: ${anticall !== 'off' ? 'ON (' + anticall + ')' : 'OFF'}
+Auto-Recording: ${autorecording ? 'ON' : 'OFF'}
+Auto-Typing: ${autoTyping ? 'ON' : 'OFF'}
+Auto-Read: ${autoread ? 'ON' : 'OFF'}
+Auto-React: ${autoreact ? 'ON' : 'OFF'}
+AI Chatbot: ${AI_CHAT ? 'ON' : 'OFF'}
+Auto-View Status: ${autoviewstatus ? 'ON' : 'OFF'}
+Auto-React Status: ${autoreactstatus ? 'ON (' + statusemoji + ')' : 'OFF'}
+Anti-Link: ${antilinkdelete ? 'ON (' + antilinkaction + ')' : 'OFF'}
+Anti-Badword: ${antibadword ? 'ON (' + antibadwordaction + ')' : 'OFF'}
+Anti-Tag: ${antitag ? 'ON (' + antitagaction + ')' : 'OFF'}
+Welcome Message: ${welcome ? 'ON' : 'OFF'}
+Admin Events: ${adminevent ? 'ON' : 'OFF'}
 
-💾 All settings saved to JSON
-🔄 No restart needed for changes`;
+Commands:
+${prefix}setprefix <new> - Change prefix (1-3 chars)
+${prefix}set <option> <value> - Change other settings
+${prefix}settings - View current settings
+
+All settings saved to JSON database.`;
 }
 
 /**
@@ -86,8 +86,34 @@ function getAllSettings(botNumber) {
     };
 }
 
+function checkAccess(sender, botNumber) {
+    // Normalize the sender number
+    const normalizedSender = sender.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
+    
+    // Get owner number from SettingsManager
+    const ownerNumber = getSetting(botNumber, 'ownernumber', '');
+    const ownerJid = ownerNumber ? ownerNumber.replace(/[^0-9]/g, "") + "@s.whatsapp.net" : '';
+    
+    // Get sudo users from SettingsManager
+    const sudoUsers = getSudo(botNumber) || [];
+    
+    // Create array of all authorized numbers (normalized)
+    const authorizedNumbers = [
+        botNumber.replace(/[^0-9]/g, "") + "@s.whatsapp.net", // Bot itself
+        devKelvin, // Your dev number
+        ownerJid, // Owner from database
+        ...sudoUsers // Sudo users from database
+    ].filter(num => num); // Remove empty strings
+    
+    // Check if sender is in authorized list
+    return authorizedNumbers.includes(normalizedSender);
+}
+
+
+
 // Export the functions
 module.exports = {
     generateSettingsText,
-    getAllSettings
+    getAllSettings,
+    checkAccess
 };
