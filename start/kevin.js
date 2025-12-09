@@ -8276,7 +8276,7 @@ case "delgrouppp": {
 break
 case "setdesc": {
         if (!m.isGroup) return reply(mess.group);
-        if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+        if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
         if (!text) return reply("*Please enter a text*");
         
         await conn.groupUpdateDescription(m.chat, text);
@@ -8356,7 +8356,7 @@ case " disapproveall": {
 break
 case "listrequest": {
 if (!m.isGroup) return reply(mess.group);
-    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+    if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
         
     const groupId = m.chat; 
 
@@ -8365,7 +8365,7 @@ if (!m.isGroup) return reply(mess.group);
 break
 case "mediatag": {
 if (!m.isGroup) return reply(mess.group);
-        if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+        if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
         if (!m.quoted) return reply(`Reply to any media with caption ${prefix + command}`);
 
         conn.sendMessage(m.chat, {
@@ -8378,7 +8378,7 @@ case "promote":
 case "upgrade": {
 if (!Access) return reply(mess.owner);
         if (!m.isGroup) return reply(mess.group);
-        if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+        if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
     let target = m.mentionedJid[0] 
       ? m.mentionedJid[0] 
       : m.quoted 
@@ -8400,7 +8400,7 @@ break
 case "demote":
 case "downgrade": {
         if (!m.isGroup) return reply(mess.group);
-        if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+        if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
     
     let target = m.mentionedJid[0] 
       ? m.mentionedJid[0] 
@@ -8597,7 +8597,7 @@ if (!m.isGroup) return reply(mess.group);
 break
 case "invite": {
 if (!m.isGroup) return reply(mess.group);
-        if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+        if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
         if (!text)
             return reply(
                 `*Enter the number you want to invite to this group*\n\nExample :\n${prefix + command} 256742932677`
@@ -8636,7 +8636,7 @@ break
 case "'unlockgc'": {
 try {
         if (!isGroup) return reply("❌ This command can only be used in groups");
-        if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+        if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
         await conn.groupSettingUpdate(from, "unlocked");
         reply("🔓 Group settings are now unlocked", {
             contextInfo: {
@@ -8674,7 +8674,7 @@ case "unlockgcsettings":
 case "unlockgc": {
     try {
         if (!isGroup) return reply("❌ This command can only be used in groups");
-        if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+        if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
         await conn.groupSettingUpdate(from, 'unlocked');
         reply("🔓 Group settings are now unlocked (all participants)", {
             contextInfo: {
@@ -8754,7 +8754,7 @@ if (!m.isGroup) return reply('❌ This command can only be used in groups.');
 break
 case "opentime": {
     if (!m.isGroup) return reply(mess.group);
-    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+    if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
 
     const duration = args[0];
     if (!args[1] || typeof args[1] !== 'string') return reply("*Select unit:*\nseconds\nminutes\nhours\ndays\n\n*Example:*\n10 seconds");
@@ -8787,7 +8787,7 @@ case "opentime": {
 break
 case "totalmembers": {
 if (!m.isGroup) return reply(mess.group);
-    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+    if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
 
     await conn.sendMessage(
       m.chat,
@@ -8800,7 +8800,7 @@ if (!m.isGroup) return reply(mess.group);
 break
 case "mediatag": {
      if (!m.isGroup) return reply(mess.group);
-        if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+        if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
         if (!m.quoted) return reply(`Reply to any media with caption ${prefix + command}`);
 
         conn.sendMessage(m.chat, {
@@ -8830,26 +8830,6 @@ if (!Access) return reply(mess.owner);
         });
 }
 break
-case 'antiedit': {
-    const newMode = body.slice(9).trim().toLowerCase();
-    if (['private', 'chat', 'off'].includes(newMode)) {
-        // Update global variable (for immediate use)
-        global.antiedit = newMode;
-        
-        // Save to database (for persistence after restart)
-        const botNumber = await conn.decodeJid(conn.user.id);
-        if (!global.db.data.settings[botNumber]) global.db.data.settings[botNumber] = {};
-        if (!global.db.data.settings[botNumber].config) global.db.data.settings[botNumber].config = {};
-        
-        global.db.data.settings[botNumber].config.antiedit = newMode;
-        await forceSaveSettings();
-        
-        reply(`✅ Anti-edit set to: ${newMode}`);
-    } else {
-        reply('❌ Invalid mode. Use: private, chat, or off');
-    }
-    break;
-}
 case 'antilink': {
     if (!m.isGroup) return reply(mess.group);
 
