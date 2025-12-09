@@ -1559,7 +1559,7 @@ case "reboot": {
     if (!Access) return reply(mess.owner);
     
     try {
-        await reply(`🔄 *Restarting ${getSetting(botNumber, 'botname', 'Jexpoit')} Bot...*\n\nPlease wait 10-15 seconds for the bot to restart.`);
+        await reply(`🔄 *Restarting ${getSetting(botNumber, 'botname', 'Jexploit')} Bot...*\n\nPlease wait 10-15 seconds for the bot to restart.`);
         
         // A small delay to ensure the message is sent
         await sleep(2000);
@@ -2082,7 +2082,7 @@ break
 case "private": {
 if (!Access) return reply(mess.owner) 
 conn.public = false
-reply(`*${getSetting(botNumber, 'botname', 'Jexpoit')} successfully changed to private mode*.`)
+reply(`*${getSetting(botNumber, 'botname', 'Jexploit')} successfully changed to private mode*.`)
 }
 break
 case "join": {
@@ -2547,7 +2547,7 @@ case 'botinfo': {
       m.chat, 
       { 
           image: { url: imageUrl },
-          caption: `*🌹Hi. I am 👑 ${getSetting(botNumber, 'botname', 'Jexpoit')}, a friendly WhatsApp bot.*${botInfo}`
+          caption: `*🌹Hi. I am 👑 ${getSetting(botNumber, 'botname', 'Jexploit')}, a friendly WhatsApp bot.*${botInfo}`
       },
       { quoted: m }
   );
@@ -4256,7 +4256,7 @@ try {
 27. Revelation
 
 
-💢 ${getSetting(botNumber, 'botname', 'Jexpoit')} 💢
+💢 ${getSetting(botNumber, 'botname', 'Jexploit')} 💢
 `;
 
         // Remplacer ce lien par l'URL de l'image que tu m'enverras
@@ -4360,7 +4360,7 @@ case 'xplay': {
             `🎵 *Title:* ${title}\n` +
             `⏱ *Duration:* ${duration}\n` +
             `📺 *YouTube:* ${result.videoUrl || "Unknown"}\n\n` +
-            `🔥 Brought to you by *${getSetting(botNumber, 'botname', 'Jexpoit')}*`,
+            `🔥 Brought to you by *${getSetting(botNumber, 'botname', 'Jexploit')}*`,
         },
         { quoted: mek }
       );
@@ -5020,7 +5020,7 @@ if (!text) return reply(`*Please provide a Facebook video url!*`);
       await conn.sendMessage(m.chat, {
         video: {
           url: dlurl,
-          caption: `${getSetting(botNumber, 'botname', 'Jexpoit')}`
+          caption: `${getSetting(botNumber, 'botname', 'Jexploit')}`
         }
       }, {
         quoted: m
@@ -5034,7 +5034,7 @@ case 'tiktok':
 case 'tt': {
     if (!text) return reply(conn, `Use: ${prefix + command} <tiktok_link>`, m)
     
-    await reply(conn, `Please wait ${getSetting(botNumber, 'botname', 'Jexpoit')} 💪 its fetching you video...`, m)
+    await reply(`Please wait ${getSetting(botNumber, 'botname', 'Jexploit')} 💪 its fetching you video...`)
     
     
     try {
@@ -6099,7 +6099,7 @@ try {
     await conn.sendMessage(from, {
         image: { url: `https://image.thum.io/get/fullpage/${url}` },
         caption: "- 🖼️ *Screenshot Generated*\n\n" +
-                `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ${getSetting(botNumber, 'botname', 'Jexpoit')}💪 💜`
+                `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ${getSetting(botNumber, 'botname', 'Jexploit')}💪 💜`
     }, { quoted: mek });
 
   } catch (error) {
@@ -6828,7 +6828,7 @@ try {
 
     // Create the response message
     const message = `
-*${getSetting(botNumber, 'botname', 'Jexpoit')} npm search*
+*${getSetting(botNumber, 'botname', 'Jexploit')} npm search*
 
 *👀 NPM PACKAGE:* ${packageName}
 *📄 DESCRIPTION:* ${description}
@@ -7791,7 +7791,7 @@ try {
         console.log('JSON response:', json);
 
         // Format the pickup line message
-        const pickupLine = `*Here's a pickup line for you:*\n\n"${json.pickupline}"\n\n> *© ᴅʀᴏᴘᴘᴇᴅ ʙʏ ${getSetting(botNumber, 'botname', 'Jexpoit')}*`;
+        const pickupLine = `*Here's a pickup line for you:*\n\n"${json.pickupline}"\n\n> *© ᴅʀᴏᴘᴘᴇᴅ ʙʏ ${getSetting(botNumber, 'botname', 'Jexploit')}*`;
 
         // Send the pickup line to the chat
         await conn.sendMessage(from, { text: pickupLine }, { quoted: m });
@@ -8310,7 +8310,7 @@ try {
             document: fs.readFileSync(nmfilect), 
             mimetype: 'text/vcard', 
             fileName: 'Vinic-Xmd.vcf', 
-            caption: `\nDone saving.\nGroup Name: *${cmiggc.subject}*\nContacts: *${cmiggc.participants.length}*\n> Powered by ${getSetting(botNumber, 'botname', 'Jexpoit')} `}, { quoted: mek });
+            caption: `\nDone saving.\nGroup Name: *${cmiggc.subject}*\nContacts: *${cmiggc.participants.length}*\n> Powered by ${getSetting(botNumber, 'botname', 'Jexploit')} `}, { quoted: mek });
 
         fs.unlinkSync(nmfilect); // Cleanup the file after sending
     } catch (err) {
@@ -8334,7 +8334,7 @@ for (const participan of responseList) {
     );
     console.log(response);
 }
-reply(`*${getSetting(botNumber, 'botname', 'Jexpoit')} has approved all pending requests✅*`);
+reply(`*${getSetting(botNumber, 'botname', 'Jexploit')} has approved all pending requests✅*`);
 
 }
 break
