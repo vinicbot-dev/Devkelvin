@@ -5009,24 +5009,53 @@ conn.sendMessage(m.chat, { audio: { url: json.music }, mimetype: 'audio/mpeg' },
 }, 3000)
 }
 }
-  break       
-case "facebook": {
-if (!text) return reply(`*Please provide a Facebook video url!*`);
-    
+break       
+case 'facebook':
+case 'fb': {
+    if (!text) return reply(`*Please provide facebook link!* `);
+
     try {
-      var dlink = await fetchJson(`https://api-aswin-sparky.koyeb.app/api/downloader/fbdl?url=${text}`);
-      var dlurl = dlink.data.high;
-      
-      await conn.sendMessage(m.chat, {
-        video: {
-          url: dlurl,
-          caption: `${getSetting(botNumber, 'botname', 'Jexploit')}`
+        // React while processing
+        await conn.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
+
+        // API URL
+        const apiUrl = `https://api.nekolabs.web.id/downloader/facebook?url=${encodeURIComponent(text)}`;
+        
+        // Fetch response
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+
+        if (data.success && data.result && data.result.medias && data.result.medias.length > 0) {
+            // Find video file (preferably the first HD one)
+            const videos = data.result.medias.filter(m => m.type === 'video');
+            
+            if (videos.length > 0) {
+                // Use the first video (usually HD)
+                const video = videos[0];
+                
+                await conn.sendMessage(
+                    m.chat,
+                    {
+                        video: { url: video.url },
+                        mimetype: 'video/mp4',
+                        caption: global.wm || ''
+                    },
+                    { quoted: m }
+                );
+            } else {
+                reply('❌ *No video found in this Facebook post*');
+            }
+            
+            // Success reaction
+            await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+        } else {
+            throw new Error('No media found');
         }
-      }, {
-        quoted: m
-      });
+        
     } catch (error) {
-      reply(global.mess.error);
+        console.error('Facebook command error:', error);
+        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+        reply('❌ *Failed to download Facebook video. Check the URL.*');
     }
 }
 break
@@ -5813,6 +5842,43 @@ case 'chatgpt': {
     } catch (error) {
         console.error('GPT Command Error:', error);
         reply('❌ An error occurred while processing your request. Please try again later.');
+    }
+}
+break
+case 'metaai': {
+    if (!text) return reply(`❌ *Please provide a question!*\n\n📌 *Example:* ${prefix}gpt Hello, how are you?`);
+
+    try {
+        // React while processing
+        await conn.sendMessage(m.chat, { react: { text: "💭", key: m.key } });
+
+        // API URL
+        const apiUrl = `https://api.nekolabs.web.id/text-generation/ai4chat?text=${encodeURIComponent(text)}`;
+        
+        // Fetch response from API
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+
+        if (data.success && data.result) {
+            // Format the response nicely
+            const replyText = `🤖 *AI Response*\n\n${data.result}\n\n⏱️ *Response Time:* ${data.responseTime || 'N/A'}`;
+            
+            await conn.sendMessage(
+                m.chat,
+                { text: replyText },
+                { quoted: m }
+            );
+            
+            // Success reaction
+            await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+        } else {
+            throw new Error('No response from AI');
+        }
+        
+    } catch (error) {
+        console.error('GPT command error:', error);
+        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+        reply('❌ *Failed to get AI response. Please try again later.*');
     }
 }
 break
