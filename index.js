@@ -450,34 +450,51 @@ conn.ev.on('contacts.update', update => {
     let id = conn.decodeJid(jid);
     withoutContact = conn.withoutContact || withoutContact;
     let v;
+    
     if (id.endsWith("@g.us")) {
-      return new Promise(async (resolve) => {
-        try {
-          v = store.contacts[id] || {};
-          if (!(v.name || v.subject)) v = await conn.groupMetadata(id) || {};
-          resolve(
-            v.name ||
-            v.subject ||
-            PhoneNumber("+" + id.replace("@s.whatsapp.net", "")).getNumber("international")
-          );
-        } catch (e) {
-          resolve(PhoneNumber("+" + id.replace("@s.whatsapp.net", "")).getNumber("international"));
-        }
-      });
+        return new Promise(async (resolve) => {
+            try {
+                v = store.contacts[id] || {};
+                if (!(v.name || v.subject)) v = await conn.groupMetadata(id) || {};
+                resolve(
+                    v.name ||
+                    v.subject ||
+                    PhoneNumber("+" + id.replace("@s.whatsapp.net", "")).getNumber("international")
+                );
+            } catch (e) {
+                resolve(PhoneNumber("+" + id.replace("@s.whatsapp.net", "")).getNumber("international"));
+            }
+        });
     } else {
-      v = id === "0@s.whatsapp.net"
-        ? { id, name: "WhatsApp" }
-        : id === conn.decodeJid(conn.user.id)
-        ? conn.user
-        : store.contacts[id] || {};
-      return (
-        (withoutContact ? "" : v.name) ||
-        v.subject ||
-        v.verifiedName ||
-        PhoneNumber("+" + jid.replace("@s.whatsapp.net", "")).getNumber("international")
-      );
+        // Handle both @s.whatsapp.net and @lid formats
+        let cleanJid = id;
+        if (id.endsWith('@lid')) {
+            try {
+                // Try to decode @lid to get actual number
+                const decoded = conn.decodeJid(id);
+                if (decoded && decoded !== id) {
+                    cleanJid = decoded;
+                }
+            } catch (e) {
+                // If decoding fails, keep the original
+                cleanJid = id;
+            }
+        }
+        
+        v = id === "0@s.whatsapp.net"
+            ? { id, name: "WhatsApp" }
+            : cleanJid === conn.decodeJid(conn.user.id)
+            ? conn.user
+            : store.contacts[cleanJid] || {};
+            
+        return (
+            (withoutContact ? "" : v.name) ||
+            v.subject ||
+            v.verifiedName ||
+            PhoneNumber("+" + cleanJid.replace("@s.whatsapp.net", "")).getNumber("international")
+        );
     }
-  };
+};
 
   conn.sendContact = async (jid, kon, quoted = '', opts = {}) => {
     let list = [];
@@ -658,6 +675,7 @@ conn.ev.on('contacts.update', update => {
     Connecting({ update, conn, Boom, DisconnectReason, sleep, color, clientstart });
   });
   
+// In the group-participants.update event handler
 conn.ev.on('group-participants.update', async (anu) => {
     try {
         const botNumber = await conn.decodeJid(conn.user.id);
@@ -680,14 +698,30 @@ conn.ev.on('group-participants.update', async (anu) => {
                         ppUrl = 'https://i.ibb.co/RBx5SQC/avatar-group-large-v2.png?q=60';
                     }
                     
-                    const name = await conn.getName(participant) || participant.split('@')[0];
+                    // Extract user ID from both formats: @s.whatsapp.net and @lid
+                    let userId;
+                    if (participant.endsWith('@s.whatsapp.net')) {
+                        userId = participant.split('@')[0];
+                    } else if (participant.endsWith('@lid')) {
+                        // For @lid format, get the actual number if possible
+                        try {
+                            const userInfo = await conn.decodeJid(participant);
+                            userId = userInfo.split('@')[0] || participant.split('@')[0];
+                        } catch {
+                            userId = participant.split('@')[0];
+                        }
+                    } else {
+                        userId = participant.split('@')[0];
+                    }
+                    
+                    const name = await conn.getName(participant) || userId;
                     
                     if (anu.action === 'add') {
                         const memberCount = groupMetadata.participants.length;
                         await conn.sendMessage(anu.id, {
                             image: { url: ppUrl },
                             caption: `
-*${global.botname} welcome* @${participant.split('@')[0]}  
+*${global.botname} welcome* @${userId}  
 
 *𝙶𝚛𝚘𝚞𝚙 𝙽𝚊𝚖𝚎: ${groupMetadata.subject}*
 
@@ -707,7 +741,7 @@ conn.ev.on('group-participants.update', async (anu) => {
                         await conn.sendMessage(anu.id, {
                             image: { url: ppUrl },
                             caption: `
-*👋 Goodbye* 😪 @${participant.split('@')[0]}
+*👋 Goodbye* 😪 @${userId}
 
 *Left at: ${moment.tz(timezones).format('HH:mm:ss')}, ${moment.tz(timezones).format('DD/MM/YYYY')}*
 
@@ -738,20 +772,44 @@ conn.ev.on('group-participants.update', async (anu) => {
                     let tag = check ? [anu.author, num] : [num];
                     
                     if (anu.action == "promote") {
-                        // Get usernames for promoted users
-                        let promotedUsernames = [];
+                        // Get user IDs for promoted users (handling both formats)
+                        let promotedUsers = [];
                         for (let participant of participants) {
-                            let name = await conn.getName(participant) || participant.split('@')[0];
-                            promotedUsernames.push(`@${participant.split('@')[0]}`);
+                            let userId;
+                            if (participant.endsWith('@s.whatsapp.net')) {
+                                userId = participant.split('@')[0];
+                            } else if (participant.endsWith('@lid')) {
+                                try {
+                                    const userInfo = await conn.decodeJid(participant);
+                                    userId = userInfo.split('@')[0] || participant.split('@')[0];
+                                } catch {
+                                    userId = participant.split('@')[0];
+                                }
+                            } else {
+                                userId = participant.split('@')[0];
+                            }
+                            promotedUsers.push(`@${userId}`);
                         }
                         
-                        // Get admin name who performed the action
-                        let adminName = await conn.getName(anu.author) || anu.author.split('@')[0];
+                        // Get admin user ID
+                        let adminUserId;
+                        if (anu.author.endsWith('@s.whatsapp.net')) {
+                            adminUserId = anu.author.split('@')[0];
+                        } else if (anu.author.endsWith('@lid')) {
+                            try {
+                                const adminInfo = await conn.decodeJid(anu.author);
+                                adminUserId = adminInfo.split('@')[0] || anu.author.split('@')[0];
+                            } catch {
+                                adminUserId = anu.author.split('@')[0];
+                            }
+                        } else {
+                            adminUserId = anu.author.split('@')[0];
+                        }
                         
                         const promotionMessage = `*『 GROUP PROMOTION 』*\n\n` +
                             `👤 *Promoted User${participants.length > 1 ? 's' : ''}:*\n` +
-                            `${promotedUsernames.join('\n')}\n\n` +
-                            `👑 *Promoted By:* @${anu.author.split('@')[0]}\n\n` +
+                            `${promotedUsers.join('\n')}\n\n` +
+                            `👑 *Promoted By:* @${adminUserId}\n\n` +
                             `📅 *Date:* ${new Date().toLocaleString()}`;
                         
                         await conn.sendMessage(anu.id, {
@@ -762,20 +820,44 @@ conn.ev.on('group-participants.update', async (anu) => {
                     }
                     
                     if (anu.action == "demote") {
-                        // Get usernames for demoted users
-                        let demotedUsernames = [];
+                        // Get user IDs for demoted users (handling both formats)
+                        let demotedUsers = [];
                         for (let participant of participants) {
-                            let name = await conn.getName(participant) || participant.split('@')[0];
-                            demotedUsernames.push(`@${participant.split('@')[0]}`);
+                            let userId;
+                            if (participant.endsWith('@s.whatsapp.net')) {
+                                userId = participant.split('@')[0];
+                            } else if (participant.endsWith('@lid')) {
+                                try {
+                                    const userInfo = await conn.decodeJid(participant);
+                                    userId = userInfo.split('@')[0] || participant.split('@')[0];
+                                } catch {
+                                    userId = participant.split('@')[0];
+                                }
+                            } else {
+                                userId = participant.split('@')[0];
+                            }
+                            demotedUsers.push(`@${userId}`);
                         }
                         
-                        // Get admin name who performed the action
-                        let adminName = await conn.getName(anu.author) || anu.author.split('@')[0];
+                        // Get admin user ID
+                        let adminUserId;
+                        if (anu.author.endsWith('@s.whatsapp.net')) {
+                            adminUserId = anu.author.split('@')[0];
+                        } else if (anu.author.endsWith('@lid')) {
+                            try {
+                                const adminInfo = await conn.decodeJid(anu.author);
+                                adminUserId = adminInfo.split('@')[0] || anu.author.split('@')[0];
+                            } catch {
+                                adminUserId = anu.author.split('@')[0];
+                            }
+                        } else {
+                            adminUserId = anu.author.split('@')[0];
+                        }
                         
                         const demotionMessage = `*『 GROUP DEMOTION 』*\n\n` +
                             `👤 *Demoted User${participants.length > 1 ? 's' : ''}:*\n` +
-                            `${demotedUsernames.join('\n')}\n\n` +
-                            `👑 *Demoted By:* @${anu.author.split('@')[0]}\n\n` +
+                            `${demotedUsers.join('\n')}\n\n` +
+                            `👑 *Demoted By:* @${adminUserId}\n\n` +
                             `📅 *Date:* ${new Date().toLocaleString()}`;
                         
                         await conn.sendMessage(anu.id, {
