@@ -60,9 +60,8 @@ const Connecting = async ({
 ┃✧ Status: Active
 ┃✧ Time: ${currentTime}
 ┃
-┃   Official channel: https://whatsapp
-┃com
-┃channel/0029Vb725SbIyPtOEG92nA04
+┃   Official channel: 
+┃   https://whatsapp.com/channel/0029Vb725SbIyPtOEG92nA04
 ┗━━━━━━━━━━━━━━━━━━━`;
 
         await conn.sendMessage(conn.user.id, { 
