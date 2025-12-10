@@ -1487,8 +1487,8 @@ if (!Access) return reply(mess.owner);
 break
 case "public": {
 if (!Access) return reply(mess.owner) 
-conn.public = false
-reply(`*${getSetting(botNumber, 'botname', 'JEXPLOIT')} successfully changed to private mode*.`)
+conn.public = true
+reply(`*${getSetting(botNumber, 'botname', 'JEXPLOIT')} successfully changed to public mode*.`)
 }
 break
 case 'readviewonce': case 'vv': {
