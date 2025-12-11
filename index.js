@@ -302,7 +302,7 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
     // Monitor memory every 10 minutes
     setInterval(monitorResources, 10 * 60 * 1000);
     
-    if (!sessionExists && !conn.authState.creds.registered) {
+    if (!creds && !conn.authState.creds.registered) {
     const phoneNumber = await question(chalk.blue.bold(`Thanks for choosing Vinic-Xmd. Please provide your number start with 256xxx:\n`));
     const code = await conn.requestPairingCode(phoneNumber.trim());
     console.log(chalk.cyan(`Code: ${code}`));
