@@ -86,7 +86,7 @@ global.limitCount = 10;
 
 global.mess = {
   group: "*This is not a group*",
-  admin: "*To use this feature first make Vinic-Xmd admin*",
+  notadmin: "*You need to be an admin to use this command.*",
   owner: "*Haha😆, I will not respond because your not my owner*",
   done: "*Operation succeeded*",
   notext: "*Please provide the necessary text*",
