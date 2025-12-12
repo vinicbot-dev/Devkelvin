@@ -6,7 +6,7 @@ const readmore = more.repeat(4001);
 const { 
 loadStoredMessages,
 saveStoredMessages,
-storeMessage } = require('../../vinic');
+storeMessage } = require('../../Jex');
 
 async function handleAntiDelete(m, conn) {
     try {
