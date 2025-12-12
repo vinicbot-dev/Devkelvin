@@ -82,7 +82,7 @@ const {
   detectUrls,
   delay,
   recordError,
-  shouldLogError } = require('../vinic')
+  shouldLogError } = require('../Jex')
   
 const { 
 getSetting,
@@ -460,7 +460,7 @@ if (m.isGroup && !m.key.fromMe && body && body.trim().length > 0) {
 
 switch (command) {
 case 'menu':
-case 'Roberto':
+case 'Robert':
 case 'kevin':
 case 'jex': {
     // Send loading message first
@@ -2491,8 +2491,7 @@ case "alive": {
     
     // Array of audio URLs
     const audioUrls = [
-        "https://files.catbox.moe/gttyv1.mp3",
-        "https://files.catbox.moe/9cigm5.mp3",
+        "https://files.catbox.moe/ndrrz3.mp3",
         "https://files.catbox.moe/yny58w.mp3",
         "https://files.catbox.moe/ckie6b.m4a",
         "https://files.catbox.moe/zhr5m2.mp3"
@@ -2542,13 +2541,12 @@ case 'botinfo': {
   
   // Array of audio URLs
   const audioUrls = [
-      "https://files.catbox.moe/gttyv1.mp3",
-        "https://files.catbox.moe/9cigm5.mp3",
+        "https://files.catbox.moe/ndrrz3.mp3",
         "https://files.catbox.moe/yny58w.mp3",
         "https://files.catbox.moe/ckie6b.m4a",
         "https://files.catbox.moe/zhr5m2.mp3"
-  ];
-  
+        
+    ];
   // Randomly select an audio URL
   const randomAudioUrl = audioUrls[Math.floor(Math.random() * audioUrls.length)];
   
@@ -5068,6 +5066,46 @@ case 'fb': {
     }
 }
 break
+case 'twitter':
+case 'x': {
+    if (!text) return reply(`*Please provide Twitter link or url!*`);
+
+    try {
+        // React while processing
+        await conn.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
+
+        // API URL
+        const apiUrl = `https://api.siputzx.my.id/api/d/twitter?url=${encodeURIComponent(text)}`;
+        
+        // Fetch response
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+
+        if (data.status && data.data && data.data.downloadLink) {
+            // Send video
+            await conn.sendMessage(
+                m.chat,
+                {
+                    video: { url: data.data.downloadLink },
+                    mimetype: 'video/mp4',
+                    caption: `*${data.data.videoTitle || 'Twitter Video'}*\n\n${global.wm || ''}`
+                },
+                { quoted: m }
+            );
+            
+            // Success reaction
+            await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+        } else {
+            throw new Error('No video found');
+        }
+        
+    } catch (error) {
+        console.error('Twitter command error:', error);
+        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+        reply('❌ *Failed to download Twitter video. Check the URL.*');
+    }
+}
+break
 case 'tiktok':
 case 'tt': {
     if (!text) return reply(conn, `Use: ${prefix + command} <tiktok_link>`, m)
@@ -6943,7 +6981,7 @@ const familyList = `
     try {
         // Envoi de la réponse avec l'image et la liste de la famille
         await conn.sendMessage(m.chat, {
-            image: { url: "https://files.catbox.moe/ptpl5c.jpeg" },
+            image: { url: "https://files.catbox.moe/9sazwf.jpg" },
             caption: familyList.trim()
         }, { quoted: mek });
     } catch (error) {
