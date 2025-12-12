@@ -122,7 +122,7 @@ async function generateMenu(conn, m, prefix, global) {
                 'addowner', '𝙸𝚍𝚌𝚑', '𝙲𝚛𝚎𝚊𝚝𝚎𝚌𝚑', 'creategroup', 'del', 'setpp', 'delpp', 'private', 'public',
                 'lastseen', 'setprefix', 'groupid', 'readreceipts', 'reportbug', 'clearchat', 
                 'hack', 'groupjids', 'broadcast', 
-                'react', 'restart', 'addignorelist', 'delignorelist', 'deljunk', 'features',
+                'react', 'restart', 'currentmenu', 'addignorelist', 'delignorelist', 'deljunk', 'features',
                 'listblocked', 'listsudo', 'setprofilename', 'listignored', 'online', 'join', 
                 'leave', 'setbio', 'resetsettings', 'backup', 'reqeust', 'block', 'gpass', 'toviewonce', 
                 'setownername', 'setbotname', 'unblock', 'unblockall', 'gcaddprivacy', 
@@ -314,8 +314,8 @@ async function sendMenu(conn, m, prefix, global) {
                 body: '☘ ᴋᴇʟᴠɪɴ ᴛᴇᴄʜ ☘',
                 mediaType: 3,
                 renderLargerThumbnail: false,
-                thumbnail: global.cina || 'https://files.catbox.moe/ptpl5c.jpeg', 
-                sourceUrl: 'https://whatsapp.com/channel/0029Vb6eR1r05MUgYul6Pc2W',
+                thumbnail: global.cina || 'https://files.catbox.moe/9sazwf.jpg', 
+                sourceUrl: 'https://whatsapp.com/channel/0029Vb725SbIyPtOEG92nA04',
             },
         }, { quoted: m });
 
