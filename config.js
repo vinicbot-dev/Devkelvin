@@ -96,7 +96,7 @@ global.mess = {
   helpersList: [
     { name: "Malvin king", number: "+263776388689", country: "Zimbabwe", flag: "🇿🇼" },
     { name: "lonlysaam", number: "+254762586673", country: "Kenya", flag: "🇹🇿" },
-    { name: "Tredex", number: "+254110081982", country: "Kenya", flag: "🇹🇿" },
+    { name: "Terri", number: "+256752792178", country: "Uganda", flag: "🇺🇬" },
     { name: "Dev sung", number: "+27649342626", country: "South Africa", flag: "🇿🇦" }
   ],
   siputzx: "https://api.siputzx.my.id" 
