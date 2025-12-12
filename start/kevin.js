@@ -97,6 +97,7 @@ hasSudo
 const {  takeCommand, musicCommand, ytplayCommand, handleMediafireDownload,  InstagramCommand, telestickerCommand, playCommand } = require('./KelvinCmds/commands')
 const { getInactiveUsers, isAdmin, checkAdminStatus, addUserMessage, getActiveUsers } = require('./KelvinCmds/group')
 const { KelvinVideo } = require('./KelvinCmds/video');
+const { dareCommand, truthCommand } require('./KelvinCmds/fun');
 const { tiktokSearch } = require('./KelvinCmds/TikTok');
 const { playstoreSearch } = require('./KelvinCmds/playstore');
 const sports = require('./KelvinCmds/sport');
@@ -7429,115 +7430,17 @@ case 'cr': {
   m.reply(`Url: ${response.result.url}\nArtis: ${response.result.artist}\nArtisUrl: ${response.result.artistUrl}\nJudul: ${response.result.title}\nChord: ${response.result.chord}`), { quoted: m };
 }
 break
+case "dares":
 case "dare": {
-const dares = [
-      "Eat 2 tablespoons of rice without any side dishes.",
-      "Spill a secret about yourself.",
-      "Call your crush now and send a screenshot.",
-      "Drop only emojis for 1 day in group chats.",
-      "Sing the chorus of your favorite song.",
-      "Change your name to 'I'm a daredevil' for 24 hours.",
-      "Tell a random person 'I was told I'm your twin, separated at birth.'",
-      "Pretend to be possessed by an animal for 30 minutes.",
-      "Record yourself reading a funny quote and send it here.",
-      "Prank chat an ex and say 'I still love you.'",
-      "Change your profile picture to a funny meme for 5 hours.",
-      "Type only in Spanish for 24 hours.",
-      "Use a funny voice note greeting for 3 days.",
-      "Drop a song quote and tag a suitable member.",
-      "Say 'You're beautiful' to someone you admire.",
-      "Act like a chicken in front of your parents.",
-      "Read a page from a random book aloud and send it here.",
-      "Howl like a wolf for 10 seconds outside.",
-      "Make a short dance video and put it on your status.",
-      "Eat a raw piece of garlic.",
-      "Show the last five people you texted and what the messages said.",
-      "Put your full name on status for 5 hours.",
-      "Make a twerk dance video and put it on your status.",
-      "Call your bestie and say 'I love you.'",
-      "Put your photo without filters on your status.",
-      "Say 'I love you' to someone you secretly admire.",
-      "Send a voice note saying 'Can I call you baby?'",
-      "Change your name to 'I'm a daredevil' for 24 hours.",
-      "Use a Bollywood actor's photo as your profile picture.",
-      "Put your crush's photo on status with the caption 'My crush.'",
-      "Write 'I love you' to someone and send a screenshot.",
-      "Slap your butt and send the sound effect.",
-      "Shout 'Bravo!' and send it here.",
-      "Snap your face and send it here.",
-      "Send your photo with the caption 'I'm feeling confident.'",
-      "Kiss your mom or dad and say 'I love you.'",
-      "Put your dad's name on status for 5 hours.",
-      "Make a TikTok dance challenge video.",
-      "Break up with your best friend for 5 hours without telling them.",
-      "Tell a friend you love them and want to marry them.",
-    ];
 
-    const dareMessage = dares[Math.floor(Math.random() * dares.length)];
-    const buffer = await getBuffer('https://i.ibb.co/305yt26/bf84f20635dedd5dde31e7e5b6983ae9.jpg');
-
-    await conn.sendMessage(
-      from,
-      {
-        image: buffer,
-        caption: `*DARE*\n${dareMessage}`,
-      },
-      { quoted: m }
-    );
+    await dareCommand(conn, from, m);
+    
 }
 break
 case "truth": {
-const truths = [
-      "What's your biggest fear?",
-      "Have you ever lied to your best friend?",
-      "What's your deepest secret?",
-      "Who's your secret crush?",
-      "What's the biggest mistake you've ever made?",
-      "Have you ever cheated on a test?",
-      "What's the most embarrassing thing that's ever happened to you?",
-      "Do you have a hidden talent?",
-      "What's the biggest lie you've ever told?",
-      "Have you ever been in love?",
-      "What's the most spontaneous thing you've ever done?",
-      "Who's the person you trust most?",
-      "What's the biggest risk you've ever taken?",
-      "Have you ever regretted something?",
-      "What's the most memorable gift you've received?",
-      "Have you ever had a crush on someone older?",
-      "What's the biggest lesson you've learned?",
-      "Have you ever broken someone's heart?",
-      "What's the most exciting thing you've done?",
-      "Do you believe in soulmates?",
-      "What's the biggest challenge you've faced?",
-      "Have you ever kept a secret from your parents?",
-      "What's the most creative thing you've done?",
-      "Have you ever felt betrayed?",
-      "What's the biggest adventure you've been on?",
-      "Have you ever had a rival?",
-      "What's the most thoughtful thing someone's done for you?",
-      "Have you ever forgiven someone?",
-      "What's the biggest obstacle you've overcome?",
-      "Do you believe in karma?",
-      "What's the most romantic thing someone's done for you?",
-      "Have you ever taken a risk for love?",
-      "What's the biggest surprise you've ever received?",
-      "Have you ever had a paranormal experience?",
-      "What's the most inspiring story you've heard?",
-      "Have you ever helped someone in need?",
-      "What's the biggest accomplishment you're proud of?",
-    ];
 
-    const truthMessage = truths[Math.floor(Math.random() * truths.length)];
-    const buffer = await getBuffer('https://i.ibb.co/305yt26/bf84f20635dedd5dde31e7e5b6983ae9.jpg');
-
-    await conn.sendMessage(
-      from,
-      {
-        image: buffer,
-        caption: `*TRUTH*\n${truthMessage}`,
-      },
-      { quoted: m }
-    );
+    await truthCommand(conn, from, m);
+    
 }
 break
 case "truthdetecter": {
