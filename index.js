@@ -83,7 +83,7 @@ const {
 const {
 detectUrls,
 handleStatusUpdate
- } = require('./vinic');
+ } = require('./Jex');
  
 
 
@@ -302,7 +302,13 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
     // Monitor memory every 10 minutes
     setInterval(monitorResources, 10 * 60 * 1000);
     
-      
+    if (!creds && !conn.authState.creds.registered) {
+    const phoneNumber = await question(chalk.greenBright(`Thanks for choosing Jexploit-bot. Please provide your number start with 256xxx:\n`));
+    const code = await conn.requestPairingCode(phoneNumber.trim());
+    console.log(chalk.cyan(`Code: ${code}`));
+    console.log(chalk.cyan(`Jexploit: Please use this code to connect your WhatsApp account.`));
+  }
+          
     const { makeInMemoryStore } = require("./start/lib/store/");
     const store = makeInMemoryStore({
         logger: pino().child({
