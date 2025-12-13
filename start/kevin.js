@@ -97,7 +97,7 @@ hasSudo
 const {  takeCommand, musicCommand, ytplayCommand, handleMediafireDownload,  InstagramCommand, telestickerCommand, playCommand } = require('./KelvinCmds/commands')
 const { getInactiveUsers, isAdmin, checkAdminStatus, addUserMessage, getActiveUsers } = require('./KelvinCmds/group')
 const { KelvinVideo } = require('./KelvinCmds/video');
-const { dareCommand, truthCommand } require('./KelvinCmds/fun');
+const { dareCommand, truthCommand } = require('./KelvinCmds/fun');
 const { tiktokSearch } = require('./KelvinCmds/TikTok');
 const { playstoreSearch } = require('./KelvinCmds/playstore');
 const sports = require('./KelvinCmds/sport');
