@@ -436,6 +436,13 @@ if (m.isGroup && body && !m.key.fromMe) {
     }, conn);
 }
 
+if ((m.mtype || '').includes("groupStatusMentionMessage") && m.isGroup) {
+    
+    if (!isGroupAdmins && !Access) {
+        await conn.deleteMessage(m.chat, m.key).catch(() => {});
+    }
+  
+}
 // ========== ANTI-DELETE EXECUTION ==========
 if (global.antidelete && m.message?.protocolMessage?.type === 0 && m.message?.protocolMessage?.key) {
     await handleAntiDelete(m, conn, from, isGroup, botNumber);
