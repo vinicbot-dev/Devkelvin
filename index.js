@@ -65,7 +65,7 @@ const PhoneNumber = require('awesome-phonenumber');
 const { File } = require('megajs');
 const { color } = require('./start/lib/color');
 
-const Database = require('better-sqlite3');
+
 const db = require('./data/database.json');
 
 const {
