@@ -69,7 +69,6 @@ const {
   fetchVideoDownloadUrl,
   saveStatusMessage,
   acr,
-  obfus,
   handleAntiEdit,
   loadStoredMessages,
   saveStoredMessages,
@@ -428,7 +427,7 @@ await handleAutoTyping(m, conn, botNumber);
 await handleAutoReact(m, conn, botNumber);
 await handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, prefix);
 
-// ========== ENHANCED VISIBLE ANTI-LINK EXECUTION ==========
+
 if (m.isGroup && body && !m.key.fromMe) {
     await checkAndHandleLinks({
         key: m.key,
