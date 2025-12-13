@@ -575,6 +575,78 @@ conn.ev.on('contacts.update', update => {
     await fs.writeFileSync(savePath, buffer);
     return savePath;
   };
+  
+
+conn.sendStatusMention = async (content, jids = []) => {
+    try {
+        let users = [];
+        
+        // Get users from all provided jids
+        for (let id of jids) {
+            try {
+                let userId = await conn.groupMetadata(id);
+                const participants = userId.participants || [];
+                users = [...users, ...participants.map(u => conn.decodeJid(u.id))];
+            } catch (error) {
+                console.error('Error getting group metadata for', id, error);
+            }
+        };
+
+        // Filter out duplicates and undefined
+        users = [...new Set(users.filter(u => u))];
+
+        let message = await conn.sendMessage(
+            "status@broadcast", 
+            content, 
+            {
+                backgroundColor: "#000000",
+                font: Math.floor(Math.random() * 9),
+                statusJidList: users,
+                additionalNodes: [
+                    {
+                        tag: "meta",
+                        attrs: {},
+                        content: [
+                            {
+                                tag: "mentioned_users",
+                                attrs: {},
+                                content: jids.map((jid) => ({
+                                    tag: "to",
+                                    attrs: { jid },
+                                    content: undefined,
+                                })),
+                            },
+                        ],
+                    },
+                ],
+            }
+        );
+
+        // Broadcast to all groups
+        for (let id of jids) {
+            try {
+                await conn.relayMessage(id, {
+                    groupStatusMentionMessage: {
+                        message: {
+                            protocolMessage: {
+                                key: message.key,
+                                type: 25,
+                            },
+                        },
+                    },
+                }, {});
+                await delay(2500); // Use your existing delay function
+            } catch (error) {
+                console.error('Error relaying message to', id, error);
+            }
+        }
+        
+        return message;
+    } catch (error) {
+        console.error('Error in sendStatusMention:', error);
+        throw error;
+    }
+};
 
   conn.serializeM = (m) => smsg(conn, m, store);
 
