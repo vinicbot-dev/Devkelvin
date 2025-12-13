@@ -1,3 +1,4 @@
+const { getBuffer } = require('../../start/lib/myfunction');
 async function dareCommand(conn, from, m) {
     const dares = [
         "Eat 2 tablespoons of rice without any side dishes.",
@@ -258,7 +259,7 @@ async function truthCommand(conn, from, m) {
             from,
             {
                 image: buffer,
-                caption: `🔍 *TRUTH OR DARE*\n\n${truthMessage}\n\n_Be honest! No lying allowed!_`,
+                caption: `💤*TRUTH OR DARE*\n\n${truthMessage}\n\n_Be honest! No lying allowed!_`,
             },
             { quoted: m }
         );
@@ -267,7 +268,7 @@ async function truthCommand(conn, from, m) {
         await conn.sendMessage(
             from,
             {
-                text: `🔍 *TRUTH OR DARE*\n\n${truthMessage}\n\n_Be honest! No lying allowed!_`,
+                text: `💤 *TRUTH OR DARE*\n\n${truthMessage}\n\n_Be honest! No lying allowed!_`,
             },
             { quoted: m }
         );
