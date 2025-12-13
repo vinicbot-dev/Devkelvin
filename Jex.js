@@ -20,7 +20,6 @@ const os = require('os');
 const speed = require('performance-now')
 const timezones = global.timezones || "Africa/Kampala";
 const yts = require("yt-search")
-const jsobfus = require("javascript-obfuscator");
 const more = String.fromCharCode(8206);
 const readmore = more.repeat(4001);
 const timestampp = speed();
@@ -218,33 +217,6 @@ async function ephoto(url, texk) {
       return build_server + data.image;
  }
 
-
-
-//obfuscator 
-async function obfus(query) {
-      return new Promise((resolve, reject) => {
-        try {
-          const obfuscationResult = jsobfus.obfuscate(query, {
-            compact: false,
-            controlFlowFlattening: true,
-            controlFlowFlatteningThreshold: 1,
-            numbersToExpressions: true,
-            simplify: true,
-            stringArrayShuffle: true,
-            splitStrings: true,
-            stringArrayThreshold: 1,
-          });
-          const result = {
-            status: 200,
-            author: `${ownername}`,
-            result: obfuscationResult.getObfuscatedCode(),
-          };
-          resolve(result);
-        } catch (e) {
-          reject(e);
-        }
-      });
-    }
 
 const pickRandom = (arr) => {
 return arr[Math.floor(Math.random() * arr.length)]
@@ -532,7 +504,7 @@ async function handleStatusUpdate(mek, conn) {
                     
                     
                     
-                    // Add a small delay to avoid rate limiting
+                    //  a small delay to avoid rate limiting
                     await delay(1000);
                 }
             } catch (reactError) {
@@ -792,7 +764,6 @@ module.exports = {
   fetchVideoDownloadUrl,
   fetchJson,
   acr,
-  obfus,
   handleAntiEdit,
   handleStatusUpdate,
   saveStatusMessage,
