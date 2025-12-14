@@ -2305,7 +2305,7 @@ case 'autoreact': {
 }
 
 case 'chatbot': {
-    if (!Access) return reply('❌ Owner only command');
+    if (!Access) return reply(mess.owner);
     const mode = args[0]?.toLowerCase();
     if (!mode || !['on', 'off'].includes(mode)) {
         return reply(`❌ Usage: ${prefix}chatbot <on/off>\nExample: ${prefix}chatbot on`);
@@ -2669,6 +2669,99 @@ const used = process.memoryUsage();
 `;
 
       conn.sendMessage(m.chat, { text: response.trim() }, { quoted: m });
+}
+break
+case 'p':
+case 'pair': {
+    if (!text) return reply('*🔢 Provide a phone number*\n📌 *Example:* .pair 256755585369\n📌 *Example:* .pair +256755585369');
+
+    try {
+        // React while processing
+        await conn.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
+
+        // Clean the phone number
+        const number = text.replace(/\+|\s/g, '').trim();
+        
+        // Validate phone number
+        if (!/^\d{10,15}$/.test(number)) {
+            return reply('❌ *Invalid phone number format!*\nPlease provide a valid number (10-15 digits).');
+        }
+
+        //Render.com API endpoints
+        const apiUrls = [
+            `https://vinic-xmd-pair-2-kevintech.onrender.com/pair?number=${encodeURIComponent(number)}`,
+            `https://vinic-xmd-pairing-site-dsf-crew-devs.onrender.com/pair?number=${encodeURIComponent(number)}`
+        ];
+
+        let pairCode = null;
+        let apiUsed = '';
+
+        // Try both APIs
+        for (const url of apiUrls) {
+            try {
+                const response = await fetch(url, { timeout: 10000 });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Handle different API response formats
+                    if (data.code) {
+                        pairCode = data.code;
+                    } else if (data.pairCode) {
+                        pairCode = data.pairCode;
+                    } else if (data.result?.code) {
+                        pairCode = data.result.code;
+                    } else if (data.data?.code) {
+                        pairCode = data.data.code;
+                    } else if (typeof data === 'string') {
+                        // If API returns plain string
+                        pairCode = data;
+                    }
+                    
+                    if (pairCode) {
+                        apiUsed = url.includes('kevintech') ? 'KevinTech API' : 'DSF Crew API';
+                        break;
+                    }
+                }
+            } catch (error) {
+                console.log(`API ${url} failed: ${error.message}`);
+                continue;
+            }
+        }
+
+        if (!pairCode) {
+            throw new Error('No code received from APIs');
+        }
+
+        // Create formatted response
+        const responseText = `✅ *PAIR CODE GENERATED*\n\n` +
+            `📱 *Phone Number:* ${number}\n` +
+            `🔑 *Pair Code:* \`\`\`${pairCode}\`\`\`\n` +
+            `⚡ *Source:* ${apiUsed}\n\n` +
+            `📲 *HOW TO LINK WHATSAPP:*\n` +
+            `1. Open WhatsApp on your phone\n` +
+            `2. Go to *Settings > Linked Devices*\n` +
+            `3. Tap *Link a Device* then *Link with Phone*\n` +
+            `4. Enter the code above when prompted\n\n` +
+            `⏳ *Code expires in 2 minutes!*\n` +
+            `🔒 *Keep this code private!*`;
+
+        // Send the pair code
+        await conn.sendMessage(
+            m.chat,
+            { text: responseText },
+            { quoted: m }
+        );
+
+        // Success reaction
+        await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+
+    } catch (error) {
+        console.error('Pair command error:', error);
+        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+        
+        reply('❌ *Failed to generate pair code!*\n\nPossible reasons:\n• APIs are temporarily down\n• Invalid phone number format\n• Network issues\n\nTry again in a few moments.');
+    }
 }
 break
 case "serverinfo": { 
@@ -5980,9 +6073,8 @@ if (!text) return reply(`*Usage:* ${command} <prompt>\n\n*Example:* ${command} c
       }
 }
 break
-//====[Toaudio and tovideo CMDS]==
+case 'tomp3':
 case "toaudio": {
-
 const quoted = m.quoted ? m.quoted : null;
   const mime = quoted?.mimetype || "";
     if (!quoted) return reply('*Reply to a video to convert it to audio!*');
@@ -6393,6 +6485,7 @@ await conn.sendMessage(m.chat, {image: { url: res.profile}, caption: txt}, {quot
 }
 //======[CONVERT MENU CMDS]===
 break 
+case 's':
 case "sticker": {
 const quoted = m.quoted || m.msg?.quoted;
     if (!quoted) {
