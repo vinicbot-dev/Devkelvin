@@ -27,7 +27,6 @@ const util = require("util")
 const timezones = global.timezones || "Africa/Kampala"; // Default to Uganda timezone
 const acrcloud = require ('acrcloud')
 const moment = require("moment-timezone")
-const { ytsearch, ytmp3, ytmp4 } = require('@dark-yasiya/yt-dl.js'); 
 const { spawn, exec, execSync } = require('child_process')
 const { default: baileys, proto, jidNormalizedUser, generateWAMessage, generateWAMessageFromContent, getContentType, downloadContentFromMessage,prepareWAMessageMedia } = require("@whiskeysockets/baileys")
 
@@ -2501,6 +2500,7 @@ case "alive": {
         "https://files.catbox.moe/ndrrz3.mp3",
         "https://files.catbox.moe/yny58w.mp3",
         "https://files.catbox.moe/ckie6b.m4a",
+        "https://files.catbox.moe/e0dwjw.mp3",
         "https://files.catbox.moe/zhr5m2.mp3"
         
     ];
@@ -2551,6 +2551,7 @@ case 'botinfo': {
         "https://files.catbox.moe/ndrrz3.mp3",
         "https://files.catbox.moe/yny58w.mp3",
         "https://files.catbox.moe/ckie6b.m4a",
+        "https://files.catbox.moe/e0dwjw.mp3",
         "https://files.catbox.moe/zhr5m2.mp3"
         
     ];
@@ -9316,86 +9317,27 @@ case "getgrouppp":
 case "grouppp":
 case "groupicon":
 case "groupavatar": {
-    if (!m.isGroup) return reply('❌ *This command only works in groups!*');
-    
+     if (!m.isGroup) return reply(mess.group);
+
     try {
-        // Send loading reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "⏳",
-                key: m.key
-            }
-        });
+      const ppUrl = await conn.profilePictureUrl(m.chat, 'image');
 
-        // Get group profile picture
-        const ppUrl = await conn.profilePictureUrl(m.chat, 'image');
-        
-        if (!ppUrl) {
-            await conn.sendMessage(m.chat, {
-                react: {
-                    text: "❌",
-                    key: m.key
-                }
-            });
-            return reply('❌ *This group has no profile picture set!*');
-        }
-
-        // Get group info for caption
-        const groupMetadata = await conn.groupMetadata(m.chat).catch(() => null);
-        const groupName = groupMetadata?.subject || 'Unknown Group';
-        const memberCount = groupMetadata?.participants?.length || 0;
-        
-        // Create caption
-        const caption = `🖼️ *GROUP PROFILE PICTURE*\n\n` +
-                       `*Group:* ${groupName}\n` +
-                       `*Members:* ${memberCount}\n` +
-                       `*ID:* ${m.chat.split('@')[0]}\n\n` +
-                       `> 📸 Group icon retrieved successfully`;
-
-        // Send the group profile picture
-        await conn.sendMessage(m.chat, {
-            image: { url: ppUrl },
-            caption: caption,
-            contextInfo: {
-                mentionedJid: [m.sender],
-                externalAdReply: {
-                    title: groupName,
-                    body: `👥 ${memberCount} members | Group Icon`,
-                    thumbnail: { url: ppUrl },
-                    mediaType: 1,
-                    renderLargerThumbnail: true
-                }
-            }
-        }, { quoted: m });
-
-        // Success reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "✅",
-                key: m.key
-            }
-        });
-
-    } catch (error) {
-        console.error('Error getting group profile picture:', error);
-        
-        // Error reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "❌",
-                key: m.key
-            }
-        });
-        
-        if (error.message.includes('404') || error.message.includes('not found')) {
-            reply('❌ *This group has no profile picture set!*\n\nUse .setppgroup to set a profile picture for this group.');
-        } else if (error.message.includes('401') || error.message.includes('permission')) {
-            reply('❌ *I need to be admin in this group to access the profile picture!*');
-        } else {
-            reply('❌ *Failed to retrieve group profile picture.* Please try again.');
-        }
+      await conn.sendMessage(m.chat, 
+        { 
+          image: { url: ppUrl }, 
+          caption: `🔥 *This Group's Profile Picture*`
+        }, 
+        { quoted: m }
+      );
+    } catch {
+      await conn.sendMessage(m.chat, 
+        { 
+          image: { url: 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png?q=60' }, 
+          caption: '⚠️ No profile picture found for this group.'
+        }, 
+        { quoted: m }
+      );
     }
-    
 }
 break
 case "groupinfo": {
