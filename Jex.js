@@ -456,72 +456,7 @@ ${readmore}
         console.error("❌ Error processing edited message:", err);
     }
 }
-async function handleStatusUpdate(mek, conn) {
-    try {
-        const botNumber = await conn.decodeJid(conn.user.id);
-        
-        // Get settings from database using SettingsManager
-        const autoviewstatus = global.settingsManager?.getSetting(botNumber, 'autoviewstatus', false);
-        const autoreactstatus = global.settingsManager?.getSetting(botNumber, 'autoreactstatus', false);
-        const statusemoji = global.settingsManager?.getSetting(botNumber, 'statusemoji', '💚');
-        
-        // Auto view status
-        if (autoviewstatus) {
-            try {
-                // Correct way to mark status as viewed in Baileys
-                await conn.readMessages([mek.key]);
-                
-            } catch (viewError) {
-                console.error('Error auto-viewing status:', viewError);
-            }
-        }
 
-        // Auto react to status - FIXED VERSION
-        if (autoreactstatus) {
-            try {
-                // Use the emoji from settings, or default to a random one
-                let reactionEmoji = statusemoji || '💚';
-                
-                // If statusemoji is set to "random", pick random from list
-                if (statusemoji === 'random' || statusemoji === 'rand') {
-                    const reactions = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉'];
-                    reactionEmoji = reactions[Math.floor(Math.random() * reactions.length)];
-                }
-                
-                // For status updates, we need to use the correct approach
-                // Status messages are broadcast messages with special handling
-                if (mek.key && mek.key.remoteJid === 'status@broadcast') {
-                    // Create a proper reaction for status using the status message key
-                    const reactionMessage = {
-                        react: {
-                            text: reactionEmoji,
-                            key: mek.key
-                        }
-                    };
-                    
-                    // Send reaction to the status
-                    await conn.sendMessage(mek.key.remoteJid, reactionMessage);
-                    
-                    
-                    
-                    //  a small delay to avoid rate limiting
-                    await delay(1000);
-                }
-            } catch (reactError) {
-                console.error('Error auto-reacting to status:', reactError);
-                // Log more details for debugging
-                console.log('Status message structure:', {
-                    key: mek.key,
-                    remoteJid: mek.key?.remoteJid,
-                    id: mek.key?.id,
-                    participant: mek.key?.participant
-                });
-            }
-        }
-    } catch (error) {
-        console.error('Error in status handler:', error);
-    }
-}
 
 // ========== FIXED ANTI-LINK DETECTION FUNCTION ==========
 function detectUrls(message) {
@@ -765,7 +700,6 @@ module.exports = {
   fetchJson,
   acr,
   handleAntiEdit,
-  handleStatusUpdate,
   saveStatusMessage,
   handleLinkViolation,
   detectUrls,
