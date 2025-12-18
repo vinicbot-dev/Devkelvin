@@ -1,7 +1,6 @@
 console.clear();
-console.log('Starting Vinic-Xmd with Enhanced Longevity...');
+console.log('Starting Jexploit with Enhanced Longevity...');
 
-// Environment detection for cloud optimization
 const isProduction = process.env.NODE_ENV === 'production';
 const isLowMemory = process.env.MEMORY_LIMIT < 512 || isProduction;
 
@@ -9,6 +8,7 @@ const isLowMemory = process.env.MEMORY_LIMIT < 512 || isProduction;
 if (isLowMemory) {
   console.log('🚀 Running in optimized mode for cloud/low memory environment');
 }
+
 
 const settings = require('./settings');
 const config = require('./config');
@@ -82,7 +82,6 @@ const {
 
 const {
 detectUrls,
-handleStatusUpdate
  } = require('./Jex');
  
 
@@ -170,7 +169,6 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Enhanced cleanup function for cloud
 function cleanupTmpFiles() {
   try {
     if (fs.existsSync(TMP_DIR)) {
@@ -227,8 +225,6 @@ async function clientstart() {
       const creds = await loadSession();
       
 
-
-
     // Use multi-file auth state
     const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
     
@@ -244,22 +240,17 @@ async function clientstart() {
         waVersion = [2, 3000, 1017546695];
     }
 
-    // OPTIMIZED CONNECTION FOR LONG-LIVED STABILITY
+
     const conn = makeWASocket({
-        // Critical stability settings
         printQRInTerminal: !usePairingCode,
-        syncFullHistory: false, // Disable to save memory
+        syncFullHistory: false, 
         markOnlineOnConnect: true,
-        
-        // Extended timeouts for server stability
-        connectTimeoutMs: 120000, // 2 minutes
-        defaultQueryTimeoutMs: 60000, // 1 minute
-        keepAliveIntervalMs: 30000, // 30 seconds
+        connectTimeoutMs: 120000, 
+        defaultQueryTimeoutMs: 60000, 
+        keepAliveIntervalMs: 30000, 
         maxRetries: 10,
-        
-        // Disable heavy features
-        generateHighQualityLinkPreview: false,
-        linkPreviewImageThumbnailWidth: 64, // Smaller thumbnails
+               generateHighQualityLinkPreview: false,
+        linkPreviewImageThumbnailWidth: 64, 
         
         version: waVersion,
         
@@ -277,13 +268,11 @@ async function clientstart() {
             })),
         },
         
-        // Connection resilience
-        fireInitQueries: false, // Reduce initial load
+        fireInitQueries: false, 
         emitOwnEvents: true,
         defaultCongestionControl: 1,
     });
 
-    // Define decodeJid immediately after connection
     conn.decodeJid = (jid) => {
         if (!jid) return jid;
         if (/:\d+@/gi.test(jid)) {
@@ -320,41 +309,88 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
     store.bind(conn.ev);
 
   
-    conn.ev.on('messages.upsert', async chatUpdate => {
-        try {
-            let mek = chatUpdate.messages[0];
-            if (!mek.message) return;
-            mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message;
-        
-            if (mek.key && mek.key.remoteJid === 'status@broadcast') {
-                if (mek.message?.reactionMessage || mek.message?.protocolMessage) {
-                    return;
-                }
-                
-               
-            await detectUrls(mek, conn);
-                
-                
-                
+conn.ev.on('messages.upsert', async (chatUpdate) => {
+    try {
+        let mek = chatUpdate.messages[0];
+        if (!mek.message) return;
+        mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message;
+
+        if (mek.key && mek.key.remoteJid === 'status@broadcast') {
+            if (mek.message?.reactionMessage || mek.message?.protocolMessage) {
                 return;
             }
+            
+            
+            await detectUrls(mek, conn);
+            
+            
+            try {
+                const botNumber = await conn.decodeJid(conn.user.id);
+                
+                // Get settings from database using SettingsManager
+                const autoviewstatus = global.settingsManager?.getSetting(botNumber, 'autoviewstatus', false);
+                const autoreactstatus = global.settingsManager?.getSetting(botNumber, 'autoreactstatus', false);
+                const statusemoji = global.settingsManager?.getSetting(botNumber, 'statusemoji', '💚');
 
-            if (!conn.public && !mek.key.fromMe && chatUpdate.type === 'notify') return;
-            let m = smsg(conn, mek, store);
-            
-            // Conditionally enable features based on memory
-            if (!isLowMemory) {
-            
-             
-            await handleStatusUpdate(mek, conn); 
-            
+                // Auto view status
+                if (autoviewstatus) {
+                    try {
+                        // Mark status as viewed
+                        await conn.readMessages([mek.key]);
+                        
+                    } catch (viewError) {
+                        console.error('Error auto-viewing status:', viewError);
+                    }
+                }
+
+                // Auto react to status
+                if (autoreactstatus) {
+                    try {
+                        // Use the emoji from settings, or default to a random one
+                        let reactionEmoji = statusemoji || '💚';
+                        
+                        // If statusemoji is set to "random", pick random from list
+                        if (statusemoji === 'random' || statusemoji === 'rand') {
+                            const reactions = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉'];
+                            reactionEmoji = reactions[Math.floor(Math.random() * reactions.length)];
+                        }
+                        
+                        // Create reaction message
+                        const reactionMessage = {
+                            react: {
+                                text: reactionEmoji,
+                                key: mek.key
+                            }
+                        };
+                        
+                        // Send reaction to the status
+                        await conn.sendMessage(mek.key.remoteJid, reactionMessage);
+                        
+                        // Small delay to avoid rate limiting
+                        await delay(1000);
+                    } catch (reactError) {
+                        console.error('Error auto-reacting to status:', reactError);
+                    }
+                }
+            } catch (statusError) {
+                console.error('Error in status handler:', statusError);
             }
             
-            require("./start/kevin")(conn, m, chatUpdate, mek, store);
-        } catch (err) {
-            console.log(chalk.yellow.bold("[ ERROR ] kevin.js :\n") + chalk.redBright(util.format(err)));
+            return;
         }
- });
+
+        if (!conn.public && !mek.key.fromMe && chatUpdate.type === 'notify') return;
+        let m = smsg(conn, mek, store);
+        
+        // Conditionally enable features based on memory
+        if (!isLowMemory) {
+            require("./start/kevin")(conn, m, chatUpdate, mek, store);
+        }
+        
+    } catch (err) {
+        console.log(chalk.yellow.bold("[ ERROR ] kevin.js :\n") + chalk.redBright(util.format(err)));
+    }
+});
  
 conn.ev.on('contacts.update', update => {
    for (let contact of update) {
