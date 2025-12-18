@@ -124,7 +124,7 @@ async function generateMenu(conn, m, prefix, global) {
                 'hack', 'groupjids', 'broadcast', 
                 'react', 'restart', 'currentmenu', 'addignorelist', 'delignorelist', 'deljunk', 'features',
                 'listblocked', 'listsudo', 'setprofilename', 'listignored', 'online', 'join', 
-                'leave', 'setbio', 'resetsettings', 'backup', 'reqeust', 'block', 'gpass', 'toviewonce', 
+                'leave', 'setbio', 'resetsettings', 'backup', 'reqeust', 'block',  'toviewonce', 
                 'setownername', 'setbotname', 'unblock', 'unblockall', 'gcaddprivacy', 
                 'ppprivancy', 'tostatus', 'vv', 'vv2', 'idch', 'getpp',
             ],
@@ -137,7 +137,7 @@ async function generateMenu(conn, m, prefix, global) {
                  'listadmin', 'cancelkick', 'kickall', 'closetime', 'disp24hours', 'disp90days', 'dispoff', 
                 'tagall2', 'opentime', 'poll', 'allowlink', 'totalmembers', 
                 'mediatag', 'getgrouppp',  'tagall', 'groupinfo', 'userjid', 'unlockgcsettings', 'lockgcsettings',
-                'tagadmin2', 'setgroupname', 'delgrouppp', 'invite', 'editinfo', 'approve', 'approveall',
+                'tagadmin2', 'setgroupname', 'delgrouppp', 'invite', 'editinfo', 'approve', 
                 'disapproveall', 'listrequest', 'promote', 'demote', 'userjid', 'setdesc', 'vcf',
             ],
         },
@@ -184,7 +184,7 @@ async function generateMenu(conn, m, prefix, global) {
         other: {
             title: ' *TOOLS MENU*',
             commands: ['time', 'calculate', 'owner', 'dev', 'fliptext', 'translate', 
-                      'ss2', 'sswebpc', 'kevinfarm', 'say', 'getdevice', 'ss', 'userinfo', 
+                      'ss2', 'sswebpc', 'kevinfarm', 'say', 'getdevice', 'ss', 'gpass', 'userinfo', 
                       'npm', 'take', 'telesticker', 'checkapi', 'footballhelp', 'filtervcf', 'qrcode', 'smartphone', 
                       'removebg', 'obfuscate', 'getabout', 'tinylink', 'vcc', 'getbussiness', 
                       'listpc', 'sswebpc'],
@@ -291,6 +291,7 @@ async function sendMenu(conn, m, prefix, global) {
         const audioUrls = [
             'https://files.catbox.moe/jdozs7.mp3',
             'https://files.catbox.moe/yny58w.mp3',
+            'https://files.catbox.moe/e0dwjw.mp3',
             'https://files.catbox.moe/zhr5m2.mp3'
         ];
         
