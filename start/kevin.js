@@ -3,7 +3,7 @@ const yts = require('yt-search')
 const fs = require('fs')
 const axios = require('axios')
 const googleTTS = require('google-tts-api')
-const devKelvin = '256755585369';
+const devKelvin = '256755434075';
 const checkDiskSpace = require('check-disk-space').default;
 const chalk = require("chalk")
 const fetch = require("node-fetch")
@@ -9252,7 +9252,6 @@ case "linkgc": {
 break
 case "unmute":
 case "open": {
-if (!Access) return reply(mess.owner);
         if (!m.isGroup) return reply(mess.group);
         if (!isGroupAdmins) return reply(mess.notadmin);
         conn.groupSettingUpdate(m.chat, "not_announcement");
@@ -9260,10 +9259,8 @@ if (!Access) return reply(mess.owner);
 }
 break
 case "add": {
-if (!Access) return reply(mess.owner);
-if (!isGroupAdmins) return reply(mess.notadmin);
         if (!m.isGroup) return reply(mess.group);
-        
+        if (!isGroupAdmins) return reply(mess.notadmin);
          if (!text) return reply(`*Please provide phone number with no country code.*\nExample: ${prefix + command} 256755585369`);
 
 
@@ -9275,8 +9272,7 @@ if (!isGroupAdmins) return reply(mess.notadmin);
         reply(mess.done);
 }
 break
-case "kick": {
-        
+case "kick": {       
         if (!m.isGroup) return reply(mess.group);
        if (!isGroupAdmins) return reply(mess.notadmin);
 
