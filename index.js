@@ -245,15 +245,18 @@ async function clientstart() {
     }
 
       const conn = makeWASocket({
-        printQRInTerminal: !creds,
-        syncFullHistory: false,
-        markOnlineOnConnect: true,
-        connectTimeoutMs: 60000,
-        defaultQueryTimeoutMs: 30000,
-        keepAliveIntervalMs: 15000,
-        maxRetries: 5,
-        generateHighQualityLinkPreview: false,
-        linkPreviewImageThumbnailWidth: 64,
+    // Connection settings
+    printQRInTerminal: !usePairingCode,
+    syncFullHistory: false,
+    markOnlineOnConnect: true,
+    connectTimeoutMs: 60000, // Reduced for faster connection
+    defaultQueryTimeoutMs: 30000,
+    keepAliveIntervalMs: 25000,
+    maxRetries: 5,
+    
+    // Performance optimizations
+    generateHighQualityLinkPreview: false,
+    linkPreviewImageThumbnailWidth: 64,
 
         
         version: waVersion,
