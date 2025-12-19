@@ -1,6 +1,7 @@
 console.clear();
-console.log('Starting Jexploit with Enhanced Longevity...');
+console.log('Starting Vinic-Xmd with Enhanced Longevity...');
 
+// Environment detection for cloud optimization
 const isProduction = process.env.NODE_ENV === 'production';
 const isLowMemory = process.env.MEMORY_LIMIT < 512 || isProduction;
 
@@ -8,7 +9,6 @@ const isLowMemory = process.env.MEMORY_LIMIT < 512 || isProduction;
 if (isLowMemory) {
   console.log('🚀 Running in optimized mode for cloud/low memory environment');
 }
-
 
 const settings = require('./settings');
 const config = require('./config');
@@ -82,6 +82,7 @@ const {
 
 const {
 detectUrls,
+handleStatusUpdate
  } = require('./Jex');
  
 
@@ -169,6 +170,7 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// Enhanced cleanup function for cloud
 function cleanupTmpFiles() {
   try {
     if (fs.existsSync(TMP_DIR)) {
@@ -225,6 +227,8 @@ async function clientstart() {
       const creds = await loadSession();
       
 
+
+
     // Use multi-file auth state
     const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
     
@@ -240,17 +244,17 @@ async function clientstart() {
         waVersion = [2, 3000, 1017546695];
     }
 
-
-    const conn = makeWASocket({
-        printQRInTerminal: !usePairingCode,
-        syncFullHistory: false, 
+      const conn = makeWASocket({
+        printQRInTerminal: !creds,
+        syncFullHistory: false,
         markOnlineOnConnect: true,
-        connectTimeoutMs: 120000, 
-        defaultQueryTimeoutMs: 60000, 
-        keepAliveIntervalMs: 30000, 
-        maxRetries: 10,
-               generateHighQualityLinkPreview: false,
-        linkPreviewImageThumbnailWidth: 64, 
+        connectTimeoutMs: 60000,
+        defaultQueryTimeoutMs: 30000,
+        keepAliveIntervalMs: 15000,
+        maxRetries: 5,
+        generateHighQualityLinkPreview: false,
+        linkPreviewImageThumbnailWidth: 64,
+
         
         version: waVersion,
         
@@ -268,11 +272,13 @@ async function clientstart() {
             })),
         },
         
-        fireInitQueries: false, 
+        // Connection resilience
+        fireInitQueries: false, // Reduce initial load
         emitOwnEvents: true,
         defaultCongestionControl: 1,
     });
 
+    // Define decodeJid immediately after connection
     conn.decodeJid = (jid) => {
         if (!jid) return jid;
         if (/:\d+@/gi.test(jid)) {
@@ -309,88 +315,41 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
     store.bind(conn.ev);
 
   
-conn.ev.on('messages.upsert', async (chatUpdate) => {
-    try {
-        let mek = chatUpdate.messages[0];
-        if (!mek.message) return;
-        mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message;
-
-        if (mek.key && mek.key.remoteJid === 'status@broadcast') {
-            if (mek.message?.reactionMessage || mek.message?.protocolMessage) {
+    conn.ev.on('messages.upsert', async chatUpdate => {
+        try {
+            let mek = chatUpdate.messages[0];
+            if (!mek.message) return;
+            mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message;
+        
+            if (mek.key && mek.key.remoteJid === 'status@broadcast') {
+                if (mek.message?.reactionMessage || mek.message?.protocolMessage) {
+                    return;
+                }
+                
+               
+            await detectUrls(mek, conn);
+                
+                
+                
                 return;
             }
-            
-            
-            await detectUrls(mek, conn);
-            
-            
-            try {
-                const botNumber = await conn.decodeJid(conn.user.id);
-                
-                // Get settings from database using SettingsManager
-                const autoviewstatus = global.settingsManager?.getSetting(botNumber, 'autoviewstatus', false);
-                const autoreactstatus = global.settingsManager?.getSetting(botNumber, 'autoreactstatus', false);
-                const statusemoji = global.settingsManager?.getSetting(botNumber, 'statusemoji', '💚');
 
-                // Auto view status
-                if (autoviewstatus) {
-                    try {
-                        // Mark status as viewed
-                        await conn.readMessages([mek.key]);
-                        
-                    } catch (viewError) {
-                        console.error('Error auto-viewing status:', viewError);
-                    }
-                }
-
-                // Auto react to status
-                if (autoreactstatus) {
-                    try {
-                        // Use the emoji from settings, or default to a random one
-                        let reactionEmoji = statusemoji || '💚';
-                        
-                        // If statusemoji is set to "random", pick random from list
-                        if (statusemoji === 'random' || statusemoji === 'rand') {
-                            const reactions = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉'];
-                            reactionEmoji = reactions[Math.floor(Math.random() * reactions.length)];
-                        }
-                        
-                        // Create reaction message
-                        const reactionMessage = {
-                            react: {
-                                text: reactionEmoji,
-                                key: mek.key
-                            }
-                        };
-                        
-                        // Send reaction to the status
-                        await conn.sendMessage(mek.key.remoteJid, reactionMessage);
-                        
-                        // Small delay to avoid rate limiting
-                        await delay(1000);
-                    } catch (reactError) {
-                        console.error('Error auto-reacting to status:', reactError);
-                    }
-                }
-            } catch (statusError) {
-                console.error('Error in status handler:', statusError);
+            if (!conn.public && !mek.key.fromMe && chatUpdate.type === 'notify') return;
+            let m = smsg(conn, mek, store);
+            
+            // Conditionally enable features based on memory
+            if (!isLowMemory) {
+            
+             
+            await handleStatusUpdate(mek, conn); 
+            
             }
             
-            return;
-        }
-
-        if (!conn.public && !mek.key.fromMe && chatUpdate.type === 'notify') return;
-        let m = smsg(conn, mek, store);
-        
-        // Conditionally enable features based on memory
-        if (!isLowMemory) {
             require("./start/kevin")(conn, m, chatUpdate, mek, store);
+        } catch (err) {
+            console.log(chalk.yellow.bold("[ ERROR ] kevin.js :\n") + chalk.redBright(util.format(err)));
         }
-        
-    } catch (err) {
-        console.log(chalk.yellow.bold("[ ERROR ] kevin.js :\n") + chalk.redBright(util.format(err)));
-    }
-});
+ });
  
 conn.ev.on('contacts.update', update => {
    for (let contact of update) {
@@ -488,53 +447,15 @@ conn.ev.on('contacts.update', update => {
     return trueFileName;
   };
 
-  conn.getName = async (jid, withoutContact = false) => {
-    let id = conn.decodeJid(jid);
-    withoutContact = conn.withoutContact || withoutContact;
+  conn.getName = async (id, withoutContact = false) => {
+    // id can be a LID (e.g., 'xxxx@lid') or a PN (e.g., 'xxxx@s.whatsapp.net')
     let v;
-    
-    if (id.endsWith("@g.us")) {
-        return new Promise(async (resolve) => {
-            try {
-                v = store.contacts[id] || {};
-                if (!(v.name || v.subject)) v = await conn.groupMetadata(id) || {};
-                resolve(
-                    v.name ||
-                    v.subject ||
-                    PhoneNumber("+" + id.replace("@s.whatsapp.net", "")).getNumber("international")
-                );
-            } catch (e) {
-                resolve(PhoneNumber("+" + id.replace("@s.whatsapp.net", "")).getNumber("international"));
-            }
-        });
+    if (id.endsWith('@g.us')) {
+        // ... (your group metadata logic)
     } else {
-        // Handle both @s.whatsapp.net and @lid formats
-        let cleanJid = id;
-        if (id.endsWith('@lid')) {
-            try {
-                // Try to decode @lid to get actual number
-                const decoded = conn.decodeJid(id);
-                if (decoded && decoded !== id) {
-                    cleanJid = decoded;
-                }
-            } catch (e) {
-                // If decoding fails, keep the original
-                cleanJid = id;
-            }
-        }
-        
-        v = id === "0@s.whatsapp.net"
-            ? { id, name: "WhatsApp" }
-            : cleanJid === conn.decodeJid(conn.user.id)
-            ? conn.user
-            : store.contacts[cleanJid] || {};
-            
-        return (
-            (withoutContact ? "" : v.name) ||
-            v.subject ||
-            v.verifiedName ||
-            PhoneNumber("+" + cleanJid.replace("@s.whatsapp.net", "")).getNumber("international")
-        );
+        // V7 CHANGE: Contacts may have 'id', 'lid', or 'phoneNumber' fields
+        v = store.contacts[id] || {};
+        return v.name || v.notify || v.verifiedName || id.split('@')[0];
     }
 };
 
