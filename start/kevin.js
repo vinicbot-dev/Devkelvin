@@ -30,7 +30,6 @@ const moment = require("moment-timezone")
 const { spawn, exec, execSync } = require('child_process')
 const { default: baileys, proto, jidNormalizedUser, generateWAMessage, generateWAMessageFromContent, getContentType, downloadContentFromMessage,prepareWAMessageMedia } = require("@whiskeysockets/baileys")
 
-// ==========  FUNCTION IMPORTS ==========
 const { 
   smsg, 
   sendGmail, 
@@ -67,6 +66,7 @@ const {
  fetchMp3DownloadUrl,
   fetchVideoDownloadUrl,
   saveStatusMessage,
+  handleStatusUpdate,
   acr,
   handleAntiEdit,
   loadStoredMessages,
@@ -426,6 +426,15 @@ await handleAutoTyping(m, conn, botNumber);
 await handleAutoReact(m, conn, botNumber);
 await handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, prefix);
 
+
+if (m.key && m.key.remoteJid === 'status@broadcast') {
+    try {
+        await handleStatusUpdate(m, conn);
+    } catch (error) {
+        console.error('Error handling status update:', error);
+    }
+    return; 
+}
 
 if (m.isGroup && body && !m.key.fromMe) {
     await checkAndHandleLinks({
@@ -2161,7 +2170,7 @@ try {
             '⚠️ _This is a simulated hacking activity for entertainment purposes._',
             '⚠️ _Remember: Ethical hacking ensures safety._',
             '',
-            '> *Vinic-Xmd: hacking simulation complete* ☣'
+            '> *Jexploit: hacking simulation complete* ☣'
   
         ];
 
@@ -2452,7 +2461,7 @@ https://github.com/${repoOwner}/${repoName}
     const fallbackInfo = `
     * BOT REPOSITORY *
     
- *Name:* Vinic-Xmd
+ *Name:* Jexploit 
  *GitHub Link:* 
 https://github.com/Kevintech-hub/Vinic-Xmd-
 
@@ -4378,7 +4387,7 @@ try {
         // Envoi de la réponse avec l'image et la liste des livres de la Bible
         await conn.sendMessage(m.chat, {
             image: { url: imageUrl },
-            caption: `📖 *BIBLE LIST Vinic-Xmd*:\n\n` +
+            caption: `📖 *BIBLE LIST Jexploit*:\n\n` +
                      `Here is the complete list of books in the Bible:\n\n` +
                      bibleList.trim() // Ajout du texte des livres de la Bible
         }, { quoted: mek });
@@ -4841,7 +4850,7 @@ try {
       + `┃🎥 *Videos:* ${yt.video_count}\n`
       + `┃🔗 *Channel Link:* (${yt.channel})\n`
       + `╰━━━⪼\n\n`
-      + `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ Vinic-Xmd`;
+      + `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ Jexploit`;
 
     await conn.sendMessage(from, {
       image: { url: yt.avatar },
@@ -5025,7 +5034,7 @@ case 'ig': {
         // Send video with global watermark as caption
         await conn.sendMessage(m.chat, {
             video: videoBuffer,
-            caption: global.wm || '✨ Powered by Vinic-XMD'
+            caption: global.wm || '✨ Powered by Jexploit'
         }, { quoted: m });
         
     } catch (error) {
@@ -6067,7 +6076,7 @@ if (!text) return reply(`*Usage:* ${command} <prompt>\n\n*Example:* ${command} c
 
     const apiUrl = `https://apis.davidcyriltech.my.id/flux?prompt=${encodeURIComponent(text)}`;
 
-    await conn.sendMessage(m.chat, { image: { url: apiUrl }, caption: `🎨 *FLUX IMAGE GENERATOR*\n\n📄 *PROMPT:* ${text}\n\n> ᴘᴏᴡᴇʀᴇᴅ ʙʏ Vinic-Xmd` }, { quoted: m });
+    await conn.sendMessage(m.chat, { image: { url: apiUrl }, caption: `🎨 *FLUX IMAGE GENERATOR*\n\n📄 *PROMPT:* ${text}\n\n> ᴘᴏᴡᴇʀᴇᴅ ʙʏ Jexploit` }, { quoted: m });
   } catch (error) {
     console.error('Error in Flux command:', error);
     reply(`*AN ERROR OCCURRED!! MESSAGE :*\n\n> ${error.message}`);
@@ -6559,7 +6568,7 @@ try {
             await conn.sendMessage(from, {
                 document: pdfData,
                 mimetype: 'application/pdf',
-                fileName: 'Vinic-X .pdf',
+                fileName: 'Jexploit .pdf',
                 caption: `${global.wm}`
             }, { quoted: mek });
         });
@@ -7994,7 +8003,7 @@ const voiceClips = [
       forwardingScore: 55555,
       isForwarded: true,
       externalAdReply: {
-        title: "Vinic-Xmd",
+        title: "Jexploit",
         body: "𝐓𝝰̚𝐠͜͡𝗲 𝝪𝐨̚𝝻͜͡𝐫 𝐋𝝾̚𝝼͜͡𝗲 :🦚🍬⛱️🎗️💖",
         mediaType: 4,
         thumbnailUrl: "https://files.catbox.moe/ptpl5c.jpeg",
@@ -8427,7 +8436,7 @@ try {
         await conn.sendMessage(from, {
             document: fs.readFileSync(nmfilect), 
             mimetype: 'text/vcard', 
-            fileName: 'Vinic-Xmd.vcf', 
+            fileName: 'jexploit.vcf', 
             caption: `\nDone saving.\nGroup Name: *${cmiggc.subject}*\nContacts: *${cmiggc.participants.length}*\n> Powered by ${getSetting(botNumber, 'botname', 'Jexploit')} `}, { quoted: mek });
 
         fs.unlinkSync(nmfilect); // Cleanup the file after sending
@@ -9427,7 +9436,7 @@ pe != ""
 execSync(`zip -r backup.zip ${ls.join(" ")}`);
 await conn.sendMessage(m.chat, {
 document: fs.readFileSync("./backup.zip"),   
-fileName: "Vinic-base-new.zip",
+fileName: "Jexploit-base-new.zip",
 mimetype: "application/zip",
 caption: "This is your backup zip.",
 }, { quoted: m });
