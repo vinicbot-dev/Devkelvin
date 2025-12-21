@@ -1,7 +1,7 @@
 console.clear();
-console.log('Starting Vinic-Xmd with Enhanced Longevity...');
+console.log('Starting Jexploit with much love from Kelvin Tech...');
 
-// Environment detection for cloud optimization
+
 const isProduction = process.env.NODE_ENV === 'production';
 const isLowMemory = process.env.MEMORY_LIMIT < 512 || isProduction;
 
@@ -13,7 +13,7 @@ if (isLowMemory) {
 const settings = require('./settings');
 const config = require('./config');
 
-// Enhanced error handling for cloud stability
+
 process.on("uncaughtException", (error) => {
   console.error('Uncaught Exception:', error);
   // Don't exit in cloud environments
@@ -82,7 +82,6 @@ const {
 
 const {
 detectUrls,
-handleStatusUpdate
  } = require('./Jex');
  
 
@@ -139,7 +138,7 @@ async function loadSession() {
         console.log('[ ⏳ ] Downloading creds data...');
         console.log('[ 🆔️ ] Downloading MEGA.nz session...');
         
-        // Remove "malvin~" prefix if present, otherwise use full SESSION_ID
+        
         const megaFileId = settings.SESSION_ID.startsWith('Jexploit~') 
             ? settings.SESSION_ID.replace("Jexploit~", "") 
             : settings.SESSION_ID;
@@ -170,7 +169,7 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Enhanced cleanup function for cloud
+
 function cleanupTmpFiles() {
   try {
     if (fs.existsSync(TMP_DIR)) {
@@ -245,7 +244,6 @@ async function clientstart() {
     }
 
       const conn = makeWASocket({
-    // Connection settings
     printQRInTerminal: !usePairingCode,
     syncFullHistory: false,
     markOnlineOnConnect: true,
@@ -275,13 +273,12 @@ async function clientstart() {
             })),
         },
         
-        // Connection resilience
-        fireInitQueries: false, // Reduce initial load
+        fireInitQueries: false, 
         emitOwnEvents: true,
         defaultCongestionControl: 1,
     });
 
-    // Define decodeJid immediately after connection
+
     conn.decodeJid = (jid) => {
         if (!jid) return jid;
         if (/:\d+@/gi.test(jid)) {
@@ -331,20 +328,14 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
                 
                
             await detectUrls(mek, conn);
-                
-                
-                
-                return;
+                                              return;
             }
 
             if (!conn.public && !mek.key.fromMe && chatUpdate.type === 'notify') return;
             let m = smsg(conn, mek, store);
             
-            // Conditionally enable features based on memory
             if (!isLowMemory) {
             
-             
-            await handleStatusUpdate(mek, conn); 
             
             }
             
