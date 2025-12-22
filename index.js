@@ -264,10 +264,7 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
             if (!conn.public && !mek.key.fromMe && chatUpdate.type === 'notify') return;
             let m = smsg(conn, mek, store);
             
-            if (!isLowMemory) {
             
-            
-            }
             
             require("./start/kevin")(conn, m, chatUpdate, mek, store);
         } catch (err) {
