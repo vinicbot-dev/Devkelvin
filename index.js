@@ -636,12 +636,15 @@ conn.ev.on('group-participants.update', async (anu) => {
     try {
         const botNumber = await conn.decodeJid(conn.user.id);
         
-        // Get settings from JSON manager
-        const welcomeEnabled = global.settingsManager?.getSetting(botNumber, 'welcome', true);
-        const admineventEnabled = global.settingsManager?.getSetting(botNumber, 'adminevent', true);
+        // Get settings - default to true only if setting doesn't exist
+        let welcomeEnabled = global.settingsManager?.getSetting(botNumber, 'welcome') ?? true;
+        let admineventEnabled = global.settingsManager?.getSetting(botNumber, 'adminevent') ?? true;
+        
+        // Debug log
+        console.log(`[SETTINGS] Welcome: ${welcomeEnabled}, AdminEvent: ${admineventEnabled}`);
         
         // WELCOME FEATURE - USING JSON SETTINGS
-        if (welcomeEnabled) {
+        if (welcomeEnabled === true) {
             try {
                 const groupMetadata = await conn.groupMetadata(anu.id);
                 const participants = anu.participants;
@@ -712,10 +715,12 @@ conn.ev.on('group-participants.update', async (anu) => {
             } catch (err) {
                 console.error('Error in welcome feature:', err);
             }
+        } else {
+            console.log(`[WELCOME] Disabled - skipping welcome messages for ${anu.id}`);
         }
         
         // ADMIN EVENT FEATURE - USING JSON SETTINGS
-        if (admineventEnabled) {
+        if (admineventEnabled === true) {
             console.log('Admin event detected:', anu);
             if (anu.participants.includes(botNumber)) return;
             
@@ -826,11 +831,14 @@ conn.ev.on('group-participants.update', async (anu) => {
             } catch (err) {
                 console.log('Error in admin event feature:', err);
             }
+        } else {
+            console.log(`[ADMIN EVENT] Disabled - skipping admin events for ${anu.id}`);
         }
     } catch (error) {
         console.error('Error in group-participants.update:', error);
     }
 });
+
 conn.ev.on('call', async (callData) => {
     try {
         const botNumber = await conn.decodeJid(conn.user.id);
