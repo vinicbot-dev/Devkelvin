@@ -5923,27 +5923,17 @@ break
 case "copilot":
 case "deepseek":
 case "ai": {
-    try {
-        if (!text) return reply("⚠️ Please provide a query, e.g., `ai explain quantum computing`");
-
-        reply("🤖 Thinking...");
-
-        const res = await axios.get(
-            `https://api.nekolabs.my.id/ai/copilot?text=${encodeURIComponent(text)}`
-        );
-
-        if (!res.data || !res.data.result || !res.data.result.text)
-            return reply("❌ No response from Copilot API.");
-
-        await conn.sendMessage(m.chat, {
-            text: res.data.result.text,
-        }, { quoted: m });
-
-    } catch (err) {
-        console.error(err);
-        reply("🚫 Error: " + err.message);
-    }
+  if (!q) return reply(' *Please provide a question*.\nExample: .gpt tell me a joke');
+  
+  try {
+    const response = await fetch(`https://api.siputzx.my.id/api/ai/gpt3?prompt=${encodeURIComponent(q)}`);
+    const data = await response.json();
     
+    reply(data.status ? `🤖 ${data.data}` : '❌ AI failed to respond');
+  } catch (error) {
+    reply('❌ Error: AI service down');
+  }
+  
 }
 break
 case "gpt": {
@@ -6039,7 +6029,75 @@ case 'metaai': {
     }
 }
 break
-//====[helpers CMD]======
+case 'llama': {
+  if (!q) return reply('*Please ask something*');
+  
+  try {
+    const response = await fetch(`https://api.giftedtech.co.ke/api/ai/chat?apikey=gifted&q=${encodeURIComponent(q)}`);
+    const data = await response.json();
+    
+    reply(data.success ? `🤖 ${data.result}` : '❌ AI failed');
+  } catch (error) {
+    reply('❌ AI service error');
+  }
+  
+}
+break
+case 'blackbox':
+case 'bb': {
+  if (!q) return reply('*Please ask me something*');
+  
+  try {
+    const response = await fetch(`https://api.giftedtech.co.ke/api/ai/blackbox?apikey=gifted&q=${encodeURIComponent(q)}`);
+    const data = await response.json();
+    
+    reply(data.success ? `🖤 ${data.result}` : 'Blackbox failed');
+  } catch (error) {
+    reply('Blackbox error');
+  }
+  
+}
+break
+case 'dalle': {
+  if (!q) return reply('*Please ask me something*');
+  
+  try {
+    const response = await fetch(`https://api.giftedtech.co.ke/api/ai/deepseek-v3?apikey=gifted&q=${encodeURIComponent(q)}`);
+    const data = await response.json();
+    
+    reply(data.success ? `🔍 ${data.result}` : 'Dalle failed');
+  } catch (error) {
+    reply('Dalle error');
+  }
+  
+}
+break
+case 'summarize': {
+  if (!q) return reply('*Please ask me something*');
+  
+  try {
+    const response = await fetch(`https://api.giftedtech.co.ke/api/ai/deepseek-v3?apikey=gifted&q=${encodeURIComponent(q)}`);
+    const data = await response.json();
+    
+    reply(data.success ? `🔍 ${data.result}` : 'summuraze failed');
+  } catch (error) {
+    reply('summarize error');
+  }
+  break;
+}
+case 'mistral': {
+  if (!q) return reply('❌ Ask me something');
+  
+  try {
+    const response = await fetch(`https://api.giftedtech.co.ke/api/ai/deepseek-r1?apikey=gifted&q=${encodeURIComponent(q)}`);
+    const data = await response.json();
+    
+    reply(data.success ? `🔍 ${data.result}` : 'mistral failed');
+  } catch (error) {
+    reply('mistral error');
+  }
+  break;
+}
 case "helpers": {
     const search = (args && args.length) ? args.join(" ").toLowerCase() : "";
 
