@@ -1146,15 +1146,3 @@ fs.watchFile(file, () => {
   require(file);
 });
 
-process.on('SIGTERM', () => {
-  console.log('Received SIGTERM, shutting down...');
-  process.exit(0);
-});
-
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-});
