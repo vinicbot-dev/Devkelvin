@@ -63,11 +63,11 @@ global.AI_CHAT = "false", // Set to "true" to enable AI chatbot by default
 
 // ========= Add modeStatus and versions ========= //
 global.modeStatus = "Public";
-global.versions = "1.3.8";
+global.versions = "1.3.9";
 
 // ========= Setting WM ========= //
-global.packname = 'Vinic';
-global.author = 'Xmd';
+global.packname = 'Jexploit';
+global.author = 'Bot';
 global.wm = '©Jexploit is awesome 🔥';
 
 // === For only developer ============
@@ -91,7 +91,7 @@ global.mess = {
   done: "*Operation succeeded*",
   notext: "*Please provide the necessary text*",
   premium: "*First become a premium user*",
-  botadmin: "*Vinic-Xmd needs to be admin*",
+  botadmin: "*Jexploit needs to be admin*",
   limited: "*Limit reached*",
   helpersList: [
     { name: "Malvin king", number: "+263776388689", country: "Zimbabwe", flag: "🇿🇼" },
