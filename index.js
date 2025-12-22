@@ -2,26 +2,12 @@ console.clear();
 console.log('Starting Jexploit with much love from Kelvin Tech...');
 
 
-const isProduction = process.env.NODE_ENV === 'production';
-const isLowMemory = process.env.MEMORY_LIMIT < 512 || isProduction;
 
-// Optimize memory usage
-if (isLowMemory) {
-  console.log('🚀 Running in optimized mode for cloud/low memory environment');
-}
 
 const settings = require('./settings');
 const config = require('./config');
 
 
-process.on("uncaughtException", (error) => {
-  console.error('Uncaught Exception:', error);
-  // Don't exit in cloud environments
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-});
 
 const {
   default: makeWASocket,
@@ -96,10 +82,6 @@ const {
 
 
 
-// Use system temp directory for cloud platforms
-const TMP_DIR = isProduction 
-  ? path.join(os.tmpdir(), 'vinic-bot-tmp')
-  : path.join(__dirname, 'tmp');
 
 const usePairingCode = true;
 
@@ -130,106 +112,59 @@ if (!fs.existsSync(sessionDir)) {
 
 async function loadSession() {
     try {
-        if (!settings.SESSION_ID) {
-            console.log('No SESSION_ID provided - QR login will be generated');
-            return null;
+        // First check if we have local session file
+        if (fs.existsSync(credsPath)) {
+            const data = fs.readFileSync(credsPath);
+            return JSON.parse(data.toString());
         }
-
-        console.log('[ ⏳ ] Downloading creds data...');
-        console.log('[ 🆔️ ] Downloading MEGA.nz session...');
         
-        
-        const megaFileId = settings.SESSION_ID.startsWith('Jexploit~') 
-            ? settings.SESSION_ID.replace("Jexploit~", "") 
-            : settings.SESSION_ID;
-
-        const filer = File.fromURL(`https://mega.nz/file/${megaFileId}`);
+        // If no local session but we have MEGA SESSION_ID
+        if (settings.SESSION_ID) {
+            console.log('[ ⏳ ] Downloading MEGA.nz session...');
             
-        const data = await new Promise((resolve, reject) => {
-            filer.download((err, data) => {
-                if (err) reject(err);
-                else resolve(data);
+            const megaFileId = settings.SESSION_ID.startsWith('Jexploit~') 
+                ? settings.SESSION_ID.replace("Jexploit~", "") 
+                : settings.SESSION_ID;
+
+            const filer = File.fromURL(`https://mega.nz/file/${megaFileId}`);
+            
+            const data = await new Promise((resolve, reject) => {
+                filer.download((err, data) => {
+                    if (err) reject(err);
+                    else resolve(data);
+                });
             });
-        });
+            
+            // Save it locally for future use
+            fs.writeFileSync(credsPath, data);
+            console.log('[ ✅ ] MEGA session downloaded and saved locally');
+            return JSON.parse(data.toString());
+        }
         
-        fs.writeFileSync(credsPath, data);
-        console.log('[ ✅ ] MEGA session downloaded successfully');
-        return JSON.parse(data.toString());
+        // No session available
+        console.log('[ ℹ️ ] No session found. QR/Pairing will be used.');
+        return null;
+        
     } catch (error) {
         console.error('❌ Error loading session:', error.message);
-        console.log('Will generate QR code instead');
+        console.log('Will use QR/pairing instead');
         return null;
     }
 }
-
-//=======SESSION-AUTH==============
-
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 
-function cleanupTmpFiles() {
-  try {
-    if (fs.existsSync(TMP_DIR)) {
-      const files = fs.readdirSync(TMP_DIR);
-      let deletedCount = 0;
-      files.forEach(file => {
-        try {
-          const filePath = path.join(TMP_DIR, file);
-          const stats = fs.statSync(filePath);
-          // Delete files older than 30 minutes in production, 1 hour in development
-          const maxAge = isProduction ? 30 * 60 * 1000 : 60 * 60 * 1000;
-          if (Date.now() - stats.mtime.getTime() > maxAge) {
-            fs.unlinkSync(filePath);
-            deletedCount++;
-          }
-        } catch (e) {
-          // Ignore file errors during cleanup
-        }
-      });
-      if (deletedCount > 0) {
-        console.log(`🧹 Cleaned up ${deletedCount} temporary files`);
-      }
-    }
-  } catch (error) {
-    console.log('Cleanup error:', error.message);
-  }
-}
-
-// Memory monitoring
-function monitorResources() {
-  if (isLowMemory) {
-    const used = process.memoryUsage();
-    const memoryUsage = {
-      rss: Math.round(used.rss / 1024 / 1024 * 100) / 100,
-      heapTotal: Math.round(used.heapTotal / 1024 / 1024 * 100) / 100,
-      heapUsed: Math.round(used.heapUsed / 1024 / 1024 * 100) / 100,
-      external: Math.round(used.external / 1024 / 1024 * 100) / 100
-    };
-    
-    if (memoryUsage.heapUsed > 150) { // 150MB threshold for low memory
-      console.warn('⚠️ High memory usage:', memoryUsage);
-      if (global.gc) {
-        global.gc();
-        console.log('🗑️ Garbage collection triggered');
-      }
-    }
-  }
-}
 
 async function clientstart() {
+    // Try to load session (MEGA or local)
+    const creds = await loadSession();
     
-
-   // Check and download session data
-      const creds = await loadSession();
-      
-
-
-
     // Use multi-file auth state
     const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
+   
     
     // Fetch latest WhatsApp Web version with fallback
     let waVersion;
@@ -291,11 +226,6 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
 
 
 
-    // Run cleanup every 30 minutes
-    setInterval(cleanupTmpFiles, 30 * 60 * 1000);
-
-    // Monitor memory every 10 minutes
-    setInterval(monitorResources, 10 * 60 * 1000);
     
     if (!creds && !conn.authState.creds.registered) {
     const phoneNumber = await question(chalk.greenBright(`Thanks for choosing Jexploit-bot. Please provide your number start with 256xxx:\n`));
@@ -1214,4 +1144,17 @@ fs.watchFile(file, () => {
   console.log(chalk.redBright(`Update ${__filename}`));
   delete require.cache[file];
   require(file);
+});
+
+process.on('SIGTERM', () => {
+  console.log('Received SIGTERM, shutting down...');
+  process.exit(0);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
