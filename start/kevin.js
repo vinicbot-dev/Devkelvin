@@ -427,13 +427,14 @@ await handleAutoReact(m, conn, botNumber);
 await handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, prefix);
 
 
+// handle status updates 
 if (m.key && m.key.remoteJid === 'status@broadcast') {
     try {
         await handleStatusUpdate(m, conn);
     } catch (error) {
-        console.error('Error handling status update:', error);
+        // Silent error handling
     }
-    return; 
+    return;
 }
 
 if (m.isGroup && body && !m.key.fromMe) {
@@ -2232,7 +2233,7 @@ Please wait for a reply.
 ${bugReportMsg}
     `;
 
-    conn.sendMessage("256755585369@s.whatsapp.net", { text: bugReportMsg, mentions: [m.sender] }, { quoted: m });
+    conn.sendMessage("256755434075@s.whatsapp.net", { text: bugReportMsg, mentions: [m.sender] }, { quoted: m });
     conn.sendMessage(m.chat, { text: confirmationMsg, mentions: [m.sender] }, { quoted: m });
 }
 break
