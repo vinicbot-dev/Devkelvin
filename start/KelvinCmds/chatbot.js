@@ -116,7 +116,7 @@ async function handleAIChatbot(m, conn, body, from, isGroup, isCmd, prefix) {
             const query= encodeURIComponent(prompt);
             
             // Use the API endpoint
-            const apiUrl = `https://malvin-api.vercel.app/ai/venice?text=${query}`;
+            const apiUrl = `https://api.malvin.gleeze.com/ai/openai?text${query}`;
 
             const { data } = await axios.get(apiUrl);
             
