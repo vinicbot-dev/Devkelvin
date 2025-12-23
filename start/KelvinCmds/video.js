@@ -16,7 +16,7 @@ async function KelvinVideo(conn, chatId, message, args) {
         }
 
         // Send initial processing message
-        await conn.sendMessage(chatId, { 
+        const processingMsg = await conn.sendMessage(chatId, { 
             text: `🔍 Searching for: "${query}"\n⏳ Please wait...` 
         }, { quoted: message });
 
@@ -29,58 +29,63 @@ async function KelvinVideo(conn, chatId, message, args) {
             try {
                 const videoId = query.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i)?.[1];
                 if (!videoId) {
-                    return await conn.sendMessage(chatId, { 
+                    await conn.sendMessage(chatId, { 
                         text: '❌ *Invalid YouTube URL!*\n\nPlease provide a valid YouTube URL.\n*Example:* https://youtu.be/ABC123' 
                     }, { quoted: message });
+                    return;
                 }
                 
                 videoInfo = await yts({ videoId });
                 if (!videoInfo) throw new Error('Could not fetch video info');
             } catch (e) {
-                console.error('YT-Search error:', e);
-                return await conn.sendMessage(chatId, { 
+                await conn.sendMessage(chatId, { 
                     text: '❌ *Failed to get video information!*\n\nPlease check the URL and try again.' 
                 }, { quoted: message });
+                return;
             }
         } else {
             // Handle search query
             try {
                 const searchResults = await yts(query);
                 if (!searchResults?.videos?.length) {
-                    return await conn.sendMessage(chatId, { 
+                    await conn.sendMessage(chatId, { 
                         text: `❌ *No videos found for:* "${query}"\n\nTry different keywords or check spelling.` 
                     }, { quoted: message });
+                    return;
                 }
 
-                // Filter results (exclude live streams and very long videos)
+                // Filter results (exclude live streams, very long videos, and prioritize shorter videos)
                 const validVideos = searchResults.videos.filter(v => 
-                    !v.live && v.seconds < 3600 && v.views > 1000
-                );
+                    !v.live && v.seconds < 600 && v.views > 1000 // Limit to 10 minutes max
+                ).sort((a, b) => a.seconds - b.seconds); // Sort by shortest first
 
                 if (!validVideos.length) {
-                    return await conn.sendMessage(chatId, { 
-                        text: `❌ *No suitable videos found!*\n\nTry a different search term.` 
-                    }, { quoted: message });
+                    // Try with longer duration limit
+                    const longerVideos = searchResults.videos.filter(v => 
+                        !v.live && v.seconds < 1200 && v.views > 1000 // 20 minutes max
+                    ).sort((a, b) => a.seconds - b.seconds);
+                    
+                    if (!longerVideos.length) {
+                        await conn.sendMessage(chatId, { 
+                            text: `❌ *No suitable videos found!*\n\nTry a different search term or look for shorter videos.` 
+                        }, { quoted: message });
+                        return;
+                    }
+                    videoInfo = longerVideos[0];
+                } else {
+                    videoInfo = validVideos[0];
                 }
 
-                videoInfo = validVideos[0];
                 videoUrl = videoInfo.url;
-
-                console.log('Selected video:', {
-                    title: videoInfo.title,
-                    duration: videoInfo.timestamp,
-                    views: videoInfo.views.toLocaleString(),
-                    url: videoInfo.url
-                });
             } catch (searchError) {
-                console.error('Search error:', searchError);
-                return await conn.sendMessage(chatId, { 
+                await conn.sendMessage(chatId, { 
                     text: '❌ *Search failed!*\n\nPlease try again later or use a YouTube URL.' 
                 }, { quoted: message });
+                return;
             }
         }
 
-        // Show video info
+        // Update processing message with video info
         const videoInfoMsg = `
 🎬 *Video Found!*
 
@@ -93,25 +98,17 @@ async function KelvinVideo(conn, chatId, message, args) {
 _⏳ Downloading video..._
         `.trim();
 
-        // Send video info
         await conn.sendMessage(chatId, { 
             text: videoInfoMsg 
-        }, { quoted: message });
+        });
 
-        // Use PrivateZia API for downloading
+        // Use API with size parameter for smaller videos
         let videoData = null;
+        let videoSize = 0;
         
         try {
-            console.log('Trying PrivateZia API...');
-            
-            // If we have a direct YouTube URL, extract search term from video title
-            let searchQuery = query;
-            if (isYtUrl && videoInfo?.title) {
-                searchQuery = videoInfo.title;
-            }
-            
-            const encodedQuery = encodeURIComponent(searchQuery);
-            const apiUrl = `https://api.privatezia.biz.id/api/downloader/ytplaymp4?query=${encodedQuery}`;
+            // TRY 1: Use API that allows quality/size selection
+            const apiUrl = `https://api.privatezia.biz.id/api/downloader/ytplaymp4?query=${encodeURIComponent(videoInfo.title)}&quality=360p`;
             
             const response = await fetch(apiUrl);
             const data = await response.json();
@@ -120,78 +117,110 @@ _⏳ Downloading video..._
                 videoData = {
                     url: data.result.downloadUrl,
                     title: data.result.title || videoInfo.title,
-                    quality: data.result.quality || 'HD',
+                    quality: '360p (Small)',
                     thumbnail: data.result.thumbnail
                 };
-                console.log('✅ Success with PrivateZia API');
+                
+                // Try to get file size
+                try {
+                    const headResponse = await fetch(videoData.url, { method: 'HEAD' });
+                    const contentLength = headResponse.headers.get('content-length');
+                    videoSize = contentLength ? parseInt(contentLength) : 0;
+                    
+                    if (videoSize > 16000000) { // 16MB limit
+                        // File too large, try lower quality
+                        throw new Error('File too large');
+                    }
+                } catch (sizeError) {
+                    // Try different API with lower quality
+                    throw new Error('Need lower quality');
+                }
             }
         } catch (error) {
-            console.log('❌ PrivateZia API failed:', error.message);
-        }
-
-        // Nekolabs fallback
-        if (!videoData) {
+            // TRY 2: Use API with smaller size option
             try {
-                console.log('Trying Nekolabs API...');
                 const encodedUrl = encodeURIComponent(videoUrl);
-                const apiUrl = `https://api.nekolabs.web.id/downloader/youtube/v4?url=${encodedUrl}`;
+                const apiUrl = `https://api.nekolabs.web.id/downloader/youtube/v4?url=${encodedUrl}&quality=low`;
                 
                 const response = await fetch(apiUrl);
                 const data = await response.json();
 
                 if (data.success && data.result && data.result.medias && data.result.medias.length > 0) {
-                    const videoMedia = data.result.medias[0];
-                    if (videoMedia.url) {
+                    // Find the smallest video
+                    const smallVideos = data.result.medias.filter(media => 
+                        media.quality && (media.quality.includes('360') || media.quality.includes('480') || media.size < 15000000)
+                    );
+                    
+                    if (smallVideos.length > 0) {
+                        const videoMedia = smallVideos[0];
                         videoData = {
                             url: videoMedia.url,
                             title: data.result.title || videoInfo.title,
-                            quality: videoMedia.quality || videoMedia.label || 'HD'
+                            quality: videoMedia.quality || 'Low Quality',
+                            size: videoMedia.size || 0
                         };
-                        console.log('✅ Success with Nekolabs API');
+                        videoSize = videoMedia.size || 0;
                     }
                 }
-            } catch (error) {
-                console.log('❌ Nekolabs API failed:', error.message);
-            }
-        }
-
-        // David Cyril fallback
-        if (!videoData) {
-            try {
-                console.log('Trying David Cyril API...');
-                const apiUrl = `https://apis.davidcyriltech.my.id/youtube?url=${encodeURIComponent(videoUrl)}`;
-                const response = await fetch(apiUrl);
-                const data = await response.json();
-
-                if (data.downloadUrl) {
-                    videoData = {
-                        url: data.downloadUrl,
-                        title: data.title || videoInfo.title,
-                        quality: 'HD'
-                    };
-                    console.log('✅ Success with David Cyril API');
+            } catch (error2) {
+                // TRY 3: Fallback to audio only if video too large
+                try {
+                    const audioApiUrl = `https://api.privatezia.biz.id/api/downloader/ytplaymp3?query=${encodeURIComponent(videoInfo.title)}`;
+                    const response = await fetch(audioApiUrl);
+                    const data = await response.json();
+                    
+                    if (data.status && data.result && data.result.downloadUrl) {
+                        // Send as audio instead
+                        await conn.sendMessage(chatId, {
+                            audio: { url: data.result.downloadUrl },
+                            mimetype: 'audio/mpeg',
+                            fileName: `${(videoInfo.title || 'audio').replace(/[<>:"/\\|?*]/g, '_').slice(0, 60)}.mp3`,
+                            caption: `🎵 *Audio Only*\n\nVideo was too large to send.\n\n📀 *Title:* ${videoInfo.title}\n⏱️ *Duration:* ${videoInfo.timestamp}\n👤 *Channel:* ${videoInfo.author?.name || 'Unknown'}`
+                        }, { quoted: message });
+                        
+                        await conn.sendMessage(chatId, { react: { text: '✅', key: message.key } });
+                        return;
+                    }
+                } catch (audioError) {
+                    // Continue to error handling
                 }
-            } catch (error) {
-                console.log('❌ David Cyril API failed:', error.message);
             }
         }
 
         if (!videoData) {
-            return await conn.sendMessage(chatId, { 
-                text: '❌ *All download services are busy!*\n\nPlease try again in a few minutes.' 
+            await conn.sendMessage(chatId, { 
+                text: '❌ *Could not download video!*\n\n' +
+                      'The video may be too long or unavailable.\n' +
+                      '*Try:*\n• Shorter videos (<5 minutes)\n• Different search term\n• YouTube link directly'
             }, { quoted: message });
+            return;
         }
 
-        // Download and send the video
+        // Check file size before sending
+        const MAX_SIZE = 16000000; // 16MB WhatsApp limit
+        
+        if (videoSize > MAX_SIZE) {
+            await conn.sendMessage(chatId, { 
+                text: `*❌ Video is too large (${(videoSize/1000000).toFixed(1)}MB)*\n\n` +
+                      `*WhatsApp limits:* ~16MB for videos\n\n` +
+                      `📺 *Title:* ${videoData.title}\n` +
+                      `⏱️ *Duration:* ${videoInfo.timestamp}\n` +
+                      `👤 *Channel:* ${videoInfo.author?.name || 'Unknown'}\n\n` +
+                      `🎬 *YouTube Link:*\n${videoUrl}\n\n` +
+                      `_Try searching for shorter videos._`
+            }, { quoted: message });
+            await conn.sendMessage(chatId, { react: { text: '📏', key: message.key } });
+            return;
+        }
+
+        // Send the video with progress indicator
         try {
-            // If thumbnail is available, send as image first
-            if (videoData.thumbnail) {
-                await conn.sendMessage(chatId, {
-                    image: { url: videoData.thumbnail },
-                    caption: `🎬 *${videoData.title}*\n\n` +
-                            `⏳ *Downloading video...*`
-                }, { quoted: message });
-            }
+            const sendingMsg = await conn.sendMessage(chatId, {
+                text: `📤 *Sending video...*\n\n` +
+                      `📀 ${videoData.title}\n` +
+                      `📊 Quality: ${videoData.quality}\n` +
+                      `📦 Size: ${videoSize > 0 ? (videoSize/1000000).toFixed(1) + 'MB' : 'Unknown'}`
+            });
 
             // Send the video
             await conn.sendMessage(chatId, {
@@ -199,35 +228,41 @@ _⏳ Downloading video..._
                 caption: `🎬 *${videoData.title}*\n\n` +
                         `✅ Successfully downloaded!\n` +
                         `📺 Quality: ${videoData.quality}\n` +
-                        `👤 Channel: ${videoInfo?.author?.name || 'Unknown'}\n` +
-                        `⏱️ Duration: ${videoInfo?.timestamp || 'Unknown'}\n\n` +
+                        `👤 Channel: ${videoInfo.author?.name || 'Unknown'}\n` +
+                        `⏱️ Duration: ${videoInfo.timestamp}\n\n` +
                         `📥 Downloaded via ${global.botname || 'Bot'}`,
                 mimetype: 'video/mp4',
-                fileName: `${(videoData.title || 'video').replace(/[<>:"/\\|?*]/g, '_').slice(0, 60)}.mp4`
-            }, { quoted: message });
+                fileName: `${(videoData.title || 'video').replace(/[<>:"/\\|?*]/g, '_').slice(0, 50)}.mp4`
+            });
+
+            // Delete progress message
+            if (sendingMsg.key) {
+                await conn.sendMessage(chatId, { 
+                    delete: sendingMsg.key 
+                });
+            }
 
             // Success reaction
             await conn.sendMessage(chatId, { react: { text: '✅', key: message.key } });
 
         } catch (videoError) {
-            console.error('Video sending error:', videoError);
-            
-            // If video sending fails, send the YouTube link
+            // If video sending fails, provide alternative
             await conn.sendMessage(chatId, { 
-                text: `*❌ Video is too large to send directly*\n\n` +
-                      `*📺 Title:* ${videoData.title || 'Unknown'}\n` +
-                      `*⏱️ Duration:* ${videoInfo?.timestamp || 'Unknown'}\n` +
-                      `*👤 Channel:* ${videoInfo?.author?.name || 'Unknown'}\n\n` +
-                      `🎬 *YouTube Link:*\n${videoUrl}\n\n` +
-                      `_Use the link above to watch the video._`
+                text: `*❌ Failed to send video*\n\n` +
+                      `*Possible reasons:*\n` +
+                      `• Video is still too large\n` +
+                      `• Network issues\n` +
+                      `• WhatsApp restrictions\n\n` +
+                      `📺 *Title:* ${videoData.title}\n` +
+                      `⏱️ *Duration:* ${videoInfo.timestamp}\n\n` +
+                      `🎬 *Watch on YouTube:*\n${videoUrl}\n\n` +
+                      `_Try the .audio command for music instead._`
             }, { quoted: message });
             
             await conn.sendMessage(chatId, { react: { text: '❌', key: message.key } });
         }
 
     } catch (error) {
-        console.error('Video command error:', error);
-        
         let errorMessage = '❌ Error downloading video. ';
         
         if (error.message.includes('Invalid YouTube URL')) {
@@ -236,8 +271,8 @@ _⏳ Downloading video..._
             errorMessage += 'No videos found for your search.';
         } else if (error.message.includes('Failed to get video information')) {
             errorMessage += 'Could not fetch video information.';
-        } else if (error.message.includes('All download services are busy')) {
-            errorMessage += 'All download services are currently busy.';
+        } else if (error.message.includes('too large')) {
+            errorMessage += 'Video is too large for WhatsApp. Try shorter videos.';
         } else {
             errorMessage += 'Please try again later.';
         }
