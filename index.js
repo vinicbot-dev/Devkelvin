@@ -640,9 +640,7 @@ conn.ev.on('group-participants.update', async (anu) => {
         let welcomeEnabled = global.settingsManager?.getSetting(botNumber, 'welcome') ?? true;
         let admineventEnabled = global.settingsManager?.getSetting(botNumber, 'adminevent') ?? true;
         
-        // Debug log
-        console.log(`[SETTINGS] Welcome: ${welcomeEnabled}, AdminEvent: ${admineventEnabled}`);
-        
+   
         // WELCOME FEATURE - USING JSON SETTINGS
         if (welcomeEnabled === true) {
             try {
