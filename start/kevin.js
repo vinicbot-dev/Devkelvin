@@ -6029,7 +6029,7 @@ case 'metaai': {
     }
 }
 break
-case 'deepai': {
+case 'llama': {
   if (!q) return reply('*Please ask me something*');
   
   try {
@@ -6061,17 +6061,35 @@ case 'deepai': {
   
 }
 break
-case 'blackbox':
-case 'bb': {
+case 'bb':
+case 'blackbox': {
   if (!q) return reply('*Please ask me something*');
   
   try {
-    const response = await fetch(`https://api.giftedtech.co.ke/api/ai/blackbox?apikey=gifted&q=${encodeURIComponent(q)}`);
+    const response = await fetch(`https://api.privatezia.biz.id/api/ai/blackbox?query=${encodeURIComponent(q)}`);
     const data = await response.json();
     
-    reply(data.success ? `🖤 ${data.result}` : 'Blackbox failed');
+    // Based on your example response structure:
+    // {
+    //   "status": true,
+    //   "creator": "@ZiaUlhaq",
+    //   "data": "**Introduction to JavaScript**\n\nJavaScript is a high-level..."
+    // }
+    
+    if (data.status) {
+      // Check if data.data exists and is not empty
+      if (data.data) {
+        reply(`🤖 ${data.data}`);
+      } else {
+        reply('Response received but data field is empty');
+      }
+    } else {
+      reply('API returned false status');
+    }
+    
   } catch (error) {
-    reply('Blackbox error');
+    console.error('deepai error:', error);
+    reply('⚠️ Error processing your request');
   }
   
 }
@@ -6080,12 +6098,30 @@ case 'dalle': {
   if (!q) return reply('*Please ask me something*');
   
   try {
-    const response = await fetch(`https://api.giftedtech.co.ke/api/ai/deepseek-v3?apikey=gifted&q=${encodeURIComponent(q)}`);
+    const response = await fetch(`https://api.privatezia.biz.id/api/ai/luminai?query=${encodeURIComponent(q)}`);
     const data = await response.json();
     
-    reply(data.success ? `🔍 ${data.result}` : 'Dalle failed');
+    // Based on your example response structure:
+    // {
+    //   "status": true,
+    //   "creator": "@ZiaUlhaq",
+    //   "data": "**Introduction to JavaScript**\n\nJavaScript is a high-level..."
+    // }
+    
+    if (data.status) {
+      // Check if data.data exists and is not empty
+      if (data.data) {
+        reply(`🤖 ${data.data}`);
+      } else {
+        reply('Response received but data field is empty');
+      }
+    } else {
+      reply('API returned false status');
+    }
+    
   } catch (error) {
-    reply('Dalle error');
+    console.error('dalle error:', error);
+    reply('⚠️ Error processing your request');
   }
   
 }
@@ -6094,15 +6130,34 @@ case 'summarize': {
   if (!q) return reply('*Please ask me something*');
   
   try {
-    const response = await fetch(`https://api.giftedtech.co.ke/api/ai/deepseek-v3?apikey=gifted&q=${encodeURIComponent(q)}`);
+    const response = await fetch(`https://api.privatezia.biz.id/api/ai/ai4chat?query=${encodeURIComponent(q)}`);
     const data = await response.json();
     
-    reply(data.success ? `🔍 ${data.result}` : 'summuraze failed');
+    // Based on your example response structure:
+    // {
+    //   "status": true,
+    //   "creator": "@ZiaUlhaq",
+    //   "data": "**Introduction to JavaScript**\n\nJavaScript is a high-level..."
+    // }
+    
+    if (data.status) {
+      // Check if data.data exists and is not empty
+      if (data.data) {
+        reply(`🤖 ${data.data}`);
+      } else {
+        reply('Response received but data field is empty');
+      }
+    } else {
+      reply('API returned false status');
+    }
+    
   } catch (error) {
-    reply('summarize error');
+    console.error('summarize error:', error);
+    reply('⚠️ Error processing your request');
   }
-  break;
+  
 }
+break
 case 'mistral': {
   if (!q) return reply('❌ Ask me something');
   
