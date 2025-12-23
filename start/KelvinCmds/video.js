@@ -10,8 +10,8 @@ async function KelvinVideo(conn, chatId, message, args) {
             return await conn.sendMessage(chatId, { 
                 text: '*🎬 YouTube Video Downloader*\n\n' +
                       'Please provide a YouTube URL or search query\n' +
-                      'Example: `.ytmp4 https://youtu.be/ABC123`\n' +
-                      'Example: `.ytmp4 funny cat videos`'
+                      'Example: `.video https://youtu.be/ABC123`\n' +
+                      'Example: `.video funny cat videos`'
             }, { quoted: message });
         }
 
@@ -98,73 +98,64 @@ _⏳ Downloading video..._
             text: videoInfoMsg 
         }, { quoted: message });
 
-        // Try multiple download APIs
+        // Use PrivateZia API for downloading
         let videoData = null;
         
-        // API 1: Nekolabs
         try {
-            console.log('Trying Nekolabs API...');
-            const encodedUrl = encodeURIComponent(videoUrl);
-            const apiUrl = `https://api.nekolabs.web.id/downloader/youtube/v4?url=${encodedUrl}`;
+            console.log('Trying PrivateZia API...');
+            
+            // If we have a direct YouTube URL, extract search term from video title
+            let searchQuery = query;
+            if (isYtUrl && videoInfo?.title) {
+                searchQuery = videoInfo.title;
+            }
+            
+            const encodedQuery = encodeURIComponent(searchQuery);
+            const apiUrl = `https://api.privatezia.biz.id/api/downloader/ytplaymp4?query=${encodedQuery}`;
             
             const response = await fetch(apiUrl);
             const data = await response.json();
 
-            if (data.success && data.result && data.result.medias && data.result.medias.length > 0) {
-                const videoMedia = data.result.medias[0];
-                if (videoMedia.url) {
-                    videoData = {
-                        url: videoMedia.url,
-                        title: data.result.title || videoInfo.title,
-                        quality: videoMedia.quality || videoMedia.label || 'HD'
-                    };
-                    console.log('✅ Success with Nekolabs API');
-                }
+            if (data.status && data.result && data.result.downloadUrl) {
+                videoData = {
+                    url: data.result.downloadUrl,
+                    title: data.result.title || videoInfo.title,
+                    quality: data.result.quality || 'HD',
+                    thumbnail: data.result.thumbnail
+                };
+                console.log('✅ Success with PrivateZia API');
             }
         } catch (error) {
-            console.log('❌ Nekolabs API failed:', error.message);
+            console.log('❌ PrivateZia API failed:', error.message);
         }
 
-        // API 2: GiftedTech fallback
+        // Nekolabs fallback
         if (!videoData) {
             try {
-                console.log('Trying GiftedTech API...');
-                const videoId = videoUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i)?.[1];
+                console.log('Trying Nekolabs API...');
+                const encodedUrl = encodeURIComponent(videoUrl);
+                const apiUrl = `https://api.nekolabs.web.id/downloader/youtube/v4?url=${encodedUrl}`;
                 
-                if (videoId) {
-                    const apiUrl = `https://api.giftedtech.co.ke/api/search/ytdl?apikey=gifted&id=${videoId}`;
-                    const response = await fetch(apiUrl);
-                    const data = await response.json();
+                const response = await fetch(apiUrl);
+                const data = await response.json();
 
-                    if (data.success && data.result) {
-                        // Try to find video URL in response
-                        let videoUrlFromApi = data.result.downloadUrl || data.result.url || data.result.videoUrl;
-                        
-                        if (!videoUrlFromApi && data.result.formats) {
-                            const videoFormats = data.result.formats.filter(format => 
-                                format.mimeType && format.mimeType.includes('video')
-                            );
-                            if (videoFormats.length > 0) {
-                                videoUrlFromApi = videoFormats[0].url;
-                            }
-                        }
-
-                        if (videoUrlFromApi) {
-                            videoData = {
-                                url: videoUrlFromApi,
-                                title: data.result.title || videoInfo.title,
-                                quality: 'HD'
-                            };
-                            console.log('✅ Success with GiftedTech API');
-                        }
+                if (data.success && data.result && data.result.medias && data.result.medias.length > 0) {
+                    const videoMedia = data.result.medias[0];
+                    if (videoMedia.url) {
+                        videoData = {
+                            url: videoMedia.url,
+                            title: data.result.title || videoInfo.title,
+                            quality: videoMedia.quality || videoMedia.label || 'HD'
+                        };
+                        console.log('✅ Success with Nekolabs API');
                     }
                 }
             } catch (error) {
-                console.log('❌ GiftedTech API failed:', error.message);
+                console.log('❌ Nekolabs API failed:', error.message);
             }
         }
 
-        // API 3: David Cyril fallback
+        // David Cyril fallback
         if (!videoData) {
             try {
                 console.log('Trying David Cyril API...');
@@ -193,6 +184,16 @@ _⏳ Downloading video..._
 
         // Download and send the video
         try {
+            // If thumbnail is available, send as image first
+            if (videoData.thumbnail) {
+                await conn.sendMessage(chatId, {
+                    image: { url: videoData.thumbnail },
+                    caption: `🎬 *${videoData.title}*\n\n` +
+                            `⏳ *Downloading video...*`
+                }, { quoted: message });
+            }
+
+            // Send the video
             await conn.sendMessage(chatId, {
                 video: { url: videoData.url },
                 caption: `🎬 *${videoData.title}*\n\n` +
@@ -225,7 +226,7 @@ _⏳ Downloading video..._
         }
 
     } catch (error) {
-        console.error('YTMP4 command error:', error);
+        console.error('Video command error:', error);
         
         let errorMessage = '❌ Error downloading video. ';
         
