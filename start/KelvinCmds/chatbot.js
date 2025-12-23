@@ -92,7 +92,7 @@ async function handleAIChatbot(m, conn, body, from, isGroup, isCmd, prefix) {
         
         if (isAskingAboutCreator) {
             // Special response for creator questions
-            response = "I am Vinic-Xmd AI, created by Kelvin Tech - a brilliant developer from Uganda with exceptional coding skills and vision. He's the mastermind behind my existence, crafting me with precision and care to be your helpful assistant.";
+            response = "I am JEXPLOIT AI, created by Kelvin Tech - a brilliant developer from Uganda with exceptional coding skills and vision. He's the mastermind behind my existence, crafting me with precision and care to be your helpful assistant.";
         } else {
             // Get conversation context
             const context = messageMemory.has(from) 
@@ -100,7 +100,7 @@ async function handleAIChatbot(m, conn, body, from, isGroup, isCmd, prefix) {
                 : `user: ${body}`;
 
             // Create prompt with context and instructions
-            const prompt = `You are Vinic-Xmd AI, a powerful WhatsApp bot developed by Kelvin Tech from Uganda. 
+            const prompt = `You are Jexploit AI, a powerful WhatsApp bot developed by Kelvin Tech from Uganda. 
             You respond smartly, confidently, and stay loyal to your creator. 
             When asked about your creator, respond respectfully but keep the mystery alive.
             If someone is being abusive, apologize and say "Let's begin afresh."
@@ -110,7 +110,7 @@ async function handleAIChatbot(m, conn, body, from, isGroup, isCmd, prefix) {
             
             Current message: ${body}
             
-            Respond as Vinic-Xmd AI:`;
+            Respond as Jexploit AI:`;
 
             // Encode the prompt for the API
             const query= encodeURIComponent(prompt);
@@ -125,7 +125,22 @@ async function handleAIChatbot(m, conn, body, from, isGroup, isCmd, prefix) {
             } else if (data && data.message) {
                 response = data.message;
             } else {
-                response = "I'm sorry, I couldn't process that request. Let's begin afresh.";
+                // FALLBACK API - only added this part
+                const fallbackQuery = encodeURIComponent(body);
+                const fallbackUrl = `https://api.privatezia.biz.id/api/ai/deepai?query=${fallbackQuery}`;
+                
+                try {
+                    const { data: fallbackData } = await axios.get(fallbackUrl);
+                    if (fallbackData && fallbackData.result) {
+                        response = fallbackData.result;
+                    } else if (fallbackData && fallbackData.message) {
+                        response = fallbackData.message;
+                    } else {
+                        response = "I'm sorry, I couldn't process that request. Let's begin afresh.";
+                    }
+                } catch (fallbackError) {
+                    response = "I'm sorry, I couldn't process that request. Let's begin afresh.";
+                }
             }
         }
 
