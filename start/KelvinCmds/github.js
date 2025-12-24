@@ -11,23 +11,23 @@ async function githubCommand(conn, chatId, message) {
     const ownerName = global.ownername || 'Kelvin Tech';
     
     const txt = `
-🤖 *JEXPLOIT BOT REPOSITORY*
+ *JEXPLOIT BOT REPOSITORY*
 
-📁 *Repository:* ${json.name}
-⭐ *Stars:* ${json.stargazers_count}
-🍴 *Forks:* ${json.forks_count}
-👀 *Watchers:* ${json.watchers_count}
-📊 *Size:* ${(json.size / 1024).toFixed(2)} MB
-🔄 *Last Updated:* ${moment(json.updated_at).format('DD/MM/YYYY HH:mm:ss')}
-📝 *Description:* ${json.description || 'No description'}
-👨‍💻 *Owner:* ${ownerName}
+ *Repository:* ${json.name}
+ *Stars:* ${json.stargazers_count}
+ *Forks:* ${json.forks_count}
+ *Watchers:* ${json.watchers_count}
+ *Size:* ${(json.size / 1024).toFixed(2)} MB
+ *Last Updated:* ${moment(json.updated_at).format('DD/MM/YYYY HH:mm:ss')}
+ *Description:* ${json.description || 'No description'}
+ *Owner:* ${ownerName}
 🔗 *URL:* ${json.html_url}
 
 🔗 *Session Id:* 
 https://vinic-xmd-pairing-site-dsf-crew-devs.onrender.com/
 
-💡 *Please fork and star the repository!*
-✨ *Powered by Jexpliot*
+ *Please fork and star the repository!*
+ *Powered by Kelvin Tech*
 `;
 
     // Try to send with image first, fallback to text
