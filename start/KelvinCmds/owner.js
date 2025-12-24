@@ -140,6 +140,5 @@ module.exports = {
     getLastSeenDescription,
     getOnlineDescription,
     getProfilePictureDescription,
-    getGroupAddDescription,
-    checkAccess
+    getGroupAddDescription
 };
