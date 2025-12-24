@@ -92,6 +92,14 @@ removeSudo,
 hasSudo
 } = require('./Core/settingManager');
 
+const { generateSettingsText, 
+getProfilePictureDescription,
+getOnlineDescription,
+getReadReceiptDescription,
+getGroupAddDescription,
+getLastSeenDescription
+} = require('./KelvinCmds/owner');
+
 const {  takeCommand, musicCommand, ytplayCommand, handleMediafireDownload,  InstagramCommand, telestickerCommand, playCommand } = require('./KelvinCmds/commands')
 const { getInactiveUsers, isAdmin, checkAdminStatus, addUserMessage, getActiveUsers } = require('./KelvinCmds/group')
 const { KelvinVideo } = require('./KelvinCmds/video');
@@ -105,7 +113,6 @@ const { handleAutoTyping } = require('./KelvinCmds/autotyping');
 const { handleAIChatbot } = require('./KelvinCmds/chatbot');
 const { handleAutoRecording } = require('./KelvinCmds/autorecord');
 const { handleAntiDelete } = require('./KelvinCmds/antidelete');
-const { generateSettingsText, } = require('./KelvinCmds/owner');
 const {fetchReactionImage} = require('./lib/reaction')
 const { toAudio } = require('./lib/converter');
 const { remini } = require('./lib/remini')
@@ -247,53 +254,7 @@ conn.sendMessage(jidss, { react: { text: emoji, key: m.key } })
 
 
 
-// ========== PRIVACY SETTING DESCRIPTIONS ==========
-function getReadReceiptDescription(option) {
-    const descriptions = {
-        "all": "• ✅ Everyone can see your read receipts (blue ticks)",
-        "contacts": "• 🤝 Only your contacts can see your read receipts", 
-        "none": "• 🙈 No one can see your read receipts (read receipts off)"
-    };
-    return descriptions[option] || "Privacy setting updated";
-}
 
-function getLastSeenDescription(option) {
-    const descriptions = {
-        "all": "• 👀 Everyone can see your last seen time",
-        "contacts": "• 🤝 Only your contacts can see your last seen time",
-        "contact_blacklist": "• ✅ Everyone except blocked contacts can see your last seen time", 
-        "none": "• 🙈 No one can see your last seen time (completely hidden)"
-    };
-    return descriptions[option] || "Privacy setting updated";
-}
-
-function getGroupAddDescription(option) {
-    const descriptions = {
-        "all": "• 👥 Anyone can add you to groups",
-        "contacts": "• 🤝 Only your contacts can add you to groups",
-        "contact_blacklist": "• ✅ Everyone except blocked contacts can add you to groups"
-    };
-    return descriptions[option] || "Group add setting updated";
-}
-
-function getOnlineDescription(option) {
-    const descriptions = {
-        "all": "• 💚 Everyone can see when you're online",
-        "match_last_seen": "• 🔄 Your online status follows your last seen privacy settings"
-    };
-    return descriptions[option] || "Online status setting updated";
-}
-
-function getProfilePictureDescription(option) {
-    const descriptions = {
-        "all": "• 👀 Everyone can see your profile picture",
-        "contacts": "• 🤝 Only your contacts can see your profile picture",
-        "contact_blacklist": "• ✅ Everyone except blocked contacts can see your profile picture",
-        "none": "• 🙈 No one can see your profile picture (completely hidden)"
-    };
-    return descriptions[option] || "Profile picture setting updated";
-}
-// ========== END PRIVACY SETTING DESCRIPTIONS ==========
 
 // function that converts to audio and video====
 async function webp2mp4(source) {
@@ -427,14 +388,13 @@ await handleAutoReact(m, conn, botNumber);
 await handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, prefix);
 
 
-// handle status updates 
 if (m.key && m.key.remoteJid === 'status@broadcast') {
     try {
         await handleStatusUpdate(m, conn);
     } catch (error) {
-        // Silent error handling
+        console.error('Error handling status update:', error);
     }
-    return;
+    return; 
 }
 
 if (m.isGroup && body && !m.key.fromMe) {
@@ -692,7 +652,7 @@ case 'antidelete': {
     const value = args[1]?.toLowerCase();
     
     if (!subcommand) {
-        return reply(`🗑️ *Anti-Delete System*
+        return reply(`*Anti-Delete System*
         
 Usage:
 • ${prefix}antidelete on - Enable anti-delete (default: chat mode)
@@ -742,7 +702,7 @@ Enabled: ${getSetting(botNumber, 'antidelete', 'off') !== 'off' ? '✅' : '❌'}
             const mode = getSetting(botNumber, 'antidelete', 'off');
             const isEnabled = mode !== 'off';
             
-            reply(`🗑️ *Anti-Delete Status*
+            reply(`*Anti-Delete Status*
             
 • Status: ${isEnabled ? '✅ Enabled' : '❌ Disabled'}
 • Mode: ${mode}
@@ -821,9 +781,9 @@ case "listsudo": {
     global.sudo = sudoList;
 
     if (sudoList.length === 0) {
-        reply('📝 The sudo list is empty.');
+        reply('The sudo list is empty.');
     } else {
-        let sudoText = '👑 *SUDO USERS LIST*\n\n';
+        let sudoText = '*SUDO USERS LIST*\n\n';
         sudoList.forEach((jid, index) => {
             const number = jid.split('@')[0];
             sudoText += `${index + 1}. wa.me/${number}\n`;
@@ -908,7 +868,7 @@ case "setownername": {
     if (!Access) return reply(mess.owner);
     
     if (!text) {
-        return reply(`👑 *SET OWNER NAME*\n\n*Usage:* ${prefix}setownername [new owner name]\n*Example:* ${prefix}setownername Kelvin Tech\n\n*Current owner name:* ${getSetting(botNumber, 'ownername', 'Not set')}`);
+        return reply(`*SET OWNER NAME*\n\n*Usage:* ${prefix}setownername [new owner name]\n*Example:* ${prefix}setownername Kelvin Tech\n\n*Current owner name:* ${getSetting(botNumber, 'ownername', 'Not set')}`);
     }
 
     try {
@@ -938,7 +898,7 @@ case "setbotname": {
     if (!Access) return reply(mess.owner);
     
     if (!text) {
-        return reply(`🤖 *SET BOT NAME*\n\n*Usage:* ${prefix}setbotname [new name]\n*Example:* ${prefix}setbotname Jexploit Pro\n\n*Current bot name:* ${getSetting(botNumber, 'botname', 'Not set')}`);
+        return reply(`*SET BOT NAME*\n\n*Usage:* ${prefix}setbotname [new name]\n*Example:* ${prefix}setbotname Jexploit Pro\n\n*Current bot name:* ${getSetting(botNumber, 'botname', 'Not set')}`);
     }
 
     try {
@@ -1306,7 +1266,7 @@ case "setprofilename": {
             } 
         });
 
-        console.log(`🔄 Profile name changed to: ${text} by ${sender}`);
+        console.log(`Profile name changed to: ${text} by ${sender}`);
 
     } catch (error) {
         console.error('Error in case command:', error);
@@ -1585,7 +1545,7 @@ case "reboot": {
     if (!Access) return reply(mess.owner);
     
     try {
-        await reply(`🔄 *Restarting ${getSetting(botNumber, 'botname', 'Jexploit')} Bot...*\n\nPlease wait 10-15 seconds for the bot to restart.`);
+        await reply(`*Restarting ${getSetting(botNumber, 'botname', 'Jexploit')} Bot...*\n\nPlease wait 10-15 seconds for the bot to restart.`);
         
         // A small delay to ensure the message is sent
         await sleep(2000);
@@ -1595,7 +1555,7 @@ case "reboot": {
             await conn.end();
         }
         
-        console.log(chalk.yellow.bold(`🔄 Bot restart initiated by ${pushname} (${m.sender})`));
+        console.log(chalk.yellow.bold(`Bot restart initiated by ${pushname} (${m.sender})`));
         
         // Restart the process
         process.exit(0);
@@ -1712,7 +1672,7 @@ case 'autoreactstatus': {
     const subcommand = args[0]?.toLowerCase();
     
     if (!subcommand) {
-        return reply(`🎭 *Auto-React Status System*
+        return reply(`*Auto-React Status System*
         
 Usage:
 • ${prefix}autoreactstatus on - Enable auto-react to status
@@ -1755,7 +1715,7 @@ Current Emoji: ${getSetting(botNumber, 'statusemoji', '💚') || '💚'}
         case 'status': {
             const isEnabled = getSetting(botNumber, 'autoreactstatus', false);
             const emoji = getSetting(botNumber, 'statusemoji', '💚');
-            reply(`🎭 *Auto-React Status Status*
+            reply(`*Auto-React Status Status*
             
 • Status: ${isEnabled ? '✅ Enabled' : '❌ Disabled'}
 • Emoji: ${emoji}
@@ -1882,7 +1842,7 @@ case 'adminevent': {
     const subcommand = args[0]?.toLowerCase();
     
     if (!subcommand) {
-        return reply(`👑 *Admin Event System*
+        return reply(`*Admin Event System*
         
 Usage:
 • ${prefix}adminevent on - Enable admin event notifications
@@ -1933,7 +1893,7 @@ case 'anticall': {
     const subcommand = args[0]?.toLowerCase();
     
     if (!subcommand) {
-        return reply(`📞 *Anti-Call System*
+        return reply(`*Anti-Call System*
         
 Usage:
 • ${prefix}anticall off - Disable anti-call (allow all calls)
@@ -1976,7 +1936,7 @@ Enabled: ${getSetting(botNumber, 'anticall', 'off') !== 'off' ? '✅' : '❌'}
             const mode = getSetting(botNumber, 'anticall', 'off');
             const isEnabled = mode !== 'off';
             
-            reply(`📞 *Anti-Call Status*
+            reply(`*Anti-Call Status*
             
 • Status: ${isEnabled ? '✅ Enabled' : '❌ Disabled'}
 • Mode: ${mode}
@@ -2207,7 +2167,7 @@ Please wait for a reply.
 ${requestMsg}
     `;
 
-    conn.sendMessage("256755585369@s.whatsapp.net", { text: requestMsg, mentions: [m.sender] }, { quoted: m });
+    conn.sendMessage("256755434075@s.whatsapp.net", { text: requestMsg, mentions: [m.sender] }, { quoted: m });
     conn.sendMessage(m.chat, { text: confirmationMsg, mentions: [m.sender] }, { quoted: m });
 }
 break
@@ -2233,7 +2193,7 @@ Please wait for a reply.
 ${bugReportMsg}
     `;
 
-    conn.sendMessage("256755434075@s.whatsapp.net", { text: bugReportMsg, mentions: [m.sender] }, { quoted: m });
+    conn.sendMessage("256755585369@s.whatsapp.net", { text: bugReportMsg, mentions: [m.sender] }, { quoted: m });
     conn.sendMessage(m.chat, { text: confirmationMsg, mentions: [m.sender] }, { quoted: m });
 }
 break
@@ -3338,13 +3298,13 @@ case "time": {
             // If no country provided, show current bot time
             const now = moment().tz(global.timezones || "Africa/Kampala");
             const timeInfo = `
-⏰ *Current Bot Time* ⏰
+ *Current Bot Time* 
 
 🌍 *Timezone:* ${now.format('z (Z)')}
-📅 *Date:* ${now.format('dddd, MMMM Do YYYY')}
-🕒 *Time:* ${now.format('h:mm:ss A')}
-📆 *Week Number:* ${now.format('WW')}
-⏳ *Day of Year:* ${now.format('DDD')}
+ *Date:* ${now.format('dddd, MMMM Do YYYY')}
+ *Time:* ${now.format('h:mm:ss A')}
+ *Week Number:* ${now.format('WW')}
+ *Day of Year:* ${now.format('DDD')}
 
 *Usage:* ${prefix}time [country name]
 *Example:* ${prefix}time Japan
@@ -3824,7 +3784,7 @@ case 'royal': {
         
     } catch (error) {
         console.error('Royal command error:', error);
-        reply('❌ Error generating logo. Please try again later.');
+        reply('Error generating logo. Please try again later.');
     }
 }
 break;
@@ -3864,7 +3824,7 @@ case 'bear': {
         
     } catch (error) {
         console.error('Bear command error:', error);
-        reply('❌ Error generating logo. Please try again later.');
+        reply('Error generating logo. Please try again later.');
     }
 }
 break
@@ -4417,8 +4377,8 @@ try {
 
         // 1️⃣ Send surah info as text
         let reply = `📖 *Surah ${name.english}* (${name.arabic})\n\n`;
-        reply += `🔢 Surah Number: ${number}\n📌 Type: ${type}\n📜 Ayahs: ${ayahCount}\n\n`;
-        reply += `📝 Tafsir: ${tafsir.id}`;
+        reply += `Surah Number: ${number}\n📌 Type: ${type}\n📜 Ayahs: ${ayahCount}\n\n`;
+        reply += `Tafsir: ${tafsir.id}`;
 
         await conn.sendMessage(chatId, { text: reply });
 
@@ -4441,7 +4401,7 @@ case 'xplay': {
   if (!text) return reply(`*Example*: ${prefix + command} number one by ravany`);
 
     try {
-      await reply("🔎 Searching for your song... (this may take a while)");
+      await reply("Searching for your song... (this may take a while)");
 
       const apiUrl = `https://api.privatezia.biz.id/api/downloader/ytplaymp3?query=${encodeURIComponent(
         text
@@ -4451,14 +4411,14 @@ case 'xplay': {
       const data = res.data;
 
       if (!data || data.status === false || !data.result) {
-        return reply("❌ Couldn't find that song.");
+        return reply("Couldn't find that song.");
       }
 
       const result = data.result;
       const audioUrl = result.downloadUrl; // ✅ this is the correct field
 
       if (!audioUrl) {
-        return reply("❌ API didn’t return any audio link.");
+        return reply("API didn’t return any audio link.");
       }
 
       const title = result.title || text;
@@ -4474,10 +4434,10 @@ case 'xplay': {
         {
           image: { url: thumbnail },
           caption:
-            `🎶 *Now Playing* — NovaCore AI\n\n` +
-            `🎵 *Title:* ${title}\n` +
-            `⏱ *Duration:* ${duration}\n` +
-            `📺 *YouTube:* ${result.videoUrl || "Unknown"}\n\n` +
+            `*Now Playing* — NovaCore AI\n\n` +
+            `*Title:* ${title}\n` +
+            `*Duration:* ${duration}\n` +
+            `*YouTube:* ${result.videoUrl || "Unknown"}\n\n` +
             `🔥 Brought to you by *${getSetting(botNumber, 'botname', 'Jexploit')}*`,
         },
         { quoted: mek }
@@ -4581,7 +4541,7 @@ case "play2": {
         
         await conn.sendMessage(m.chat, {
             image: { url: video.thumbnail },
-            caption: `🎵 *${video.title}*\n⏱ *Duration:* ${video.timestamp}\n👁 *Views:* ${video.views.toLocaleString()}\n\n⏳ *Downloading audio...*`
+            caption: `*${video.title}*\n⏱ *Duration:* ${video.timestamp}\n *Views:* ${video.views.toLocaleString()}\n\n⏳ *Downloading audio...*`
         }, { quoted: m });
 
         // Call the API with ?url= style
@@ -4714,7 +4674,7 @@ break
 case "spotify": {
     if (!text) return reply("Example: spotify runtuh");
 
-    reply("🔍 Searching for the song on Spotify...");
+    reply("Searching for the song on Spotify...");
 
     try {
         // Step 1: Search song on Spotify
@@ -8277,9 +8237,9 @@ case 'activity': {
         const inactiveUsers = getInactiveUsers(from, allParticipants);
         
         let message = `📊 *GROUP ACTIVITY - ${groupName || 'This Group'}*\n\n`;
-        message += `👥 *Total Members:* ${allParticipants.length}\n`;
+        message += `*Total Members:* ${allParticipants.length}\n`;
         message += `✅ *Active Users:* ${activeUsers.length}\n`;
-        message += `❌ *Inactive Users:* ${inactiveUsers.length}\n\n`;
+        message += `*Inactive Users:* ${inactiveUsers.length}\n\n`;
         
         if (activeUsers.length > 0) {
             message += `🏆 *Top 3 Active Users:*\n`;
