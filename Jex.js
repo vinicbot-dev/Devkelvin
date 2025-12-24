@@ -460,6 +460,7 @@ async function handleStatusUpdate(mek, conn) {
     try {
         const botNumber = await conn.decodeJid(conn.user.id);
         
+        // Get settings from database using SettingsManager
         const autoviewstatus = global.settingsManager?.getSetting(botNumber, 'autoviewstatus', false);
         const autoreactstatus = global.settingsManager?.getSetting(botNumber, 'autoreactstatus', false);
         const statusemoji = global.settingsManager?.getSetting(botNumber, 'statusemoji', '💚');
@@ -467,40 +468,30 @@ async function handleStatusUpdate(mek, conn) {
         // Auto view status
         if (autoviewstatus) {
             try {
-                if (mek.key && mek.key.remoteJid === 'status@broadcast') {
-                    try {
-                        await conn.sendReadReceipt(mek.key.remoteJid, mek.key.participant, [mek.key.id]);
-                    } catch (error1) {
-                        try {
-                            await conn.readMessages([{
-                                remoteJid: mek.key.remoteJid,
-                                id: mek.key.id,
-                                participant: mek.key.participant,
-                                fromMe: false
-                            }]);
-                        } catch (error2) {
-                            await conn.chatRead(mek.key.remoteJid, 'unread');
-                        }
-                    }
-                    
-                    await delay(500);
-                }
+                
+                await conn.readMessages([mek.key]);
+                
             } catch (viewError) {
-                // Silent error handling
+                console.error('Error auto-viewing status:', viewError);
             }
         }
 
-        // Auto react to status
+        // Auto react to status - FIXED VERSION
         if (autoreactstatus) {
             try {
+                // Use the emoji from settings, or default to a random one
                 let reactionEmoji = statusemoji || '💚';
                 
+                // If statusemoji is set to "random", pick random from list
                 if (statusemoji === 'random' || statusemoji === 'rand') {
                     const reactions = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉'];
                     reactionEmoji = reactions[Math.floor(Math.random() * reactions.length)];
                 }
                 
+                // For status updates, we need to use the correct approach
+                // Status messages are broadcast messages with special handling
                 if (mek.key && mek.key.remoteJid === 'status@broadcast') {
+                    // Create a proper reaction for status using the status message key
                     const reactionMessage = {
                         react: {
                             text: reactionEmoji,
@@ -508,17 +499,30 @@ async function handleStatusUpdate(mek, conn) {
                         }
                     };
                     
-                    await delay(1000);
+                    // Send reaction to the status
                     await conn.sendMessage(mek.key.remoteJid, reactionMessage);
+                    
+                    
+                    
+                    //  a small delay to avoid rate limiting
+                    await delay(1000);
                 }
             } catch (reactError) {
-                // Silent error handling
+                console.error('Error auto-reacting to status:', reactError);
+                // Log more details for debugging
+                console.log('Status message structure:', {
+                    key: mek.key,
+                    remoteJid: mek.key?.remoteJid,
+                    id: mek.key?.id,
+                    participant: mek.key?.participant
+                });
             }
         }
     } catch (error) {
-        // Silent error handling
+        console.error('Error in status handler:', error);
     }
 }
+
 
 // antilink section 
 function detectUrls(message) {
@@ -770,7 +774,6 @@ module.exports = {
   ephoto,
   loadBlacklist,
   handleAntiTag,
-  handleStatusUpdate,
   delay,
   recordError,
   shouldLogError,
