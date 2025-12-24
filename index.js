@@ -68,6 +68,7 @@ const {
 
 const {
 detectUrls,
+handleStatusUpdate
  } = require('./Jex');
  
 
@@ -253,6 +254,8 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
         
             if (mek.key && mek.key.remoteJid === 'status@broadcast') {
                 if (mek.message?.reactionMessage || mek.message?.protocolMessage) {
+             
+            await handleStatusUpdate(mek, conn);
                     return;
                 }
                 
