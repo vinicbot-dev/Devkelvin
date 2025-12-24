@@ -86,34 +86,60 @@ function getAllSettings(botNumber) {
     };
 }
 
-function checkAccess(sender, botNumber) {
-    // Normalize the sender number
-    const normalizedSender = sender.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
-    
-    // Get owner number from SettingsManager
-    const ownerNumber = getSetting(botNumber, 'ownernumber', '');
-    const ownerJid = ownerNumber ? ownerNumber.replace(/[^0-9]/g, "") + "@s.whatsapp.net" : '';
-    
-    // Get sudo users from SettingsManager
-    const sudoUsers = getSudo(botNumber) || [];
-    
-    // Create array of all authorized numbers (normalized)
-    const authorizedNumbers = [
-        botNumber.replace(/[^0-9]/g, "") + "@s.whatsapp.net", // Bot itself
-        devKelvin, // Your dev number
-        ownerJid, // Owner from database
-        ...sudoUsers // Sudo users from database
-    ].filter(num => num); // Remove empty strings
-    
-    // Check if sender is in authorized list
-    return authorizedNumbers.includes(normalizedSender);
+function getReadReceiptDescription(option) {
+    const descriptions = {
+        "all": "• ✅ Everyone can see your read receipts (blue ticks)",
+        "contacts": "• 🤝 Only your contacts can see your read receipts", 
+        "none": "• 🙈 No one can see your read receipts (read receipts off)"
+    };
+    return descriptions[option] || "Privacy setting updated";
 }
 
+function getLastSeenDescription(option) {
+    const descriptions = {
+        "all": "• 👀 Everyone can see your last seen time",
+        "contacts": "• 🤝 Only your contacts can see your last seen time",
+        "contact_blacklist": "• ✅ Everyone except blocked contacts can see your last seen time", 
+        "none": "• 🙈 No one can see your last seen time (completely hidden)"
+    };
+    return descriptions[option] || "Privacy setting updated";
+}
 
+function getGroupAddDescription(option) {
+    const descriptions = {
+        "all": "• 👥 Anyone can add you to groups",
+        "contacts": "• 🤝 Only your contacts can add you to groups",
+        "contact_blacklist": "• ✅ Everyone except blocked contacts can add you to groups"
+    };
+    return descriptions[option] || "Group add setting updated";
+}
+
+function getOnlineDescription(option) {
+    const descriptions = {
+        "all": "• 💚 Everyone can see when you're online",
+        "match_last_seen": "• 🔄 Your online status follows your last seen privacy settings"
+    };
+    return descriptions[option] || "Online status setting updated";
+}
+
+function getProfilePictureDescription(option) {
+    const descriptions = {
+        "all": "• 👀 Everyone can see your profile picture",
+        "contacts": "• 🤝 Only your contacts can see your profile picture",
+        "contact_blacklist": "• ✅ Everyone except blocked contacts can see your profile picture",
+        "none": "• 🙈 No one can see your profile picture (completely hidden)"
+    };
+    return descriptions[option] || "Profile picture setting updated";
+}
 
 // Export the functions
 module.exports = {
     generateSettingsText,
     getAllSettings,
+    getReadReceiptDescription,
+    getLastSeenDescription,
+    getOnlineDescription,
+    getProfilePictureDescription,
+    getGroupAddDescription,
     checkAccess
 };
