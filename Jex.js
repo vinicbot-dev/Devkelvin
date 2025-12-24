@@ -465,33 +465,33 @@ async function handleStatusUpdate(mek, conn) {
         const autoreactstatus = global.settingsManager?.getSetting(botNumber, 'autoreactstatus', false);
         const statusemoji = global.settingsManager?.getSetting(botNumber, 'statusemoji', '💚');
         
+        // Check if this is a status message
+        const isStatusMessage = mek.key && mek.key.remoteJid === 'status@broadcast';
+        
+        if (!isStatusMessage) {
+            return;
+        }
+
         // Auto view status
         if (autoviewstatus) {
             try {
-                
-                await conn.readMessages([mek.key]);
-                
-            } catch (viewError) {
-                console.error('Error auto-viewing status:', viewError);
-            }
+                if (mek.key && mek.key.remoteJid === 'status@broadcast') {
+                    await conn.readMessages([mek.key]);
+                }
+            } catch (viewError) {}
         }
 
-        // Auto react to status - FIXED VERSION
+        // Auto react to status
         if (autoreactstatus) {
             try {
-                // Use the emoji from settings, or default to a random one
                 let reactionEmoji = statusemoji || '💚';
                 
-                // If statusemoji is set to "random", pick random from list
                 if (statusemoji === 'random' || statusemoji === 'rand') {
                     const reactions = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉'];
                     reactionEmoji = reactions[Math.floor(Math.random() * reactions.length)];
                 }
                 
-                // For status updates, we need to use the correct approach
-                // Status messages are broadcast messages with special handling
                 if (mek.key && mek.key.remoteJid === 'status@broadcast') {
-                    // Create a proper reaction for status using the status message key
                     const reactionMessage = {
                         react: {
                             text: reactionEmoji,
@@ -499,28 +499,12 @@ async function handleStatusUpdate(mek, conn) {
                         }
                     };
                     
-                    // Send reaction to the status
-                    await conn.sendMessage(mek.key.remoteJid, reactionMessage);
-                    
-                    
-                    
-                    //  a small delay to avoid rate limiting
+                    await conn.sendMessage('status@broadcast', reactionMessage);
                     await delay(1000);
                 }
-            } catch (reactError) {
-                console.error('Error auto-reacting to status:', reactError);
-                // Log more details for debugging
-                console.log('Status message structure:', {
-                    key: mek.key,
-                    remoteJid: mek.key?.remoteJid,
-                    id: mek.key?.id,
-                    participant: mek.key?.participant
-                });
-            }
+            } catch (reactError) {}
         }
-    } catch (error) {
-        console.error('Error in status handler:', error);
-    }
+    } catch (error) {}
 }
 
 
@@ -771,6 +755,7 @@ module.exports = {
   loadStoredMessages,
   saveStoredMessages,
   storeMessage,
+  handleStatusUpdate,
   ephoto,
   loadBlacklist,
   handleAntiTag,
