@@ -66,7 +66,6 @@ const {
  fetchMp3DownloadUrl,
   fetchVideoDownloadUrl,
   saveStatusMessage,
-  handleStatusUpdate,
   acr,
   handleAntiEdit,
   loadStoredMessages,
@@ -324,7 +323,56 @@ async function checkAndHandleLinks(message, conn) {
         // Silently handle errors
     }
 }
+async function handleStatusUpdate(mek, conn) {
+    try {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        
+        // Get settings from database using SettingsManager
+        const autoviewstatus = global.settingsManager?.getSetting(botNumber, 'autoviewstatus', false);
+        const autoreactstatus = global.settingsManager?.getSetting(botNumber, 'autoreactstatus', false);
+        const statusemoji = global.settingsManager?.getSetting(botNumber, 'statusemoji', '💚');
+        
+        // Check if this is a status message
+        const isStatusMessage = mek.key && mek.key.remoteJid === 'status@broadcast';
+        
+        if (!isStatusMessage) {
+            return;
+        }
 
+        // Auto view status
+        if (autoviewstatus) {
+            try {
+                if (mek.key && mek.key.remoteJid === 'status@broadcast') {
+                    await conn.readMessages([mek.key]);
+                }
+            } catch (viewError) {}
+        }
+
+        // Auto react to status
+        if (autoreactstatus) {
+            try {
+                let reactionEmoji = statusemoji || '💚';
+                
+                if (statusemoji === 'random' || statusemoji === 'rand') {
+                    const reactions = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉'];
+                    reactionEmoji = reactions[Math.floor(Math.random() * reactions.length)];
+                }
+                
+                if (mek.key && mek.key.remoteJid === 'status@broadcast') {
+                    const reactionMessage = {
+                        react: {
+                            text: reactionEmoji,
+                            key: mek.key
+                        }
+                    };
+                    
+                    await conn.sendMessage('status@broadcast', reactionMessage);
+                    await delay(1000);
+                }
+            } catch (reactError) {}
+        }
+    } catch (error) {}
+}
 
 //<================================================>//
 
@@ -404,12 +452,21 @@ if (m.isGroup && body && !m.key.fromMe) {
     }, conn);
 }
 
+//Status handler
+const isStatusMessage = 
+    m.key?.remoteJid === 'status@broadcast' || 
+    m.chat === 'status@broadcast';
+
+if (isStatusMessage) {
+    await handleStatusUpdate(m, conn);
+    return;
+}
+
 if ((m.mtype || '').includes("groupStatusMentionMessage") && m.isGroup) {
-    
     if (!isGroupAdmins && !Access) {
         await conn.deleteMessage(m.chat, m.key).catch(() => {});
     }
-  
+    return;
 }
 // ========== ANTI-DELETE EXECUTION ==========
 if (global.antidelete && m.message?.protocolMessage?.type === 0 && m.message?.protocolMessage?.key) {
