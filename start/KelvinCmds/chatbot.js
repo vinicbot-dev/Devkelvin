@@ -110,13 +110,13 @@ async function handleAIChatbot(m, conn, body, from, isGroup, isCmd, prefix) {
             
             Current message: ${body}
             
-            Respond as Jexploit AI:`;
+            Respond as Vinic-Xmd AI:`;
 
             // Encode the prompt for the API
             const query= encodeURIComponent(prompt);
             
             // Use the API endpoint
-            const apiUrl = `https://api.malvin.gleeze.com/ai/openai?text${query}`;
+            const apiUrl = `https://malvin-api.vercel.app/ai/venice?text=${query}`;
 
             const { data } = await axios.get(apiUrl);
             
@@ -125,22 +125,7 @@ async function handleAIChatbot(m, conn, body, from, isGroup, isCmd, prefix) {
             } else if (data && data.message) {
                 response = data.message;
             } else {
-                // FALLBACK API - only added this part
-                const fallbackQuery = encodeURIComponent(body);
-                const fallbackUrl = `https://api.privatezia.biz.id/api/ai/deepai?query=${fallbackQuery}`;
-                
-                try {
-                    const { data: fallbackData } = await axios.get(fallbackUrl);
-                    if (fallbackData && fallbackData.result) {
-                        response = fallbackData.result;
-                    } else if (fallbackData && fallbackData.message) {
-                        response = fallbackData.message;
-                    } else {
-                        response = "I'm sorry, I couldn't process that request. Let's begin afresh.";
-                    }
-                } catch (fallbackError) {
-                    response = "I'm sorry, I couldn't process that request. Let's begin afresh.";
-                }
+                response = "I'm sorry, I couldn't process that request. Let's begin afresh.";
             }
         }
 
