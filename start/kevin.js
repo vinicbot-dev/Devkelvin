@@ -575,7 +575,7 @@ case 'antiedit': {
     const value = args[1]?.toLowerCase();
     
     if (!subcommand) {
-        return reply(`✏️ *Anti-Edit System*
+        return reply(`*Anti-Edit System*
         
 Usage:
 • ${prefix}antiedit on - Enable anti-edit (default: chat mode)
@@ -1018,139 +1018,6 @@ ${prefix + command} *ChannelName|ChannelDesc*`)}
         console.error('Error creating channel:', error);
         m.reply(`${error.message}`);
     }
-}
-break
-case "checkupdate":
-case "updatecheck":
-case "version": {
-    try {
-        // Read local version data
-        const localVersionPath = path.join(__dirname, '../data/version.json');
-        let localVersion = 'Unknown';
-        let changelog = 'No changelog available.';
-        
-        if (fs.existsSync(localVersionPath)) {
-            try {
-                const localData = JSON.parse(fs.readFileSync(localVersionPath, 'utf8'));
-                localVersion = localData.version || 'Unknown';
-                changelog = localData.changelog || 'No changelog available.';
-            } catch (e) {
-                console.error('Error reading local version file:', e);
-            }
-        }
-
-        // Fetch latest version data from GitHub
-        const rawVersionUrl = 'https://raw.githubusercontent.com/Kevintech-hub/Vinic-Xmd-/main/data/version.json';
-        let latestVersion = 'Unknown';
-        let latestChangelog = 'No changelog available.';
-        
-        try {
-            const response = await axios.get(rawVersionUrl, { timeout: 10000 });
-            latestVersion = response.data.version || 'Unknown';
-            latestChangelog = response.data.changelog || 'No changelog available.';
-        } catch (error) {
-            console.error('Failed to fetch latest version:', error);
-        }
-
-        // Count case commands in this file
-        let caseCount = 0;
-        const caseCommands = new Set();
-        
-        try {
-            // Read the current file content
-            const currentFileContent = fs.readFileSync(__filename, 'utf8');
-            
-            // Regex to find case statements - matches "case 'command':" or "case "command":"
-            const caseRegex = /case\s+(["'])(.*?)\1\s*:/g;
-            let match;
-            
-            while ((match = caseRegex.exec(currentFileContent)) !== null) {
-                caseCount++;
-                caseCommands.add(match[2].trim());
-            }
-            
-            console.log(`Found ${caseCount} case commands in the file`);
-            
-        } catch (e) {
-            console.error('Error counting case commands:', e);
-            // Provide a fallback count based on your menu sections
-            caseCount = 150; // Approximate count based on your menu
-        }
-
-        // System info
-        const uptime = runtime(process.uptime());
-        const ramUsage = (process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2);
-        const totalRam = (os.totalmem() / 1024 / 1024).toFixed(2);
-        const hostName = os.hostname() || 'Unknown';
-        
-        let lastUpdate = 'Unknown';
-        try {
-            if (fs.existsSync(localVersionPath)) {
-                lastUpdate = fs.statSync(localVersionPath).mtime.toLocaleString();
-            }
-        } catch (e) {
-            console.error('Error getting last update time:', e);
-        }
-
-        // GitHub repo URL
-        const githubRepo = 'https://github.com/Kevintech-hub/Vinic-Xmd-';
-
-        // Check update status
-        let updateStatus = '✅ *Your Vinic-Xmd bot is up-to-date!*';
-        let needsUpdate = false;
-        
-        if (localVersion !== latestVersion && latestVersion !== 'Unknown') {
-            updateStatus = `*😵‍💫 Your Vinic-Xmd bot is outdated!*
-🔹 *Current version:* ${localVersion}
-🔹 *Latest version:* ${latestVersion}
-
-*Use .update to update your bot.*`;
-            needsUpdate = true;
-        }
-
-        // Get time-based greeting
-        const currentHour = new Date().getHours();
-        let greeting = 'Hello';
-        if (currentHour < 12) greeting = 'Good Morning';
-        else if (currentHour < 18) greeting = 'Good Afternoon';
-        else greeting = 'Good Evening';
-
-        const statusMessage = `🌟 *${greeting}, ${pushname || 'User'}!* 🌟\n\n` +
-            `🤖 *Bot Name:* Vinic-Xmd\n` +
-            `🔖 *Current version:* ${localVersion}\n` +
-            `📢 *Latest version:* ${latestVersion}\n` +
-            `📂 *Total Commands:* ${caseCount}\n\n` +
-            `💾 *System Info:*\n` +
-            `⏰ *Uptime:* ${uptime}\n` +
-            `📟 *RAM Usage:* ${ramUsage}MB / ${totalRam}MB\n` +
-            `⚙️ *Host Name:* ${hostName}\n` +
-            `📅 *Last Update:* ${lastUpdate}\n\n` +
-            `📑 *Changelog:*\n${latestChangelog}\n\n` +
-            `⭐ *GitHub Repo:* ${githubRepo}\n\n` +
-            `${updateStatus}\n\n` +
-            `👋 *Hey! Don't forget to fork & star the repo!*`;
-
-        // Send the status message with an image
-        await conn.sendMessage(m.chat, {
-            image: { url: 'https://files.catbox.moe/ptpl5c.jpeg' },
-            caption: statusMessage,
-            contextInfo: {
-                mentionedJid: [m.sender],
-                externalAdReply: {
-                    title: "Jexpliot Update Check",
-                    body: `Version: ${localVersion} | Commands: ${caseCount} | Status: ${needsUpdate ? 'Outdated' : 'Up-to-date'}`,
-                    thumbnail: await getBuffer('https://files.catbox.moe/uy3kq9.jpg').catch(() => null),
-                    mediaType: 1,
-                    sourceUrl: githubRepo
-                }
-            }
-        }, { quoted: m });
-
-    } catch (error) {
-        console.error('Error in checkupdate command:', error);
-        reply('❌ An error occurred while checking for updates. Please try again later.');
-    }
-    
 }
 break
 case "online": {
@@ -1819,7 +1686,7 @@ Current Status: ${getSetting(botNumber, 'welcome', true) ? '✅ Enabled' : '❌ 
         
         case 'status': {
             const isEnabled = getSetting(botNumber, 'welcome', true);
-            reply(`👋 *Welcome System Status*
+            reply(`*Welcome System Status*
             
 • Status: ${isEnabled ? '✅ Enabled' : '❌ Disabled'}
 • Features: ${isEnabled ? 'Welcome + Goodbye messages' : 'Disabled'}
