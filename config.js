@@ -63,7 +63,7 @@ global.AI_CHAT = "false", // Set to "true" to enable AI chatbot by default
 
 // ========= Add modeStatus and versions ========= //
 global.modeStatus = "Public";
-global.versions = "1.3.9";
+global.versions = "1.4.0";
 
 // ========= Setting WM ========= //
 global.packname = 'Jexploit';
