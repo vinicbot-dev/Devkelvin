@@ -80,7 +80,9 @@ const {
   writeExifVid
 } = require('./start/lib/exif');
 
-const { saveStartTime } = require('./start/Core/uptimeManager');
+
+
+
 
 const usePairingCode = true;
 
@@ -630,13 +632,7 @@ conn.sendStatusMention = async (content, jids = []) => {
   conn.ev.on('connection.update', async (update) => {
     let { Connecting } = require("./connect");
     Connecting({ update, conn, Boom, DisconnectReason, sleep, color, clientstart });
-    
-    // Save start time when bot connects
-    const { connection } = update;
-    if (connection === 'open') {
-        saveStartTime();
-    }
-});;
+  });
   
 // In the group-participants.update event handler
 conn.ev.on('group-participants.update', async (anu) => {
