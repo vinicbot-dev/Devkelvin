@@ -15,8 +15,6 @@ function saveStartTime() {
     }
     
     fs.writeFileSync(START_TIME_FILE, JSON.stringify(data, null, 2));
-    console.log('✅ Bot start time saved:', new Date(data.startTime).toLocaleString());
-}
 
 function loadStartTime() {
     try {
