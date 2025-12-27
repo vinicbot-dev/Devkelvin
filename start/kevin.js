@@ -90,7 +90,7 @@ addSudo,
 removeSudo,
 hasSudo
 } = require('./Core/settingManager');
-
+const { getPersistentUptime } = require('./Core/uptimeManager');
 const { generateSettingsText, 
 getProfilePictureDescription,
 getOnlineDescription,
@@ -940,7 +940,9 @@ case 'delsudo': {
   
 }
 break
-case 'cekidch': case 'idch': {
+case 'cekidch':
+case 'channeljid': 
+case 'idch': {
 if (!text) return reply("*channel link*")
 if (!text.includes("https://whatsapp.com/channel/")) return reply("*In valid link*")
 let result = text.split('https://whatsapp.com/channel/')[1]
@@ -2215,6 +2217,51 @@ const startTime = performance.now();
    }
 }
 break
+case "ping2": {
+    const startTime = performance.now();
+
+    try {
+        const sentMessage = await conn.sendMessage(m.chat, {
+            text: "⚡ Testing connection...",
+            contextInfo: { quotedMessage: m.message }
+        });
+        
+        const endTime = performance.now();
+        const ping = `${(endTime - startTime).toFixed(2)}`;
+        
+        // Get PERSISTENT uptime (won't reset on restart)
+        const uptimeData = getPersistentUptime();
+        const uptimeFormatted = uptimeData.formatted;
+        
+        // Get bot name from settings
+        const botname = getSetting(botNumber, 'botname', 'JEXPLOIT');
+        
+        // Get version from global or use default
+        const version = global.versions || versions || '2.0.0';
+        
+        // Formatted response
+        const botInfo = `
+╭──❍ 💫 ${botname} ❍─
+┊ 🚀 ᴘɪɴɢ    : ${ping} ms
+┊ ⏱  ᴜᴘᴛɪᴍᴇ  : ${uptimeFormatted}
+┊ 🔖 ᴠᴇʀsɪᴏɴ  : ${version}
+╰━━━━━━━━━`;
+        
+        await conn.sendMessage(m.chat, {
+            text: botInfo,
+            edit: sentMessage.key,
+            contextInfo: { quotedMessage: m.message }
+        });
+
+    } catch (error) {
+        await conn.sendMessage(m.chat, {
+            text: '❌ An error occurred while testing connection.',
+            contextInfo: { quotedMessage: m.message }
+        });
+    }
+    
+}
+break
 case "sc": {
   try {
     // GitHub repository details
@@ -2313,9 +2360,10 @@ case 'repo': {
     
 }
 break
-//======[CMD TOOLS MENU]=====
 case "alive": {
-    const botUptime = runtime(process.uptime());
+    // Get PERSISTENT uptime (won't reset on restart)
+    const uptimeData = getPersistentUptime();
+    const botUptime = uptimeData.formatted;
     
     // Array of image URLs
     const imageUrls = [
@@ -2330,7 +2378,6 @@ case "alive": {
         "https://files.catbox.moe/ckie6b.m4a",
         "https://files.catbox.moe/e0dwjw.mp3",
         "https://files.catbox.moe/zhr5m2.mp3"
-        
     ];
     
     // Randomly select an image URL
@@ -2344,7 +2391,7 @@ case "alive": {
         m.chat, 
         { 
             image: { url: randomImageUrl },
-            caption: `*🌹Hi. I am 👑 ${getSetting(botNumber, 'botname', 'JEXPLOIT')}, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime:${botUptime}*`
+            caption: `*🌹Hi. I am 👑 ${getSetting(botNumber, 'botname', 'JEXPLOIT')}, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime: ${botUptime}*`
         },
         { quoted: m }
     );
@@ -2359,53 +2406,59 @@ case "alive": {
         },
         { quoted: m }
     );
+    
 }
 break
 case 'botinfo': {
-  const botInfo = `
+    // Get PERSISTENT uptime
+    const uptimeData = getPersistentUptime();
+    const persistentRuntime = uptimeData.formatted;
+    
+    const botInfo = `
 ╭─ ⌬ Bot Info
 │ • Name     : ${botname}
 │ • Owner    : ${ownername}
 │ • Version  : ${global.versions}
 │ • ᴄᴍᴅs    : 100+
 │ • Developer: Kelvin tech
-│ • Runtime  : ${runtime(process.uptime())}
+│ • Runtime  : ${persistentRuntime}
 ╰─────────────`
 
-  const imageUrl = "https://files.catbox.moe/1a4dbr.jpg";
-  
-  // Array of audio URLs
-  const audioUrls = [
+    const imageUrl = "https://files.catbox.moe/1a4dbr.jpg";
+    
+    // Array of audio URLs
+    const audioUrls = [
         "https://files.catbox.moe/ndrrz3.mp3",
         "https://files.catbox.moe/yny58w.mp3",
         "https://files.catbox.moe/ckie6b.m4a",
         "https://files.catbox.moe/e0dwjw.mp3",
         "https://files.catbox.moe/zhr5m2.mp3"
-        
     ];
-  // Randomly select an audio URL
-  const randomAudioUrl = audioUrls[Math.floor(Math.random() * audioUrls.length)];
-  
-  // Send the image with caption
-  await conn.sendMessage(
-      m.chat, 
-      { 
-          image: { url: imageUrl },
-          caption: `*🌹Hi. I am 👑 ${getSetting(botNumber, 'botname', 'Jexploit')}, a friendly WhatsApp bot.*${botInfo}`
-      },
-      { quoted: m }
-  );
-  
-  // Send the randomly selected audio as PTT
-  await conn.sendMessage(
-      m.chat,
-      {
-          audio: { url: randomAudioUrl },
-          mp3: true,
-          mimetype: 'audio/mp4'
-      },
-      { quoted: m }
-  );
+    
+    // Randomly select an audio URL
+    const randomAudioUrl = audioUrls[Math.floor(Math.random() * audioUrls.length)];
+    
+    // Send the image with caption
+    await conn.sendMessage(
+        m.chat, 
+        { 
+            image: { url: imageUrl },
+            caption: `*🌹Hi. I am 👑 ${getSetting(botNumber, 'botname', 'Jexploit')}, a friendly WhatsApp bot.*${botInfo}`
+        },
+        { quoted: m }
+    );
+    
+    // Send the randomly selected audio as PTT
+    await conn.sendMessage(
+        m.chat,
+        {
+            audio: { url: randomAudioUrl },
+            mp3: true,
+            mimetype: 'audio/mp4'
+        },
+        { quoted: m }
+    );
+    
 }
 break
 case "bothosting": {
@@ -3063,38 +3116,50 @@ case 'getbisnis': case 'getbusiness': {
 }
 break
 case "botstatus": {
-  const used = process.memoryUsage();
-  const ramUsage = `${formatSize(used.heapUsed)} / ${formatSize(os.totalmem())}`;
-  const freeRam = formatSize(os.freemem());
-  
-  // Properly await checkDiskSpace
-  const disk = await checkDiskSpace(process.cwd()); 
-  
-  const latencyStart = performance.now();
-  await reply("⏳ *Calculating ping...*");
-  const latencyEnd = performance.now();
-  const ping = `${(latencyEnd - latencyStart).toFixed(2)} ms`;
+    const used = process.memoryUsage();
+    const ramUsage = `${formatSize(used.heapUsed)} / ${formatSize(os.totalmem())}`;
+    const freeRam = formatSize(os.freemem());
+    
+    // Get disk space
+    const disk = await checkDiskSpace(process.cwd()); 
+    
+    // Calculate ping
+    const latencyStart = performance.now();
+    await reply("⏳ *Calculating ping...*");
+    const latencyEnd = performance.now();
+    const ping = `${(latencyEnd - latencyStart).toFixed(2)} ms`;
 
-  const { download, upload } = await checkBandwidth();
-  const uptime = runtime(process.uptime());
+    // Get bandwidth
+    const { download, upload } = await checkBandwidth();
+    
+    // Get persistent uptime
+    const uptimeData = getPersistentUptime();
+    const uptime = uptimeData.formatted;
 
-      const response = `
-      * BOT STATUS *
+    // Formatted response with better visual design
+    const response = `
+╭─❖「 *BOT STATUS* 」❖─
+│
+│  *Response Speed:* ${ping}
+│  *Uptime:* ${uptime}
+│ 
+│  *RAM Usage:* ${ramUsage}
+│  *Free RAM:* ${freeRam}
+│ 
+│  *Disk Usage:* ${formatSize(disk.size - disk.free)} / ${formatSize(disk.size)}
+│  *Free Disk:* ${formatSize(disk.free)}
+│ 
+│  *Platform:* ${os.platform()}
+│  *NodeJS:* ${process.version}
+│  *CPU:* ${os.cpus()[0].model.split('@')[0]}
+│ 
+│  *Downloaded:* ${download}
+│  *Uploaded:* ${upload}
+╰─────────────────────⳹
+`.trim();
 
- *Ping:* ${ping}
- *Uptime:* ${uptime}
- *RAM Usage:* ${ramUsage}
- *Free RAM:* ${freeRam}
- *Disk Usage:* ${formatSize(disk.size - disk.free)} / ${formatSize(disk.size)}
- *Free Disk:* ${formatSize(disk.free)}
- *Platform:* ${os.platform()}
- *NodeJS Version:* ${process.version}
- *CPU Model:* ${os.cpus()[0].model}
- *Downloaded:* ${download}
- *Uploaded:* ${upload}
-`;
-  await conn.sendMessage(m.chat, { text: response.trim() }, { quoted: m });
-  
+    await conn.sendMessage(m.chat, { text: response }, { quoted: m });
+    break;
 }
 break
 case "getabout": {
@@ -7053,112 +7118,67 @@ break
 case "userinfo":
 case "ui": {
     try {
-        // 1. DETERMINE TARGET USER
-        let userJid = quoted?.sender || 
-                     mek.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0] || 
-                     sender;
+        // Get target user
+        let target = quoted?.sender || 
+                    m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0] || 
+                    m.sender;
 
-        // 2. VERIFY USER EXISTS
-        const [user] = await conn.onWhatsApp(userJid).catch(() => []);
-        if (!user?.exists) return reply("❌ User not found on WhatsApp");
+        // Check if user exists
+        const [user] = await conn.onWhatsApp(target).catch(() => []);
+        if (!user?.exists) return reply("❌ User not found");
 
-        // 3. GET PROFILE PICTURE
-        let ppUrl;
+        // Get profile picture
+        let pp;
         try {
-            ppUrl = await conn.profilePictureUrl(userJid, 'image');
+            pp = await conn.profilePictureUrl(target, 'image');
         } catch {
-            ppUrl = 'https://i.ibb.co/KhYC4FY/1221bc0bdd2354b42b293317ff2adbcf-icon.png';
+            pp = 'https://i.ibb.co/KhYC4FY/1221bc0bdd2354b42b293317ff2adbcf-icon.png';
         }
 
-        // 4. GET NAME (MULTI-SOURCE FALLBACK)
-        let userName = userJid.split('@')[0];
+        // Get user details
+        const userName = user.verifiedName || user.name || target.split('@')[0];
+        const number = target.split('@')[0];
+        const accountType = user.isBusiness ? "Business" : "Personal";
+
+        // Get user bio/status
+        let bio = "No status";
         try {
-            // Try group participant info first
-            if (isGroup) {
-                const member = participants.find(p => p.id === userJid);
-                if (member?.notify) userName = member.notify;
-            }
-            
-            // Try contact DB
-            if (userName === userJid.split('@')[0] && conn.contactDB) {
-                const contact = await conn.contactDB.get(userJid).catch(() => null);
-                if (contact?.name) userName = contact.name;
-            }
-            
-            // Try presence as final fallback
-            if (userName === userJid.split('@')[0]) {
-                const presence = await conn.presenceSubscribe(userJid).catch(() => null);
-                if (presence?.pushname) userName = presence.pushname;
-            }
-        } catch (e) {
-            console.log("Name fetch error:", e);
+            const status = await conn.fetchStatus(target);
+            if (status?.status) bio = status.status;
+        } catch {}
+
+        // Check group role if in group
+        let role = "";
+        if (isGroup && groupMetadata) {
+            const member = participants.find(p => p.id === target);
+            role = member?.admin === 'admin' ? "👑 Admin" : "👥 Member";
         }
 
-        // 5. GET BIO/ABOUT
-        let bio = {};
-        try {
-            // Try personal status
-            const statusData = await conn.fetchStatus(userJid).catch(() => null);
-            if (statusData?.status) {
-                bio = {
-                    text: statusData.status,
-                    type: "Personal",
-                    updated: statusData.setAt ? new Date(statusData.setAt * 1000) : null
-                };
-            } else {
-                // Try business profile
-                const businessProfile = await conn.getBusinessProfile(userJid).catch(() => null);
-                if (businessProfile?.description) {
-                    bio = {
-                        text: businessProfile.description,
-                        type: "Business",
-                        updated: null
-                    };
-                }
-            }
-        } catch (e) {
-            console.log("Bio fetch error:", e);
-        }
-
-        // 6. GET GROUP ROLE
-        let groupRole = "";
-        if (isGroup) {
-            const participant = participants.find(p => p.id === userJid);
-            groupRole = participant?.admin ? "👑 Admin" : "👥 Member";
-        }
-
-        // 7. FORMAT OUTPUT
-        const formattedBio = bio.text ? 
-            `${bio.text}\n└─ 📌 ${bio.type} Bio${bio.updated ? ` | 🕒 ${bio.updated.toLocaleString()}` : ''}` : 
-            "No bio available";
-
+        // Format response
         const userInfo = `
-*GC MEMBER INFORMATION 🧊*
+ *USER INFORMATION*
 
-📛 *Name:* ${userName}
-🔢 *Number:* ${userJid.replace(/@.+/, '')}
-📌 *Account Type:* ${user.isBusiness ? "💼 Business" : user.isEnterprise ? "🏢 Enterprise" : "👤 Personal"}
+ *Name:* ${userName}
+ *Number:* ${number}
+ *Account:* ${accountType}
+ *Status:* ${bio}
+${role ? `👥 *Role:* ${role}` : ""}
 
-*📝 About:*
-${formattedBio}
+✅ *Registered:* Yes
+${user.verifiedName ? "☑️ *Verified:* Yes" : ""}
+        `.trim();
 
-*⚙️ Account Info:*
-✅ Registered: ${user.isUser ? "Yes" : "No"}
-🛡️ Verified: ${user.verifiedName ? "✅ Verified" : "❌ Not verified"}
-${isGroup ? `👥 *Group Role:* ${groupRole}` : ''}
-`.trim();
-
-        // 8. SEND RESULT
+        // Send result
         await conn.sendMessage(from, {
-            image: { url: ppUrl },
+            image: { url: pp },
             caption: userInfo,
-            mentions: [userJid]
-        }, { quoted: mek });
+            mentions: [target]
+        }, { quoted: m });
 
     } catch (e) {
-        console.error("Person command error:", e);
-        reply(`❌ Error: ${e.message || "Failed to fetch profile"}`);
+        reply("❌ Error fetching user info");
     }
+    break;
 }
 break
 case "trt": 
