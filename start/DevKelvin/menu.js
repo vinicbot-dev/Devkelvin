@@ -178,7 +178,7 @@ async function generateMenu(conn, m, prefix, global) {
         },
         cmdTool: {
             title: ' *BOTSTATUS MENU* ',
-            commands: ['ping', 'pair', 'ping2', 'bothosting', 'repo', 'botstatus', 'botinfo', 'sc', 
+            commands: ['ping', 'pair', 'uptime', 'uptime', 'bothosting', 'repo', 'botstatus', 'botinfo', 'sc', 
                       'serverinfo', 'alive'],
         },
         other: {
