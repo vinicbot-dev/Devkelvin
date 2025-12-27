@@ -2217,7 +2217,8 @@ const startTime = performance.now();
    }
 }
 break
-case "ping2": {
+case "up":
+case "uptime": {
     const startTime = performance.now();
 
     try {
