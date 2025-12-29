@@ -230,9 +230,7 @@ function sleep(ms) {
 
 
 
-async function clientstart() {
-    // Try to load session (MEGA or local)
-    const creds = await loadSession();
+async function clientstart() { 
     
     // Use multi-file auth state
     const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
