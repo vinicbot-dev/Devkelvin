@@ -720,8 +720,8 @@ conn.ev.on('connection.update', async (update) => {
         
         setTimeout(() => {
             isProcessingEnabled = true;
-            console.log('[🤗🤗🤗');
-        }, 3000); // 3 second delay
+            console.log('[🤗🤗🤗]');
+        }, 5000); // 5 second delay
     }
     
     if (update.connection === 'close') {
@@ -730,6 +730,7 @@ conn.ev.on('connection.update', async (update) => {
 });
   
 conn.ev.on('group-participants.update', async (anu) => {
+      try {
     if (global.botConnectedTime && (anu.timestamp * 1000 < global.botConnectedTime - 3000)) return;
     
         const botNumber = await conn.decodeJid(conn.user.id);
