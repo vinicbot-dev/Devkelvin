@@ -324,15 +324,17 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
             console.log('[JEXPLOIT] Bot still starting up, skipping message...');
             return;
         }
-        // Check if message is old (more than 10 seconds before bot started)
-            const messageTime = mek.messageTimestamp ? mek.messageTimestamp * 1000 : Date.now();
-            if (global.botConnectedTime && messageTime < global.botConnectedTime - 10000) {
-                console.log(chalk.gray(`[JEXPLOIT] Skipping old message from ${new Date(messageTime).toLocaleTimeString()}`));
-                return;
-            }
             
         let mek = chatUpdate.messages[0];
         if (!mek.message) return;
+        
+      
+        const messageTime = mek.messageTimestamp ? mek.messageTimestamp * 1000 : Date.now();
+        if (global.botConnectedTime && messageTime < global.botConnectedTime - 10000) {
+            console.log(chalk.gray(`[JEXPLOIT] Skipping old message from ${new Date(messageTime).toLocaleTimeString()}`));
+            return;
+        }
+        
         mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message;
     
         if (mek.key && mek.key.remoteJid === 'status@broadcast') {
