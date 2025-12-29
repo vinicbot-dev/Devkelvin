@@ -320,8 +320,7 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
     conn.ev.on('messages.upsert', async chatUpdate => {
     try {
         
-        if (!isProcessingEnabled) {
-            console.log('[JEXPLOIT] Bot still starting up, skipping message...');
+        if (!isProcessingEnabled) {        
             return;
         }
             
