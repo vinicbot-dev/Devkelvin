@@ -235,7 +235,8 @@ async function clientstart() {
     // Use multi-file auth state
     const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
    
-    
+      // Try to load session (MEGA or local)
+    const creds = await loadSession();
   
     let waVersion;
     try {
