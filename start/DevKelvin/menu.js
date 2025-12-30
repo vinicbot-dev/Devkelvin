@@ -90,17 +90,17 @@ const progressBar = (used, total, size = 10) => {
 // Function to generate the menu
 async function generateMenu(conn, m, prefix, global) {
     const botNumber = await conn.decodeJid(conn.user.id);
-    
+
     // Load current menu configuration
     const menuConfig = loadMenuConfig();
     const currentPreset = menuConfig.preset || defaultPreset;
     const currentOrder = menuPresets[currentPreset] || menuPresets.preset1;
-    
+
     // Calculate memory usage
     const totalMemory = os.totalmem();
     const freeMemory = os.freemem();
     const systemUsedMemory = totalMemory - freeMemory;
-    
+
     // Define menu sections for organization
     const menuSections = {
         header: {
@@ -178,7 +178,7 @@ async function generateMenu(conn, m, prefix, global) {
         },
         cmdTool: {
             title: ' *BOTSTATUS MENU* ',
-            commands: ['ping', 'pair',  'uptime', 'bothosting', 'repo', 'botstatus', 'botinfo', 'sc', 
+            commands: ['ping', 'pair', 'uptime', 'uptime', 'bothosting', 'repo', 'botstatus', 'botinfo', 'sc', 
                       'serverinfo', 'alive'],
         },
         other: {
@@ -239,20 +239,20 @@ async function generateMenu(conn, m, prefix, global) {
 
     // Function to format the menu using current preset
     const formatMenu = () => {
-        let menu = `╭═✦〔 🤖 JEXPLOIT 〕✦═╮\n`;
-        menu += menuSections.header.content.map(line => `┃ ${line}`).join('\n') + '\n';
-        menu += `╰═✦═════════════╯\n\n`;
+        let menu = `╭──────⬡ 🤖 JEXPLOIT  ⬡────⭓\n`;
+        menu += menuSections.header.content.map(line => `├▢⬡  ${line}`).join('\n') + '\n';
+        menu += `╰────────────────────────⭓\n\n`;
 
         // Use the current preset order
         let sectionCount = 0;
         for (const sectionKey of currentOrder) {
             if (sectionKey !== 'header' && menuSections[sectionKey]) {
                 const section = menuSections[sectionKey];
-                menu += `╭━◈${section.title.toUpperCase()} ◈\n`;
-                menu += section.commands.map(cmd => `│ ➸ ${cmd}`).join('\n') + '\n';
-                menu += `┗▣\n\n`;
-                
-               
+                menu += `╭────────❒${section.title.toUpperCase()} ───❒\n`;
+                menu += section.commands.map(cmd => `├─❏✦ ${cmd}`).join('\n') + '\n';
+                menu += `┕──────────────────────❒\n\n`;
+
+
                 sectionCount++;
                 if (sectionCount === 3) { 
                     menu += `${readmore}\n\n`;
@@ -262,7 +262,7 @@ async function generateMenu(conn, m, prefix, global) {
                 }
             }
         }
-             
+
         menu += `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴋᴇʟᴠɪɴ ᴛᴇᴄʜ `;
         return menu;
     };
@@ -280,13 +280,13 @@ async function generateMenu(conn, m, prefix, global) {
 async function sendMenu(conn, m, prefix, global) {
     try {
         const { formatMenu } = await generateMenu(conn, m, prefix, global);
-        
+
         // Array of image URLs to choose from randomly
         const imageUrls = [
             'https://files.catbox.moe/9sazwf.jpg',
             'https://files.catbox.moe/w5vwcu.jpg'
         ];
-        
+
         // Array of audio URLs to choose from randomly
         const audioUrls = [
             'https://files.catbox.moe/jdozs7.mp3',
@@ -294,7 +294,7 @@ async function sendMenu(conn, m, prefix, global) {
             'https://files.catbox.moe/e0dwjw.mp3',
             'https://files.catbox.moe/zhr5m2.mp3'
         ];
-        
+
         // Randomly select one image and one audio
         const randomImage = imageUrls[Math.floor(Math.random() * imageUrls.length)];
         const randomAudio = audioUrls[Math.floor(Math.random() * audioUrls.length)];
@@ -452,7 +452,7 @@ async function setMenu6(conn, m) {
 async function showCurrentMenu(conn, m) {
     try {
         const { currentPreset, currentOrder, menuSections } = await generateMenu(conn, m, '.', {});
-        
+
         const presetNames = {
             'preset1': 'Default Order',
             'preset2': 'Download & AI Focus', 
@@ -461,7 +461,7 @@ async function showCurrentMenu(conn, m) {
             'preset5': 'Download & Audio Focus',
             'preset6': 'Owner & Features Focus'
         };
-        
+
         const orderList = currentOrder.map((section, index) => {
             const sectionTitle = menuSections[section]?.title || section;
             return `${index + 1}. ${sectionTitle.trim()}`;
