@@ -119,7 +119,6 @@ const { jadibot, stopjadibot, listjadibot } = require('./jadibot')
 
 module.exports = conn = async (conn, m, chatUpdate, mek, store) => {
 try {
-// ========== MESSAGE PARSING ==========
 const body = (m.mtype === "conversation" ? m.message.conversation : m.mtype === "imageMessage" ? m.message.imageMessage.caption : m.mtype === "videoMessage" ? m.message.videoMessage.caption : m.mtype === "extendedTextMessage" ? m.message.extendedTextMessage.text : m.mtype === "buttonsResponseMessage" ? m.message.buttonsResponseMessage.selectedButtonId : m.mtype === "listResponseMessage" ? m.message.listResponseMessage.singleSelectReply.selectedRowId : m.mtype === "templateButtonReplyMessage" ? m.message.templateButtonReplyMessage.selectedId : m.mtype === "interactiveResponseMessage" ? JSON.parse(m.msg.nativeFlowResponseMessage.paramsJson).id : m.mtype === "templateButtonReplyMessage" ? m.msg.selectedId : m.mtype === "messageContextInfo" ? m.message.buttonsResponseMessage?.selectedButtonId || m.message.listResponseMessage?.singleSelectReply.selectedRowId || m.text : "")
 const budy = (typeof m.text === 'string' ? m.text : '')
 var textmessage = (m.mtype == 'listResponseMessage') ? m.message.listResponseMessage.singleSelectReply.selectedRowId : (m.mtype == 'messageContextInfo') ? (m.message.buttonsResponseMessage?.selectedButtonId || m.message.listResponseMessage?.singleSelectReply.selectedRowId || budy) : ""
@@ -616,7 +615,7 @@ Enabled: ${getSetting(botNumber, 'antiedit', 'off') !== 'off' ? '✅' : '❌'}
             const mode = getSetting(botNumber, 'antiedit', 'off');
             const isEnabled = mode !== 'off';
             
-            reply(`✏️ *Anti-Edit Status*
+            reply(`*Anti-Edit Status*
             
 • Status: ${isEnabled ? '✅ Enabled' : '❌ Disabled'}
 • Mode: ${mode}
@@ -714,7 +713,7 @@ Enabled: ${getSetting(botNumber, 'antidelete', 'off') !== 'off' ? '✅' : '❌'}
                 break;
             }
             
-            reply(`🔧 *Anti-Delete Test*
+            reply(`*Anti-Delete Test*
             
 Anti-delete is working in *${mode}* mode
 Status: ✅ Active
@@ -8298,9 +8297,9 @@ case 'removeall': {
         message += `_All non-admin members will be removed in 25 seconds:_\n\n`;
         message += usersToKick.map((user, i) => `🔹 ${i + 1}. @${user.split('@')[0]}`).join('\n');
         message += `\n\n📊 *Total to kick:* ${usersToKick.length}`;
-        message += `\n🛡️ *Admins protected:* ${groupAdmins.length}`;
-        message += `\n⏰ *Time:* 25 seconds`;
-        message += `\n❌ *Cancel:* Use *${prefix}cancelkick* to stop`;
+        message += `\n*Admins protected:* ${groupAdmins.length}`;
+        message += `\n*Time:* 25 seconds`;
+        message += `\n*Cancel:* Use *${prefix}cancelkick* to stop`;
 
         await conn.sendMessage(m.chat, { 
             text: message, 
