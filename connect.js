@@ -16,8 +16,12 @@ const Connecting = async ({
         if (connection === "close" && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
             if (lastDisconnect.error.output.statusCode === DisconnectReason.loggedOut) {
                 console.log(chalk.red.bold("Logged out. Please link again."));
+                // Add clientstart() to try reconnecting
+                await clientstart();
             } else if (lastDisconnect.error.output.statusCode === DisconnectReason.badSession) {
                 console.log(chalk.red.bold("Bad session. Log out and link again."));
+                // Add clientstart() to try reconnecting
+                await clientstart();
             }
         } else if (connection === "connecting") {
             console.log(chalk.blue.bold('Connecting. . .'));
