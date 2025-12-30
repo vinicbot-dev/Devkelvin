@@ -178,7 +178,7 @@ async function generateMenu(conn, m, prefix, global) {
         },
         cmdTool: {
             title: ' *BOTSTATUS MENU* ',
-            commands: ['ping', 'pair', 'uptime', 'uptime', 'bothosting', 'repo', 'botstatus', 'botinfo', 'sc', 
+            commands: ['ping', 'pair', 'uptime',  'bothosting', 'repo', 'botstatus', 'botinfo', 'sc', 
                       'serverinfo', 'alive'],
         },
         other: {
@@ -249,7 +249,7 @@ async function generateMenu(conn, m, prefix, global) {
             if (sectionKey !== 'header' && menuSections[sectionKey]) {
                 const section = menuSections[sectionKey];
                 menu += `╭────────❒${section.title.toUpperCase()} ───❒\n`;
-                menu += section.commands.map(cmd => `├─❏✦ ${cmd}`).join('\n') + '\n';
+                menu += section.commands.map(cmd => `├─❏${cmd}`).join('\n') + '\n';
                 menu += `┕──────────────────────❒\n\n`;
 
 
