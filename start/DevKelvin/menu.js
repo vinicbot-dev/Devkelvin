@@ -248,7 +248,7 @@ async function generateMenu(conn, m, prefix, global) {
         for (const sectionKey of currentOrder) {
             if (sectionKey !== 'header' && menuSections[sectionKey]) {
                 const section = menuSections[sectionKey];
-                menu += `╭────────❒${section.title.toUpperCase()} ───❒\n`;
+                menu += `╭────❒${section.title.toUpperCase()} ───❒\n`;
                 menu += section.commands.map(cmd => `├─❏${cmd}`).join('\n') + '\n';
                 menu += `┕──────────────────────❒\n\n`;
 
