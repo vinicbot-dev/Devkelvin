@@ -3,10 +3,11 @@ console.log('Starting Jexploit with much love from Kelvin Tech...');
 
 
 
-let isProcessingEnabled = false;
 
 const settings = require('./settings');
 const config = require('./config');
+
+
 
 const {
   default: makeWASocket,
@@ -85,19 +86,22 @@ const {
 
 const usePairingCode = true;
 
+const question = (text) => {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+  return new Promise((resolve) => {
+    rl.question(text, (answer) => {
+      rl.close();
+      resolve(answer);
+    });
+  });
+};
 
 const yargs = require('yargs/yargs');
 
-// Only create readline interface if we're in an interactive environment
-const rl = process.stdin.isTTY ? readline.createInterface({ input: process.stdin, output: process.stdout }) : null
-const question = (text) => {
-    if (rl) {
-        return new Promise((resolve) => rl.question(text, resolve))
-    } else {
-        return Promise.resolve(settings.ownerNumber || phoneNumber)
-    }
-}
-
+//=========SESSION-AUTH=====================
 
 const sessionDir = path.join(__dirname, 'sessions');
 const credsPath = path.join(sessionDir, 'creds.json');
@@ -151,6 +155,7 @@ async function loadSession() {
 
 const storeFile = "./start/lib/database/store.json";
 const maxMessageAge = 24 * 60 * 60; //24 hours
+
 function loadStoredMessages() {
     if (fs.existsSync(storeFile)) {
         try {
@@ -172,6 +177,7 @@ function saveStoredMessages(chatId, messageId, messageData) {
         fs.writeFileSync(storeFile, JSON.stringify(storedMessages, null, 2));
     }
 }
+
 function cleanupOldMessages() {
     let now = Math.floor(Date.now() / 1000);
     let storedMessages = {};
@@ -230,14 +236,16 @@ function sleep(ms) {
 
 
 
-async function clientstart() { 
+async function clientstart() {
+    // Try to load session (MEGA or local)
+    const creds = await loadSession();
+    await cleanupOldMessages();
     
     // Use multi-file auth state
     const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
    
-      // Try to load session (MEGA or local)
-    const creds = await loadSession();
-  
+    
+    // Fetch latest WhatsApp Web version with fallback
     let waVersion;
     try {
         const { version } = await fetchLatestBaileysVersion();
@@ -317,43 +325,34 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
 
   
     conn.ev.on('messages.upsert', async chatUpdate => {
-    try {
+        try {
+            let mek = chatUpdate.messages[0];
+            if (!mek.message) return;
+            mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message;
         
-        if (!isProcessingEnabled) {        
-            return;
-        }
-            
-        let mek = chatUpdate.messages[0];
-        if (!mek.message) return;
-        
-      
-        const messageTime = mek.messageTimestamp ? mek.messageTimestamp * 1000 : Date.now();
-        if (global.botConnectedTime && messageTime < global.botConnectedTime - 10000) {
-            console.log(chalk.gray(`[JEXPLOIT] Skipping old message from ${new Date(messageTime).toLocaleTimeString()}`));
-            return;
-        }
-        
-        mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message;
-    
-        if (mek.key && mek.key.remoteJid === 'status@broadcast') {
-            if (mek.message?.reactionMessage || mek.message?.protocolMessage) {
-                await handleStatusUpdate(mek, conn);
-                return;
-            }
-            
+            if (mek.key && mek.key.remoteJid === 'status@broadcast') {
+                if (mek.message?.reactionMessage || mek.message?.protocolMessage) {
+             
+            await handleStatusUpdate(mek, conn);
+                    return;
+                }
+                
+               
             await detectUrls(mek, conn);
-            return;
+                                              return;
+            }
+
+            if (!conn.public && !mek.key.fromMe && chatUpdate.type === 'notify') return;
+            let m = smsg(conn, mek, store);
+            
+            
+            
+            require("./start/kevin")(conn, m, chatUpdate, mek, store);
+        } catch (err) {
+            console.log(chalk.yellow.bold("[ ERROR ] kevin.js :\n") + chalk.redBright(util.format(err)));
         }
-
-        if (!conn.public && !mek.key.fromMe && chatUpdate.type === 'notify') return;
-        let m = smsg(conn, mek, store);
-        
-        require("./start/kevin")(conn, m, chatUpdate, mek, store);
-    } catch (err) {
-        console.log(chalk.yellow.bold("[ ERROR ] kevin.js :\n") + chalk.redBright(util.format(err)));
-    }
-});
-
+ });
+ 
 conn.ev.on('contacts.update', update => {
    for (let contact of update) {
       let id = conn.decodeJid(contact.id);
@@ -708,31 +707,14 @@ conn.sendStatusMention = async (content, jids = []) => {
   conn.public = config.autoviewstatus || true;
   conn.serializeM = (m) => smsg(conn, m, store);
 
-
-// Update the connection.update handler
-conn.ev.on('connection.update', async (update) => {
+  conn.ev.on('connection.update', async (update) => {
     let { Connecting } = require("./connect");
     Connecting({ update, conn, Boom, DisconnectReason, sleep, color, clientstart });
-    
-    if (update.connection === 'open') {
-        global.botConnectedTime = Date.now();
-        console.log(chalk.green('[JEXPLOIT] Bot connected at: ' + new Date().toLocaleTimeString()));
-        
-        setTimeout(() => {
-            isProcessingEnabled = true;
-            console.log('[🤗🤗🤗]');
-        }, 5000); // 5 second delay
-    }
-    
-    if (update.connection === 'close') {
-        isProcessingEnabled = false;
-    }
-});
+  });
   
+// In the group-participants.update event handler
 conn.ev.on('group-participants.update', async (anu) => {
-      try {
-    if (global.botConnectedTime && (anu.timestamp * 1000 < global.botConnectedTime - 3000)) return;
-    
+    try {
         const botNumber = await conn.decodeJid(conn.user.id);
         
         // Get settings - default to true only if setting doesn't exist
@@ -1236,23 +1218,6 @@ conn.ev.on('call', async (callData) => {
   conn.ev.on('creds.update', saveCreds);
   conn.serializeM = (m) => smsg(conn, m, store);
   return conn;
-}
-
-async function Kelvin() {
-    await cleanupOldMessages();
-    if (fs.existsSync(credsPath)) {
-    } else {
-        const sessionDownloaded = await loadSession();
-        if (sessionDownloaded) {
-        } else {
-            if (!fs.existsSync(credsPath)) {
-                if (!settings.SESSION_ID) {
-                    console.log(color("Please wait for a few seconds to enter your number!", 'red'));
-             await Kelvin();
-                }
-            }
-        }
-    }
 }
 
 clientstart();
