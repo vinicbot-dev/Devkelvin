@@ -20,8 +20,7 @@ const Connecting = async ({
                 await clientstart();
             } else if (lastDisconnect.error.output.statusCode === DisconnectReason.badSession) {
                 console.log(chalk.red.bold("Bad session. Log out and link again."));
-                // Add clientstart() to try reconnecting
-                await clientstart();
+                
             }
         } else if (connection === "connecting") {
             console.log(chalk.blue.bold('Connecting. . .'));
