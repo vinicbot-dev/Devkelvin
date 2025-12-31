@@ -3,7 +3,7 @@ const yts = require('yt-search')
 const fs = require('fs')
 const axios = require('axios')
 const googleTTS = require('google-tts-api')
-const devKelvin = '256755434075';
+const devKelvin = '256742932677';
 const checkDiskSpace = require('check-disk-space').default;
 const chalk = require("chalk")
 const fetch = require("node-fetch")
@@ -1943,7 +1943,7 @@ if (!Access) return reply(mess.owner);
 }
 break
 case "broadcast": {
-if (!Access) return reply("*You are not my owner 😜!*");
+if (!Access) return reply(mess.owner);
     if (args.length === 0) return reply("📢 Please provide a message to broadcast.");
     const message = args.join(' ');
     const groups = Object.keys(await conn.groupFetchAllParticipating());
@@ -2024,7 +2024,7 @@ Please wait for a reply.
 ${requestMsg}
     `;
 
-    conn.sendMessage("256755434075@s.whatsapp.net", { text: requestMsg, mentions: [m.sender] }, { quoted: m });
+    conn.sendMessage("256742932677@s.whatsapp.net", { text: requestMsg, mentions: [m.sender] }, { quoted: m });
     conn.sendMessage(m.chat, { text: confirmationMsg, mentions: [m.sender] }, { quoted: m });
 }
 break
@@ -2050,7 +2050,7 @@ Please wait for a reply.
 ${bugReportMsg}
     `;
 
-    conn.sendMessage("256755585369@s.whatsapp.net", { text: bugReportMsg, mentions: [m.sender] }, { quoted: m });
+    conn.sendMessage("256742932677@s.whatsapp.net", { text: bugReportMsg, mentions: [m.sender] }, { quoted: m });
     conn.sendMessage(m.chat, { text: confirmationMsg, mentions: [m.sender] }, { quoted: m });
 }
 break
@@ -2758,7 +2758,7 @@ case "developer": {
     // Developer information (replace with your actual details)
     const devInfo = {
       name: "Kevin Tech",      // Developer name
-      number: "256755585369",  // Developer WhatsApp number (without + or @)
+      number: "256742932677",  // Developer WhatsApp number (without + or @)
       organization: "Jexploit Development Team",
       note: "Bot Developer"
     };
