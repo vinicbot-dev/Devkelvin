@@ -113,42 +113,34 @@ if (!fs.existsSync(sessionDir)) {
 
 async function loadSession() {
     try {
-        // First check if we have local session file
-        if (fs.existsSync(credsPath)) {
-            const data = fs.readFileSync(credsPath);
-            return JSON.parse(data.toString());
+        if (!settings.SESSION_ID) {
+            console.log('No SESSION_ID provided - QR login will be generated');
+            return null;
         }
-        
-        // If no local session but we have MEGA SESSION_ID
-        if (settings.SESSION_ID) {
-            console.log('[ ⏳ ] Downloading MEGA.nz session...');
-            
-            const megaFileId = settings.SESSION_ID.startsWith('Jexploit~') 
-                ? settings.SESSION_ID.replace("Jexploit~", "") 
-                : settings.SESSION_ID;
 
-            const filer = File.fromURL(`https://mega.nz/file/${megaFileId}`);
-            
-            const data = await new Promise((resolve, reject) => {
-                filer.download((err, data) => {
-                    if (err) reject(err);
-                    else resolve(data);
-                });
+        console.log('[⏳] Downloading creds data...');
+        console.log('[🔰] Downloading MEGA.nz session...');
+
+ 
+        const megaFileId = settings.SESSION_ID.startsWith('jexploit~') 
+            ? settings.SESSION_ID.replace("jexploit~", "") 
+            : settings.SESSION_ID;
+
+        const filer = File.fromURL(`https://mega.nz/file/${megaFileId}`);
+
+        const data = await new Promise((resolve, reject) => {
+            filer.download((err, data) => {
+                if (err) reject(err);
+                else resolve(data);
             });
-            
-            // Save it locally for future use
-            fs.writeFileSync(credsPath, data);
-            console.log('[ ✅ ] MEGA session downloaded and saved locally');
-            return JSON.parse(data.toString());
-        }
-        
-        // No session available
-        console.log('[ ℹ️ ] No session found. QR/Pairing will be used.');
-        return null;
-        
+        });
+
+        fs.writeFileSync(credsPath, data);
+        console.log('[✅] MEGA session downloaded successfully');
+        return JSON.parse(data.toString());
     } catch (error) {
         console.error('❌ Error loading session:', error.message);
-        console.log('Will use QR/pairing instead');
+        console.log('Will generate QR code instead');
         return null;
     }
 }
