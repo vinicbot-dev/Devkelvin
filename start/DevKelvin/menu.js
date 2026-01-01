@@ -144,7 +144,7 @@ async function generateMenu(conn, m, prefix, global) {
                 'listblocked', 'listsudo', 'setprofilename', 'listignored', 'online', 'join', 
                 'leave', 'setbio', 'resetsettings', 'backup', 'reqeust', 'block',  'toviewonce', 
                 'setownername', 'setawesomemenu', 'resetawesomemenu', 'setbotname', 'unblock', 'unblockall', 'gcaddprivacy', 
-                'ppprivancy', 'tostatus', 'vv', 'vv2', 'idch', 'getpp',
+                'ppprivancy', 'tostatus', 'vv', 'vv2', 'idch', 'getpp', 'setmenu1', 'setmenu2', 'setmenu3', 'setmenu4', 'setmenu5', 'setmenu6'
             ],
         },
         group: {
@@ -156,7 +156,7 @@ async function generateMenu(conn, m, prefix, global) {
                 'tagall2', 'opentime', 'poll', 'allowlink', 'totalmembers', 
                 'mediatag', 'getgrouppp',  'tagall', 'groupinfo', 'userjid', 'unlockgcsettings', 'lockgcsettings',
                 'tagadmin2', 'setgroupname', 'delgrouppp', 'invite', 'editinfo', 'approve', 
-                'disapproveall', 'listrequest', 'promote', 'demote', 'userjid', 'setdesc', 'vcf',
+                'disapproveall', 'listrequest', 'promote', 'demote', 'userjid', 'setdesc', 'vcf'
             ],
         },
         ai: {
@@ -181,8 +181,7 @@ async function generateMenu(conn, m, prefix, global) {
             title: ' *SETTING MENU*',
             commands: ['antidelete', 'anticall', 'antibug', 'autorecording', 'antistatus', 'autotyping', 
                       'welcome', 'chatbot', 'autoread', 'adminevent', 'autoviewstatus', 
-                      'autoreactstatus', 'antiedit', 'setmenu1', 'setmenu2', 'setmenu3', 'setmenu4', 'setmenu5', 'setmenu6',
-                      'setawesomemenu', 'resetmenu'],
+                      'autoreactstatus', 'antiedit'],
         },
         download: {
             title: ' *DOWNLOAD MENU* ',
