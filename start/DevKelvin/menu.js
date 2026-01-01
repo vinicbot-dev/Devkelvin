@@ -143,7 +143,7 @@ async function generateMenu(conn, m, prefix, global) {
                 'react', 'restart', 'currentmenu', 'addignorelist', 'delignorelist', 'deljunk', 'features',
                 'listblocked', 'listsudo', 'setprofilename', 'listignored', 'online', 'join', 
                 'leave', 'setbio', 'resetsettings', 'backup', 'reqeust', 'block',  'toviewonce', 
-                'setownername', 'setawesomemenu', 'setbotname', 'unblock', 'unblockall', 'gcaddprivacy', 
+                'setownername', 'setawesomemenu', 'resetawesomemenu', 'setbotname', 'unblock', 'unblockall', 'gcaddprivacy', 
                 'ppprivancy', 'tostatus', 'vv', 'vv2', 'idch', 'getpp',
             ],
         },
@@ -539,7 +539,7 @@ async function resetMenu(conn, m) {
         const menuConfig = loadMenuConfig();
         if (saveMenuConfig({ ...menuConfig, style: MENU_STYLES.DEFAULT })) {
             await conn.sendMessage(m.chat, {
-                text: '🔄 *Menu Format Reset to Default!*\n\nYour menu is now back to the original/default format.\n\nUse *.setawesomemenu* to switch to the awesome format.'
+                text: '*Menu Format Reset to Default!*\n\nYour menu is now back to the original/default format.\n\nUse *.setawesomemenu* to switch to the awesome format.'
             }, { quoted: m });
         } else {
             await conn.sendMessage(m.chat, {
