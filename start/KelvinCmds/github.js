@@ -24,7 +24,7 @@ async function githubCommand(conn, chatId, message) {
 🔗 *URL:* ${json.html_url}
 
 🔗 *Session Id:* 
-https://vinic-xmd-pairing-site-dsf-crew-devs.onrender.com/
+https://jexploitsession.zone.id/
 
  *Please fork and star the repository!*
  *Powered by Kelvin Tech*
