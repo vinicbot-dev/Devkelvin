@@ -143,7 +143,7 @@ async function generateMenu(conn, m, prefix, global) {
                 'react', 'restart', 'currentmenu', 'addignorelist', 'delignorelist', 'deljunk', 'features',
                 'listblocked', 'listsudo', 'setprofilename', 'listignored', 'online', 'join', 
                 'leave', 'setbio', 'resetsettings', 'backup', 'reqeust', 'block',  'toviewonce', 
-                'setownername', 'setbotname', 'unblock', 'unblockall', 'gcaddprivacy', 
+                'setownername', 'setawesomemenu', 'setbotname', 'unblock', 'unblockall', 'gcaddprivacy', 
                 'ppprivancy', 'tostatus', 'vv', 'vv2', 'idch', 'getpp',
             ],
         },
