@@ -623,4 +623,3 @@ module.exports = {
     menuPresets,
     MENU_STYLES
 };
-[file content end]
