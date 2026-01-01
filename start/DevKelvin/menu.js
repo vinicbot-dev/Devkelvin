@@ -46,16 +46,33 @@ const menuPresets = {
 // Default preset
 const defaultPreset = 'preset1';
 
+// Menu style types
+const MENU_STYLES = {
+    DEFAULT: 'default',    // Original format
+    AWESOME: 'awesome'     // New format
+};
+
+// Default menu style
+const defaultMenuStyle = MENU_STYLES.DEFAULT;
+
 // Load menu configuration
 function loadMenuConfig() {
     try {
         if (fs.existsSync(menuConfigPath)) {
-            return JSON.parse(fs.readFileSync(menuConfigPath, 'utf8'));
+            const config = JSON.parse(fs.readFileSync(menuConfigPath, 'utf8'));
+            // Ensure both preset and style are present
+            return {
+                preset: config.preset || defaultPreset,
+                style: config.style || defaultMenuStyle
+            };
         }
     } catch (error) {
         console.error('Error loading menu config:', error);
     }
-    return { preset: defaultPreset };
+    return { 
+        preset: defaultPreset, 
+        style: defaultMenuStyle 
+    };
 }
 
 // Save menu configuration
@@ -94,6 +111,7 @@ async function generateMenu(conn, m, prefix, global) {
     // Load current menu configuration
     const menuConfig = loadMenuConfig();
     const currentPreset = menuConfig.preset || defaultPreset;
+    const currentStyle = menuConfig.style || defaultMenuStyle;
     const currentOrder = menuPresets[currentPreset] || menuPresets.preset1;
 
     // Calculate memory usage
@@ -163,7 +181,8 @@ async function generateMenu(conn, m, prefix, global) {
             title: ' *SETTING MENU*',
             commands: ['antidelete', 'anticall', 'antibug', 'autorecording', 'antistatus', 'autotyping', 
                       'welcome', 'chatbot', 'autoread', 'adminevent', 'autoviewstatus', 
-                      'autoreactstatus', 'antiedit', 'setmenu1', 'setmenu2', 'setmenu3', 'setmenu4', 'setmenu5', 'setmenu6'],
+                      'autoreactstatus', 'antiedit', 'setmenu1', 'setmenu2', 'setmenu3', 'setmenu4', 'setmenu5', 'setmenu6',
+                      'setawesomemenu', 'resetmenu'],
         },
         download: {
             title: ' *DOWNLOAD MENU* ',
@@ -237,8 +256,17 @@ async function generateMenu(conn, m, prefix, global) {
         },
     };
 
-    // Function to format the menu using current preset
+    // Function to format the menu using current preset and style
     const formatMenu = () => {
+        if (currentStyle === MENU_STYLES.AWESOME) {
+            return formatAwesomeMenu();
+        } else {
+            return formatDefaultMenu();
+        }
+    };
+
+    // Original/default menu format
+    const formatDefaultMenu = () => {
         let menu = `╭──────⬡ 🤖 JEXPLOIT  ⬡────⭓\n`;
         menu += menuSections.header.content.map(line => `├▢⬡  ${line}`).join('\n') + '\n';
         menu += `╰────────────────────────⭓\n\n`;
@@ -251,7 +279,6 @@ async function generateMenu(conn, m, prefix, global) {
                 menu += `╭────❒${section.title.toUpperCase()} ───❒\n`;
                 menu += section.commands.map(cmd => `├─❏ ${cmd}`).join('\n') + '\n';
                 menu += `┕──────────────────────❒\n\n`;
-
 
                 sectionCount++;
                 if (sectionCount === 3) { 
@@ -267,10 +294,40 @@ async function generateMenu(conn, m, prefix, global) {
         return menu;
     };
 
+    // Awesome menu format (new style)
+    const formatAwesomeMenu = () => {
+        let menu = `╭═✦〔 🤖 JEXPLOIT 〕✦═╮\n`;
+        menu += menuSections.header.content.map(line => `┃ ${line}`).join('\n') + '\n';
+        menu += `╰═✦═════════════╯\n\n`;
+
+        // Use the current preset order
+        let sectionCount = 0;
+        for (const sectionKey of currentOrder) {
+            if (sectionKey !== 'header' && menuSections[sectionKey]) {
+                const section = menuSections[sectionKey];
+                menu += `╭━◈${section.title.toUpperCase()} ◈\n`;
+                menu += section.commands.map(cmd => `│ ➸ ${cmd}`).join('\n') + '\n';
+                menu += `┗▣\n\n`;
+                
+                sectionCount++;
+                if (sectionCount === 3) { 
+                    menu += `${readmore}\n\n`;
+                }
+                if (sectionCount === 8) { // After 8 sections  
+                    menu += `${readmore}\n\n`;
+                }
+            }
+        }
+             
+        menu += `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴋᴇʟᴠɪɴ ᴛᴇᴄʜ `;
+        return menu;
+    };
+
     return {
         formatMenu,
         menuSections,
         currentPreset,
+        currentStyle,
         currentOrder,
         menuConfig
     };
@@ -337,7 +394,8 @@ async function sendMenu(conn, m, prefix, global) {
 // Menu preset commands
 async function setMenu1(conn, m) {
     try {
-        if (saveMenuConfig({ preset: 'preset1' })) {
+        const menuConfig = loadMenuConfig();
+        if (saveMenuConfig({ ...menuConfig, preset: 'preset1' })) {
             await conn.sendMessage(m.chat, {
                 text: '✅ Menu arrangement set to **Preset 1** (Default Order)'
             }, { quoted: m });
@@ -356,7 +414,8 @@ async function setMenu1(conn, m) {
 
 async function setMenu2(conn, m) {
     try {
-        if (saveMenuConfig({ preset: 'preset2' })) {
+        const menuConfig = loadMenuConfig();
+        if (saveMenuConfig({ ...menuConfig, preset: 'preset2' })) {
             await conn.sendMessage(m.chat, {
                 text: '✅ Menu arrangement set to **Preset 2** (Download & AI Focus)'
             }, { quoted: m });
@@ -375,7 +434,8 @@ async function setMenu2(conn, m) {
 
 async function setMenu3(conn, m) {
     try {
-        if (saveMenuConfig({ preset: 'preset3' })) {
+        const menuConfig = loadMenuConfig();
+        if (saveMenuConfig({ ...menuConfig, preset: 'preset3' })) {
             await conn.sendMessage(m.chat, {
                 text: '✅ Menu arrangement set to **Preset 3** (Features & AI Focus)'
             }, { quoted: m });
@@ -394,7 +454,8 @@ async function setMenu3(conn, m) {
 
 async function setMenu4(conn, m) {
     try {
-        if (saveMenuConfig({ preset: 'preset4' })) {
+        const menuConfig = loadMenuConfig();
+        if (saveMenuConfig({ ...menuConfig, preset: 'preset4' })) {
             await conn.sendMessage(m.chat, {
                 text: '✅ Menu arrangement set to **Preset 4** (AI & Fun Focus)'
             }, { quoted: m });
@@ -413,7 +474,8 @@ async function setMenu4(conn, m) {
 
 async function setMenu5(conn, m) {
     try {
-        if (saveMenuConfig({ preset: 'preset5' })) {
+        const menuConfig = loadMenuConfig();
+        if (saveMenuConfig({ ...menuConfig, preset: 'preset5' })) {
             await conn.sendMessage(m.chat, {
                 text: '✅ Menu arrangement set to **Preset 5** (Download & Audio Focus)'
             }, { quoted: m });
@@ -432,7 +494,8 @@ async function setMenu5(conn, m) {
 
 async function setMenu6(conn, m) {
     try {
-        if (saveMenuConfig({ preset: 'preset6' })) {
+        const menuConfig = loadMenuConfig();
+        if (saveMenuConfig({ ...menuConfig, preset: 'preset6' })) {
             await conn.sendMessage(m.chat, {
                 text: '✅ Menu arrangement set to **Preset 6** (Owner & Features Focus)'
             }, { quoted: m });
@@ -449,9 +512,51 @@ async function setMenu6(conn, m) {
     }
 }
 
+// Set Awesome Menu Format
+async function setAwesomeMenu(conn, m) {
+    try {
+        const menuConfig = loadMenuConfig();
+        if (saveMenuConfig({ ...menuConfig, style: MENU_STYLES.AWESOME })) {
+            await conn.sendMessage(m.chat, {
+                text: '✨ *Awesome Menu Format Activated!*\n\nNow your menu will display in the new awesome format with fancy borders and symbols! 🎉\n\nUse *.resetmenu* to go back to default format.'
+            }, { quoted: m });
+        } else {
+            await conn.sendMessage(m.chat, {
+                text: '❌ Failed to set awesome menu format'
+            }, { quoted: m });
+        }
+    } catch (error) {
+        console.error('Error setting awesome menu:', error);
+        await conn.sendMessage(m.chat, {
+            text: '❌ Error setting awesome menu format'
+        }, { quoted: m });
+    }
+}
+
+// Reset Menu to Default Format
+async function resetMenu(conn, m) {
+    try {
+        const menuConfig = loadMenuConfig();
+        if (saveMenuConfig({ ...menuConfig, style: MENU_STYLES.DEFAULT })) {
+            await conn.sendMessage(m.chat, {
+                text: '🔄 *Menu Format Reset to Default!*\n\nYour menu is now back to the original/default format.\n\nUse *.setawesomemenu* to switch to the awesome format.'
+            }, { quoted: m });
+        } else {
+            await conn.sendMessage(m.chat, {
+                text: '❌ Failed to reset menu format'
+            }, { quoted: m });
+        }
+    } catch (error) {
+        console.error('Error resetting menu:', error);
+        await conn.sendMessage(m.chat, {
+            text: '❌ Error resetting menu format'
+        }, { quoted: m });
+    }
+}
+
 async function showCurrentMenu(conn, m) {
     try {
-        const { currentPreset, currentOrder, menuSections } = await generateMenu(conn, m, '.', {});
+        const { currentPreset, currentStyle, currentOrder, menuSections } = await generateMenu(conn, m, '.', {});
 
         const presetNames = {
             'preset1': 'Default Order',
@@ -462,13 +567,26 @@ async function showCurrentMenu(conn, m) {
             'preset6': 'Owner & Features Focus'
         };
 
+        const styleNames = {
+            'default': 'Default Format',
+            'awesome': 'Awesome Format'
+        };
+
         const orderList = currentOrder.map((section, index) => {
             const sectionTitle = menuSections[section]?.title || section;
             return `${index + 1}. ${sectionTitle.trim()}`;
         }).join('\n');
 
         await conn.sendMessage(m.chat, {
-            text: `📋 Current Menu: **${presetNames[currentPreset]}**\n\n${orderList}\n\nUse:\n• *.setmenu1* - Default order\n• *.setmenu2* - Download & AI focus\n• *.setmenu3* - Features & AI focus\n• *.setmenu4* - AI & Fun focus\n• *.setmenu5* - Download & Audio focus\n• *.setmenu6* - Owner & Features focus`
+            text: `📋 *Current Menu Settings*\n\n` +
+                  `✨ *Style:* ${styleNames[currentStyle]}\n` +
+                  `🔧 *Preset:* ${presetNames[currentPreset]}\n\n` +
+                  `📑 *Section Order:*\n${orderList}\n\n` +
+                  `⚙️ *Commands:*\n` +
+                  `• *.setawesomemenu* - Switch to awesome format\n` +
+                  `• *.resetmenu* - Back to default format\n` +
+                  `• *.currentmenu* - Show this info\n` +
+                  `• *.setmenu1-6* - Change section order`
         }, { quoted: m });
     } catch (error) {
         console.error('Error showing current menu:', error);
@@ -498,7 +616,11 @@ module.exports = {
     setMenu4,
     setMenu5,
     setMenu6,
+    setAwesomeMenu,
+    resetMenu,
     showCurrentMenu,
     loadMenuConfig,
-    menuPresets
+    menuPresets,
+    MENU_STYLES
 };
+[file content end]
