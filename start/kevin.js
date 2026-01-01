@@ -58,6 +58,8 @@ const {
     setMenu4,
     setMenu5,
     setMenu6,
+    setAwesomeMenu,
+    resetMenu,
     showCurrentMenu, 
     loadMenuConfig 
 } = require('./DevKelvin/menu');
@@ -510,6 +512,44 @@ case 'menuarrangement': {
         `• ${prefix}showmenu - Show current arrangement`);
     break;
 }
+case 'setawesomemenu': {
+    try {
+        
+        // Check if user is owner/admin
+        if (!Access) {
+            return reply(mess.owner);
+        }
+        
+        await setAwesomeMenu(conn, m);
+        
+        // Send success reaction
+        await conn.sendMessage(m.chat, { react: { text: "✨", key: m.key } });
+        
+    } catch (error) {
+        console.error('Error in setawesomemenu:', error);
+        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+        reply('❌ Failed to set awesome menu format!');
+    }
+}
+break
+case 'resetmenu': {
+    try {
+        if (!Access) {
+            return reply(mess.owner);
+        }
+        
+        await resetMenu(conn, m);
+        
+        // Send success reaction
+        await conn.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
+        
+    } catch (error) {
+        console.error('Error in resetmenu:', error);
+        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+        reply('❌ Failed to reset menu format!');
+    }
+}
+break
 case 'setprefix': {
     if (!Access) return reply(mess.owner);
     
