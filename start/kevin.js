@@ -532,7 +532,7 @@ case 'setawesomemenu': {
     }
 }
 break
-case 'resetmenu': {
+case 'resetawesomemenu': {
     try {
         if (!Access) {
             return reply(mess.owner);
