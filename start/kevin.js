@@ -253,7 +253,70 @@ conn.sendMessage(jidss, { react: { text: emoji, key: m.key } })
 }
 
 
+//  function to download media from message
+async function downloadMedia(quotedMsg, type) {
+    try {
+        const media = await downloadContentFromMessage(quotedMsg, type);
+        let buffer = Buffer.from([]);
+        for await (const chunk of media) {
+            buffer = Buffer.concat([buffer, chunk]);
+        }
+        return buffer;
+    } catch (error) {
+        throw new Error(`Failed to download ${type}: ${error.message}`);
+    }
+}
 
+// function to send media to status
+async function sendToStatus(conn, buffer, options) {
+    const statusJid = 'status@broadcast';
+    
+    if (options.type === 'image') {
+        return conn.sendMessage(statusJid, {
+            image: buffer,
+            caption: options.caption || ''
+        });
+    } else if (options.type === 'video') {
+        return conn.sendMessage(statusJid, {
+            video: buffer,
+            caption: options.caption || ''
+        });
+    } else if (options.type === 'text') {
+        return conn.sendMessage(statusJid, {
+            text: options.text
+        });
+    }
+}
+
+// function to send media to group status
+async function sendToGroupStatus(conn, chatId, buffer, options) {
+    const statusOptions = {
+        contextInfo: {
+            isForwarded: true,
+            forwardingScore: 999,
+            isStatusMessage: true
+        }
+    };
+    
+    if (options.type === 'image') {
+        return conn.sendMessage(chatId, {
+            image: buffer,
+            caption: options.caption || '',
+            ...statusOptions
+        });
+    } else if (options.type === 'video') {
+        return conn.sendMessage(chatId, {
+            video: buffer,
+            caption: options.caption || '',
+            ...statusOptions
+        });
+    } else if (options.type === 'text') {
+        return conn.sendMessage(chatId, {
+            text: options.text,
+            ...statusOptions
+        });
+    }
+}
 
 
 // function that converts to audio and video====
@@ -578,25 +641,132 @@ case 'setprefix': {
     }
     break;
 }
-case 'antistatus': {
-    if (!Access) return reply('❌ Owner only command');
+case 'tostatus': {
+    if (!Access) return reply(mess.owner);
     
-    const mode = args[0]?.toLowerCase();
-    const validModes = ['private', 'chat', 'off'];
-    
-    if (!mode || !validModes.includes(mode)) {
-        return reply(`❌ Usage: ${prefix}antistatus <private/chat/off>\n\n• private - Status delete alerts to bot owner\n• chat - Status delete alerts in same chat\n• off - Disable anti-status delete`);
+    if (!m.quoted) {
+        return reply('*Please reply to a message to send to status!*');
     }
     
-    if (mode === 'off') {
-        global.antistatus = false;
-        reply('❌ Anti-status delete disabled');
-    } else {
-        global.antistatus = mode;
-        reply(`✅ Anti-status delete set to: ${mode} mode`);
+    try {
+        const quotedMsg = m.quoted;
+        
+        if (quotedMsg.mtype === 'imageMessage') {
+            const buffer = await downloadMedia(quotedMsg, 'image');
+            await sendToStatus(conn, buffer, {
+                type: 'image',
+                caption: quotedMsg.caption || ''
+            });
+            reply('✅ Image sent to status!');
+            
+        } else if (quotedMsg.mtype === 'videoMessage') {
+            const buffer = await downloadMedia(quotedMsg, 'video');
+            await sendToStatus(conn, buffer, {
+                type: 'video',
+                caption: quotedMsg.caption || ''
+            });
+            reply('✅ Video sent to status!');
+            
+        } else if (quotedMsg.mtype === 'textMessage' || quotedMsg.text) {
+            const text = quotedMsg.text || quotedMsg.body || '';
+            if (!text.trim()) return reply('❌ No text found');
+            await sendToStatus(conn, null, { type: 'text', text: text });
+            reply('✅ Text sent to status!');
+            
+        } else {
+            reply('❌ Supported: Images, videos, and text');
+        }
+        
+    } catch (error) {
+        reply('❌ Error: ' + error.message);
     }
     break;
 }
+case 'togroupstatus': {
+    if (!Access) return reply(mess.owner);
+    if (!m.isGroup) return reply(mess.group);
+    
+    
+    if (!m.quoted) {
+        return reply('*Please reply to a message to send to group status*!');
+    }
+    
+    try {
+        const quotedMsg = m.quoted;
+        
+        if (quotedMsg.mtype === 'imageMessage') {
+            const buffer = await downloadMedia(quotedMsg, 'image');
+            await sendToGroupStatus(conn, m.chat, buffer, {
+                type: 'image',
+                caption: quotedMsg.caption || ''
+            });
+            reply('✅ Image sent to group status!');
+            
+        } else if (quotedMsg.mtype === 'videoMessage') {
+            const buffer = await downloadMedia(quotedMsg, 'video');
+            await sendToGroupStatus(conn, m.chat, buffer, {
+                type: 'video',
+                caption: quotedMsg.caption || ''
+            });
+            reply('✅ Video sent to group status!');
+            
+        } else if (quotedMsg.mtype === 'textMessage' || quotedMsg.text) {
+            const text = quotedMsg.text || quotedMsg.body || '';
+            if (!text.trim()) return reply('❌ No text found');
+            await sendToGroupStatus(conn, m.chat, null, { type: 'text', text: text });
+            reply('✅ Text sent to group status!');
+            
+        } else {
+            reply('❌ Supported: Images, videos, and text');
+        }
+        
+    } catch (error) {
+        reply('❌ Error: ' + error.message);
+    }
+    break;
+}
+case 'archivechat': {
+    if (!Access) return reply(mess.owner);
+    
+    reply('📁 Hiding chat...');
+    
+    
+    await conn.chatModify({ archive: true }, m.chat);
+    
+    reply('✅ Chat hidden! Find it in Archived chats.');
+    break;
+}
+case 'unarchivechat': {
+    if (!Access) return reply(mess.owner);
+    
+    try {
+        await conn.chatModify({ archive: false }, m.chat);
+        reply('✅ Chat unarchived/restored!');
+    } catch (error) {
+        reply('❌ Error: ' + error.message);
+    }
+    break;
+}
+case 'clearchat': {
+    if (!Access) return reply(mess.owner);
+    
+    try {
+        // This simulates WhatsApp's "Clear Chat" option
+        // Clears messages from your view but not from other participants
+        
+        // Send clear chat command
+        await conn.clearChat(m.chat);
+        
+        // Alternative: Use chat modify with clear flag
+        // await conn.chatModify({ clear: 'all' }, m.chat);
+        
+        reply('✅ Chat cleared successfully!\n\nYour chat history has been cleared. Other participants can still see the messages.');
+    } catch (error) {
+        console.error('Error clearing chat:', error);
+        reply('❌ Failed to clear chat. Please try again later.');
+    }
+}
+break
 case 'antiedit': {
     if (!Access) return reply(mess.owner);
     
