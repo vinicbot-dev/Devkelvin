@@ -28,14 +28,12 @@ function generateSettingsText(botNumber, prefix) {
     const autoviewstatus = getSetting(botNumber, 'autoviewstatus', false);
     const autoreactstatus = getSetting(botNumber, 'autoreactstatus', false);
     const statusemoji = getSetting(botNumber, 'statusemoji', '💚');
-    const alwaysonline = getSetting(botNumber, 'alwaysonline', false);
-    const antibot = getSetting(botNumber, 'antibot', false);
+    const alwaysonline = getSetting(botNumber, 'alwaysonline', false); 
     
     return `*📊 BOT SETTINGS STATUS*
 
 • Prefix: ${prefix}
 • Always Online: ${alwaysonline ? '🟢 ON (Green dot)' : '⚪ OFF'}
-• Anti-Bot: ${antibot ? '✅ ON' : '❌ OFF'}
 • Anti-Delete: ${antidelete !== 'off' ? '✅ ON (' + antidelete + ')' : '❌ OFF'}
 • Anti-Edit: ${antiedit !== 'off' ? '✅ ON (' + antiedit + ')' : '❌ OFF'}
 • Anti-Call: ${anticall !== 'off' ? '✅ ON (' + anticall + ')' : '❌ OFF'}
@@ -56,7 +54,6 @@ function generateSettingsText(botNumber, prefix) {
 • ${prefix}setprefix <new> - Change prefix (1-3 chars)
 • ${prefix}set <option> <value> - Change settings
 • ${prefix}settings - View current settings
-• ${prefix}group antibot on/off - Per-group anti-bot
 
 💾 All settings saved to JSON database.`;
 }
@@ -70,7 +67,6 @@ function getAllSettings(botNumber) {
     return {
         prefix: getSetting(botNumber, 'prefix', '.'),
         alwaysonline: getSetting(botNumber, 'alwaysonline', false),
-        antibot: getSetting(botNumber, 'antibot', false),
         antidelete: getSetting(botNumber, 'antidelete', 'off'),
         antiedit: getSetting(botNumber, 'antiedit', 'off'),
         anticall: getSetting(botNumber, 'anticall', 'off'),
