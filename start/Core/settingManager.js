@@ -255,7 +255,6 @@ module.exports = {
     updateGroupSetting,
     getGroupAllSettings,
     removeGroupSetting,
-    getGroupsWithSetting,
     
     // Alias for updateSetting for backward compatibility
     setSetting: updateSetting
