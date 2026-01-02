@@ -29,6 +29,19 @@ const { PassThrough } = require('stream');
 
 const { smsg, sendGmail, formatSize, isUrl, generateMessageTag, CheckBandwidth, getBuffer, getSizeMedia, runtime, fetchJson, sleep, getRandom } = require('./start/lib/myfunction')
 
+
+//database 
+global.db = { data: {} };
+global.db.data = JSON.parse(fs.readFileSync("./data/database.json")) || {};
+
+if (global.db.data) {
+  global.db.data = {
+    chats: {},
+    settings: {},
+    blacklist: { blacklisted_numbers: [] }, 
+    ...(global.db.data || {}),
+  };
+}
 //delay
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
