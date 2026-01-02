@@ -164,7 +164,82 @@ function getAllSettings(botNumber) {
 function syncToGlobals(botNumber) {
     return settingsManager.syncToGlobals(botNumber);
 }
+function getGroupSetting(botNumber, groupId, setting, defaultValue = false) {
+    try {
+        const data = loadDatabase();
+        const botData = data[botNumber] || {};
+        const groupSettings = botData.groupSettings || {};
+        const groupData = groupSettings[groupId] || {};
+        
+        return groupData[setting] !== undefined ? groupData[setting] : defaultValue;
+    } catch (error) {
+        console.error('Error getting group setting:', error);
+        return defaultValue;
+    }
+}
 
+function updateGroupSetting(botNumber, groupId, setting, value) {
+    try {
+        const data = loadDatabase();
+        
+        // Ensure bot entry exists
+        if (!data[botNumber]) {
+            data[botNumber] = {};
+        }
+        
+        // Ensure groupSettings exists
+        if (!data[botNumber].groupSettings) {
+            data[botNumber].groupSettings = {};
+        }
+        
+        // Ensure group entry exists
+        if (!data[botNumber].groupSettings[groupId]) {
+            data[botNumber].groupSettings[groupId] = {};
+        }
+        
+        // Update setting
+        data[botNumber].groupSettings[groupId][setting] = value;
+        
+        return saveDatabase(data);
+    } catch (error) {
+        console.error('Error updating group setting:', error);
+        return false;
+    }
+}
+
+function getGroupAllSettings(botNumber, groupId) {
+    try {
+        const data = loadDatabase();
+        const botData = data[botNumber] || {};
+        const groupSettings = botData.groupSettings || {};
+        
+        return groupSettings[groupId] || {};
+    } catch (error) {
+        console.error('Error getting group settings:', error);
+        return {};
+    }
+}
+
+function removeGroupSetting(botNumber, groupId, setting) {
+    try {
+        const data = loadDatabase();
+        
+        if (data[botNumber]?.groupSettings?.[groupId]) {
+            delete data[botNumber].groupSettings[groupId][setting];
+            
+            // Remove group if empty
+            if (Object.keys(data[botNumber].groupSettings[groupId]).length === 0) {
+                delete data[botNumber].groupSettings[groupId];
+            }
+            
+            return saveDatabase(data);
+        }
+        return true;
+    } catch (error) {
+        console.error('Error removing group setting:', error);
+        return false;
+    }
+}
 // Export the singleton instance and functions
 module.exports = {
     settingsManager, // The singleton instance
@@ -176,6 +251,11 @@ module.exports = {
     updateSetting,
     getAllSettings,
     syncToGlobals,
+    getGroupSetting,
+    updateGroupSetting,
+    getGroupAllSettings,
+    removeGroupSetting,
+    getGroupsWithSetting,
     
     // Alias for updateSetting for backward compatibility
     setSetting: updateSetting
