@@ -103,6 +103,82 @@ class SettingsManager {
         return this.settings[botNumber].sudo.includes(userJid);
     }
 
+    // ========== GROUP SETTINGS METHODS ==========
+    getGroupSetting(botNumber, groupId, setting, defaultValue = false) {
+        try {
+            const botSettings = this.getAllSettings(botNumber);
+            const groupSettings = botSettings.groupSettings || {};
+            const groupData = groupSettings[groupId] || {};
+            
+            return groupData[setting] !== undefined ? groupData[setting] : defaultValue;
+        } catch (error) {
+            console.error('Error getting group setting:', error);
+            return defaultValue;
+        }
+    }
+
+    updateGroupSetting(botNumber, groupId, setting, value) {
+        try {
+            const botSettings = this.getAllSettings(botNumber);
+            
+            // Ensure groupSettings exists
+            if (!botSettings.groupSettings) {
+                botSettings.groupSettings = {};
+            }
+            
+            // Ensure group entry exists
+            if (!botSettings.groupSettings[groupId]) {
+                botSettings.groupSettings[groupId] = {};
+            }
+            
+            // Update setting
+            botSettings.groupSettings[groupId][setting] = value;
+            
+            // Save back
+            this.setSetting(botNumber, 'groupSettings', botSettings.groupSettings);
+            return true;
+        } catch (error) {
+            console.error('Error updating group setting:', error);
+            return false;
+        }
+    }
+
+    getGroupAllSettings(botNumber, groupId) {
+        try {
+            const botSettings = this.getAllSettings(botNumber);
+            const groupSettings = botSettings.groupSettings || {};
+            
+            return groupSettings[groupId] || {};
+        } catch (error) {
+            console.error('Error getting group settings:', error);
+            return {};
+        }
+    }
+
+    removeGroupSetting(botNumber, groupId, setting) {
+        try {
+            const botSettings = this.getAllSettings(botNumber);
+            
+            if (botSettings.groupSettings?.[groupId]) {
+                delete botSettings.groupSettings[groupId][setting];
+                
+                // Remove group if empty
+                if (Object.keys(botSettings.groupSettings[groupId]).length === 0) {
+                    delete botSettings.groupSettings[groupId];
+                }
+                
+                // Save back
+                this.setSetting(botNumber, 'groupSettings', botSettings.groupSettings);
+                return true;
+            }
+            return true;
+        } catch (error) {
+            console.error('Error removing group setting:', error);
+            return false;
+        }
+    }
+    // ========== END GROUP SETTINGS ==========
+
     syncToGlobals(botNumber) {
         if (!this.settings[botNumber]) return;
         
@@ -132,7 +208,7 @@ class SettingsManager {
 // Create singleton instance
 const settingsManager = new SettingsManager();
 
-
+// Export functions that use the settingsManager instance
 function getSudo(botNumber) {
     return settingsManager.getSudo(botNumber);
 }
@@ -164,82 +240,24 @@ function getAllSettings(botNumber) {
 function syncToGlobals(botNumber) {
     return settingsManager.syncToGlobals(botNumber);
 }
+
+// Group setting functions
 function getGroupSetting(botNumber, groupId, setting, defaultValue = false) {
-    try {
-        const data = loadDatabase();
-        const botData = data[botNumber] || {};
-        const groupSettings = botData.groupSettings || {};
-        const groupData = groupSettings[groupId] || {};
-        
-        return groupData[setting] !== undefined ? groupData[setting] : defaultValue;
-    } catch (error) {
-        console.error('Error getting group setting:', error);
-        return defaultValue;
-    }
+    return settingsManager.getGroupSetting(botNumber, groupId, setting, defaultValue);
 }
 
 function updateGroupSetting(botNumber, groupId, setting, value) {
-    try {
-        const data = loadDatabase();
-        
-        // Ensure bot entry exists
-        if (!data[botNumber]) {
-            data[botNumber] = {};
-        }
-        
-        // Ensure groupSettings exists
-        if (!data[botNumber].groupSettings) {
-            data[botNumber].groupSettings = {};
-        }
-        
-        // Ensure group entry exists
-        if (!data[botNumber].groupSettings[groupId]) {
-            data[botNumber].groupSettings[groupId] = {};
-        }
-        
-        // Update setting
-        data[botNumber].groupSettings[groupId][setting] = value;
-        
-        return saveDatabase(data);
-    } catch (error) {
-        console.error('Error updating group setting:', error);
-        return false;
-    }
+    return settingsManager.updateGroupSetting(botNumber, groupId, setting, value);
 }
 
 function getGroupAllSettings(botNumber, groupId) {
-    try {
-        const data = loadDatabase();
-        const botData = data[botNumber] || {};
-        const groupSettings = botData.groupSettings || {};
-        
-        return groupSettings[groupId] || {};
-    } catch (error) {
-        console.error('Error getting group settings:', error);
-        return {};
-    }
+    return settingsManager.getGroupAllSettings(botNumber, groupId);
 }
 
 function removeGroupSetting(botNumber, groupId, setting) {
-    try {
-        const data = loadDatabase();
-        
-        if (data[botNumber]?.groupSettings?.[groupId]) {
-            delete data[botNumber].groupSettings[groupId][setting];
-            
-            // Remove group if empty
-            if (Object.keys(data[botNumber].groupSettings[groupId]).length === 0) {
-                delete data[botNumber].groupSettings[groupId];
-            }
-            
-            return saveDatabase(data);
-        }
-        return true;
-    } catch (error) {
-        console.error('Error removing group setting:', error);
-        return false;
-    }
+    return settingsManager.removeGroupSetting(botNumber, groupId, setting);
 }
+
 // Export the singleton instance and functions
 module.exports = {
     settingsManager, // The singleton instance
