@@ -51,10 +51,20 @@ class SettingsManager {
         return botSettings[key];
     }
 
+    // Alias for get() for backward compatibility
+    getSetting(botNumber, key, defaultValue = null) {
+        return this.get(botNumber, key, defaultValue);
+    }
+
     set(botNumber, key, value) {
         const botSettings = this.getBotSettings(botNumber);
         botSettings[key] = value;
         return this.saveSettings();
+    }
+
+    // Alias for set() for backward compatibility
+    setSetting(botNumber, key, value) {
+        return this.set(botNumber, key, value);
     }
 
     getSudo(botNumber) {
@@ -142,12 +152,17 @@ class SettingsManager {
         // Fallback to global setting (default false)
         return this.get(botNumber, 'welcome', false);
     }
+
+    // Alias for getAllSettings
+    getAllSettings(botNumber) {
+        return this.getBotSettings(botNumber);
+    }
 }
 
 // Singleton instance
 const settingsManager = new SettingsManager();
 
-// Helper functions
+// Helper functions - both ways work
 const getSetting = (botNumber, key, defaultValue) => 
     settingsManager.get(botNumber, key, defaultValue);
 
@@ -163,20 +178,27 @@ const setGroupSetting = (botNumber, groupId, key, value) =>
 const isWelcomeEnabled = (botNumber, groupId) =>
     settingsManager.isWelcomeEnabled(botNumber, groupId);
 
-// Export
+// Export everything
 module.exports = {
+    // Singleton instance with all methods
     settingsManager,
+    
+    // Helper functions
     getSetting,
     updateSetting,
     setSetting: updateSetting,
     getGroupSetting,
     setGroupSetting,
     isWelcomeEnabled,
+    
+    // Sudo functions
     getSudo: (botNumber) => settingsManager.getSudo(botNumber),
     addSudo: (botNumber, userJid) => settingsManager.addSudo(botNumber, userJid),
     removeSudo: (botNumber, userJid) => settingsManager.removeSudo(botNumber, userJid),
     hasSudo: (botNumber, userJid) => settingsManager.hasSudo(botNumber, userJid),
-    getAllSettings: (botNumber) => settingsManager.getBotSettings(botNumber),
+    
+    // Other functions
+    getAllSettings: (botNumber) => settingsManager.getAllSettings(botNumber),
     syncToGlobals: (botNumber) => settingsManager.syncToGlobals(botNumber)
 };
 
