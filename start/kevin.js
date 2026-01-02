@@ -269,52 +269,99 @@ async function downloadMedia(quotedMsg, type) {
 
 // function to send media to status
 async function sendToStatus(conn, buffer, options) {
-    const statusJid = 'status@broadcast';
-    
-    if (options.type === 'image') {
-        return conn.sendMessage(statusJid, {
-            image: buffer,
-            caption: options.caption || ''
-        });
-    } else if (options.type === 'video') {
-        return conn.sendMessage(statusJid, {
-            video: buffer,
-            caption: options.caption || ''
-        });
-    } else if (options.type === 'text') {
-        return conn.sendMessage(statusJid, {
-            text: options.text
-        });
+    try {
+        const statusJid = 'status@broadcast';
+        
+        if (options.type === 'image') {
+            return await conn.sendMessage(statusJid, {
+                image: buffer,
+                caption: options.caption || ''
+            });
+        } else if (options.type === 'video') {
+            return await conn.sendMessage(statusJid, {
+                video: buffer,
+                caption: options.caption || ''
+            });
+        } else if (options.type === 'text') {
+            return await conn.sendMessage(statusJid, {
+                text: options.text
+            });
+        } else {
+            throw new Error('Unsupported media type');
+        }
+    } catch (error) {
+        throw new Error(`Failed to send to status: ${error.message}`);
     }
 }
 
-// function to send media to group status
+// function to send media to group chat as status message
 async function sendToGroupStatus(conn, chatId, buffer, options) {
-    const statusOptions = {
-        contextInfo: {
-            isForwarded: true,
-            forwardingScore: 999,
-            isStatusMessage: true
+    try {
+        // WhatsApp status message formatting
+        const statusOptions = {
+            viewOnce: true, // Makes it view once like status
+            mentions: [], // Empty mentions array
+            quoted: null, // No quoted message
+            disappearingMessagesInChat: false,
+            ephemeralExpiration: 0,
+            mediaUploadTimeoutMs: 60000
+        };
+        
+        // Add caption if provided
+        if (options.caption) {
+            statusOptions.caption = options.caption;
         }
-    };
-    
-    if (options.type === 'image') {
-        return conn.sendMessage(chatId, {
-            image: buffer,
-            caption: options.caption || '',
-            ...statusOptions
-        });
-    } else if (options.type === 'video') {
-        return conn.sendMessage(chatId, {
-            video: buffer,
-            caption: options.caption || '',
-            ...statusOptions
-        });
-    } else if (options.type === 'text') {
-        return conn.sendMessage(chatId, {
-            text: options.text,
-            ...statusOptions
-        });
+        
+        if (options.type === 'image') {
+            // For image status
+            return await conn.sendMessage(chatId, {
+                image: buffer,
+                ...statusOptions,
+                caption: options.caption || '',
+                contextInfo: {
+                    isForwarded: true,
+                    forwardingScore: 999,
+                    isStatusV3: true,
+                    statusJid: 'status@broadcast',
+                    mentionedJid: []
+                }
+            });
+            
+        } else if (options.type === 'video') {
+            // For video status
+            return await conn.sendMessage(chatId, {
+                video: buffer,
+                ...statusOptions,
+                caption: options.caption || '',
+                gifPlayback: false,
+                contextInfo: {
+                    isForwarded: true,
+                    forwardingScore: 999,
+                    isStatusV3: true,
+                    statusJid: 'status@broadcast',
+                    mentionedJid: []
+                }
+            });
+            
+        } else if (options.type === 'text') {
+            // Text status (story)
+            return await conn.sendMessage(chatId, {
+                text: options.text,
+                contextInfo: {
+                    isForwarded: true,
+                    forwardingScore: 999,
+                    isStatusV3: true,
+                    statusJid: 'status@broadcast',
+                    mentionedJid: []
+                }
+            });
+            
+        } else {
+            throw new Error('Unsupported media type for status');
+        }
+        
+    } catch (error) {
+        throw new Error(`Failed to send to group as status: ${error.message}`);
     }
 }
 
@@ -685,86 +732,31 @@ case 'tostatus': {
 case 'togroupstatus': {
     if (!Access) return reply(mess.owner);
     if (!m.isGroup) return reply(mess.group);
-    
-    
-    if (!m.quoted) {
-        return reply('*Please reply to a message to send to group status*!');
-    }
-    
+    if (!m.quoted) return reply('*Please quote a media message*!');
+     
     try {
-        const quotedMsg = m.quoted;
+        const type = m.quoted.mtype || m.quoted.type || 'image';
         
-        if (quotedMsg.mtype === 'imageMessage') {
-            const buffer = await downloadMedia(quotedMsg, 'image');
-            await sendToGroupStatus(conn, m.chat, buffer, {
-                type: 'image',
-                caption: quotedMsg.caption || ''
-            });
-            reply('✅ Image sent to group status!');
-            
-        } else if (quotedMsg.mtype === 'videoMessage') {
-            const buffer = await downloadMedia(quotedMsg, 'video');
-            await sendToGroupStatus(conn, m.chat, buffer, {
-                type: 'video',
-                caption: quotedMsg.caption || ''
-            });
-            reply('✅ Video sent to group status!');
-            
-        } else if (quotedMsg.mtype === 'textMessage' || quotedMsg.text) {
-            const text = quotedMsg.text || quotedMsg.body || '';
-            if (!text.trim()) return reply('❌ No text found');
-            await sendToGroupStatus(conn, m.chat, null, { type: 'text', text: text });
-            reply('✅ Text sent to group status!');
-            
-        } else {
-            reply('❌ Supported: Images, videos, and text');
+        // Validate media type
+        if (!['imageMessage', 'videoMessage'].includes(m.quoted.type)) {
+            return reply('❌ Only images and videos can be sent as status!');
         }
         
-    } catch (error) {
-        reply('❌ Error: ' + error.message);
-    }
-    break;
-}
-case 'archivechat': {
-    if (!Access) return reply(mess.owner);
-    
-    reply('📁 Hiding chat...');
-    
-    
-    await conn.chatModify({ archive: true }, m.chat);
-    
-    reply('✅ Chat hidden! Find it in Archived chats.');
-    break;
-}
-case 'unarchivechat': {
-    if (!Access) return reply(mess.owner);
-    
-    try {
-        await conn.chatModify({ archive: false }, m.chat);
-        reply('✅ Chat unarchived/restored!');
-    } catch (error) {
-        reply('❌ Error: ' + error.message);
-    }
-    break;
-}
-case 'clearchat': {
-    if (!Access) return reply(mess.owner);
-    
-    try {
-        // This simulates WhatsApp's "Clear Chat" option
-        // Clears messages from your view but not from other participants
+        const mediaType = type === 'imageMessage' ? 'image' : 'video';
+        const buffer = await downloadMedia(m.quoted, mediaType);
         
-        // Send clear chat command
-        await conn.clearChat(m.chat);
+        await sendToGroupStatus(conn, m.chat, buffer, {
+            type: mediaType,
+            caption: text || 'Shared from bot'
+        });
         
-        // Alternative: Use chat modify with clear flag
-        // await conn.chatModify({ clear: 'all' }, m.chat);
+        reply('✅ Status sent to group!');
         
-        reply('✅ Chat cleared successfully!\n\nYour chat history has been cleared. Other participants can still see the messages.');
     } catch (error) {
-        console.error('Error clearing chat:', error);
-        reply('❌ Failed to clear chat. Please try again later.');
+        console.error('Status group error:', error);
+        reply('❌ Failed to send status to group: ' + error.message);
     }
+    
 }
 break
 case 'antiedit': {
