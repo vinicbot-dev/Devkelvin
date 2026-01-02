@@ -781,7 +781,7 @@ conn.ev.on('group-participants.update', async (anu) => {
                 console.error('Error in welcome feature:', err);
             }
         } else {
-            console.log(`[WELCOME] Disabled for group ${groupId} - skipping welcome messages`);
+            
         }
         
         // ADMIN EVENT FEATURE - GLOBAL SETTING
@@ -846,7 +846,7 @@ conn.ev.on('group-participants.update', async (anu) => {
                 console.log('Error in admin event feature:', err);
             }
         } else {
-            console.log(`[ADMIN EVENT] Disabled - skipping admin events`);
+           
         }
         
     } catch (error) {
