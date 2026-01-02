@@ -138,7 +138,7 @@ async function generateMenu(conn, m, prefix, global) {
             title: ' *OWNER MENU*',
             commands: [
                 'addowner', '𝙸𝚍𝚌𝚑', '𝙲𝚛𝚎𝚊𝚝𝚎𝚌𝚑', 'creategroup', 'del', 'setpp', 'delpp', 'private', 'public',
-                'lastseen', 'setprefix', 'groupid', 'readreceipts', 'reportbug', 'clearchat', 
+                'lastseen', 'setprefix', 'togroupstatus', 'groupid', 'readreceipts', 'reportbug', 'clearchat', 
                 'hack', 'groupjids', 'broadcast', 
                 'react', 'restart', 'currentmenu', 'addignorelist', 'delignorelist', 'deljunk', 'settings',
                 'listblocked', 'listsudo', 'setprofilename', 'listignored', 'online', 'join', 
