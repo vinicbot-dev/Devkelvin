@@ -49,13 +49,7 @@ function generateSettingsText(botNumber, prefix) {
 🔸 Auto-React Status: ${autoreactstatus ? 'ON (' + statusemoji + ')' : 'OFF'}
 🔸 Welcome Message: ${welcome ? 'ON' : 'OFF'}
 🔸 Admin Events: ${adminevent ? 'ON' : 'OFF'}
-
-📋 *COMMANDS*
-• ${prefix}setprefix <new> - Change prefix (1-3 chars)
-• ${prefix}set <option> <value> - Change settings
-• ${prefix}settings - View current settings
-
-💾 All settings saved to JSON database.`;
+  `;
 }
 
 /**
