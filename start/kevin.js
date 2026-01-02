@@ -89,9 +89,7 @@ getAllSettings,
 getSudo,
 addSudo,
 removeSudo,
-hasSudo,
-getGroupSetting, 
-updateGroupSetting 
+hasSudo
 } = require('./Core/settingManager');
 
 const { generateSettingsText, 
@@ -270,40 +268,7 @@ const readmore = more.repeat(4001)
 const reaction = async (jidss, emoji) => {
 conn.sendMessage(jidss, { react: { text: emoji, key: m.key } })
 }
-//<================================================>//
-if (m.isGroup) {
-    // Check if anti-bot is enabled for this group
-    const antibotEnabled = getGroupSetting(botNumber, m.chat, 'antibot', false);
-    
-    if (antibotEnabled) {
-        // Check if message is from another Baileys bot
-        if (m.isBaileys) {
-            // Exceptions: don't kick if:
-            // 1. It's our own bot
-            // 2. It's the bot creator
-            // 3. It's a sudo user's bot
-            
-            const isOwnBot = m.sender === botNumber;
-            const isCreator = m.sender === devKelvin.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
-            const isSudoUser = getSudo(botNumber)?.includes(m.sender);
-            
-            if (!isOwnBot && !isCreator && !isSudoUser) {
-                try {
-                    // Send warning first
-                    reply(`*BOT DETECTED*\n\nRemoving unauthorized bot...`);
-                    
-                    // Kick the bot
-                    await conn.groupParticipantsUpdate(m.chat, [m.sender], "remove");
-                    
-                } catch (error) {
-                    console.error('Failed to remove bot:', error);
-                    reply('❌ Failed to remove bot. Make sure I am admin with remove permission.');
-                }
-            }
-        }
-    }
-}
-//<================================================>//
+
 
 //  function to download media from message
 async function downloadMedia(quotedMsg, type) {
@@ -9179,66 +9144,6 @@ if (!Access) return reply(mess.owner);
                 values: options,
             },
         });
-}
-break
-case 'antibot': {
-       if (!m.isGroup) return reply(mess.group);
-    if (!isGroupAdmins && !Access) return reply(mess.notadmin);
-    
-    const subcommand = args[0]?.toLowerCase();
-    const value = args[1]?.toLowerCase();
-    
-    if (!subcommand) {
-        const currentAntibot = getGroupSetting(botNumber, m.chat, 'antibot', false) ? '✅ ON' : '❌ OFF';
-        
-        return reply(`*GROUP SETTINGS*\n\n` +
-            `Anti-Bot: ${currentAntibot}\n\n` +
-            `Available Commands:\n` +
-            `• ${prefix}group antibot on - Enable anti-bot\n` +
-            `• ${prefix}group antibot off - Disable anti-bot\n` +
-            `• ${prefix}group settings - Show all settings\n\n` +
-            `Note: Anti-bot automatically removes other bots from this group.`);
-    }
-    
-    if (subcommand === 'antibot') {
-        if (!value || (value !== 'on' && value !== 'off')) {
-            return reply(`Usage: ${prefix}group antibot <on/off>\n\nEnable/disable automatic removal of other bots.`);
-        }
-        
-        const isEnabled = value === 'on';
-        const success = updateGroupSetting(botNumber, m.chat, 'antibot', isEnabled);
-        
-        if (success) {
-            if (isEnabled) {
-                reply('✅ Anti-bot enabled for this group\n\nOther bots will be automatically removed.');
-            } else {
-                reply('Anti-bot disabled for this group\n\nOther bots will be allowed.');
-            }
-        } else {
-            reply('❌ Failed to update group setting.');
-        }
-    }
-    
-    else if (subcommand === 'settings') {
-        const settings = getGroupAllSettings(botNumber, m.chat);
-        let settingsText = `*⚙️ GROUP SETTINGS - ${groupName || 'This Group'}*\n\n`;
-        
-        if (Object.keys(settings).length === 0) {
-            settingsText += 'No settings configured. Use:\n';
-            settingsText += `• ${prefix}group antibot on/off\n`;
-        } else {
-            for (const [key, value] of Object.entries(settings)) {
-                settingsText += `• ${key}: ${value ? '✅ ON' : '❌ OFF'}\n`;
-            }
-        }
-        
-        reply(settingsText);
-    }
-    
-    else {
-        reply(`Invalid subcommand. Use ${prefix}group to see available commands.`);
-    }
-    
 }
 break
 case 'antilink': {
