@@ -715,7 +715,6 @@ conn.ev.on('group-participants.update', async (anu) => {
         // Check group-specific welcome setting
         const welcomeEnabled = global.settingsManager?.isWelcomeEnabled(botNumber, groupId);
         
-        console.log(`[GROUP EVENT] Group: ${groupId}, Welcome: ${welcomeEnabled}, AdminEvent: ${admineventEnabled}`);
         
         // WELCOME FEATURE - PER GROUP SETTINGS
         if (welcomeEnabled === true) {
