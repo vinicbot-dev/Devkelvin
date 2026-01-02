@@ -710,8 +710,8 @@ conn.ev.on('group-participants.update', async (anu) => {
         const botNumber = await conn.decodeJid(conn.user.id);
         
         // Get settings - default to true only if setting doesn't exist
-        let welcomeEnabled = global.settingsManager?.getSetting(botNumber, 'welcome') ?? true;
-        let admineventEnabled = global.settingsManager?.getSetting(botNumber, 'adminevent') ?? true;
+        let welcomeEnabled = global.settingsManager?.getSetting(botNumber, 'welcome') ?? false;
+        let admineventEnabled = global.settingsManager?.getSetting(botNumber, 'adminevent') ?? false;
         
    
         // WELCOME FEATURE - USING JSON SETTINGS
