@@ -3,7 +3,6 @@ const fs = require('fs');
 
 class SettingsManager {
     constructor() {
-        // Use absolute path instead of relative path
         this.settingsPath = path.join(__dirname, '../data/database.json');
         this.settings = this.loadSettings();
     }
@@ -12,10 +11,10 @@ class SettingsManager {
         try {
             if (fs.existsSync(this.settingsPath)) {
                 const data = fs.readFileSync(this.settingsPath, 'utf8');
-                return JSON.parse(data);
+                return JSON.parse(data) || {};
             }
         } catch (error) {
-            console.error('Error loading settings:', error);
+            console.error('❌ Error loading settings:', error);
         }
         return {};
     }
@@ -29,157 +28,157 @@ class SettingsManager {
             fs.writeFileSync(this.settingsPath, JSON.stringify(this.settings, null, 2));
             return true;
         } catch (error) {
-            console.error('Error saving settings:', error);
+            console.error('❌ Error saving settings:', error);
             return false;
         }
     }
 
-    getSetting(botNumber, key, defaultValue = null) {
+    getBotSettings(botNumber) {
         if (!this.settings[botNumber]) {
             this.settings[botNumber] = {};
         }
-        if (!this.settings[botNumber][key] && defaultValue !== null) {
-            this.settings[botNumber][key] = defaultValue;
-            this.saveSettings();
-        }
-        return this.settings[botNumber][key];
+        return this.settings[botNumber];
     }
 
-    setSetting(botNumber, key, value) {
-        if (!this.settings[botNumber]) {
-            this.settings[botNumber] = {};
+    get(botNumber, key, defaultValue = null) {
+        const botSettings = this.getBotSettings(botNumber);
+        
+        if (botSettings[key] === undefined && defaultValue !== null) {
+            botSettings[key] = defaultValue;
+            this.saveSettings();
         }
-        this.settings[botNumber][key] = value;
+        
+        return botSettings[key];
+    }
+
+    set(botNumber, key, value) {
+        const botSettings = this.getBotSettings(botNumber);
+        botSettings[key] = value;
         return this.saveSettings();
     }
 
-    getAllSettings(botNumber) {
-        return this.settings[botNumber] || {};
-    }
-
-   
     getSudo(botNumber) {
-        if (!this.settings[botNumber]) {
-            this.settings[botNumber] = {};
-        }
-        if (!this.settings[botNumber].sudo) {
-            this.settings[botNumber].sudo = [];
-        }
-        return this.settings[botNumber].sudo;
+        const sudo = this.get(botNumber, 'sudo', []);
+        return Array.isArray(sudo) ? sudo : [];
     }
 
     addSudo(botNumber, userJid) {
-        if (!this.settings[botNumber]) {
-            this.settings[botNumber] = {};
-        }
-        if (!this.settings[botNumber].sudo) {
-            this.settings[botNumber].sudo = [];
-        }
+        const sudo = this.getSudo(botNumber);
         
-        if (!this.settings[botNumber].sudo.includes(userJid)) {
-            this.settings[botNumber].sudo.push(userJid);
-            return this.saveSettings();
+        if (!sudo.includes(userJid)) {
+            sudo.push(userJid);
+            return this.set(botNumber, 'sudo', sudo);
         }
-        return false; // Already exists
+        return false;
     }
 
     removeSudo(botNumber, userJid) {
-        if (!this.settings[botNumber] || !this.settings[botNumber].sudo) {
-            return false;
-        }
+        const sudo = this.getSudo(botNumber);
+        const index = sudo.indexOf(userJid);
         
-        const index = this.settings[botNumber].sudo.indexOf(userJid);
         if (index > -1) {
-            this.settings[botNumber].sudo.splice(index, 1);
-            return this.saveSettings();
+            sudo.splice(index, 1);
+            return this.set(botNumber, 'sudo', sudo);
         }
-        return false; // Not found
+        return false;
     }
 
     hasSudo(botNumber, userJid) {
-        if (!this.settings[botNumber] || !this.settings[botNumber].sudo) {
-            return false;
-        }
-        return this.settings[botNumber].sudo.includes(userJid);
+        const sudo = this.getSudo(botNumber);
+        return sudo.includes(userJid);
     }
 
     syncToGlobals(botNumber) {
-        if (!this.settings[botNumber]) return;
-        
-        const settings = this.settings[botNumber];
-        
-        // Sync to global variables
-        if (settings.autorecording !== undefined) global.autorecording = settings.autorecording;
-        if (settings.AI_CHAT !== undefined) global.AI_CHAT = settings.AI_CHAT;
-        if (settings.antidelete !== undefined) global.antidelete = settings.antidelete;
-        if (settings.antiedit !== undefined) global.antiedit = settings.antiedit;
-        if (settings.antilinkdelete !== undefined) global.antilinkdelete = settings.antilinkdelete;
-        if (settings.autoreact !== undefined) global.autoreact = settings.autoreact;
-        if (settings.autoread !== undefined) global.autoread = settings.autoread;
-        if (settings.autoviewstatus !== undefined) global.autoviewstatus = settings.autoviewstatus;
-        if (settings.autoreactstatus !== undefined) global.autoreactstatus = settings.autoreactstatus;
-        if (settings.welcome !== undefined) global.welcome = settings.welcome;
-        if (settings.adminevent !== undefined) global.adminevent = settings.adminevent;
-        if (settings.antibug !== undefined) global.antibug = settings.antibug;
-        if (settings.anticall !== undefined) global.anticall = settings.anticall;
-        if (settings.autobio !== undefined) global.autobio = settings.autobio;
-        if (settings.prefix !== undefined) global.prefix = settings.prefix;
-        
+        const settings = this.getBotSettings(botNumber);
+        const globalKeys = [
+            'autorecording', 'AI_CHAT', 'antidelete', 'antiedit', 'antilinkdelete',
+            'autoreact', 'autoread', 'autoviewstatus', 'autoreactstatus', 'welcome',
+            'adminevent', 'antibug', 'anticall', 'autobio', 'prefix'
+        ];
+
+        globalKeys.forEach(key => {
+            if (settings[key] !== undefined) {
+                global[key] = settings[key];
+            }
+        });
+
         console.log(`✅ Settings synced to globals for ${botNumber}`);
+    }
+
+    // Group settings methods
+    getGroup(botNumber, groupId) {
+        const botSettings = this.getBotSettings(botNumber);
+        if (!botSettings.groups) botSettings.groups = {};
+        if (!botSettings.groups[groupId]) botSettings.groups[groupId] = {};
+        return botSettings.groups[groupId];
+    }
+
+    getGroupSetting(botNumber, groupId, key, defaultValue = false) {
+        const group = this.getGroup(botNumber, groupId);
+        
+        if (group[key] === undefined && defaultValue !== null) {
+            group[key] = defaultValue;
+            this.saveSettings();
+        }
+        
+        return group[key];
+    }
+
+    setGroupSetting(botNumber, groupId, key, value) {
+        const group = this.getGroup(botNumber, groupId);
+        group[key] = value;
+        return this.saveSettings();
+    }
+
+    isWelcomeEnabled(botNumber, groupId) {
+        // Check group-specific setting first
+        const groupWelcome = this.getGroupSetting(botNumber, groupId, 'welcome', null);
+        
+        // If group has explicit setting, use it
+        if (groupWelcome !== null) {
+            return groupWelcome;
+        }
+        
+        // Fallback to global setting (default false)
+        return this.get(botNumber, 'welcome', false);
     }
 }
 
-// Create singleton instance
+// Singleton instance
 const settingsManager = new SettingsManager();
 
+// Helper functions
+const getSetting = (botNumber, key, defaultValue) => 
+    settingsManager.get(botNumber, key, defaultValue);
 
-function getSudo(botNumber) {
-    return settingsManager.getSudo(botNumber);
-}
+const updateSetting = (botNumber, key, value) => 
+    settingsManager.set(botNumber, key, value);
 
-function addSudo(botNumber, userJid) {
-    return settingsManager.addSudo(botNumber, userJid);
-}
+const getGroupSetting = (botNumber, groupId, key, defaultValue) =>
+    settingsManager.getGroupSetting(botNumber, groupId, key, defaultValue);
 
-function removeSudo(botNumber, userJid) {
-    return settingsManager.removeSudo(botNumber, userJid);
-}
+const setGroupSetting = (botNumber, groupId, key, value) =>
+    settingsManager.setGroupSetting(botNumber, groupId, key, value);
 
-function hasSudo(botNumber, userJid) {
-    return settingsManager.hasSudo(botNumber, userJid);
-}
+const isWelcomeEnabled = (botNumber, groupId) =>
+    settingsManager.isWelcomeEnabled(botNumber, groupId);
 
-function getSetting(botNumber, key, defaultValue = null) {
-    return settingsManager.getSetting(botNumber, key, defaultValue);
-}
-
-function updateSetting(botNumber, key, value) {
-    return settingsManager.setSetting(botNumber, key, value);
-}
-
-function getAllSettings(botNumber) {
-    return settingsManager.getAllSettings(botNumber);
-}
-
-function syncToGlobals(botNumber) {
-    return settingsManager.syncToGlobals(botNumber);
-}
-
-// Export the singleton instance and functions
+// Export
 module.exports = {
-    settingsManager, // The singleton instance
+    settingsManager,
     getSetting,
-    getSudo,
-    addSudo,
-    removeSudo,
-    hasSudo,
     updateSetting,
-    getAllSettings,
-    syncToGlobals,
-    
-    // Alias for updateSetting for backward compatibility
-    setSetting: updateSetting
+    setSetting: updateSetting,
+    getGroupSetting,
+    setGroupSetting,
+    isWelcomeEnabled,
+    getSudo: (botNumber) => settingsManager.getSudo(botNumber),
+    addSudo: (botNumber, userJid) => settingsManager.addSudo(botNumber, userJid),
+    removeSudo: (botNumber, userJid) => settingsManager.removeSudo(botNumber, userJid),
+    hasSudo: (botNumber, userJid) => settingsManager.hasSudo(botNumber, userJid),
+    getAllSettings: (botNumber) => settingsManager.getBotSettings(botNumber),
+    syncToGlobals: (botNumber) => settingsManager.syncToGlobals(botNumber)
 };
 
-// Optionally, still set it to global for backward compatibility
+// Global access
 global.settingsManager = settingsManager;
