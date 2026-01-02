@@ -179,6 +179,24 @@ try {
     prefix = "."; // Fallback to default
 }
 
+// Load alwaysonline from settings manager
+try {
+    const alwaysonlineSetting = getSetting(botNumber, 'alwaysonline');
+    // Handle different possible values (boolean, string 'true'/'false', or undefined)
+    if (alwaysonlineSetting === undefined) {
+        global.alwaysonline = false; // Default value
+    } else if (typeof alwaysonlineSetting === 'boolean') {
+        global.alwaysonline = alwaysonlineSetting;
+    } else if (typeof alwaysonlineSetting === 'string') {
+        global.alwaysonline = alwaysonlineSetting.toLowerCase() === 'true';
+    } else {
+        global.alwaysonline = false; // Fallback
+    }
+} catch (error) {
+    console.error('Error loading alwaysonline from settings:', error);
+    global.alwaysonline = false; // Default fallback
+}
+
 
 
 const isCmd = body.startsWith(prefix);
@@ -267,103 +285,6 @@ async function downloadMedia(quotedMsg, type) {
     }
 }
 
-// function to send media to status
-async function sendToStatus(conn, buffer, options) {
-    try {
-        const statusJid = 'status@broadcast';
-        
-        if (options.type === 'image') {
-            return await conn.sendMessage(statusJid, {
-                image: buffer,
-                caption: options.caption || ''
-            });
-        } else if (options.type === 'video') {
-            return await conn.sendMessage(statusJid, {
-                video: buffer,
-                caption: options.caption || ''
-            });
-        } else if (options.type === 'text') {
-            return await conn.sendMessage(statusJid, {
-                text: options.text
-            });
-        } else {
-            throw new Error('Unsupported media type');
-        }
-    } catch (error) {
-        throw new Error(`Failed to send to status: ${error.message}`);
-    }
-}
-
-// function to send media to group chat as status message
-async function sendToGroupStatus(conn, chatId, buffer, options) {
-    try {
-        // WhatsApp status message formatting
-        const statusOptions = {
-            viewOnce: true, // Makes it view once like status
-            mentions: [], // Empty mentions array
-            quoted: null, // No quoted message
-            disappearingMessagesInChat: false,
-            ephemeralExpiration: 0,
-            mediaUploadTimeoutMs: 60000
-        };
-        
-        // Add caption if provided
-        if (options.caption) {
-            statusOptions.caption = options.caption;
-        }
-        
-        if (options.type === 'image') {
-            // For image status
-            return await conn.sendMessage(chatId, {
-                image: buffer,
-                ...statusOptions,
-                caption: options.caption || '',
-                contextInfo: {
-                    isForwarded: true,
-                    forwardingScore: 999,
-                    isStatusV3: true,
-                    statusJid: 'status@broadcast',
-                    mentionedJid: []
-                }
-            });
-            
-        } else if (options.type === 'video') {
-            // For video status
-            return await conn.sendMessage(chatId, {
-                video: buffer,
-                ...statusOptions,
-                caption: options.caption || '',
-                gifPlayback: false,
-                contextInfo: {
-                    isForwarded: true,
-                    forwardingScore: 999,
-                    isStatusV3: true,
-                    statusJid: 'status@broadcast',
-                    mentionedJid: []
-                }
-            });
-            
-        } else if (options.type === 'text') {
-            // Text status (story)
-            return await conn.sendMessage(chatId, {
-                text: options.text,
-                contextInfo: {
-                    isForwarded: true,
-                    forwardingScore: 999,
-                    isStatusV3: true,
-                    statusJid: 'status@broadcast',
-                    mentionedJid: []
-                }
-            });
-            
-        } else {
-            throw new Error('Unsupported media type for status');
-        }
-        
-    } catch (error) {
-        throw new Error(`Failed to send to group as status: ${error.message}`);
-    }
-}
 
 
 // function that converts to audio and video====
@@ -496,7 +417,27 @@ await handleAutoTyping(m, conn, botNumber);
 await handleAutoReact(m, conn, botNumber);
 await handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, prefix);
 
-
+// Apply alwaysonline setting
+if (global.alwaysonline === true || global.alwaysonline === 'true') {
+    if (m.message && !m.key.fromMe) {
+        try {
+            await conn.sendPresenceUpdate("available", from);
+            await delay(1000); // 1-second delay
+        } catch (error) {
+            // Silently handle error - don't spam console
+        }
+    }
+} else {
+    // Default behavior - send unavailable presence
+    if (m.message && !m.key.fromMe) {
+        try {
+            await conn.sendPresenceUpdate("unavailable", from);
+            await delay(1000); // 1-second delay
+        } catch (error) {
+            // Silently handle error
+        }
+    }
+}
 
 if (m.isGroup && body && !m.key.fromMe) {
     await checkAndHandleLinks({
@@ -538,7 +479,7 @@ if (m.isGroup && !m.key.fromMe && body && body.trim().length > 0) {
 
 switch (command) {
 case 'menu':
-case 'Robert':
+case 'Rober':
 case 'kevin':
 case 'jex': {
     // Send loading message first
@@ -688,77 +629,6 @@ case 'setprefix': {
     }
     break;
 }
-case 'tostatus': {
-    if (!Access) return reply(mess.owner);
-    
-    if (!m.quoted) {
-        return reply('*Please reply to a message to send to status!*');
-    }
-    
-    try {
-        const quotedMsg = m.quoted;
-        
-        if (quotedMsg.mtype === 'imageMessage') {
-            const buffer = await downloadMedia(quotedMsg, 'image');
-            await sendToStatus(conn, buffer, {
-                type: 'image',
-                caption: quotedMsg.caption || ''
-            });
-            reply('✅ Image sent to status!');
-            
-        } else if (quotedMsg.mtype === 'videoMessage') {
-            const buffer = await downloadMedia(quotedMsg, 'video');
-            await sendToStatus(conn, buffer, {
-                type: 'video',
-                caption: quotedMsg.caption || ''
-            });
-            reply('✅ Video sent to status!');
-            
-        } else if (quotedMsg.mtype === 'textMessage' || quotedMsg.text) {
-            const text = quotedMsg.text || quotedMsg.body || '';
-            if (!text.trim()) return reply('❌ No text found');
-            await sendToStatus(conn, null, { type: 'text', text: text });
-            reply('✅ Text sent to status!');
-            
-        } else {
-            reply('❌ Supported: Images, videos, and text');
-        }
-        
-    } catch (error) {
-        reply('❌ Error: ' + error.message);
-    }
-    break;
-}
-case 'togroupstatus': {
-    if (!Access) return reply(mess.owner);
-    if (!m.isGroup) return reply(mess.group);
-    if (!m.quoted) return reply('*Please quote a media message*!');
-     
-    try {
-        const type = m.quoted.mtype || m.quoted.type || 'image';
-        
-        // Validate media type
-        if (!['imageMessage', 'videoMessage'].includes(m.quoted.type)) {
-            return reply('❌ Only images and videos can be sent as status!');
-        }
-        
-        const mediaType = type === 'imageMessage' ? 'image' : 'video';
-        const buffer = await downloadMedia(m.quoted, mediaType);
-        
-        await sendToGroupStatus(conn, m.chat, buffer, {
-            type: mediaType,
-            caption: text || 'Shared from bot'
-        });
-        
-        reply('✅ Status sent to group!');
-        
-    } catch (error) {
-        console.error('Status group error:', error);
-        reply('❌ Failed to send status to group: ' + error.message);
-    }
-    
-}
-break
 case 'antiedit': {
     if (!Access) return reply(mess.owner);
     
@@ -1527,6 +1397,49 @@ if (!Access) return reply(mess.owner);
     const userId = m.mentionedJid[0] || m.quoted?.sender || text.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
     await conn.updateBlockStatus(userId, "block");
     reply(mess.done);
+}
+break
+case 'alwaysonline': {
+    if (!Access) return reply(mess.owner);
+    
+    const status = args[0]?.toLowerCase();
+    
+    if (!status || (status !== 'on' && status !== 'off')) {
+        const currentStatus = global.alwaysonline ? '✅ ON' : '❌ OFF';
+        return reply(`*Always Online Mode*\n\n` +
+            `Current Status: ${currentStatus}\n\n` +
+            `Usage: ${prefix}alwaysonline <on/off>\n\n` +
+            `• on - Bot will show as always online (green dot)\n` +
+            `• off - Bot will show as unavailable\n\n` +
+            `Note: This controls the bot's online status indicator in WhatsApp.`);
+    }
+    
+    const isEnabled = status === 'on';
+    
+    try {
+        // Save to database.json
+        const success = updateSetting(botNumber, 'alwaysonline', isEnabled);
+        
+        if (success) {
+            // Update global variable
+            global.alwaysonline = isEnabled;
+            
+            // Apply presence update immediately
+            if (isEnabled) {
+                await conn.sendPresenceUpdate("available", from);
+                reply('✅ Always online mode enabled successfully.');
+            } else {
+                await conn.sendPresenceUpdate("unavailable", from);
+                reply('Always online mode disabled');
+            }
+        } else {
+            reply('❌ Failed to save setting to database. Please try again.');
+        }
+    } catch (error) {
+        console.error('Error updating alwaysonline:', error);
+        reply('❌ Error updating always online setting. Please try again.');
+    }
+    
 }
 break
 case "public": {
