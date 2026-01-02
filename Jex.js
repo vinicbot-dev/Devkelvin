@@ -208,6 +208,12 @@ const pickRandom = (arr) => {
 return arr[Math.floor(Math.random() * arr.length)]
 }
 
+function loadBlacklist() {
+    if (!global.db.data.blacklist) {
+        global.db.data.blacklist = { blacklisted_numbers: [] };
+    }
+    return global.db.data.blacklist;
+} 
 // Helper function to extract text from message
 function extractMessageText(message) {
     if (!message) return "";
