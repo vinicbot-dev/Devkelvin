@@ -9181,9 +9181,7 @@ if (!Access) return reply(mess.owner);
         });
 }
 break
-// Group admin commands
-case 'group':
-case 'setgroup': {
+case 'antibot': {
        if (!m.isGroup) return reply(mess.group);
     if (!isGroupAdmins && !Access) return reply(mess.notadmin);
     
