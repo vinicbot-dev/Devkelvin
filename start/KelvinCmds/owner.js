@@ -32,23 +32,23 @@ function generateSettingsText(botNumber, prefix) {
     
     return `*📊 BOT SETTINGS STATUS*
 
-• Prefix: ${prefix}
-• Always Online: ${alwaysonline ? '🟢 ON (Green dot)' : '⚪ OFF'}
-• Anti-Delete: ${antidelete !== 'off' ? '✅ ON (' + antidelete + ')' : '❌ OFF'}
-• Anti-Edit: ${antiedit !== 'off' ? '✅ ON (' + antiedit + ')' : '❌ OFF'}
-• Anti-Call: ${anticall !== 'off' ? '✅ ON (' + anticall + ')' : '❌ OFF'}
-• Anti-Link: ${antilinkdelete ? '✅ ON (' + antilinkaction + ')' : '❌ OFF'}
-• Anti-Badword: ${antibadword ? '✅ ON (' + antibadwordaction + ')' : '❌ OFF'}
-• Anti-Tag: ${antitag ? '✅ ON (' + antitagaction + ')' : '❌ OFF'}
-• Auto-Recording: ${autorecording ? '✅ ON' : '❌ OFF'}
-• Auto-Typing: ${autoTyping ? '✅ ON' : '❌ OFF'}
-• Auto-Read: ${autoread ? '✅ ON' : '❌ OFF'}
-• Auto-React: ${autoreact ? '✅ ON' : '❌ OFF'}
-• AI Chatbot: ${AI_CHAT ? '✅ ON' : '❌ OFF'}
-• Auto-View Status: ${autoviewstatus ? '✅ ON' : '❌ OFF'}
-• Auto-React Status: ${autoreactstatus ? '✅ ON (' + statusemoji + ')' : '❌ OFF'}
-• Welcome Message: ${welcome ? '✅ ON' : '❌ OFF'}
-• Admin Events: ${adminevent ? '✅ ON' : '❌ OFF'}
+🔸 Prefix: ${prefix}
+🔸 Always Online: ${alwaysonline ? 'ON' : 'OFF'}
+🔸 Anti-Delete: ${antidelete !== 'off' ? 'ON (' + antidelete + ')' : 'OFF'}
+🔸 Anti-Edit: ${antiedit !== 'off' ? 'ON (' + antiedit + ')' : 'OFF'}
+🔸 Anti-Call: ${anticall !== 'off' ? 'ON (' + anticall + ')' : 'OFF'}
+🔸 Anti-Link: ${antilinkdelete ? 'ON (' + antilinkaction + ')' : 'OFF'}
+🔸 Anti-Badword: ${antibadword ? 'ON (' + antibadwordaction + ')' : 'OFF'}
+🔸 Anti-Tag: ${antitag ? 'ON (' + antitagaction + ')' : 'OFF'}
+🔸 Auto-Recording: ${autorecording ? 'ON' : 'OFF'}
+🔸 Auto-Typing: ${autoTyping ? 'ON' : 'OFF'}
+🔸 Auto-Read: ${autoread ? 'ON' : 'OFF'}
+🔸 Auto-React: ${autoreact ? 'ON' : 'OFF'}
+🔸 AI Chatbot: ${AI_CHAT ? 'ON' : 'OFF'}
+🔸 Auto-View Status: ${autoviewstatus ? 'ON' : 'OFF'}
+🔸 Auto-React Status: ${autoreactstatus ? 'ON (' + statusemoji + ')' : 'OFF'}
+🔸 Welcome Message: ${welcome ? 'ON' : 'OFF'}
+🔸 Admin Events: ${adminevent ? 'ON' : 'OFF'}
 
 📋 *COMMANDS*
 • ${prefix}setprefix <new> - Change prefix (1-3 chars)
