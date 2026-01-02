@@ -77,6 +77,7 @@ const {
   handleAntiTag,
   handleLinkViolation,
   checkAndHandleLinks,
+  setGroupStatusCommand,
   detectUrls,
   delay,
   recordError,
@@ -1754,52 +1755,58 @@ Status updates are automatically marked as read when enabled.`);
     break;
 }
 case 'welcome': {
-      if (!m.isGroup) return reply(mess.group);
-      if (!Access) return reply(mess.owner);
-      
-    const action = args[0]?.toLowerCase();
-    const groupId = m.chat;
-    const botNumber = await conn.decodeJid(conn.user.id);
+    if (!Access) return reply(mess.owner);
     
-    if (!action || !['on', 'off', 'status'].includes(action)) {
-        const isEnabled = global.settingsManager?.isWelcomeEnabledForGroup(botNumber, groupId);
-        return reply(`👋 *Group Welcome Settings*
+    const subcommand = args[0]?.toLowerCase();
+    
+    if (!subcommand) {
+        return reply(`👋 *Welcome System*
         
 Usage:
-• ${prefix}welcome on - Enable welcome/goodbye in this group
-• ${prefix}welcome off - Disable welcome/goodbye in this group
+• ${prefix}welcome on - Enable welcome/goodbye messages
+• ${prefix}welcome off - Disable welcome/goodbye messages
 • ${prefix}welcome status - Show current status
 
-Current Status: ${isEnabled ? '✅ Enabled' : '❌ Disabled'}
-        
-📌 This setting is per-group. Each group can have its own welcome setting.`);
+Current Status: ${getSetting(botNumber, 'welcome', true) ? '✅ Enabled' : '❌ Disabled'}
+
+📌 Features:
+• Welcome message for new members
+• Goodbye message for leaving members
+• Includes profile picture and member count`);
     }
     
-    switch(action) {
+    switch(subcommand) {
         case 'on': {
-            await global.settingsManager?.setGroupSetting(botNumber, groupId, 'welcome', true);
-            reply(`✅ Welcome messages enabled for this group!`);
+            await updateSetting(botNumber, 'welcome', true);
+            reply(`✅ Welcome/goodbye messages enabled`);
             break;
         }
         
         case 'off': {
-            await global.settingsManager?.setGroupSetting(botNumber, groupId, 'welcome', false);
-            reply(`✅ Welcome messages disabled for this group!`);
+            await updateSetting(botNumber, 'welcome', false);
+            reply(`✅ Welcome/goodbye messages disabled`);
             break;
         }
         
         case 'status': {
-            const isEnabled = global.settingsManager?.isWelcomeEnabledForGroup(botNumber, groupId);
-            reply(`📊 *Welcome Status for This Group*
+            const isEnabled = getSetting(botNumber, 'welcome', true);
+            reply(`*Welcome System Status*
             
 • Status: ${isEnabled ? '✅ Enabled' : '❌ Disabled'}
-• Group: ${await conn.getName(groupId) || groupId}
-• When enabled: Welcome + Goodbye messages will be sent`);
+• Features: ${isEnabled ? 'Welcome + Goodbye messages' : 'Disabled'}
+
+Send ${prefix}welcome on/off to toggle`);
+            break;
+        }
+        
+        default: {
+            reply(`❌ Invalid subcommand. Use ${prefix}welcome on/off/status`);
             break;
         }
     }
     break;
 }
+
 case 'adminevent': {
     if (!Access) return reply(mess.owner);
     
@@ -9138,6 +9145,28 @@ if (!Access) return reply(mess.owner);
                 values: options,
             },
         });
+}
+break
+case 'togstatus':
+case 'tosgroup':
+case 'togroupstatus':
+case 'groupstatus':
+case 'swgc': {   
+    if (Access) return reply(mess.owner);
+    
+    // Check if it's a group
+    if (!m.isGroup) {
+        return reply(mess.group);
+    }
+    
+    try {
+        // Execute the group status command
+        await setGroupStatusCommand(conn, m);
+    } catch (error) {
+        console.error('Error in group status command:', error);
+        reply(`Error: ${error.message}`);
+    }
+    
 }
 break
 case 'antilink': {
