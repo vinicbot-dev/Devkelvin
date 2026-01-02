@@ -13,7 +13,6 @@ function generateSettingsText(botNumber, prefix) {
     const antiedit = getSetting(botNumber, 'antiedit', 'off');
     const anticall = getSetting(botNumber, 'anticall', 'off');
     const autorecording = getSetting(botNumber, 'autorecording', false);
-    const alwaysonline = getSetting(botNumber, 'alwaysonline', false);
     const autoTyping = getSetting(botNumber, 'autoTyping', false);
     const autoread = getSetting(botNumber, 'autoread', false);
     const autoreact = getSetting(botNumber, 'autoreact', false);
@@ -29,32 +28,37 @@ function generateSettingsText(botNumber, prefix) {
     const autoviewstatus = getSetting(botNumber, 'autoviewstatus', false);
     const autoreactstatus = getSetting(botNumber, 'autoreactstatus', false);
     const statusemoji = getSetting(botNumber, 'statusemoji', '💚');
+    const alwaysonline = getSetting(botNumber, 'alwaysonline', false);
+    const antibot = getSetting(botNumber, 'antibot', false);
     
-    return `*BOT SETTINGS STATUS*
+    return `*📊 BOT SETTINGS STATUS*
 
-Prefix: ${prefix}
-Anti-Delete: ${antidelete !== 'off' ? 'ON (' + antidelete + ')' : 'OFF'}
-Anti-Edit: ${antiedit !== 'off' ? 'ON (' + antiedit + ')' : 'OFF'}
-Anti-Call: ${anticall !== 'off' ? 'ON (' + anticall + ')' : 'OFF'}
-Auto-Recording: ${autorecording ? 'ON' : 'OFF'}
-Auto-Typing: ${autoTyping ? 'ON' : 'OFF'}
-Auto-Read: ${autoread ? 'ON' : 'OFF'}
-Auto-React: ${autoreact ? 'ON' : 'OFF'}
-AI Chatbot: ${AI_CHAT ? 'ON' : 'OFF'}
-Auto-View Status: ${autoviewstatus ? 'ON' : 'OFF'}
-Auto-React Status: ${autoreactstatus ? 'ON (' + statusemoji + ')' : 'OFF'}
-Anti-Link: ${antilinkdelete ? 'ON (' + antilinkaction + ')' : 'OFF'}
-Anti-Badword: ${antibadword ? 'ON (' + antibadwordaction + ')' : 'OFF'}
-Anti-Tag: ${antitag ? 'ON (' + antitagaction + ')' : 'OFF'}
-Welcome Message: ${welcome ? 'ON' : 'OFF'}
-Admin Events: ${adminevent ? 'ON' : 'OFF'}
+• Prefix: ${prefix}
+• Always Online: ${alwaysonline ? '🟢 ON (Green dot)' : '⚪ OFF'}
+• Anti-Bot: ${antibot ? '✅ ON' : '❌ OFF'}
+• Anti-Delete: ${antidelete !== 'off' ? '✅ ON (' + antidelete + ')' : '❌ OFF'}
+• Anti-Edit: ${antiedit !== 'off' ? '✅ ON (' + antiedit + ')' : '❌ OFF'}
+• Anti-Call: ${anticall !== 'off' ? '✅ ON (' + anticall + ')' : '❌ OFF'}
+• Anti-Link: ${antilinkdelete ? '✅ ON (' + antilinkaction + ')' : '❌ OFF'}
+• Anti-Badword: ${antibadword ? '✅ ON (' + antibadwordaction + ')' : '❌ OFF'}
+• Anti-Tag: ${antitag ? '✅ ON (' + antitagaction + ')' : '❌ OFF'}
+• Auto-Recording: ${autorecording ? '✅ ON' : '❌ OFF'}
+• Auto-Typing: ${autoTyping ? '✅ ON' : '❌ OFF'}
+• Auto-Read: ${autoread ? '✅ ON' : '❌ OFF'}
+• Auto-React: ${autoreact ? '✅ ON' : '❌ OFF'}
+• AI Chatbot: ${AI_CHAT ? '✅ ON' : '❌ OFF'}
+• Auto-View Status: ${autoviewstatus ? '✅ ON' : '❌ OFF'}
+• Auto-React Status: ${autoreactstatus ? '✅ ON (' + statusemoji + ')' : '❌ OFF'}
+• Welcome Message: ${welcome ? '✅ ON' : '❌ OFF'}
+• Admin Events: ${adminevent ? '✅ ON' : '❌ OFF'}
 
-Commands:
-${prefix}setprefix <new> - Change prefix (1-3 chars)
-${prefix}set <option> <value> - Change other settings
-${prefix}settings - View current settings
+📋 *COMMANDS*
+• ${prefix}setprefix <new> - Change prefix (1-3 chars)
+• ${prefix}set <option> <value> - Change settings
+• ${prefix}settings - View current settings
+• ${prefix}group antibot on/off - Per-group anti-bot
 
-All settings saved to JSON database.`;
+💾 All settings saved to JSON database.`;
 }
 
 /**
@@ -65,6 +69,8 @@ All settings saved to JSON database.`;
 function getAllSettings(botNumber) {
     return {
         prefix: getSetting(botNumber, 'prefix', '.'),
+        alwaysonline: getSetting(botNumber, 'alwaysonline', false),
+        antibot: getSetting(botNumber, 'antibot', false),
         antidelete: getSetting(botNumber, 'antidelete', 'off'),
         antiedit: getSetting(botNumber, 'antiedit', 'off'),
         anticall: getSetting(botNumber, 'anticall', 'off'),
