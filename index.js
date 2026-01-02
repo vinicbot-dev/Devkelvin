@@ -704,23 +704,31 @@ conn.sendStatusMention = async (content, jids = []) => {
     Connecting({ update, conn, Boom, DisconnectReason, sleep, color, clientstart });
   });
   
-// In the group-participants.update event handler
 conn.ev.on('group-participants.update', async (anu) => {
     try {
-        const botNumber = await conn.decodeJid(conn.user.id);
+        const botNumber = conn.decodeJid(conn.user.id);
+        const groupId = anu.id;
         
-        // Get settings - default to true only if setting doesn't exist
-        let welcomeEnabled = global.settingsManager?.getSetting(botNumber, 'welcome') ?? false;
-        let admineventEnabled = global.settingsManager?.getSetting(botNumber, 'adminevent') ?? false;
+        // Get adminevent setting first (for logging)
+        const admineventEnabled = global.settingsManager?.getSetting(botNumber, 'adminevent', false);
         
-   
-        // WELCOME FEATURE - USING JSON SETTINGS
+        // Check group-specific welcome setting
+        const welcomeEnabled = global.settingsManager?.isWelcomeEnabled(botNumber, groupId);
+        
+        console.log(`[GROUP EVENT] Group: ${groupId}, Welcome: ${welcomeEnabled}, AdminEvent: ${admineventEnabled}`);
+        
+        // WELCOME FEATURE - PER GROUP SETTINGS
         if (welcomeEnabled === true) {
+            console.log(`[WELCOME] Processing welcome/goodbye for group ${groupId}`);
+            
             try {
-                const groupMetadata = await conn.groupMetadata(anu.id);
+                const groupMetadata = await conn.groupMetadata(groupId);
                 const participants = anu.participants;
                 
                 for (const participant of participants) {
+                    // Skip if participant is the bot itself
+                    if (participant === botNumber) continue;
+                    
                     let ppUrl;
                     try {
                         ppUrl = await conn.profilePictureUrl(participant, 'image');
@@ -728,27 +736,14 @@ conn.ev.on('group-participants.update', async (anu) => {
                         ppUrl = 'https://i.ibb.co/RBx5SQC/avatar-group-large-v2.png?q=60';
                     }
                     
-                    // Extract user ID from both formats: @s.whatsapp.net and @lid
-                    let userId;
-                    if (participant.endsWith('@s.whatsapp.net')) {
-                        userId = participant.split('@')[0];
-                    } else if (participant.endsWith('@lid')) {
-                        // For @lid format, get the actual number if possible
-                        try {
-                            const userInfo = await conn.decodeJid(participant);
-                            userId = userInfo.split('@')[0] || participant.split('@')[0];
-                        } catch {
-                            userId = participant.split('@')[0];
-                        }
-                    } else {
-                        userId = participant.split('@')[0];
-                    }
+                    // Extract user ID
+                    let userId = participant.split('@')[0];
                     
                     const name = await conn.getName(participant) || userId;
                     
                     if (anu.action === 'add') {
                         const memberCount = groupMetadata.participants.length;
-                        await conn.sendMessage(anu.id, {
+                        await conn.sendMessage(groupId, {
                             image: { url: ppUrl },
                             caption: `
 *${global.botname} welcome* @${userId}  
@@ -768,7 +763,7 @@ conn.ev.on('group-participants.update', async (anu) => {
                         
                     } else if (anu.action === 'remove') {
                         const memberCount = groupMetadata.participants.length;
-                        await conn.sendMessage(anu.id, {
+                        await conn.sendMessage(groupId, {
                             image: { url: ppUrl },
                             caption: `
 *👋 Goodbye* 😪 @${userId}
@@ -787,12 +782,13 @@ conn.ev.on('group-participants.update', async (anu) => {
                 console.error('Error in welcome feature:', err);
             }
         } else {
-            console.log(`[WELCOME] Disabled - skipping welcome messages for ${anu.id}`);
+            console.log(`[WELCOME] Disabled for group ${groupId} - skipping welcome messages`);
         }
         
-        // ADMIN EVENT FEATURE - USING JSON SETTINGS
+        // ADMIN EVENT FEATURE - GLOBAL SETTING
         if (admineventEnabled === true) {
-            console.log('Admin event detected:', anu);
+            console.log('[ADMIN EVENT] Processing admin events');
+            
             if (anu.participants.includes(botNumber)) return;
             
             try {
@@ -804,39 +800,13 @@ conn.ev.on('group-participants.update', async (anu) => {
                     let tag = check ? [anu.author, num] : [num];
                     
                     if (anu.action == "promote") {
-                        // Get user IDs for promoted users (handling both formats)
                         let promotedUsers = [];
                         for (let participant of participants) {
-                            let userId;
-                            if (participant.endsWith('@s.whatsapp.net')) {
-                                userId = participant.split('@')[0];
-                            } else if (participant.endsWith('@lid')) {
-                                try {
-                                    const userInfo = await conn.decodeJid(participant);
-                                    userId = userInfo.split('@')[0] || participant.split('@')[0];
-                                } catch {
-                                    userId = participant.split('@')[0];
-                                }
-                            } else {
-                                userId = participant.split('@')[0];
-                            }
+                            let userId = participant.split('@')[0];
                             promotedUsers.push(`@${userId}`);
                         }
                         
-                        // Get admin user ID
-                        let adminUserId;
-                        if (anu.author.endsWith('@s.whatsapp.net')) {
-                            adminUserId = anu.author.split('@')[0];
-                        } else if (anu.author.endsWith('@lid')) {
-                            try {
-                                const adminInfo = await conn.decodeJid(anu.author);
-                                adminUserId = adminInfo.split('@')[0] || anu.author.split('@')[0];
-                            } catch {
-                                adminUserId = anu.author.split('@')[0];
-                            }
-                        } else {
-                            adminUserId = anu.author.split('@')[0];
-                        }
+                        let adminUserId = anu.author?.split('@')[0] || 'Unknown';
                         
                         const promotionMessage = `*『 GROUP PROMOTION 』*\n\n` +
                             `👤 *Promoted User${participants.length > 1 ? 's' : ''}:*\n` +
@@ -852,39 +822,13 @@ conn.ev.on('group-participants.update', async (anu) => {
                     }
                     
                     if (anu.action == "demote") {
-                        // Get user IDs for demoted users (handling both formats)
                         let demotedUsers = [];
                         for (let participant of participants) {
-                            let userId;
-                            if (participant.endsWith('@s.whatsapp.net')) {
-                                userId = participant.split('@')[0];
-                            } else if (participant.endsWith('@lid')) {
-                                try {
-                                    const userInfo = await conn.decodeJid(participant);
-                                    userId = userInfo.split('@')[0] || participant.split('@')[0];
-                                } catch {
-                                    userId = participant.split('@')[0];
-                                }
-                            } else {
-                                userId = participant.split('@')[0];
-                            }
+                            let userId = participant.split('@')[0];
                             demotedUsers.push(`@${userId}`);
                         }
                         
-                        // Get admin user ID
-                        let adminUserId;
-                        if (anu.author.endsWith('@s.whatsapp.net')) {
-                            adminUserId = anu.author.split('@')[0];
-                        } else if (anu.author.endsWith('@lid')) {
-                            try {
-                                const adminInfo = await conn.decodeJid(anu.author);
-                                adminUserId = adminInfo.split('@')[0] || anu.author.split('@')[0];
-                            } catch {
-                                adminUserId = anu.author.split('@')[0];
-                            }
-                        } else {
-                            adminUserId = anu.author.split('@')[0];
-                        }
+                        let adminUserId = anu.author?.split('@')[0] || 'Unknown';
                         
                         const demotionMessage = `*『 GROUP DEMOTION 』*\n\n` +
                             `👤 *Demoted User${participants.length > 1 ? 's' : ''}:*\n` +
@@ -903,13 +847,15 @@ conn.ev.on('group-participants.update', async (anu) => {
                 console.log('Error in admin event feature:', err);
             }
         } else {
-            console.log(`[ADMIN EVENT] Disabled - skipping admin events for ${anu.id}`);
+            console.log(`[ADMIN EVENT] Disabled - skipping admin events`);
         }
+        
     } catch (error) {
         console.error('Error in group-participants.update:', error);
     }
 });
-
+        
+   
 conn.ev.on('call', async (callData) => {
     try {
         const botNumber = await conn.decodeJid(conn.user.id);
