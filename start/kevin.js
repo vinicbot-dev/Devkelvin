@@ -9150,13 +9150,17 @@ break
 case 'togstatus':
 case 'tosgroup':
 case 'togroupstatus':
-case 'groupstatus':
-case 'swgc': {   
-    if (Access) return reply(mess.owner);
+case 'swgc': {
+   
+    
+    // Check if it's the bot owner
+    if (!m.key.fromMe) {
+        return reply(mess.owner);
+    }
     
     // Check if it's a group
     if (!m.isGroup) {
-        return reply(mess.group);
+        return reply('❌ This command only works in groups!');
     }
     
     try {
@@ -9164,10 +9168,11 @@ case 'swgc': {
         await setGroupStatusCommand(conn, m);
     } catch (error) {
         console.error('Error in group status command:', error);
-        reply(`Error: ${error.message}`);
+        reply(`❌ Error: ${error.message}`);
     }
     
 }
+
 break
 case 'antilink': {
       if (!m.isGroup) return reply(mess.group);
