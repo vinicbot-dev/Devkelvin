@@ -13,6 +13,7 @@ function generateSettingsText(botNumber, prefix) {
     const antiedit = getSetting(botNumber, 'antiedit', 'off');
     const anticall = getSetting(botNumber, 'anticall', 'off');
     const autorecording = getSetting(botNumber, 'autorecording', false);
+    const alwaysonline = getSetting(botNumber, 'alwaysonline', false);
     const autoTyping = getSetting(botNumber, 'autoTyping', false);
     const autoread = getSetting(botNumber, 'autoread', false);
     const autoreact = getSetting(botNumber, 'autoreact', false);
