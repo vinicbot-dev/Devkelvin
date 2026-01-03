@@ -161,7 +161,7 @@ async function generateMenu(conn, m, prefix, global) {
         },
         ai: {
             title: ' *AI MENU*',
-            commands: ['generate', 'ai', 'copilot', 'metaai', 'deepseek', 'flux', 'dalle', 'mistral', 'summarize', 'blackbox', 'gpt'],
+            commands: ['generate', 'ai', 'copilot', 'metaai', 'deepseek', 'venice',  'flux', 'dalle', 'mistral', 'summarize', 'blackbox', 'gpt'],
         },
         audio: {
             title: ' *AUDIO MENU*',
@@ -204,7 +204,7 @@ async function generateMenu(conn, m, prefix, global) {
             commands: ['time', 'calculate', 'owner', 'dev', 'fliptext', 'translate', 
                       'ss2', 'sswebpc', 'kevinfarm', 'say', 'getdevice', 'ss', 'gpass', 'userinfo', 
                       'npm', 'take', 'telesticker', 'checkapi', 'footballhelp', 'filtervcf', 'qrcode', 'smartphone', 
-                      'removebg', 'obfuscate', 'getabout', 'tinylink', 'vcc', 'getbussiness', 
+                      'removebg', 'obfuscate', 'obfuscate2', 'getabout', 'tinylink', 'vcc', 'getbussiness', 
                       'listpc', 'sswebpc'],
         },
         helpers: {
