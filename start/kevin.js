@@ -77,7 +77,6 @@ const {
   handleAntiTag,
   handleLinkViolation,
   checkAndHandleLinks,
-  setGroupStatusCommand,
   detectUrls,
   delay,
   recordError,
@@ -417,7 +416,7 @@ await handleAutoTyping(m, conn, botNumber);
 await handleAutoReact(m, conn, botNumber);
 await handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, prefix);
 
-// Apply alwaysonline setting
+
 if (global.alwaysonline === true || global.alwaysonline === 'true') {
     if (m.message && !m.key.fromMe) {
         try {
@@ -1755,58 +1754,52 @@ Status updates are automatically marked as read when enabled.`);
     break;
 }
 case 'welcome': {
-    if (!Access) return reply(mess.owner);
+      if (!m.isGroup) return reply(mess.group);
+      if (!Access) return reply(mess.owner);
+      
+    const action = args[0]?.toLowerCase();
+    const groupId = m.chat;
+    const botNumber = await conn.decodeJid(conn.user.id);
     
-    const subcommand = args[0]?.toLowerCase();
-    
-    if (!subcommand) {
-        return reply(`👋 *Welcome System*
+    if (!action || !['on', 'off', 'status'].includes(action)) {
+        const isEnabled = global.settingsManager?.isWelcomeEnabledForGroup(botNumber, groupId);
+        return reply(`👋 *Group Welcome Settings*
         
 Usage:
-• ${prefix}welcome on - Enable welcome/goodbye messages
-• ${prefix}welcome off - Disable welcome/goodbye messages
+• ${prefix}welcome on - Enable welcome/goodbye in this group
+• ${prefix}welcome off - Disable welcome/goodbye in this group
 • ${prefix}welcome status - Show current status
 
-Current Status: ${getSetting(botNumber, 'welcome', true) ? '✅ Enabled' : '❌ Disabled'}
-
-📌 Features:
-• Welcome message for new members
-• Goodbye message for leaving members
-• Includes profile picture and member count`);
+Current Status: ${isEnabled ? '✅ Enabled' : '❌ Disabled'}
+        
+📌 This setting is per-group. Each group can have its own welcome setting.`);
     }
     
-    switch(subcommand) {
+    switch(action) {
         case 'on': {
-            await updateSetting(botNumber, 'welcome', true);
-            reply(`✅ Welcome/goodbye messages enabled`);
+            await global.settingsManager?.setGroupSetting(botNumber, groupId, 'welcome', true);
+            reply(`✅ Welcome messages enabled for this group!`);
             break;
         }
         
         case 'off': {
-            await updateSetting(botNumber, 'welcome', false);
-            reply(`✅ Welcome/goodbye messages disabled`);
+            await global.settingsManager?.setGroupSetting(botNumber, groupId, 'welcome', false);
+            reply(`✅ Welcome messages disabled for this group!`);
             break;
         }
         
         case 'status': {
-            const isEnabled = getSetting(botNumber, 'welcome', true);
-            reply(`*Welcome System Status*
+            const isEnabled = global.settingsManager?.isWelcomeEnabledForGroup(botNumber, groupId);
+            reply(`📊 *Welcome Status for This Group*
             
 • Status: ${isEnabled ? '✅ Enabled' : '❌ Disabled'}
-• Features: ${isEnabled ? 'Welcome + Goodbye messages' : 'Disabled'}
-
-Send ${prefix}welcome on/off to toggle`);
-            break;
-        }
-        
-        default: {
-            reply(`❌ Invalid subcommand. Use ${prefix}welcome on/off/status`);
+• Group: ${await conn.getName(groupId) || groupId}
+• When enabled: Welcome + Goodbye messages will be sent`);
             break;
         }
     }
     break;
 }
-
 case 'adminevent': {
     if (!Access) return reply(mess.owner);
     
@@ -5975,43 +5968,62 @@ if (!text) return reply(global.mess.notext);
     }
 }
 break
-case "copilot":
-case "deepseek":
-case "ai": {
-  if (!q) return reply(' *Please provide a question*.\nExample: .gpt tell me a joke');
-  
-  try {
-    const response = await fetch(`https://api.siputzx.my.id/api/ai/gpt3?prompt=${encodeURIComponent(q)}`);
-    const data = await response.json();
+case 'copilot':
+case 'ask': {
+    if (!text) return m.reply('❓ *Please ask me something!*\nExample: .copilot How are you?');
     
-    reply(data.status ? `🤖 ${data.data}` : '❌ AI failed to respond');
-  } catch (error) {
-    reply('❌ Error: AI service down');
-  }
-  
+    try {
+        m.reply('🤔 *Thinking...*');
+        
+        const response = await fetch(`https://meta-api.zone.id/ai/copilot?message=${encodeURIComponent(text)}&model=default`);
+        const data = await response.json();
+        
+        await m.reply(`🤖 *Copilot AI*\n\n${data.answer || '❌ No response from AI'}`);
+    } catch (error) {
+        console.error(error);
+        await m.reply('❌ Error connecting to AI service');
+    }
+    
 }
 break
-case "gpt": {
-if (!text) return reply(global.mess.notext);
-
+case 'venice':
+case 'vai': {
+    if (!text) return m.reply('*Please ask me something!*\nExample: .venice Introduction to JavaScript.');
+    
     try {
-      const apiUrl = `${global.mess.siputzx}/api/ai/gpt3?prompt=you%20are%20an%20helpful%20assistant%20providing%20detailed%20and%20friendly%20responses&content=${encodeURIComponent(text)}`;
-      const response = await fetch(apiUrl);
-      const result = await response.json();
-
-      if (!result.status || !result.data) {
-      reply(global.mess.error);
-      } else {
-        reply(result.data);
-      }
+        m.reply('🤔 *Thinking...*');
+        
+        const response = await fetch(`https://meta-api.zone.id/ai/venice?question=${encodeURIComponent(text)}`);
+        const data = await response.json();
+        
+        await m.reply(`🤖 *Venice AI*\n\n${data.answer || '❌ No response from AI'}`);
     } catch (error) {
-      console.error('Error fetching response from GPT API:', error);
-      reply(global.mess.error);
+        console.error(error);
+        await m.reply('❌ Error connecting to AI service');
     }
+    
+}
+break
+case 'gpt':
+case 'chatgpt':
+case 'ai': {
+    if (!text) return m.reply('🤖 *Ask ChatGPT*\nExample: .gpt How are you?');
+    
+    try {
+        m.reply('⚡ *Thinking...*');
+        
+        const response = await fetch(`https://meta-api.zone.id/ai/chatgptfree?prompt=${encodeURIComponent(text)}&model=chatgpt4`);
+        const data = await response.json();
+        
+        await m.reply(`🤖 *ChatGPT*\n\n${data.answer || '❌ No response'}`);
+    } catch (error) {
+        console.error(error);
+        await m.reply('❌ Error connecting to AI');
+    }
+    
 }
 break
 case 'gpt2':
-case 'ai':
 case 'chatgpt': {
     if (!text) return reply(`Please provide a query/question\n\nExample: ${prefix + command} what is artificial intelligence?`);
     
@@ -9146,33 +9158,6 @@ if (!Access) return reply(mess.owner);
             },
         });
 }
-break
-case 'togstatus':
-case 'tosgroup':
-case 'togroupstatus':
-case 'swgc': {
-   
-    
-    // Check if it's the bot owner
-    if (!m.key.fromMe) {
-        return reply(mess.owner);
-    }
-    
-    // Check if it's a group
-    if (!m.isGroup) {
-        return reply('❌ This command only works in groups!');
-    }
-    
-    try {
-        // Execute the group status command
-        await setGroupStatusCommand(conn, m);
-    } catch (error) {
-        console.error('Error in group status command:', error);
-        reply(`❌ Error: ${error.message}`);
-    }
-    
-}
-
 break
 case 'antilink': {
       if (!m.isGroup) return reply(mess.group);
