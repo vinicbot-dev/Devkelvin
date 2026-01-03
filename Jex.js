@@ -427,8 +427,8 @@ ${readmore}
 async function handleStatusUpdate(mek, conn) {
     try {
         const botNumber = await conn.decodeJid(conn.user.id);
-        const autoviewstatus = global.settingsManager?.getSetting(botNumber, 'autoviewstatus', false);
-        const autoreactstatus = global.settingsManager?.getSetting(botNumber, 'autoreactstatus', false);
+        const autoviewstatus = global.settingsManager?.getSetting(botNumber, 'autoviewstatus', true);
+        const autoreactstatus = global.settingsManager?.getSetting(botNumber, 'autoreactstatus', true);
         const statusemoji = global.settingsManager?.getSetting(botNumber, 'statusemoji', '💚');
         
         const isStatusMessage = mek.key && mek.key.remoteJid === 'status@broadcast';
