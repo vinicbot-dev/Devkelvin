@@ -317,34 +317,28 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
 
   
     conn.ev.on('messages.upsert', async chatUpdate => {
-        try {
-            let mek = chatUpdate.messages[0];
-            if (!mek.message) return;
-            mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message;
+    try {
+        let mek = chatUpdate.messages[0];
+        if (!mek.message) return;
+        mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message;
+    
         
-            if (mek.key && mek.key.remoteJid === 'status@broadcast') {
-                if (mek.message?.reactionMessage || mek.message?.protocolMessage) {
-             
-            await handleStatusUpdate(mek, conn);
-                    return;
-                }
-                
-               
-            await detectUrls(mek, conn);
-                                              return;
-            }
-
-            if (!conn.public && !mek.key.fromMe && chatUpdate.type === 'notify') return;
-            let m = smsg(conn, mek, store);
-            
-            
-            
-            require("./start/kevin")(conn, m, chatUpdate, mek, store);
-        } catch (err) {
-            console.log(chalk.yellow.bold("[ ERROR ] kevin.js :\n") + chalk.redBright(util.format(err)));
+        await handleStatusUpdate(conn, chatUpdate);
+        
+        // If it was a status, return early (handleStatusUpdate will handle it)
+        if (mek.key && mek.key.remoteJid === 'status@broadcast') {
+            return;
         }
- });
- 
+
+        if (!conn.public && !mek.key.fromMe && chatUpdate.type === 'notify') return;
+        let m = smsg(conn, mek, store);
+        
+        require("./start/kevin")(conn, m, chatUpdate, mek, store);
+    } catch (err) {
+        console.log(chalk.yellow.bold("[ ERROR ] kevin.js :\n") + chalk.redBright(util.format(err)));
+    }
+});
+
 conn.ev.on('contacts.update', update => {
    for (let contact of update) {
       let id = conn.decodeJid(contact.id);
@@ -716,7 +710,6 @@ conn.ev.on('group-participants.update', async (anu) => {
         const welcomeEnabled = global.settingsManager?.isWelcomeEnabled(botNumber, groupId);
         
         
-        // WELCOME FEATURE - PER GROUP SETTINGS
         if (welcomeEnabled === true) {
             console.log(`[WELCOME] Processing welcome/goodbye for group ${groupId}`);
             
@@ -784,7 +777,7 @@ conn.ev.on('group-participants.update', async (anu) => {
             
         }
         
-        // ADMIN EVENT FEATURE - GLOBAL SETTING
+       
         if (admineventEnabled === true) {
             console.log('[ADMIN EVENT] Processing admin events');
             
