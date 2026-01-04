@@ -1,8 +1,9 @@
+
 const {
   generateWAMessageFromContent,
   proto,
   downloadContentFromMessage,
-  generateWAMessageContent
+  downloadMedaiMesaage
 } = require("@whiskeysockets/baileys");
 const { exec, spawn, execSync } = require("child_process")
 const util = require('util')
@@ -23,25 +24,10 @@ const more = String.fromCharCode(8206);
 const readmore = more.repeat(4001);
 const timestampp = speed();
 const latensi = speed() - timestampp
-const crypto = require('crypto');
-const ffmpeg = require('fluent-ffmpeg');
-const { PassThrough } = require('stream');
 
 const { smsg, sendGmail, formatSize, isUrl, generateMessageTag, CheckBandwidth, getBuffer, getSizeMedia, runtime, fetchJson, sleep, getRandom } = require('./start/lib/myfunction')
 
 
-//database 
-global.db = { data: {} };
-global.db.data = JSON.parse(fs.readFileSync("./data/database.json")) || {};
-
-if (global.db.data) {
-  global.db.data = {
-    chats: {},
-    settings: {},
-    blacklist: { blacklisted_numbers: [] }, 
-    ...(global.db.data || {}),
-  };
-}
 //delay
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -79,6 +65,20 @@ const acr = new acrcloud({
     access_key: '882a7ef12dc0dc408f70a2f3f4724340',
     access_secret: 'qVvKAxknV7bUdtxjXS22b5ssvWYxpnVndhy2isXP'
 });
+
+//database 
+global.db = { data: {} };
+global.db.data = JSON.parse(fs.readFileSync("./data/database.json")) || {};
+
+if (global.db.data) {
+  global.db.data = {
+    chats: {},
+    settings: {},
+    blacklist: { blacklisted_numbers: [] }, 
+    ...(global.db.data || {}),
+  };
+}
+
 
 // Function to fetch MP3 download URL
 async function fetchMp3DownloadUrl(link) {
@@ -217,16 +217,20 @@ async function ephoto(url, texk) {
       return build_server + data.image;
  }
 
+
 const pickRandom = (arr) => {
 return arr[Math.floor(Math.random() * arr.length)]
 }
 
+//================== [ MESSAGE HANDLING FUNCTIONS ] ==================//
 function loadBlacklist() {
     if (!global.db.data.blacklist) {
         global.db.data.blacklist = { blacklisted_numbers: [] };
     }
     return global.db.data.blacklist;
-} 
+}
+// ========== HELPER FUNCTIONS ==========
+
 // Helper function to extract text from message
 function extractMessageText(message) {
     if (!message) return "";
@@ -242,10 +246,13 @@ function extractMessageText(message) {
     } else if (message.documentMessage?.caption) {
         return message.documentMessage.caption;
     } else if (message.protocolMessage?.editedMessage) {
+        // Handle edited messages recursively
         return extractMessageText(message.protocolMessage.editedMessage);
     }
     return "";
 }
+
+
 
 // ========== MESSAGE STORAGE FOR ANTI-DELETE ==========
 function loadStoredMessages() {
@@ -280,32 +287,29 @@ function storeMessage(chatId, messageId, messageData) {
             storedMessages[chatId] = {};
         }
         
+        // Extract text content and detect media type
         let textContent = "";
         let mediaType = "text";
         const msgType = Object.keys(messageData.message || {})[0];
-        
-        const isStatusMessage = 
-            chatId === 'status@broadcast' || 
-            (messageData.key && messageData.key.remoteJid === 'status@broadcast');
         
         if (msgType === 'conversation') {
             textContent = messageData.message.conversation;
         } else if (msgType === 'extendedTextMessage') {
             textContent = messageData.message.extendedTextMessage?.text || "";
         } else if (msgType === 'imageMessage') {
-            textContent = messageData.message.imageMessage?.caption || "[Image Status]";
+            textContent = messageData.message.imageMessage?.caption || "";
             mediaType = "image";
         } else if (msgType === 'videoMessage') {
-            textContent = messageData.message.videoMessage?.caption || "[Video Status]";
+            textContent = messageData.message.videoMessage?.caption || "";
             mediaType = "video";
         } else if (msgType === 'audioMessage') {
-            textContent = "[Audio Status]";
+            textContent = "";
             mediaType = "audio";
         } else if (msgType === 'stickerMessage') {
-            textContent = "[Sticker Status]";
+            textContent = "";
             mediaType = "sticker";
         } else {
-            textContent = `[${msgType} Status]`;
+            textContent = "";
         }
         
         storedMessages[chatId][messageId] = {
@@ -316,10 +320,10 @@ function storeMessage(chatId, messageId, messageData) {
             text: textContent,
             mediaType: mediaType,
             storedAt: Date.now(),
-            isStatus: isStatusMessage,
             remoteJid: messageData.key?.remoteJid || chatId
         };
         
+        // Limit storage per chat to prevent memory issues
         const chatMessages = Object.keys(storedMessages[chatId]);
         if (chatMessages.length > 100) {
             const oldestMessageId = chatMessages[0];
@@ -335,9 +339,13 @@ function storeMessage(chatId, messageId, messageData) {
 
 async function handleAntiEdit(m, conn) {
     try {
+        // Get bot number
         const botNumber = await conn.decodeJid(conn.user.id);
+        
+        // Get anti-edit setting from JSON manager
         const antieditSetting = global.settingsManager?.getSetting(botNumber, 'antiedit', 'off');
         
+        // Check if anti-edit is enabled and we have an edited message
         if (!antieditSetting || antieditSetting === 'off' || !m.message?.protocolMessage?.editedMessage) {
             return;
         }
@@ -356,6 +364,7 @@ async function handleAntiEdit(m, conn) {
 
         let sender = originalMsg.key?.participant || originalMsg.key?.remoteJid;
         
+        // Get chat name
         let chatName;
         if (chatId.endsWith("@g.us")) {
             try {
@@ -371,11 +380,13 @@ async function handleAntiEdit(m, conn) {
         let xtipes = moment(originalMsg.messageTimestamp * 1000).tz(`${timezones}`).locale('en').format('HH:mm z');
         let xdptes = moment(originalMsg.messageTimestamp * 1000).tz(`${timezones}`).format("DD/MM/YYYY");
 
+        // Get original text
         let originalText = originalMsg.message?.conversation || 
                           originalMsg.message?.extendedTextMessage?.text ||
                           originalMsg.text ||
                           "[Text not available]";
 
+        // Get edited text
         let editedText = m.message.protocolMessage?.editedMessage?.conversation || 
                         m.message.protocolMessage?.editedMessage?.extendedTextMessage?.text ||
                         "[Edit content not available]";
@@ -404,12 +415,16 @@ ${readmore}
             }
         };
 
+        // Determine target based on mode from JSON settings
         let targetChat;
         if (antieditSetting === 'private') {
-            targetChat = conn.user.id;
+            targetChat = conn.user.id; // Send to bot owner
+            console.log(`📤 Anti-edit: Sending to bot owner's inbox`);
         } else if (antieditSetting === 'chat') {
-            targetChat = chatId;
+            targetChat = chatId; // Send to same chat
+            console.log(`📤 Anti-edit: Sending to same chat`);
         } else {
+            console.log("❌ Invalid anti-edit mode");
             return;
         }
 
@@ -424,48 +439,101 @@ ${readmore}
     }
 }
 
-async function handleStatusUpdate(mek, conn) {
+// Function to handle status updates
+async function handleStatusUpdate(conn, status) {
     try {
+        // Get bot number
         const botNumber = await conn.decodeJid(conn.user.id);
-        const autoviewstatus = global.settingsManager?.getSetting(botNumber, 'autoviewstatus', true);
-        const autoreactstatus = global.settingsManager?.getSetting(botNumber, 'autoreactstatus', true);
+        
+        // Get settings from database using SettingsManager
+        const autoviewstatus = global.settingsManager?.getSetting(botNumber, 'autoviewstatus', false);
+        const autoreactstatus = global.settingsManager?.getSetting(botNumber, 'autoreactstatus', false);
         const statusemoji = global.settingsManager?.getSetting(botNumber, 'statusemoji', '💚');
         
-        const isStatusMessage = mek.key && mek.key.remoteJid === 'status@broadcast';
-        
-        if (!isStatusMessage) return;
-
-        if (autoviewstatus) {
-            try {
-                if (mek.key && mek.key.remoteJid === 'status@broadcast') {
-                    await conn.readMessages([mek.key]);
-                }
-            } catch (viewError) {}
+        if (!autoviewstatus) {
+            return;
         }
 
-        if (autoreactstatus) {
-            try {
-                let reactionEmoji = statusemoji || '💚';
-                
-                if (statusemoji === 'random' || statusemoji === 'rand') {
-                    const reactions = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉'];
-                    reactionEmoji = reactions[Math.floor(Math.random() * reactions.length)];
-                }
-                
-                if (mek.key && mek.key.remoteJid === 'status@broadcast') {
-                    const reactionMessage = {
-                        react: {
-                            text: reactionEmoji,
-                            key: mek.key
-                        }
-                    };
+        // Add delay to prevent rate limiting
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Handle status from messages.upsert
+        if (status.messages && status.messages.length > 0) {
+            const msg = status.messages[0];
+            if (msg.key && msg.key.remoteJid === 'status@broadcast') {
+                try {
+                    await conn.readMessages([msg.key]);
                     
-                    await conn.sendMessage('status@broadcast', reactionMessage);
-                    await delay(1000);
+                    // React to status if enabled
+                    if (autoreactstatus) {
+                        await conn.sendMessage(msg.key.remoteJid, { 
+                            react: { 
+                                text: statusemoji, 
+                                key: msg.key 
+                            } 
+                        });
+                    }
+                    
+                } catch (err) {
+                    if (err.message?.includes('rate-overlimit')) {
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        await conn.readMessages([msg.key]);
+                    }
                 }
-            } catch (reactError) {}
+                return;
+            }
         }
-    } catch (error) {}
+
+        // Handle direct status updates
+        if (status.key && status.key.remoteJid === 'status@broadcast') {
+            try {
+                await conn.readMessages([status.key]);
+                
+                // React to status if enabled
+                if (autoreactstatus) {
+                    await conn.sendMessage(status.key.remoteJid, { 
+                        react: { 
+                            text: statusemoji, 
+                            key: status.key 
+                        } 
+                    });
+                }
+                
+            } catch (err) {
+                if (err.message?.includes('rate-overlimit')) {
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    await conn.readMessages([status.key]);
+                }
+            }
+            return;
+        }
+
+        // Handle status in reactions
+        if (status.reaction && status.reaction.key.remoteJid === 'status@broadcast') {
+            try {
+                await conn.readMessages([status.reaction.key]);
+                
+                // React to status if enabled
+                if (autoreactstatus) {
+                    await conn.sendMessage(status.reaction.key.remoteJid, { 
+                        react: { 
+                            text: statusemoji, 
+                            key: status.reaction.key 
+                        } 
+                    });
+                }
+                
+            } catch (err) {
+                if (err.message?.includes('rate-overlimit')) {
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    await conn.readMessages([status.reaction.key]);
+                }
+            }
+            return;
+        }
+
+    } catch (error) {
+    }
 }
 
 // antilink section 
@@ -474,6 +542,7 @@ function detectUrls(message) {
     
     let text = "";
     
+    // Extract text from different message types
     if (message.conversation) {
         text = message.conversation;
     } else if (message.extendedTextMessage && message.extendedTextMessage.text) {
@@ -501,22 +570,27 @@ async function handleLinkViolation(message, conn) {
         const sender = message.key.participant || message.key.remoteJid;
         const messageId = message.key.id;
 
+        // Get anti-link settings
         const isEnabled = global.settingsManager?.getSetting(botNumber, 'antilinkdelete', true);
         const mode = global.settingsManager?.getSetting(botNumber, 'antilinkaction', 'delete');
         
         if (!isEnabled) return;
 
+        // Get group metadata to check admin status
         const groupMetadata = await conn.groupMetadata(chatId).catch(() => null);
         if (!groupMetadata) return;
 
+        
         const botParticipant = groupMetadata.participants.find(p => p.id === botNumber);
         if (!botParticipant || !['admin', 'superadmin'].includes(botParticipant.admin)) {
-            return;
+            console.log('❌ Bot is not admin, cannot delete messages');
+            return; // Bot needs to be admin to delete messages
         }
 
+        // Check if sender is admin (allow admins to post links)
         const participant = groupMetadata.participants.find(p => p.id === sender);
         if (participant && (participant.admin === 'admin' || participant.admin === 'superadmin')) {
-            return;
+            return; // Allow admins to post links
         }
 
         try {
@@ -532,11 +606,15 @@ async function handleLinkViolation(message, conn) {
             console.log(`✅ Link message deleted from ${sender}`);
             
         } catch (deleteError) {
+            console.log('❌ Failed to delete message - Bot may need admin permissions');
             return;
         }
 
+        // Rest of your code remains the same...
+        // Handle based on mode
         switch(mode) {
             case 'warn': {
+                // Initialize warnings
                 if (!global.linkWarnings) global.linkWarnings = new Map();
                 const userWarnings = global.linkWarnings.get(sender) || { count: 0, lastWarning: 0 };
                 
@@ -546,6 +624,7 @@ async function handleLinkViolation(message, conn) {
                 
                 let responseMessage = `⚠️ @${sender.split('@')[0]}, only admins can send links!\nWarning: *${userWarnings.count}/3*`;
                 
+                // Auto-kick after 3 warnings
                 if (userWarnings.count >= 3) {
                     try {
                         await conn.groupParticipantsUpdate(chatId, [sender], "remove");
@@ -584,6 +663,7 @@ async function handleLinkViolation(message, conn) {
             
             case 'delete':
             default: {
+                // Just delete the message, no warning
                 break;
             }
         }
@@ -595,18 +675,26 @@ async function handleLinkViolation(message, conn) {
 
 async function checkAndHandleLinks(message, conn) {
     try {
+        // Only check group messages
         if (!message.key.remoteJid.endsWith('@g.us')) return;
         
+        // Ignore messages from the bot itself
         const botNumber = await conn.decodeJid(conn.user.id);
         const sender = message.key.participant || message.key.remoteJid;
         if (sender === botNumber) return;
         
+        const chatId = message.key.remoteJid;
+        
+        // Detect URLs in the message first (for efficiency)
         const urls = detectUrls(message.message);
         if (urls.length === 0) return;
         
+        // Now check anti-link settings
         await handleLinkViolation(message, conn);
         
-    } catch (error) {}
+    } catch (error) {
+        // Silently handle errors
+    }
 }
 
 async function handleAntiTag(m, conn) {
@@ -617,26 +705,32 @@ async function handleAntiTag(m, conn) {
         const chatId = m.chat;
         const sender = m.sender;
         
+        // Get anti-tag settings
         const isEnabled = global.settingsManager?.getSetting(botNumber, 'antitag', false);
         const mode = global.settingsManager?.getSetting(botNumber, 'antitagaction', 'delete');
         
         if (!isEnabled) return;
         
+        // Get group metadata
         const groupMetadata = await conn.groupMetadata(chatId);
         const groupAdmins = groupMetadata.participants.filter(p => p.admin).map(p => p.id);
         const isBotAdmin = groupAdmins.includes(botNumber);
         const isSenderAdmin = groupAdmins.includes(sender);
         
+        // Check if user tagged someone
         const mentionedUsers = m.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
         
         if (mentionedUsers.length > 0 && !isSenderAdmin && isBotAdmin) {
+            // Delete the message
             try {
                 await conn.sendMessage(chatId, { delete: m.key });
                 console.log(`✅ Deleted tag message from ${sender}`);
             } catch (deleteError) {
+                console.log('❌ Failed to delete message');
                 return;
             }
             
+            // Handle based on mode
             switch(mode) {
                 case 'warn': {
                     await conn.sendMessage(chatId, {
@@ -664,6 +758,7 @@ async function handleAntiTag(m, conn) {
                 
                 case 'delete':
                 default: {
+                    // Just delete, no message
                     break;
                 }
             }
@@ -674,196 +769,7 @@ async function handleAntiTag(m, conn) {
     }
 }
 
-// ========== GROUP STATUS COMMAND FUNCTIONS ==========
 
-async function sendGroupStatus(conn, jid, content) {
-    const inside = await generateWAMessageContent(content, { upload: conn.waUploadToServer });
-    const messageSecret = crypto.randomBytes(32);
-
-    const m = generateWAMessageFromContent(jid, {
-        messageContextInfo: { messageSecret },
-        groupStatusMessageV2: { message: { ...inside, messageContextInfo: { messageSecret } } }
-    }, {});
-
-    await conn.relayMessage(jid, m.message, { messageId: m.key.id });
-    return m;
-}
-
-async function toVN(inputBuffer) {
-    return new Promise((resolve, reject) => {
-        const inStream = new PassThrough();
-        inStream.end(inputBuffer);
-        const outStream = new PassThrough();
-        const chunks = [];
-
-        ffmpeg(inStream)
-            .noVideo()
-            .audioCodec("libopus")
-            .format("ogg")
-            .audioBitrate("48k")
-            .audioChannels(1)
-            .audioFrequency(48000)
-            .on("error", reject)
-            .on("end", () => resolve(Buffer.concat(chunks)))
-            .pipe(outStream, { end: true });
-
-        outStream.on("data", chunk => chunks.push(chunk));
-    });
-}
-
-async function downloadToBuffer(message, type) {
-    const stream = await downloadContentFromMessage(message, type);
-    let buffer = Buffer.from([]);
-    for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
-    return buffer;
-}
-
-function detectMediaType(quotedMessage) {
-    if (!quotedMessage) return 'Text';
-    if (quotedMessage.videoMessage) return 'Video';
-    if (quotedMessage.imageMessage) return 'Image';
-    if (quotedMessage.audioMessage) return 'Audio';
-    if (quotedMessage.stickerMessage) return 'Sticker';
-    return 'Text';
-}
-
-async function buildPayloadFromQuoted(quotedMessage) {
-    if (quotedMessage.videoMessage) {
-        const buffer = await downloadToBuffer(quotedMessage.videoMessage, 'video');
-        return { 
-            video: buffer, 
-            caption: quotedMessage.videoMessage.caption || '',
-            gifPlayback: quotedMessage.videoMessage.gifPlayback || false,
-            mimetype: quotedMessage.videoMessage.mimetype || 'video/mp4'
-        };
-    }
-    else if (quotedMessage.imageMessage) {
-        const buffer = await downloadToBuffer(quotedMessage.imageMessage, 'image');
-        return { 
-            image: buffer, 
-            caption: quotedMessage.imageMessage.caption || ''
-        };
-    }
-    else if (quotedMessage.audioMessage) {
-        const buffer = await downloadToBuffer(quotedMessage.audioMessage, 'audio');
-        
-        if (quotedMessage.audioMessage.ptt) {
-            const audioVn = await toVN(buffer);
-            return { 
-                audio: audioVn, 
-                mimetype: "audio/ogg; codecs=opus", 
-                ptt: true 
-            };
-        } else {
-            return { 
-                audio: buffer, 
-                mimetype: quotedMessage.audioMessage.mimetype || 'audio/mpeg',
-                ptt: false 
-            };
-        }
-    }
-    else if (quotedMessage.stickerMessage) {
-        const buffer = await downloadToBuffer(quotedMessage.stickerMessage, 'sticker');
-        return { 
-            sticker: buffer,
-            mimetype: quotedMessage.stickerMessage.mimetype || 'image/webp'
-        };
-    }
-    else if (quotedMessage.conversation || quotedMessage.extendedTextMessage?.text) {
-        const textContent = quotedMessage.conversation || quotedMessage.extendedTextMessage?.text || '';
-        return { text: textContent };
-    }
-    return null;
-}
-
-function getHelpText() {
-    return `📌 *Group Status Command*\n\n` +
-           `*Commands:*\n` +
-           `• \`!togstatus\` or \`.tosgroup\` - Send group status\n\n` +
-           `*Usage:*\n` +
-           `• \`.tosgroup Hello family\` - Send text status\n` +
-           `• Reply to a video with \`.tosgroup\` - Send video status\n` +
-           `• Reply to a video with \`.tosgroup My caption\` - Send video with caption\n` +
-           `• Reply to an image with \`.tosgroup\` - Send image status\n` +
-           `• Reply to an image with \`.tosgroup My caption\` - Send image with caption\n` +
-           `• Reply to audio with \`.tosgroup\` - Send audio status\n` +
-           `• Reply to sticker with \`.tosgroup\` - Send sticker status\n` +
-           `• Reply to text with \`.tosgroup\` - Send quoted text as status\n\n` +
-           `*Note:* Captions are supported for videos and images.`;
-}
-
-async function setGroupStatusCommand(conn, m) {
-    try {
-        // ✅ Owner check
-        if (!m.key.fromMe) {
-            return conn.sendMessage(m.chat, { text: '❌ Only the owner can use this command!' });
-        }
-
-        const messageText = m.message?.conversation || m.message?.extendedTextMessage?.text || '';
-        const quotedMessage = m.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-        
-        // ✅ Support multiple command formats
-        const commandRegex = /^[.!#/]?(togstatus|swgc|groupstatus|tosgroup)\s*/i;
-
-        // ✅ Show help if only command is typed without quote or text
-        if (!quotedMessage && (!messageText.trim() || messageText.trim().match(commandRegex))) {
-            return conn.sendMessage(m.chat, { text: getHelpText() });
-        }
-
-        let payload = null;
-        
-        // ✅ Extract caption if provided after command
-        let textAfterCommand = '';
-        if (messageText.trim()) {
-            const match = messageText.match(commandRegex);
-            if (match) {
-                textAfterCommand = messageText.slice(match[0].length).trim();
-            }
-        }
-
-        // ✅ Handle quoted message
-        if (quotedMessage) {
-            payload = await buildPayloadFromQuoted(quotedMessage);
-            
-            // ✅ Add caption from command text if provided
-            if (textAfterCommand && payload && (payload.video || payload.image)) {
-                if (payload.video) {
-                    payload.caption = textAfterCommand;
-                } else if (payload.image) {
-                    payload.caption = textAfterCommand;
-                }
-            }
-        } 
-        // ✅ Handle plain text command
-        else if (messageText.trim()) {
-            if (textAfterCommand) {
-                payload = { text: textAfterCommand };
-            } else {
-                return conn.sendMessage(m.chat, { text: getHelpText() });
-            }
-        }
-
-        if (!payload) {
-            return conn.sendMessage(m.chat, { text: getHelpText() });
-        }
-
-        // ✅ Send group status
-        await sendGroupStatus(conn, m.chat, payload);
-
-        const mediaType = detectMediaType(quotedMessage);
-        let successMsg = `✅ ${mediaType} status sent successfully!`;
-        
-        if (payload.caption) {
-            successMsg += `\nCaption: "${payload.caption}"`;
-        }
-        
-        await conn.sendMessage(m.chat, { text: successMsg });
-
-    } catch (error) {
-        console.error('Error in group status command:', error);
-        await conn.sendMessage(m.chat, { text: `❌ Failed: ${error.message}` });
-    }
-}
 
 module.exports = {
   fetchMp3DownloadUrl,
@@ -884,8 +790,7 @@ module.exports = {
   delay,
   recordError,
   shouldLogError,
-  pickRandom,
-  setGroupStatusCommand
+  pickRandom
 };
 
 let file = require.resolve(__filename)
