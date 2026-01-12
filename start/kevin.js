@@ -224,33 +224,20 @@ const isQuotedViewOnce = type === 'extendedTextMessage' && content.includes('vie
 
 const senderNumber = m.sender.split('@')[0];
 
-let groupMetadata = null;
-let groupName = "";
-let participants = [];
-let groupAdmins = [];
-let isBotAdmins = false;
-let isUserAdmin = false;
-let groupOwner = "";
-let isGroupOwner = false;
-let isGroupAdmins = false;
 
-// Only fetch group metadata if it's a group message
-if (m.isGroup) {
-    try {
-        groupMetadata = await conn.groupMetadata(m.chat);
-        groupName = groupMetadata?.subject || "";
-        participants = groupMetadata?.participants || [];
-        groupAdmins = await getGroupAdmins(participants);
-        isBotAdmins = groupAdmins.includes(botNumber);
-        isUserAdmin = groupAdmins.includes(m.sender);
-        groupOwner = groupMetadata?.owner || "";
-        isGroupOwner = (groupOwner ? groupOwner : groupAdmins).includes(m.sender);
-        isGroupAdmins = groupAdmins.includes(m.sender);
-    } catch (error) {
-        // Silently handle metadata fetch errors - don't spam console
-        // These often happen during connection issues or rate limits
-    }
-}
+const groupName = isGroup && groupMetadata ? groupMetadata.subject : ""
+const participants = isGroup && groupMetadata ? groupMetadata.participants : []
+
+const groupAdmins = participants
+  .filter(p => p.admin)
+  .map(p => p.id)
+
+const groupMembers = participants
+
+const groupOwner = groupMetadata?.owner || groupAdmins[0] || null
+
+const isAdmin = isGroup ? groupAdmins.includes(m.sender) : false
+const isBotAdmin = isGroup ? groupAdmins.includes(botNumber) : false
 
 const peler = fs.readFileSync('./start/lib/media/Jexploit.jpg')
 const cina = fs.readFileSync('./start/lib/media/Jex.jpg')
@@ -5914,7 +5901,6 @@ const quoted = m.quoted ? m.quoted : null || m.msg ;
       }
 }
 break
-//====[REACTION CMDS]=======
 case 'kiss':
 case 'cium':
 case 'beso':
@@ -5955,6 +5941,145 @@ break
 case 'bully': {
 await fetchReactionImage ({ conn, m, reply, command: 'bully'})
 }
+break
+case "pat":
+case "headpat":
+case "pet":
+await fetchReactionImage({ conn, m, reply, command: 'pat' });
+break;
+case "poke":
+case "pokes":
+await fetchReactionImage({ conn, m, reply, command: 'poke' });
+break;
+case "smile":
+case "smiling":
+await fetchReactionImage({ conn, m, reply, command: 'smile' });
+break;
+case "wave":
+case "waving":
+case "bye":
+await fetchReactionImage({ conn, m, reply, command: 'wave' });
+break;
+case "cuddle":
+case "snuggle":
+await fetchReactionImage({ conn, m, reply, command: 'cuddle' });
+break;
+case "highfive":
+case "high-five":
+case "hi5":
+await fetchReactionImage({ conn, m, reply, command: 'highfive' });
+break;
+case "lick":
+await fetchReactionImage({ conn, m, reply, command: 'lick' });
+break;
+case "bite":
+case "biting":
+await fetchReactionImage({ conn, m, reply, command: 'bite' });
+break;
+case "glomp":
+case "tacklehug":
+await fetchReactionImage({ conn, m, reply, command: 'glomp' });
+break;
+case "bonk":
+case "hit":
+await fetchReactionImage({ conn, m, reply, command: 'bonk' });
+break;
+case "yeet":
+case "throw":
+await fetchReactionImage({ conn, m, reply, command: 'yeet' });
+break;
+case "smug":
+case "smirking":
+await fetchReactionImage({ conn, m, reply, command: 'smug' });
+break;
+case "nom":
+case "eat":
+await fetchReactionImage({ conn, m, reply, command: 'nom' });
+break;
+case "sleepy":
+case "sleep":
+await fetchReactionImage({ conn, m, reply, command: 'sleepy' });
+break;
+case "facepalm":
+case "palm":
+await fetchReactionImage({ conn, m, reply, command: 'facepalm' });
+break;
+case "wink":
+case "winking":
+await fetchReactionImage({ conn, m, reply, command: 'wink' });
+break;
+case "shy":
+case "shyness":
+await fetchReactionImage({ conn, m, reply, command: 'shy' });
+break;
+case "stare":
+case "staring":
+await fetchReactionImage({ conn, m, reply, command: 'stare' });
+break;
+case "thinking":
+case "think":
+await fetchReactionImage({ conn, m, reply, command: 'thinking' });
+break;
+case "shoot":
+case "gun":
+await fetchReactionImage({ conn, m, reply, command: 'shoot' });
+break;
+case "run":
+case "running":
+await fetchReactionImage({ conn, m, reply, command: 'run' });
+break;
+case "shrug":
+case "idk":
+await fetchReactionImage({ conn, m, reply, command: 'shrug' });
+break;
+case "panic":
+case "panicking":
+await fetchReactionImage({ conn, m, reply, command: 'panic' });
+break;
+case "tease":
+case "teasing":
+await fetchReactionImage({ conn, m, reply, command: 'tease' });
+break;
+case "shiver":
+case "cold":
+await fetchReactionImage({ conn, m, reply, command: 'shiver' });
+break;
+case "bored":
+case "boring":
+await fetchReactionImage({ conn, m, reply, command: 'bored' });
+break;
+case "scream":
+case "yell":
+await fetchReactionImage({ conn, m, reply, command: 'scream' });
+break;
+case "pout":
+case "sulking":
+await fetchReactionImage({ conn, m, reply, command: 'pout' });
+break;
+case "handhold":
+case "holdinghands":
+await fetchReactionImage({ conn, m, reply, command: 'handhold' });
+break;
+case "spank":
+case "spanking":
+await fetchReactionImage({ conn, m, reply, command: 'spank' });
+break;
+case "tickle":
+case "tickling":
+await fetchReactionImage({ conn, m, reply, command: 'tickle' });
+break;
+case "cringe":
+case "cringing":
+await fetchReactionImage({ conn, m, reply, command: 'cringe' });
+break;
+case "party":
+case "partying":
+await fetchReactionImage({ conn, m, reply, command: 'party' });
+break;
+case "celebrate":
+case "celebration":
+await fetchReactionImage({ conn, m, reply, command: 'celebrate' });
+break;
 
 //======[Ai menu]=====[
 case "generate": {
@@ -8559,7 +8684,7 @@ case 'removeall': {
 }
 case "tagall": {
     if (!m.isGroup) return reply(mess.group);
-    if (!isGroupAdmins) return reply(mess.notadmin);
+    if (!isAdmin) return reply(mess.notadmin);
 
     let me = m.sender;
     let q = m.text.split(' ').slice(1).join(' ').trim(); // Extract the message after the command
@@ -8584,7 +8709,7 @@ break
 case "mute":
 case "close": {
   if (!m.isGroup) return reply('❌ This command can only be used in groups.');
-    if (!isGroupAdmins) return reply(mess.notadmin);
+    if (!isAdmin) return reply(mess.notadmin);
     
 
         conn.groupSettingUpdate(m.chat, "announcement");
@@ -9046,7 +9171,7 @@ case "adminapproval": {
 break
 case "closetime": {
 if (!m.isGroup) return reply('❌ This command can only be used in groups.');
-    if (!isGroupAdmins) return reply(mess.notadmin);
+    if (!isAdmin) return reply(mess.notadmin);
     
 
     // Check if both arguments are provided
@@ -9162,7 +9287,7 @@ if (!Access) return reply(mess.owner);
 break
 case 'antilink': {
       if (!m.isGroup) return reply(mess.group);
-      if (!isGroupAdmins) return reply(mess.notadmin);
+      if (!isAdmin) return reply(mess.notadmin);
     
     const subcommand = args[0]?.toLowerCase();
     const action = args[1]?.toLowerCase();
@@ -9258,7 +9383,7 @@ Current Mode: ${getSetting(botNumber, 'antitagaction', 'delete')}`);
 }
 case 'antibadword': {
     if (!m.isGroup) return reply(mess.group);
-    if (!isGroupAdmins) return reply('❌ You need to be an admin to use this command.');
+    if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
     
     const subcommand = args[0]?.toLowerCase();
     const word = args[1];
