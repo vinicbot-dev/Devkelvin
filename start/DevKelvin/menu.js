@@ -175,7 +175,12 @@ async function generateMenu(conn, m, prefix, global) {
         reaction: {
             title: ' *REACTION MENU*',
             commands: ['kiss', 'blush', 'kick', 'slap', 'dance', 'bully', 'kill', 
-                      'hug', 'happy', 'cry'],
+ 'hug', 'happy', 'cry', 'pat', 'poke', 'smile', 'wave', 
+ 'cuddle', 'highfive', 'lick', 'bite', 'glomp', 'bonk', 
+ 'yeet', 'smug', 'nom', 'sleepy', 'facepalm', 'wink', 
+ 'shy', 'stare', 'thinking', 'shoot', 'run', 'shrug', 
+ 'panic', 'tease', 'shiver', 'bored', 'scream', 'pout', 
+ 'handhold', 'spank', 'tickle', 'cringe', 'party', 'celebrate'],
         },
         features: {
             title: ' *SETTING MENU*',
