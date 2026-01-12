@@ -225,19 +225,33 @@ const isQuotedViewOnce = type === 'extendedTextMessage' && content.includes('vie
 const senderNumber = m.sender.split('@')[0];
 
 
-const groupName = isGroup && groupMetadata ? groupMetadata.subject : ""
-const participants = isGroup && groupMetadata ? groupMetadata.participants : []
+let groupMetadata = null;
+let groupName = "";
+let participants = [];
+let groupAdmins = [];
+let isBotAdmins = false;
+let isUserAdmin = false;
+let groupOwner = "";
+let isGroupOwner = false;
+let isGroupAdmins = false;
 
-const groupAdmins = participants
-  .filter(p => p.admin)
-  .map(p => p.id)
-
-const groupMembers = participants
-
-const groupOwner = groupMetadata?.owner || groupAdmins[0] || null
-
-const isAdmin = isGroup ? groupAdmins.includes(m.sender) : false
-const isBotAdmin = isGroup ? groupAdmins.includes(botNumber) : false
+// Only fetch group metadata if it's a group message
+if (m.isGroup) {
+    try {
+        groupMetadata = await conn.groupMetadata(m.chat);
+        groupName = groupMetadata?.subject || "";
+        participants = groupMetadata?.participants || [];
+        groupAdmins = await getGroupAdmins(participants);
+        isBotAdmins = groupAdmins.includes(botNumber);
+        isUserAdmin = groupAdmins.includes(m.sender);
+        groupOwner = groupMetadata?.owner || "";
+        isGroupOwner = (groupOwner ? groupOwner : groupAdmins).includes(m.sender);
+        isGroupAdmins = groupAdmins.includes(m.sender);
+    } catch (error) {
+        // Silently handle metadata fetch errors - don't spam console
+        // These often happen during connection issues or rate limits
+    }
+}
 
 const peler = fs.readFileSync('./start/lib/media/Jexploit.jpg')
 const cina = fs.readFileSync('./start/lib/media/Jex.jpg')
@@ -8709,7 +8723,7 @@ break
 case "mute":
 case "close": {
   if (!m.isGroup) return reply('❌ This command can only be used in groups.');
-    if (!isAdmin) return reply(mess.notadmin);
+    if (!isGroupAdmins) return reply(mess.notadmin);
     
 
         conn.groupSettingUpdate(m.chat, "announcement");
@@ -9171,7 +9185,7 @@ case "adminapproval": {
 break
 case "closetime": {
 if (!m.isGroup) return reply('❌ This command can only be used in groups.');
-    if (!isAdmin) return reply(mess.notadmin);
+    if (!isGroupAdmins) return reply(mess.notadmin);
     
 
     // Check if both arguments are provided
@@ -9287,7 +9301,7 @@ if (!Access) return reply(mess.owner);
 break
 case 'antilink': {
       if (!m.isGroup) return reply(mess.group);
-      if (!isAdmin) return reply(mess.notadmin);
+      if (!isGroupAdmins) return reply(mess.notadmin);
     
     const subcommand = args[0]?.toLowerCase();
     const action = args[1]?.toLowerCase();
