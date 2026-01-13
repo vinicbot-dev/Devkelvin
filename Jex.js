@@ -563,179 +563,6 @@ function detectUrls(message) {
     return matches ? matches : [];
 }
 
-async function handleLinkViolation(message, conn, isBotAdmins, isGroupAdmins) {
-    try {
-        const botNumber = await conn.decodeJid(conn.user.id);
-        const chatId = message.key.remoteJid;
-        const sender = message.key.participant || message.key.remoteJid;
-        const messageId = message.key.id;
-
-        // Get anti-link settings
-        const isEnabled = global.settingsManager?.getSetting(botNumber, 'antilinkdelete', true);
-        const mode = global.settingsManager?.getSetting(botNumber, 'antilinkaction', 'delete');
-        
-        if (!isEnabled) return;
-
-        // Get group metadata to check admin status
-        const groupMetadata = await conn.groupMetadata(chatId).catch(() => null);
-        if (!groupMetadata) return;
-
-        // Check if bot is admin using passed isBotAdmins variable
-        if (!isGroupAdmins) {
-            console.log('❌ Bot is not admin, cannot delete messages');
-            return; // Bot needs to be admin to delete messages
-        }
-
-        // Check if sender is admin (allow admins to post links) using passed isGroupAdmins variable
-        if (isGroupAdmins) {
-            return; // Allow admins to post links
-        }
-
-        try {
-            await conn.sendMessage(chatId, {
-                delete: {
-                    id: messageId,
-                    remoteJid: chatId,
-                    fromMe: false,
-                    participant: sender
-                }
-            });
-            
-            console.log(`✅ Link message deleted from ${sender}`);
-            
-        } catch (deleteError) {
-            console.log('❌ Failed to delete message - Bot may need admin permissions');
-            return;
-        }
-
-        // Handle based on mode
-        switch(mode) {
-            case 'warn': {
-                // Initialize warnings
-                if (!global.linkWarnings) global.linkWarnings = new Map();
-                const userWarnings = global.linkWarnings.get(sender) || { count: 0, lastWarning: 0 };
-                
-                userWarnings.count++;
-                userWarnings.lastWarning = Date.now();
-                global.linkWarnings.set(sender, userWarnings);
-                
-                let responseMessage = `⚠️ @${sender.split('@')[0]}, only admins can send links!\nWarning: *${userWarnings.count}/3*`;
-                
-                // Auto-kick after 3 warnings
-                if (userWarnings.count >= 3) {
-                    try {
-                        await conn.groupParticipantsUpdate(chatId, [sender], "remove");
-                        responseMessage = `🚫 @${sender.split('@')[0]} *has been removed for repeatedly posting links*.`;
-                        global.linkWarnings.delete(sender);
-                    } catch (kickError) {
-                        responseMessage = `⚠️ @${sender.split('@')[0]}, links are not allowed! (Failed to remove)`;
-                    }
-                }
-                
-                await delay(1000);
-                await conn.sendMessage(chatId, {
-                    text: responseMessage,
-                    mentions: [sender]
-                });
-                break;
-            }
-            
-            case 'kick': {
-                try {
-                    await conn.groupParticipantsUpdate(chatId, [sender], "remove");
-                    await delay(1000);
-                    await conn.sendMessage(chatId, {
-                        text: `🚫 @${sender.split('@')[0]} *has been removed for posting links*.`,
-                        mentions: [sender]
-                    });
-                } catch (kickError) {
-                    await delay(1000);
-                    await conn.sendMessage(chatId, {
-                        text: `⚠️ @${sender.split('@')[0]}, links are not allowed! (Failed to remove)`,
-                        mentions: [sender]
-                    });
-                }
-                break;
-            }
-            
-            case 'delete':
-            default: {
-                // Just delete the message, no warning
-                break;
-            }
-        }
-        
-    } catch (error) {
-        console.error('❌ Error in handleLinkViolation:', error);
-    }
-}
-
-// Update the handleAntiTag function
-async function handleAntiTag(m, conn, Access, isGroupAdmins) {
-    try {
-        if (!m.isGroup) return;
-        
-        const botNumber = await conn.decodeJid(conn.user.id);
-        const chatId = m.chat;
-        const sender = m.sender;
-        
-        // Get anti-tag settings
-        const isEnabled = global.settingsManager?.getSetting(botNumber, 'antitag', false);
-        const mode = global.settingsManager?.getSetting(botNumber, 'antitagaction', 'delete');
-        
-        if (!isEnabled) return;
-        
-        // Check if user tagged someone
-        const mentionedUsers = m.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
-        
-        if (mentionedUsers.length > 0 && !isGroupAdmins && Access) {
-            // Delete the message
-            try {
-                await conn.sendMessage(chatId, { delete: m.key });
-                console.log(`✅ Deleted tag message from ${sender}`);
-            } catch (deleteError) {
-                console.log('❌ Failed to delete message');
-                return;
-            }
-            
-            // Handle based on mode
-            switch(mode) {
-                case 'warn': {
-                    await conn.sendMessage(chatId, {
-                        text: `⚠️ @${sender.split('@')[0]}, tagging members is not allowed!`,
-                        mentions: [sender]
-                    });
-                    break;
-                }
-                
-                case 'kick': {
-                    try {
-                        await conn.groupParticipantsUpdate(chatId, [sender], "remove");
-                        await conn.sendMessage(chatId, {
-                            text: `🚫 @${sender.split('@')[0]} *has been removed for tagging members*.`,
-                            mentions: [sender]
-                        });
-                    } catch (kickError) {
-                        await conn.sendMessage(chatId, {
-                            text: `⚠️ @${sender.split('@')[0]}, tagging is not allowed! (Failed to remove)`,
-                            mentions: [sender]
-                        });
-                    }
-                    break;
-                }
-                
-                case 'delete':
-                default: {
-                    // Just delete, no message
-                    break;
-                }
-            }
-        }
-        
-    } catch (error) {
-        console.error('Anti-tag error:', error);
-    }
-}
 
 
 module.exports = {
@@ -745,7 +572,6 @@ module.exports = {
   acr,
   handleAntiEdit,
   saveStatusMessage,
-  handleLinkViolation,
   detectUrls,
   loadStoredMessages,
   saveStoredMessages,
@@ -753,7 +579,6 @@ module.exports = {
   handleStatusUpdate,
   ephoto,
   loadBlacklist,
-  handleAntiTag,
   delay,
   recordError,
   shouldLogError,
