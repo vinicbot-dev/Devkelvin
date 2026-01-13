@@ -563,9 +563,8 @@ function detectUrls(message) {
     return matches ? matches : [];
 }
 
-async function handleLinkViolation(conn, message, isGroupAdmins) {
+async function handleLinkViolation(conn, message, isGroupAdmins, botNumber) {
     try {
-        const botNumber = await conn.decodeJid(conn.user.id);
         const chatId = message.key.remoteJid;
         const sender = message.key.participant || message.key.remoteJid;
         const messageId = message.key.id;
@@ -577,13 +576,13 @@ async function handleLinkViolation(conn, message, isGroupAdmins) {
         if (!isEnabled) return;
 
         // Check if bot is admin using passed parameter
-        if (!isGroupAdmins.botAdmin) {
+        if (!isGroupAdmins) {
             console.log('❌ Bot is not admin, cannot delete messages');
             return;
         }
 
         // Check if sender is admin (allow admins to post links)
-        if (isGroupAdmins.userAdmin) {
+        if (isGroupAdmins) {
             return; // Allow admins to post links
         }
 
@@ -690,11 +689,10 @@ async function checkAndHandleLinks(conn, message, isGroupAdmins) {
     }
 }
 
-async function handleAntiTag(conn, m, isGroupAdmins) {
+async function handleAntiTag(conn, m, isGroupAdmins, botNumber) {
     try {
         if (!m.isGroup) return;
         
-        const botNumber = await conn.decodeJid(conn.user.id);
         const chatId = m.chat;
         const sender = m.sender;
         
