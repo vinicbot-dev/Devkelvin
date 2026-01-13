@@ -76,7 +76,6 @@ const {
   loadBlacklist,
   handleAntiTag,
   handleLinkViolation,
-  checkAndHandleLinks,
   detectUrls,
   delay,
   recordError,
