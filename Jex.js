@@ -581,7 +581,7 @@ async function handleLinkViolation(message, conn, isBotAdmins, isGroupAdmins) {
         if (!groupMetadata) return;
 
         // Check if bot is admin using passed isBotAdmins variable
-        if (!isBotAdmins) {
+        if (!isGroupAdmins) {
             console.log('❌ Bot is not admin, cannot delete messages');
             return; // Bot needs to be admin to delete messages
         }
@@ -671,7 +671,7 @@ async function handleLinkViolation(message, conn, isBotAdmins, isGroupAdmins) {
 }
 
 // Update the handleAntiTag function
-async function handleAntiTag(m, conn, isBotAdmins, isGroupAdmins) {
+async function handleAntiTag(m, conn, Access, isGroupAdmins) {
     try {
         if (!m.isGroup) return;
         
@@ -688,7 +688,7 @@ async function handleAntiTag(m, conn, isBotAdmins, isGroupAdmins) {
         // Check if user tagged someone
         const mentionedUsers = m.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
         
-        if (mentionedUsers.length > 0 && !isGroupAdmins && isBotAdmins) {
+        if (mentionedUsers.length > 0 && !isGroupAdmins && Access) {
             // Delete the message
             try {
                 await conn.sendMessage(chatId, { delete: m.key });
