@@ -563,9 +563,15 @@ function detectUrls(message) {
     return matches ? matches : [];
 }
 
-async function handleLinkViolation(conn, message, isGroupAdmins, botNumber) {
+async function handleLinkViolation(conn, message, isSenderAdmin, botNumber) {
     try {
-        const chatId = message.key.remoteJid;
+        // Check if message is properly structured
+        if (!message || !message.key || !message.key.remoteJid) {
+            console.error('❌ Invalid message format in handleLinkViolation');
+            return;
+        }
+        
+        const chatId = message.key.remoteJid;  
         const sender = message.key.participant || message.key.remoteJid;
         const messageId = message.key.id;
 
@@ -576,13 +582,27 @@ async function handleLinkViolation(conn, message, isGroupAdmins, botNumber) {
         if (!isEnabled) return;
 
         // Check if bot is admin using passed parameter
-        if (!isGroupAdmins) {
+        if (!isSenderAdmin) {
             console.log('❌ Bot is not admin, cannot delete messages');
             return;
         }
 
-        // Check if sender is admin (allow admins to post links)
-        if (isGroupAdmins) {
+        // Get group metadata to check if sender is admin
+        let groupMetadata;
+        try {
+            groupMetadata = await conn.groupMetadata(chatId);
+        } catch (error) {
+            console.log('❌ Failed to get group metadata');
+            return;
+        }
+        
+        // Check if sender is admin in the group
+        const senderParticipant = groupMetadata.participants.find(p => 
+            p.id === sender || 
+            p.id.replace(/:\d+/, '') === sender.replace(/:\d+/, '')
+        );
+        
+        if (senderParticipant && (senderParticipant.admin === 'admin' || senderParticipant.admin === 'superadmin')) {
             return; // Allow admins to post links
         }
 
@@ -665,31 +685,7 @@ async function handleLinkViolation(conn, message, isGroupAdmins, botNumber) {
     }
 }
 
-async function checkAndHandleLinks(conn, message, isGroupAdmins) {
-    try {
-        // Only check group messages
-        if (!message.key.remoteJid.endsWith('@g.us')) return;
-        
-        // Ignore messages from the bot itself
-        const botNumber = await conn.decodeJid(conn.user.id);
-        const sender = message.key.participant || message.key.remoteJid;
-        if (sender === botNumber) return;
-        
-        const chatId = message.key.remoteJid;
-        
-        // Detect URLs in the message first (for efficiency)
-        const urls = detectUrls(message.message);
-        if (urls.length === 0) return;
-        
-        // Now check anti-link settings
-        await handleLinkViolation(conn, message, isGroupAdmins);
-        
-    } catch (error) {
-        // Silently handle errors
-    }
-}
-
-async function handleAntiTag(conn, m, isGroupAdmins, botNumber) {
+async function handleAntiTag(conn, m, isSenderAdmin, botNumber) {
     try {
         if (!m.isGroup) return;
         
@@ -702,14 +698,12 @@ async function handleAntiTag(conn, m, isGroupAdmins, botNumber) {
         
         if (!isEnabled) return;
         
-        // Check if user is admin (passed parameter)
-        const isSenderAdmin = isGroupAdmins.userAdmin;
-        const isBotAdmin = isGroupAdmins.botAdmin;
+      
         
         // Check if user tagged someone
         const mentionedUsers = m.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
         
-        if (mentionedUsers.length > 0 && !isSenderAdmin && isBotAdmin) {
+        if (mentionedUsers.length > 0 && !isSenderAdmin) {
             // Delete the message
             try {
                 await conn.sendMessage(chatId, { delete: m.key });
