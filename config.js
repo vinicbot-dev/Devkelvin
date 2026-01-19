@@ -86,8 +86,8 @@ global.limitCount = 10;
 
 global.mess = {
   group: "*This is not a group*",
-  notadmin: "*You need to be an admin to use this command.*",
-  owner: "*Haha😆, I will not respond because your not my owner*",
+  notadmin: "This command is only preserved for group admins only!",
+  owner: "Haha😆, I will not respond because your not my owner",
   done: "*Operation succeeded*",
   notext: "*Please provide the necessary text*",
   premium: "*First become a premium user*",
