@@ -102,6 +102,15 @@ getLastSeenDescription
 
 const {  takeCommand, musicCommand, ytplayCommand, handleMediafireDownload,  InstagramCommand, telestickerCommand, playCommand } = require('./KelvinCmds/commands')
 const { getInactiveUsers, isAdmin, checkAdminStatus, addUserMessage, getActiveUsers } = require('./KelvinCmds/group')
+const {
+veniceAICommand,
+mistralAICommand,
+perplexityAICommand,
+bardAICommand,
+gpt4NanoAICommand,
+keithAICommand,
+claudeAICommand
+} = require('./kelvinCmds/ai');
 const { KelvinVideo } = require('./KelvinCmds/video');
 const { dareCommand, truthCommand } = require('./KelvinCmds/fun');
 const { tiktokSearch } = require('./KelvinCmds/TikTok');
@@ -6171,24 +6180,6 @@ case 'ask': {
     
 }
 break
-case 'venice':
-case 'vai': {
-    if (!text) return m.reply('*Please ask me something!*\nExample: .venice Introduction to JavaScript.');
-    
-    try {
-        m.reply('🤔 *Thinking...*');
-        
-        const response = await fetch(`https://meta-api.zone.id/ai/venice?question=${encodeURIComponent(text)}`);
-        const data = await response.json();
-        
-        await m.reply(`🤖 *Venice AI*\n\n${data.answer || '❌ No response from AI'}`);
-    } catch (error) {
-        console.error(error);
-        await m.reply('❌ Error connecting to AI service');
-    }
-    
-}
-break
 case 'gpt':
 case 'chatgpt':
 case 'ai': {
@@ -6410,18 +6401,41 @@ case 'summarize': {
   
 }
 break
+case 'venice':
+case 'vai': {
+    await veniceAICommand(conn, m.chat, text, m);
+    break;
+}
+
 case 'mistral': {
-  if (!q) return reply('❌ Ask me something');
-  
-  try {
-    const response = await fetch(`https://api.giftedtech.co.ke/api/ai/deepseek-r1?apikey=gifted&q=${encodeURIComponent(q)}`);
-    const data = await response.json();
-    
-    reply(data.success ? `🔍 ${data.result}` : 'mistral failed');
-  } catch (error) {
-    reply('mistral error');
-  }
-  break;
+    await mistralAICommand(conn, m.chat, text, m);
+    break;
+}
+
+case 'perplexity': {
+    await perplexityAICommand(conn, m.chat, text, m);
+    break;
+}
+
+case 'bard': {
+    await bardAICommand(conn, m.chat, text, m);
+    break;
+}
+
+case 'gpt4nano':
+case 'gpt41nano': {
+    await gpt4NanoAICommand(conn, m.chat, text, m);
+    break;
+}
+
+case 'kelvinai': {
+    await keithAICommand(conn, m.chat, text, m);
+    break;
+}
+
+case 'claude': {
+    await claudeAICommand(conn, m.chat, text, m);
+    break;
 }
 case "helpers": {
     const search = (args && args.length) ? args.join(" ").toLowerCase() : "";
