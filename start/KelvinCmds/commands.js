@@ -295,47 +295,84 @@ async function videoCommand(conn, chatId, message) {
             text: '⏳ Downloading YouTube video... Please wait...' 
         }, { quoted: message });
 
-        // Encode the URL for the API
-        const encodedUrl = encodeURIComponent(youtubeUrl);
-        const apiUrl = `https://api.nekolabs.web.id/downloader/youtube/v4?url=${encodedUrl}`;
+        let videoData = null;
+        let apiError = null;
 
-        console.log('Fetching from API:', apiUrl);
+        // Try the first API (nekolabs)
+        try {
+            // Encode the URL for the API
+            const encodedUrl = encodeURIComponent(youtubeUrl);
+            const apiUrl = `https://api.nekolabs.web.id/downloader/youtube/v4?url=${encodedUrl}`;
 
-        // Fetch video data from API
-        const response = await fetch(apiUrl);
-        const data = await response.json();
+            console.log('Trying first API:', apiUrl);
 
-        console.log('API Response:', JSON.stringify(data, null, 2));
+            // Fetch video data from API
+            const response = await fetch(apiUrl, { timeout: 30000 });
+            const data = await response.json();
 
-        
+            console.log('First API Response:', JSON.stringify(data, null, 2));
 
-        // Check if API response is successful
-        if (!data || !data.success) {
-            throw new Error(data?.message || 'API returned an error');
+            // Check if API response is successful
+            if (data && data.success && data.result && data.result.medias && data.result.medias.length > 0) {
+                // Get the first available video format
+                const videoMedia = data.result.medias[0];
+                if (videoMedia.url) {
+                    videoData = {
+                        url: videoMedia.url,
+                        title: data.result.title || 'YouTube Video',
+                        quality: videoMedia.quality || videoMedia.label || 'Unknown',
+                        thumbnail: data.result.thumbnail || null,
+                        source: 'API 1'
+                    };
+                }
+            }
+        } catch (error) {
+            console.error('First API failed:', error.message);
+            apiError = error;
         }
 
-        if (!data.result || !data.result.medias || data.result.medias.length === 0) {
-            throw new Error('No video formats available for this URL');
+        // If first API failed, try the fallback API (apiskeith)
+        if (!videoData) {
+            try {
+                const fallbackApiUrl = `https://apiskeith.vercel.app/download/video?url=${encodeURIComponent(youtubeUrl)}`;
+                
+                console.log('Trying fallback API:', fallbackApiUrl);
+                
+                const response = await axios.get(fallbackApiUrl, { timeout: 30000 });
+                const data = response.data;
+
+                console.log('Fallback API Response:', data);
+
+                if (data && data.status && data.result) {
+                    // Extract video ID for title if possible
+                    const videoId = (youtubeUrl.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/) || [])[1];
+                    const title = data.result.title || `YouTube Video ${videoId || ''}`.trim();
+                    
+                    videoData = {
+                        url: data.result,
+                        title: title,
+                        quality: 'HD',
+                        thumbnail: videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : null,
+                        source: 'Fallback API'
+                    };
+                }
+            } catch (fallbackError) {
+                console.error('Fallback API failed:', fallbackError.message);
+                apiError = fallbackError;
+            }
         }
 
-        // Get the first available video format
-        const videoMedia = data.result.medias[0];
-        if (!videoMedia.url) {
-            throw new Error('No video URL found in response');
+        // If both APIs failed, throw error
+        if (!videoData) {
+            throw new Error(apiError?.message || 'Both video download APIs failed');
         }
-
-        const videoData = {
-            url: videoMedia.url,
-            title: data.result.title || 'YouTube Video',
-            quality: videoMedia.quality || videoMedia.label || 'Unknown',
-            thumbnail: data.result.thumbnail || null
-        };
 
         // Send video information first
         let caption = `*📹 YouTube Video Downloader*\n\n`;
         caption += `*📺 Title:* ${videoData.title}\n`;
         caption += `*💾 Quality:* ${videoData.quality}\n`;
-        caption += `*🔗 Source:* ${youtubeUrl}\n\n`;
+        caption += `*🔗 Source:* ${youtubeUrl}\n`;
+        caption += `*⚙️ API:* ${videoData.source}\n\n`;
         caption += `_Downloading video..._`;
 
         const infoMsg = await conn.sendMessage(chatId, { text: caption }, { quoted: message });
@@ -347,25 +384,23 @@ async function videoCommand(conn, chatId, message) {
                 caption: `*${videoData.title}*\n\n` +
                         `✅ Successfully downloaded!\n` +
                         `📺 Quality: ${videoData.quality}\n` +
-                        `🔗 Source: ${youtubeUrl}\n\n` +
+                        `🔗 Source: ${youtubeUrl}\n` +
+                        `⚙️ Via: ${videoData.source}\n\n` +
                         `📥 Downloaded via ${global.botname || 'Bot'}`,
                 mimetype: 'video/mp4',
                 fileName: `youtube_${Date.now()}.mp4`.replace(/\s+/g, '_')
-            }, { quoted: message });
-
-       
+            });
 
             // Success reaction
             await conn.sendMessage(chatId, { react: { text: '✅', key: message.key } });
 
         } catch (videoError) {
             console.error('Video sending error:', videoError);
-          
             
             // If video sending fails, try to send the direct download link
             if (videoData.url) {
                 await conn.sendMessage(chatId, { 
-                    text: `❌ Video is too large to send directly.\n\n📥 *Download Link:*\n${videoData.url}\n\n*Title:* ${videoData.title}\n*Quality:* ${videoData.quality}` 
+                    text: `❌ Video is too large to send directly.\n\n📥 *Download Link:*\n${videoData.url}\n\n*Title:* ${videoData.title}\n*Quality:* ${videoData.quality}\n*API:* ${videoData.source}` 
                 }, { quoted: message });
             } else {
                 await conn.sendMessage(chatId, { 
@@ -380,8 +415,10 @@ async function videoCommand(conn, chatId, message) {
         
         let errorMessage = '❌ Error downloading video. ';
         
-        if (error.message.includes('API returned an error')) {
-            errorMessage += 'YouTube API returned an error.';
+        if (error.message.includes('Both video download APIs failed')) {
+            errorMessage += 'Both video download services are currently unavailable.';
+        } else if (error.message.includes('timeout')) {
+            errorMessage += 'Request timed out. Please try again.';
         } else if (error.message.includes('No video formats available')) {
             errorMessage += 'No downloadable video formats found for this URL.';
         } else if (error.message.includes('No video URL found')) {
@@ -394,6 +431,7 @@ async function videoCommand(conn, chatId, message) {
         await conn.sendMessage(chatId, { react: { text: '❌', key: message.key } });
     }
 }
+
 async function ytplayCommand(conn, chatId, query, message) {
     try {
         if (!query) {
