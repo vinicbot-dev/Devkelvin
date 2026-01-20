@@ -378,13 +378,13 @@ async function webp2mp4(source) {
 //*---------------------------------------------------------------*//
 
 
-async function checkAndHandleLinks(conn, message, isSenderAdmin) {
+
+async function checkAndHandleLinks(conn, message, isSenderAdmin, botNumber) {
     try {
         // Only check group messages
         if (!message.key.remoteJid.endsWith('@g.us')) return;
         
         // Ignore messages from the bot itself
-        const botNumber = await conn.decodeJid(conn.user.id);
         const sender = message.key.participant || message.key.remoteJid;
         if (sender === botNumber) return;
         
@@ -394,8 +394,8 @@ async function checkAndHandleLinks(conn, message, isSenderAdmin) {
         const urls = detectUrls(message.message);
         if (urls.length === 0) return;
         
-        // Now check anti-link settings
-        await handleLinkViolation(conn, message, isSenderAdmin, botNumber); // Added botNumber parameter
+        // Now check anti-link settings, passing isSenderAdmin
+        await handleLinkViolation(conn, message, isSenderAdmin, botNumber);
         
     } catch (error) {
         // Silently handle errors
@@ -485,10 +485,12 @@ if (global.alwaysonline === true || global.alwaysonline === 'true') {
     }
 }
 
-await checkAndHandleLinks(conn, {
-    key: m.key,
-    message: m.message
-}, isSenderAdmin);
+if (m.isGroup && body && !m.key.fromMe) {
+    await checkAndHandleLinks(conn, {
+        key: m.key,
+        message: m.message
+    }, isSenderAdmin, botNumber); // Pass isSenderAdmin and botNumber
+}
 
 if ((m.mtype || '').includes("groupStatusMentionMessage") && m.isGroup) {
     
@@ -513,7 +515,7 @@ if (global.antiedit && m.message?.protocolMessage?.editedMessage) {
 
 // ========== ANTI-TAG EXECUTION ==========
 if (m.isGroup && body) {
-    await handleAntiTag(m, conn);
+    await handleAntiTag(conn, m, isSenderAdmin, botNumber);
 }
 // Track active users in groups
 if (m.isGroup && !m.key.fromMe && body && body.trim().length > 0) {
