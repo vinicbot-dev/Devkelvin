@@ -161,7 +161,7 @@ async function generateMenu(conn, m, prefix, global) {
         },
         ai: {
             title: ' *AI MENU*',
-            commands: ['generate', 'ai', 'copilot', 'metaai', 'deepseek', 'venice',  'flux', 'dalle', 'mistral', 'summarize', 'blackbox', 'gpt'],
+            commands: ['generate', 'ai', 'copilot', 'metaai', 'deepseek', 'venice',  'flux', 'dalle', 'mistral', 'summarize', 'claude', 'gpt4nano', 'bard', 'perplexity', 'kelvinai',  'blackbox', 'gpt'],
         },
         audio: {
             title: ' *AUDIO MENU*',
