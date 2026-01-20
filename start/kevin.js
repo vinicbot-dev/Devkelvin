@@ -4870,12 +4870,110 @@ case 'instagram': {
        await InstagramCommand(conn, m.chat, m);
 }
 break
-case 'ytmp4': 
-case 'video': {
+case 'ytmp4': {
     const chatId = m.chat;
     await KelvinVideo(conn, chatId, m, args);
     break;
 }
+case 'video': {
+    try {
+        if (!text) return reply("Provide a YouTube video name or link.");
+
+        let videoUrl = "";
+        let videoTitle = "";
+        let videoThumbnail = "";
+
+        // Detect or Search
+        if (/^https?:\/\//.test(text)) {
+            videoUrl = text;
+        } else {
+            const s = await yts(text);
+            if (!s?.videos?.length) return reply("❌ No results found.");
+            const v = s.videos[0];
+            videoUrl = v.url;
+            videoTitle = v.title;
+            videoThumbnail = v.thumbnail;
+        }
+
+        // Extract ID
+        const videoId =
+            (videoUrl.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/) || [])[1];
+
+        // Show preview fast
+        if (videoThumbnail || videoId) {
+            const thumb =
+                videoThumbnail ||
+                `https://i.ytimg.com/vi/${videoId}/sddefault.jpg`;
+
+            await conn.sendMessage(
+                m.chat,
+                {
+                    image: { url: thumb },
+                    caption: `🎬 *${videoTitle || text}*\n⌛ Fetching downloaded video...`,
+                },
+                { quoted: m }
+            );
+        }
+
+        // Use yt-dl to get video title
+        if (!videoTitle && videoUrl) {
+            try {
+                const ytdl = require('ytdl-core');
+                const info = await ytdl.getInfo(videoUrl);
+                videoTitle = info.videoDetails.title;
+            } catch (e) {
+                console.log("yt-dl title fetch error:", e);
+            }
+        }
+
+        // Use only the last API
+        const API_URL = `https://media.cypherxbot.space/download/youtube/video?url=${encodeURIComponent(videoUrl)}`;
+        
+        let result = null;
+
+        // Fetch from the single API
+        try {
+            const response = await axios.get(API_URL, { timeout: 30000 });
+            const data = response.data;
+
+            // Normalize download URL detection
+            const dl =
+                data?.result?.download_url ||
+                data?.result?.mp4 ||
+                data?.result?.url ||
+                data?.download_url ||
+                data?.url ||
+                data?.videoUrl;
+
+            if (dl) {
+                result = {
+                    url: dl,
+                    title: videoTitle || data?.result?.title || "Downloaded Video",
+                };
+            }
+        } catch (error) {
+            console.log("API Error:", error);
+        }
+
+        if (!result) return reply("❌ Failed to download video from server.");
+
+        // SEND THE VIDEO
+        await conn.sendMessage(
+            m.chat,
+            {
+                video: { url: result.url },
+                mimetype: "video/mp4",
+                fileName: `${result.title.replace(/[^\w\s]/gi, '')}.mp4`,
+                caption: `🎥 *${result.title}*\n\n> ${global.wm} ™`
+            },
+            { quoted: m }
+        );
+    } catch (e) {
+        console.log("VIDEO ERROR:", e);
+        reply("❌ Could not download the video.");
+    }
+}
+break;
 case 'checkapi': {
     if (!text) return reply(`Usage: ${prefix}checkapi <url>`);
     
@@ -5233,53 +5331,91 @@ conn.sendMessage(m.chat, { audio: { url: json.music }, mimetype: 'audio/mpeg' },
 break       
 case 'facebook':
 case 'fb': {
-    if (!text) return reply(`*Please provide facebook link!* `);
+    if (!text) return reply(`*Please provide a Facebook link!*\n\nExample:\n.fb https://www.facebook.com/share/r/19zyz6X8KJ/`);
 
     try {
         // React while processing
         await conn.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
 
-        // API URL
-        const apiUrl = `https://api.nekolabs.web.id/downloader/facebook?url=${encodeURIComponent(text)}`;
+        // Use the new API
+        const apiUrl = `https://apiskeith.vercel.app/download/fbdown?url=${encodeURIComponent(text)}`;
         
         // Fetch response
         const response = await fetch(apiUrl);
         const data = await response.json();
 
-        if (data.success && data.result && data.result.medias && data.result.medias.length > 0) {
-            // Find video file (preferably the first HD one)
-            const videos = data.result.medias.filter(m => m.type === 'video');
+        if (data.status && data.result && data.result.media) {
+            // Prefer HD video if available, otherwise use SD
+            const videoUrl = data.result.media.hd || data.result.media.sd;
             
-            if (videos.length > 0) {
-                // Use the first video (usually HD)
-                const video = videos[0];
-                
-                await conn.sendMessage(
-                    m.chat,
-                    {
-                        video: { url: video.url },
-                        mimetype: 'video/mp4',
-                        caption: global.wm || ''
-                    },
-                    { quoted: m }
-                );
-            } else {
+            if (!videoUrl) {
                 reply('❌ *No video found in this Facebook post*');
+                await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+                break;
             }
+            
+            // Get title and thumbnail
+            const title = data.result.title || 'Facebook Video';
+            const thumbnail = data.result.thumbnail || null;
+            
+            // Create caption with title and global watermark
+            let caption = '';
+            if (title && title !== 'Facebook Video') {
+                // Decode HTML entities if present
+                const decodedTitle = title.replace(/&#x([0-9a-f]+);/gi, (match, hex) => 
+                    String.fromCharCode(parseInt(hex, 16))
+                );
+                caption += `📹 *${decodedTitle}*\n\n`;
+            }
+            
+            // Add global watermark if defined
+            if (global.wm) {
+                caption += `${global.wm}`;
+            } else {
+                caption += `⬇️ Downloaded via ${global.botname || 'Bot'}`;
+            }
+            
+            // Send the video
+            await conn.sendMessage(
+                m.chat,
+                {
+                    video: { url: videoUrl },
+                    mimetype: 'video/mp4',
+                    caption: caption.trim(),
+                    fileName: `facebook_${Date.now()}.mp4`,
+                    ...(thumbnail && {
+                        thumbnail: { url: thumbnail },
+                        jpegThumbnail: thumbnail
+                    })
+                },
+                { quoted: m }
+            );
             
             // Success reaction
             await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+            
         } else {
-            throw new Error('No media found');
+            throw new Error('No media found or API error');
         }
         
     } catch (error) {
         console.error('Facebook command error:', error);
         await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
-        reply('❌ *Failed to download Facebook video. Check the URL.*');
+        
+        let errorMessage = '❌ *Failed to download Facebook video.*\n';
+        
+        if (error.message.includes('No media found')) {
+            errorMessage += 'The link may not contain a video or is private.';
+        } else if (error.message.includes('NetworkError') || error.message.includes('fetch')) {
+            errorMessage += 'Network error. Please check your connection.';
+        } else {
+            errorMessage += 'Please check the URL and try again.';
+        }
+        
+        reply(errorMessage);
     }
+    break;
 }
-break
 case 'twitter':
 case 'x': {
     if (!text) return reply(`*Please provide Twitter link or url!*`);
