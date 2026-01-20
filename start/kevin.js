@@ -110,7 +110,7 @@ bardAICommand,
 gpt4NanoAICommand,
 keithAICommand,
 claudeAICommand
-} = require('./kelvinCmds/ai');
+} = require('./KelvinCmds/ai');
 const { KelvinVideo } = require('./KelvinCmds/video');
 const { dareCommand, truthCommand } = require('./KelvinCmds/fun');
 const { tiktokSearch } = require('./KelvinCmds/TikTok');
