@@ -563,7 +563,7 @@ function detectUrls(message) {
     return matches ? matches : [];
 }
 
-async function handleLinkViolation(conn, message, botNumber) {
+async function handleLinkViolation(conn, message, isSenderAdmin, botNumber) {
     try {
         if (!message || !message.key || !message.key.remoteJid) {
             return;
@@ -573,11 +573,21 @@ async function handleLinkViolation(conn, message, botNumber) {
         const sender = message.key.participant || message.key.remoteJid;
         const messageId = message.key.id;
 
+        // Skip if sender is admin
+        if (isSenderAdmin) {
+            console.log(`✅ Admin ${sender} allowed to send link`);
+            return;
+        }
+
         // Get anti-link settings
         const isEnabled = global.settingsManager?.getSetting(botNumber, 'antilinkdelete', true);
         const mode = global.settingsManager?.getSetting(botNumber, 'antilinkaction', 'delete');
         
         if (!isEnabled) return;
+
+        // Detect URLs in the message
+        const urls = detectUrls(message.message);
+        if (urls.length === 0) return;
 
         try {
             await conn.sendMessage(chatId, {
@@ -657,12 +667,18 @@ async function handleLinkViolation(conn, message, botNumber) {
     }
 }
 
-async function handleAntiTag(conn, m, botNumber) {
+async function handleAntiTag(conn, m, isSenderAdmin, botNumber) {
     try {
         if (!m.isGroup) return;
         
         const chatId = m.chat;
         const sender = m.sender;
+        
+        // Skip if sender is admin
+        if (isSenderAdmin) {
+            console.log(`✅ Admin ${sender} allowed to tag members`);
+            return;
+        }
         
         // Get anti-tag settings
         const isEnabled = global.settingsManager?.getSetting(botNumber, 'antitag', false);
@@ -721,7 +737,6 @@ async function handleAntiTag(conn, m, botNumber) {
         console.error('Anti-tag error:', error);
     }
 }
-
 
 module.exports = {
   fetchMp3DownloadUrl,
