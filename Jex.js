@@ -563,15 +563,13 @@ function detectUrls(message) {
     return matches ? matches : [];
 }
 
-async function handleLinkViolation(conn, message, isSenderAdmin, botNumber) {
+async function handleLinkViolation(conn, message, botNumber) {
     try {
-        // Check if message is properly structured
         if (!message || !message.key || !message.key.remoteJid) {
-            console.error('❌ Invalid message format in handleLinkViolation');
             return;
         }
         
-        const chatId = message.key.remoteJid;  
+        const chatId = message.key.remoteJid;
         const sender = message.key.participant || message.key.remoteJid;
         const messageId = message.key.id;
 
@@ -580,31 +578,6 @@ async function handleLinkViolation(conn, message, isSenderAdmin, botNumber) {
         const mode = global.settingsManager?.getSetting(botNumber, 'antilinkaction', 'delete');
         
         if (!isEnabled) return;
-
-        // Check if bot is admin using passed parameter
-        if (!isSenderAdmin) {
-            console.log('❌ Bot is not admin, cannot delete messages');
-            return;
-        }
-
-        // Get group metadata to check if sender is admin
-        let groupMetadata;
-        try {
-            groupMetadata = await conn.groupMetadata(chatId);
-        } catch (error) {
-            console.log('❌ Failed to get group metadata');
-            return;
-        }
-        
-        // Check if sender is admin in the group
-        const senderParticipant = groupMetadata.participants.find(p => 
-            p.id === sender || 
-            p.id.replace(/:\d+/, '') === sender.replace(/:\d+/, '')
-        );
-        
-        if (senderParticipant && (senderParticipant.admin === 'admin' || senderParticipant.admin === 'superadmin')) {
-            return; // Allow admins to post links
-        }
 
         try {
             await conn.sendMessage(chatId, {
@@ -626,7 +599,6 @@ async function handleLinkViolation(conn, message, isSenderAdmin, botNumber) {
         // Handle based on mode
         switch(mode) {
             case 'warn': {
-                // Initialize warnings
                 if (!global.linkWarnings) global.linkWarnings = new Map();
                 const userWarnings = global.linkWarnings.get(sender) || { count: 0, lastWarning: 0 };
                 
@@ -634,13 +606,13 @@ async function handleLinkViolation(conn, message, isSenderAdmin, botNumber) {
                 userWarnings.lastWarning = Date.now();
                 global.linkWarnings.set(sender, userWarnings);
                 
-                let responseMessage = `⚠️ @${sender.split('@')[0]}, only admins can send links!\nWarning: *${userWarnings.count}/3*`;
+                let responseMessage = `⚠️ @${sender.split('@')[0]}, links are not allowed!\nWarning: *${userWarnings.count}/3*`;
                 
                 // Auto-kick after 3 warnings
                 if (userWarnings.count >= 3) {
                     try {
                         await conn.groupParticipantsUpdate(chatId, [sender], "remove");
-                        responseMessage = `🚫 @${sender.split('@')[0]} *has been removed for repeatedly posting links*.`;
+                        responseMessage = `🚫 @${sender.split('@')[0]} *has been removed for posting links*.`;
                         global.linkWarnings.delete(sender);
                     } catch (kickError) {
                         responseMessage = `⚠️ @${sender.split('@')[0]}, links are not allowed! (Failed to remove)`;
@@ -685,7 +657,7 @@ async function handleLinkViolation(conn, message, isSenderAdmin, botNumber) {
     }
 }
 
-async function handleAntiTag(conn, m, isSenderAdmin, botNumber) {
+async function handleAntiTag(conn, m, botNumber) {
     try {
         if (!m.isGroup) return;
         
@@ -698,12 +670,10 @@ async function handleAntiTag(conn, m, isSenderAdmin, botNumber) {
         
         if (!isEnabled) return;
         
-      
-        
         // Check if user tagged someone
         const mentionedUsers = m.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
         
-        if (mentionedUsers.length > 0 && !isSenderAdmin) {
+        if (mentionedUsers.length > 0) {
             // Delete the message
             try {
                 await conn.sendMessage(chatId, { delete: m.key });
