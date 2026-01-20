@@ -12,125 +12,185 @@ async function playCommand(conn, chatId, message, args) {
         const text = args.join(' ').trim();
         
         if (!text) return conn.sendMessage(chatId, { 
-            text: '🎵 Please provide a song name or YouTube URL\nExample: .play shape of you' 
+            text: '🎵 Please provide a song name or YouTube URL\nExample: .play shape of you\nExample: .play https://youtube.com/watch?v=60ItHLz5WEA' 
         }, { quoted: message });
 
-        // Send initial processing message
-        await conn.sendMessage(chatId, { 
-            text: `🔍 Searching for: ${text}\n⏳ Please wait...` 
-        }, { quoted: message });
+        let videoUrl, title, thumbnail;
 
-        const apiUrl = `https://api.nekolabs.my.id/downloader/youtube/play/v1?q=${encodeURIComponent(text)}`;
-        
-        const response = await fetch(apiUrl);
-        const data = await response.json();
-
-        if (data.success && data.result.downloadUrl) {
-            const { metadata, downloadUrl } = data.result;
-            
-            // Format selection menu
-            const formatMenu = `🎵 *${metadata.title}* - ${metadata.channel}
-⏱️ Duration: ${metadata.duration}
-
-*Choose download format:*
-1. 📄 MP3 as Document
-2. 🎧 MP3 as Audio (Play)
-3. 🎙️ MP3 as Voice Note (PTT)
-
-_Reply with 1, 2 or 3 to this message to download the format you prefer._`;
-            
-            // Send format selection menu
-            const songmsg = await conn.sendMessage(chatId, { 
-                text: formatMenu 
+        // Check if it's a YouTube link
+        if (/youtu\.?be/.test(text)) {
+            videoUrl = text;
+            const id = (text.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/) || [])[1];
+            if (!id) return conn.sendMessage(chatId, { 
+                text: '❌ Invalid YouTube link. Please provide a valid YouTube URL.' 
             }, { quoted: message });
-
-            // Store the message ID for response handling
-            const selectionHandler = async (msgUpdate) => {
-                try {
-                    const mp3msg = msgUpdate.messages[0];
-                    if (!mp3msg.message || !mp3msg.message.extendedTextMessage) return;
-                    if (mp3msg.key.remoteJid !== chatId) return;
-
-                    const selectedOption = mp3msg.message.extendedTextMessage.text.trim();
-
-                    if (
-                        mp3msg.message.extendedTextMessage.contextInfo &&
-                        mp3msg.message.extendedTextMessage.contextInfo.stanzaId === songmsg.key.id
-                    ) {
-                        // Remove the listener to prevent multiple responses
-                        conn.ev.off('messages.upsert', selectionHandler);
-                        
-                        await conn.sendMessage(chatId, { react: { text: "⬇️", key: mp3msg.key } });
-
-                        switch (selectedOption) {
-                            case "1":   
-                                await conn.sendMessage(chatId, { 
-                                    document: { url: downloadUrl }, 
-                                    mimetype: "audio/mpeg", 
-                                    fileName: `${metadata.title}.mp3`.replace(/[<>:"/\\|?*]/g, ''),
-                                    caption: `🎵 *${metadata.title}*\n🎤 ${metadata.channel}\n⏱️ ${metadata.duration}`
-                                }, { quoted: mp3msg });   
-                                break;
-                                
-                            case "2":   
-                                await conn.sendMessage(chatId, { 
-                                    audio: { url: downloadUrl }, 
-                                    mimetype: "audio/mp4",
-                                    fileName: `${metadata.title}.mp3`.replace(/[<>:"/\\|?*]/g, ''),
-                                    contextInfo: {
-                                        externalAdReply: {
-                                            title: metadata.title.slice(0, 60),
-                                            body: `By ${metadata.channel}`.slice(0, 30),
-                                            mediaType: 2,
-                                            thumbnailUrl: metadata.cover,
-                                            mediaUrl: metadata.url
-                                        }
-                                    }
-                                }, { quoted: mp3msg });
-                                break;
-                                
-                            case "3":   
-                                await conn.sendMessage(chatId, { 
-                                    audio: { url: downloadUrl }, 
-                                    mimetype: "audio/mp4", 
-                                    ptt: true,
-                                    fileName: `${metadata.title}.mp3`.replace(/[<>:"/\\|?*]/g, '')
-                                }, { quoted: mp3msg });
-                                break;
-
-                            default:
-                                await conn.sendMessage(
-                                    chatId,
-                                    {
-                                        text: "*❌ Invalid selection! Please reply with 1, 2 or 3*",
-                                    },
-                                    { quoted: mp3msg }
-                                );
-                        }
-                    }
-                } catch (error) {
-                    console.error('Selection handler error:', error);
-                }
-            };
-
-            // Add the listener for format selection
-            conn.ev.on('messages.upsert', selectionHandler);
-
-            // Set timeout to remove listener after 2 minutes
-            setTimeout(() => {
-                conn.ev.off('messages.upsert', selectionHandler);
-            }, 120000);
-           
-        } else {
+            
+            thumbnail = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+            title = "YouTube Audio";
+        } 
+        // Search YouTube for song name
+        else {
+            // Send initial processing message
             await conn.sendMessage(chatId, { 
-                text: '❌ No results found or download failed. Please try another song.' 
+                text: `🔍 Searching for: ${text}\n⏳ Please wait...` 
             }, { quoted: message });
+            
+            const searchResults = await yts(text);
+            if (!searchResults.videos || searchResults.videos.length === 0) {
+                return await conn.sendMessage(chatId, { 
+                    text: `❌ No results found for: ${text}` 
+                }, { quoted: message });
+            }
+            
+            const video = searchResults.videos[0];
+            videoUrl = video.url;
+            title = video.title;
+            thumbnail = video.thumbnail;
         }
+
+        // Send thumbnail preview
+        const previewMsg = await conn.sendMessage(chatId, {
+            image: { url: thumbnail },
+            caption: `🎵 *${title}*\n\n⌛ Downloading audio... Please wait...`
+        }, { quoted: message });
+
+        // Add loading reaction
+        await conn.sendMessage(chatId, { react: { text: '⏳', key: message.key } });
+
+        // Use the new API
+        const apiUrl = `https://apiskeith.vercel.app/download/audio?url=${encodeURIComponent(videoUrl)}`;
+        
+        // Fetch audio with timeout
+        const response = await axios.get(apiUrl, { timeout: 60000 });
+        
+        if (!response.data?.status) {
+            throw new Error('API returned no audio data');
+        }
+
+        const audioUrl = response.data.result;
+        
+        if (!audioUrl) {
+            throw new Error('No audio URL found in response');
+        }
+
+        // Format selection menu
+        const formatMenu = `🎵 *${title}*\n\n*Choose download format:*\n\n` +
+                          `1. 📄 MP3 as Document\n` +
+                          `2. 🎧 MP3 as Audio (Play)\n` +
+                          `3. 🎙️ MP3 as Voice Note (PTT)\n\n` +
+                          `_Reply with 1, 2 or 3 to this message to download the format you prefer._`;
+        
+        // Send format selection menu
+        const songmsg = await conn.sendMessage(chatId, { 
+            text: formatMenu 
+        }, { quoted: message });
+
+        // Store the message ID for response handling
+        const selectionHandler = async (msgUpdate) => {
+            try {
+                const mp3msg = msgUpdate.messages[0];
+                if (!mp3msg.message || !mp3msg.message.extendedTextMessage) return;
+                if (mp3msg.key.remoteJid !== chatId) return;
+
+                const selectedOption = mp3msg.message.extendedTextMessage.text.trim();
+
+                if (
+                    mp3msg.message.extendedTextMessage.contextInfo &&
+                    mp3msg.message.extendedTextMessage.contextInfo.stanzaId === songmsg.key.id
+                ) {
+                    // Remove the listener to prevent multiple responses
+                    conn.ev.off('messages.upsert', selectionHandler);
+                    
+                    await conn.sendMessage(chatId, { react: { text: "⬇️", key: mp3msg.key } });
+
+                    switch (selectedOption) {
+                        case "1":   
+                            await conn.sendMessage(chatId, { 
+                                document: { url: audioUrl }, 
+                                mimetype: "audio/mpeg", 
+                                fileName: `${title}.mp3`.replace(/[<>:"/\\|?*]/g, '_'),
+                                caption: `🎵 *${title}*\n✅ Downloaded successfully!\n🔗 Source: ${videoUrl}`
+                            }, { quoted: mp3msg });   
+                            break;
+                            
+                        case "2":   
+                            await conn.sendMessage(chatId, { 
+                                audio: { url: audioUrl }, 
+                                mimetype: "audio/mp4",
+                                fileName: `${title}.mp3`.replace(/[<>:"/\\|?*]/g, '_'),
+                                ptt: false,
+                                contextInfo: {
+                                    externalAdReply: {
+                                        title: title.length > 60 ? title.substring(0, 60) + '...' : title,
+                                        body: "🎵 YouTube Audio",
+                                        mediaType: 2,
+                                        thumbnailUrl: thumbnail,
+                                        mediaUrl: videoUrl
+                                    }
+                                }
+                            }, { quoted: mp3msg });
+                            break;
+                            
+                        case "3":   
+                            await conn.sendMessage(chatId, { 
+                                audio: { url: audioUrl }, 
+                                mimetype: "audio/mp4", 
+                                ptt: true,
+                                fileName: `${title}.mp3`.replace(/[<>:"/\\|?*]/g, '_')
+                            }, { quoted: mp3msg });
+                            break;
+
+                        default:
+                            await conn.sendMessage(
+                                chatId,
+                                {
+                                    text: "*❌ Invalid selection! Please reply with 1, 2 or 3*",
+                                },
+                                { quoted: mp3msg }
+                            );
+                    }
+                    
+                    // Success reaction
+                    await conn.sendMessage(chatId, { react: { text: '✅', key: mp3msg.key } });
+                }
+            } catch (error) {
+                console.error('Selection handler error:', error);
+                await conn.sendMessage(chatId, { 
+                    text: '❌ Error sending audio. Please try again.' 
+                }, { quoted: mp3msg });
+            }
+        };
+
+        // Add the listener for format selection
+        conn.ev.on('messages.upsert', selectionHandler);
+
+        // Set timeout to remove listener after 2 minutes
+        setTimeout(() => {
+            conn.ev.off('messages.upsert', selectionHandler);
+        }, 120000);
         
     } catch (error) {
         console.error('Play command error:', error);
+        
+        // Add error reaction
+        await conn.sendMessage(chatId, { react: { text: '❌', key: message.key } });
+        
+        let errorMessage = '❌ Error fetching audio. ';
+        
+        if (error.message.includes('timeout')) {
+            errorMessage += 'Request timed out. Please try again.';
+        } else if (error.message.includes('Invalid YouTube link')) {
+            errorMessage += 'Invalid YouTube URL provided.';
+        } else if (error.message.includes('No results found')) {
+            errorMessage += `No results found for "${text}".`;
+        } else if (error.message.includes('No audio URL found')) {
+            errorMessage += 'Could not retrieve audio. The video might be restricted.';
+        } else {
+            errorMessage += 'Please try again later.';
+        }
+        
         await conn.sendMessage(chatId, { 
-            text: '❌ Error fetching audio. Please try again later.' 
+            text: errorMessage 
         }, { quoted: message });
     }
 }
@@ -335,65 +395,101 @@ async function videoCommand(conn, chatId, message) {
     }
 }
 async function ytplayCommand(conn, chatId, query, message) {
-    if (!query) {
-        return await conn.sendMessage(chatId, {
-            text: "⚠️ Please provide a YouTube link or search query.\n\nExample:\n```.ytplay another love```"
-        });
-    }
-
     try {
-        let videoUrl = query;
-
-        // Step 1: React while searching
-        await conn.sendMessage(chatId, { react: { text: "⏳", key: message.key } });
-
-        if (!query.includes("youtube.com") && !query.includes("youtu.be")) {
-            const search = await yts(query);
-            if (!search.videos || search.videos.length === 0) {
-                return await conn.sendMessage(chatId, { text: `❌ No results found for: ${query}` });
-            }
-            videoUrl = search.videos[0].url;
+        if (!query) {
+            return await conn.sendMessage(chatId, {
+                text: "⚠️ Please provide a YouTube link or song name.\n\nExample:\n```.ytplay another love```\n```.ytplay https://youtube.com/watch?v=...```"
+            });
         }
 
-        // Step 2: React while fetching link
-        await conn.sendMessage(chatId, { react: { text: "📥", key: message.key } });
+        let videoUrl, title, thumbnail;
 
-        const apiUrl = `https://apis.davidcyriltech.my.id/download/ytmp3?url=${encodeURIComponent(videoUrl)}`;
+        // Check if it's a YouTube link
+        if (/youtu\.?be/.test(query)) {
+            videoUrl = query;
+            const id = (query.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/) || [])[1];
+            if (!id) {
+                return await conn.sendMessage(chatId, {
+                    text: "❌ Invalid YouTube link. Please provide a valid YouTube URL."
+                });
+            }
+            thumbnail = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+            title = "YouTube Audio";
+        } 
+        // Search YouTube for song name
+        else {
+            const searchResults = await yts(query);
+            if (!searchResults.videos || searchResults.videos.length === 0) {
+                return await conn.sendMessage(chatId, {
+                    text: `❌ No results found for: ${query}`
+                });
+            }
+            const video = searchResults.videos[0];
+            videoUrl = video.url;
+            title = video.title;
+            thumbnail = video.thumbnail;
+        }
+
+        // Send initial processing message with thumbnail
+        const processingMsg = await conn.sendMessage(chatId, {
+            image: { url: thumbnail },
+            caption: `🎵 *${title}*\n\n⌛ Downloading audio... Please wait...`
+        }, { quoted: message });
+
+        // Add loading reaction
+        await conn.sendMessage(chatId, { react: { text: '⏳', key: message.key } });
+
+        // Use the API from your example
+        const apiUrl = `https://apiskeith.vercel.app/download/audio?url=${encodeURIComponent(videoUrl)}`;
+        
+        // Fetch audio with timeout
         const response = await axios.get(apiUrl, { timeout: 60000 });
-        const data = response.data?.result;
-
-        if (!data || !data.download_url) {
-            await conn.sendMessage(chatId, { react: { text: "❌", key: message.key } });
-            return await conn.sendMessage(chatId, { text: "❌ Failed to fetch audio. Try another link." });
+        
+        if (!response.data?.status) {
+            throw new Error('API returned no audio data');
         }
 
-        // Step 3: React while sending audio
-        await conn.sendMessage(chatId, { react: { text: "🎶", key: message.key } });
+        const audioUrl = response.data.result;
+        
+        if (!audioUrl) {
+            throw new Error('No audio URL found in response');
+        }
 
+        // Send the audio
         await conn.sendMessage(chatId, {
-            audio: { url: data.download_url },
-            mimetype: "audio/mpeg",
+            audio: { url: audioUrl },
+            mimetype: 'audio/mpeg',
+            fileName: `${title}.mp3`.replace(/[<>:"/\\|?*]/g, '_'),
             ptt: false,
-            fileName: `${data.title || "yt-audio"}.mp3`,
-            contextInfo: {
-                externalAdReply: {
-                    title: data.title || "YouTube Audio",
-                    body: "🎶 Powered by YTPlay",
-                    thumbnailUrl: data.thumbnail,
-                    sourceUrl: videoUrl,
-                    mediaType: 1,
-                    renderLargerThumbnail: true
-                }
-            }
-        });
+            caption: `🎧 *${title}*\n\n✅ Downloaded successfully!\n🔗 Source: ${videoUrl}\n\n📥 Via ${global.botname || 'Bot'}`
+        }, { quoted: message });
 
-        // Final ✅ reaction
-        await conn.sendMessage(chatId, { react: { text: "✅", key: message.key } });
+        // Success reaction
+        await conn.sendMessage(chatId, { react: { text: '✅', key: message.key } });
 
     } catch (error) {
-        console.error("YTPlay Error:", error.message);
-        await conn.sendMessage(chatId, { react: { text: "❌", key: message.key } });
-        await conn.sendMessage(chatId, { text: "❌ An error occurred while processing your request." });
+        console.error('YTPlay Error:', error.message);
+        
+        // Add error reaction
+        await conn.sendMessage(chatId, { react: { text: '❌', key: message.key } });
+        
+        let errorMessage = '❌ Error downloading audio. ';
+        
+        if (error.message.includes('timeout')) {
+            errorMessage += 'Request timed out. Please try again.';
+        } else if (error.message.includes('Invalid YouTube link')) {
+            errorMessage += 'Invalid YouTube URL provided.';
+        } else if (error.message.includes('No results found')) {
+            errorMessage += `No results found for "${query}".`;
+        } else if (error.message.includes('No audio URL found')) {
+            errorMessage += 'Could not retrieve audio. The video might be restricted.';
+        } else {
+            errorMessage += 'Please try again with a different song or link.';
+        }
+        
+        await conn.sendMessage(chatId, { 
+            text: errorMessage 
+        }, { quoted: message });
     }
 }
 
