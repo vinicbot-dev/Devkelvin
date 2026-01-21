@@ -4541,65 +4541,95 @@ try {
 break
 case 'song':
 case 'xplay': {
-  if (!text) return reply(`*Example*: ${prefix + command} number one by ravany`);
+    if (!text) return reply(`*Example*: ${prefix + command} sekkle down by bunnie Gunter`);
 
     try {
-      await reply("Searching for your song... (this may take a while)");
+        await reply("Searching for your song... (this may take a while)");
 
-      const apiUrl = `https://api.privatezia.biz.id/api/downloader/ytplaymp3?query=${encodeURIComponent(
-        text
-      )}`;
+        // Search on YouTube
+        const searchResult = await yts(text);
+        if (!searchResult || !searchResult.videos || searchResult.videos.length === 0) {
+            return reply("Couldn't find that song on YouTube.");
+        }
+        
+        const video = searchResult.videos[0];
+        const videoId = video.videoId;
+        
+        // Try different URL formats for the API
+        let audioUrl = null;
+        let apiData = null;
+        
+        // Try with video ID
+        try {
+            const apiUrl1 = `https://okatsu-rolezapiiz.vercel.app/downloader/ytmp3?url=${videoId}`;
+            const res1 = await axios.get(apiUrl1, { timeout: 30000 });
+            apiData = res1.data;
+            if (apiData && apiData.result && (apiData.result.url || apiData.result.downloadUrl)) {
+                audioUrl = apiData.result.url || apiData.result.downloadUrl;
+            }
+        } catch (e) {}
+        
+        // If first try failed, try with full URL
+        if (!audioUrl) {
+            try {
+                const apiUrl2 = `https://okatsu-rolezapiiz.vercel.app/downloader/ytmp3?url=https://youtube.com/watch?v=${videoId}`;
+                const res2 = await axios.get(apiUrl2, { timeout: 30000 });
+                apiData = res2.data;
+                if (apiData && apiData.result && (apiData.result.url || apiData.result.downloadUrl)) {
+                    audioUrl = apiData.result.url || apiData.result.downloadUrl;
+                }
+            } catch (e) {}
+        }
+        
+        // If still no audio, fallback to original API
+        if (!audioUrl) {
+            const fallbackApiUrl = `https://api.privatezia.biz.id/api/downloader/ytplaymp3?query=${encodeURIComponent(text)}`;
+            const fallbackRes = await axios.get(fallbackApiUrl, { timeout: 60000 });
+            const fallbackData = fallbackRes.data;
+            
+            if (fallbackData && fallbackData.result && fallbackData.result.downloadUrl) {
+                audioUrl = fallbackData.result.downloadUrl;
+                apiData = fallbackData;
+            } else {
+                return reply("Couldn't download the audio.");
+            }
+        }
 
-      const res = await axios.get(apiUrl, { timeout: 60000 });
-      const data = res.data;
+        const title = video.title || text;
+        const duration = video.timestamp || video.duration || "Unknown";
+        const thumbnail = video.thumbnail || `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+        const videoUrl = `https://youtube.com/watch?v=${videoId}`;
 
-      if (!data || data.status === false || !data.result) {
-        return reply("Couldn't find that song.");
-      }
+        // Send song info - jexploit format
+        await conn.sendMessage(
+            m.chat,
+            {
+                image: { url: thumbnail },
+                caption:
+                    `*Now Playing* — 𝐒𝐓𝐀𝐑-𝐌𝐃\n\n` +
+                    `*Title:* ${title}\n` +
+                    `*Duration:* ${duration}\n` +
+                    `*YouTube:* ${videoUrl}\n\n` +
+                    `🔥 Brought to you by *JEXPLOIT*`,
+            },
+            { quoted: m }
+        );
 
-      const result = data.result;
-      const audioUrl = result.downloadUrl; // ✅ this is the correct field
-
-      if (!audioUrl) {
-        return reply("API didn’t return any audio link.");
-      }
-
-      const title = result.title || text;
-      const duration = result.duration ? `${result.duration}s` : "Unknown";
-      const thumbnail =
-        result.thumbnail ||
-        (result.videoId ? `https://img.youtube.com/vi/${result.videoId}/hqdefault.jpg` : null) ||
-        "https://i.ibb.co/4pDNDk1/music.jpg";
-
-      // Send song info
-      await conn.sendMessage(
-        m.chat,
-        {
-          image: { url: thumbnail },
-          caption:
-            `*Now Playing* — NovaCore AI\n\n` +
-            `*Title:* ${title}\n` +
-            `*Duration:* ${duration}\n` +
-            `*YouTube:* ${result.videoUrl || "Unknown"}\n\n` +
-            `🔥 Brought to you by *${getSetting(botNumber, 'botname', 'Jexploit')}*`,
-        },
-        { quoted: mek }
-      );
-
-      // Send MP3
-      await conn.sendMessage(
-        m.chat,
-        {
-          audio: { url: audioUrl },
-          mimetype: "audio/mpeg",
-          fileName: `${title}.mp3`,
-        },
-        { quoted: mek }
-      );
+        // Send MP3
+        await conn.sendMessage(
+            m.chat,
+            {
+                audio: { url: audioUrl },
+                mimetype: "audio/mpeg",
+                fileName: `${title}.mp3`,
+            },
+            { quoted: m }
+        );
     } catch (err) {
-      console.error("play.js error:", err.message);
-      reply(`⚠️ Error fetching song: ${err.message}`);
+        console.error("song command error:", err.message);
+        reply(`⚠️ Error fetching song: ${err.message}`);
     }
+    
 }
 break
 case 'play': {
@@ -8457,6 +8487,25 @@ try {
     } catch (error) {
         console.error("Error in pickupline command:", error);
         reply("Sorry, something went wrong while fetching the pickup line. Please try again later.");
+    }
+}
+break
+case "trivia": {
+try {
+      let res = await fetch("https://opentdb.com/api.php?amount=1");
+      let json = await res.json();
+
+      let question = json.results[0].question;
+      let answer = json.results[0].correct_answer;
+
+      await conn.sendMessage(m.chat, { text: `Question: ${question}\n\nThink you know the answer? Sending the correct answer after 20 seconds` }, { quoted: m });
+      
+      setTimeout(async () => {
+        await conn.sendMessage(m.chat, { text: `Answer: ${answer}` });
+      }, 20000); // 20 seconds
+    } catch (error) {
+      console.error('Error fetching trivia question:', error);
+      reply('An error occurred while fetching the trivia question.');
     }
 }
 break
