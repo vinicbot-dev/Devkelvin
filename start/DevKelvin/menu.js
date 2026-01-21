@@ -233,7 +233,7 @@ async function generateMenu(conn, m, prefix, global) {
         fun: {
             title: ' *FUN MENU* ',
             commands: ['dare', 'Quotes', 'truth', 'fact', 'truthdetecter', 'valentines', 
-                      'advice', 'motivate', 'pickupline', '8balls', 'mee', 'emoji', 
+                      'advice', 'motivate', 'pickupline', '8balls', 'mee', 'emoji', 'trivia',
                       'lovetest', 'character', 'compatibility', 'compliment', 'jokes'],
         },
         religion: {
