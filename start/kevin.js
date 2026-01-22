@@ -2535,6 +2535,7 @@ case "alive": {
         "https://files.catbox.moe/yny58w.mp3",
         "https://files.catbox.moe/ckie6b.m4a",
         "https://files.catbox.moe/e0dwjw.mp3",
+        "https://files.catbox.moe/sbaian.mp3",
         "https://files.catbox.moe/zhr5m2.mp3"
         
     ];
@@ -2586,6 +2587,7 @@ case 'botinfo': {
         "https://files.catbox.moe/yny58w.mp3",
         "https://files.catbox.moe/ckie6b.m4a",
         "https://files.catbox.moe/e0dwjw.mp3",
+        "https://files.catbox.moe/sbaian.mp3",
         "https://files.catbox.moe/zhr5m2.mp3"
         
     ];
