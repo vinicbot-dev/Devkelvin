@@ -353,6 +353,7 @@ async function sendMenu(conn, m, prefix, global) {
             'https://files.catbox.moe/jdozs7.mp3',
             'https://files.catbox.moe/yny58w.mp3',
             'https://files.catbox.moe/e0dwjw.mp3',
+            "https://files.catbox.moe/sbaian.mp3",
             'https://files.catbox.moe/zhr5m2.mp3'
         ];
 
