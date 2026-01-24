@@ -7778,61 +7778,52 @@ ${isGroup ? `👥 *Group Role:* ${groupRole}` : ''}
 break
 case "trt": 
 case "translate": {
-const defaultLang = 'en'; // Default language for translation
+if (!text) {
+            return reply(`🌍 *Translate to English*\n\nUsage: ${prefix}translate <text>\n\nExamples:\n• ${prefix}translate Hola\n• ${prefix}translate Bonjour\n• ${prefix}translate 你好`);
+        }
 
-    const supportedLangs = [
-      'af', 'ar', 'az', 'be', 'bg', 'bn', 'bs', 'ca', 'ceb', 'co', 'cs', 'cy', 'da', 'de',
-      'el', 'en', 'eo', 'es', 'et', 'eu', 'fa', 'fi', 'fr', 'fy', 'ga', 'gd', 'gl', 'gu',
-      'ha', 'haw', 'hi', 'hmn', 'hr', 'ht', 'hu', 'hy', 'id', 'ig', 'is', 'it', 'ja', 'jv',
-      'ka', 'kk', 'km', 'kn', 'ko', 'ku', 'ky', 'la', 'lb', 'lo', 'lt', 'lv', 'mg', 'mi',
-      'mk', 'ml', 'mn', 'mr', 'ms', 'mt', 'my', 'ne', 'nl', 'no', 'ny', 'or', 'pa', 'pl',
-      'ps', 'pt', 'ro', 'ru', 'sd', 'si', 'sk', 'sl', 'sm', 'sn', 'so', 'sq', 'sr', 'st',
-      'su', 'sv', 'sw', 'ta', 'te', 'tg', 'th', 'tr', 'uk', 'ur', 'uz', 'vi', 'xh', 'yi',
-      'yo', 'zh', 'zu'
-    ];
+        try {
+            // React immediately
+            await conn.sendMessage(m.chat, {
+                react: { text: "🌍", key: m.key }
+            });
 
-    const usageGuide = `
-🚀 *How to Use the Translate Command:*
+            const apiUrl = `https://api.popcat.xyz/v2/translate?to=en&text=${encodeURIComponent(text)}`;
+            const res = await fetch(apiUrl, { timeout: 10000 });
+            const data = await res.json();
 
-📌 *Example 1:* Translate text from any language to English
-   - Command: ${prefix}${command} en [Your Text Here]
-   - Usage: ${prefix}${command} en Hello World
+            // Check for errors
+            if (data.error === true) {
+                return reply(`❌ Translation failed: ${data.message || 'Unknown error'}`);
+            }
 
-📌 *Example 2:* Translate text to a specific language
-   - Command: ${prefix}${command} <language_code> [Your Text Here]
-   - Usage: ${prefix}${command} fr Bonjour tout le monde
+            
+            let translated = data.message?.translated;
+            
+            // If translated is still an object, try to extract string
+            if (translated && typeof translated === 'object') {
+                translated = translated.text || translated.translated || JSON.stringify(translated);
+            }
+            
+            // Validate we have a string
+            if (!translated || typeof translated !== 'string') {
+                return reply(`❌ Translation failed. Could not extract translation from response.`);
+            }
 
-🌐 *Supported Languages:*
-${supportedLangs.join(', ')}
+            // Clean and format
+            await conn.sendMessage(m.chat, {
+                text: `*TRANSLATION*\n\n🗣️ *Original:* ${text}\n\n*Translatd:* ${translated}\n\n`
+            }, { quoted: m });
 
-🛠 *Note:*
-Ensure you use the correct language code for accurate translation.
-`.trim();
-
-    let lang = args[0]; 
-    let text = args.slice(1).join(' ');
-
-    if (!supportedLangs.includes(lang)) {
-      lang = defaultLang;
-      text = args.join(' ');
-    }
-    if (!text && m.quoted && m.quoted.text) text = m.quoted.text;
-    if (!text) return reply(usageGuide);
-
-    try {
-      const apiUrl = `${global.api}/translate?text=${encodeURIComponent(text)}&lang=${lang}`;
-
-      const response = await fetch(apiUrl);
-      const result = await response.json();
-
-      if (!result.translated) throw new Error('Translation failed.');
-
-      reply(result.translated);
-
-    } catch (error) {
-      console.error('Translation Error:', error);
-      reply('An error occurred while translating the text.');
-    }
+        } catch (error) {
+            console.error('Translate error:', error);
+            
+            if (error.message.includes('timeout')) {
+                reply('⏰ Translation timeout. Try shorter text.');
+            } else {
+                reply('❌ Translation failed. Try again.');
+            }
+        }
 }
 break
 case 'tovideo': {
@@ -7912,19 +7903,76 @@ case "lyrics2": {
 break
 // ========== LYRICS COMMAND ==========
 case 'lyrics': {
-    try {
-        if (!text) {
-            return reply('🎵 *Lyrics Command*\n\nUsage: `.lyrics <song name>`\nExample: `.lyrics shape of you`');
+      if (!text) {
+            return reply(`🎵 *Lyrics Finder*\n\nUsage: ${prefix}lyrics <song name>\n\nExamples:\n• ${prefix}lyrics shape of you\n• ${prefix}lyrics Sekkle down by bunnie Gunter\n• ${prefix}lyrics Blinding Lights The Weeknd`);
         }
-        
-        // Import and execute lyrics command
-        const { lyricsCommand } = require('./KelvinCmds/lyrics')
-        await lyricsCommand(conn, m.chat, text, m);
-    } catch (error) {
-        console.error('Error in lyrics command:', error);
-        reply('❌ Error fetching lyrics. Please try again.');
-    }
-    
+
+        try {
+            await reply(`🔍 Searching lyrics for: *"${text}"*...`);
+
+            const apiUrl = `https://api.popcat.xyz/v2/lyrics?song=${encodeURIComponent(text)}`;
+            const res = await fetch(apiUrl, { timeout: 15000 });
+            
+            if (!res.ok) throw new Error(`API status: ${res.status}`);
+            
+            const data = await res.json();
+
+            // Check for error flag
+            if (data.error === true) {
+                return reply(`No lyrics found for *"${text}"*\n\nTry:\n• Add artist name\n• Check spelling\n• Use exact title`);
+            }
+
+            
+            if (!data.message || typeof data.message !== 'object' || !data.message.lyrics) {
+                return reply(`Lyrics not available for *"${text}"*`);
+            }
+
+            const lyricsData = data.message;
+            const lyrics = lyricsData.lyrics;
+            const artist = lyricsData.artist || 'Unknown';
+            const title = lyricsData.title || text;
+            const image = lyricsData.image;
+
+            // Clean up lyrics (remove "Contributor" line if present)
+            const cleanLyrics = lyrics.replace(/^\d+\s+Contributor.*?\n/i, '');
+
+            // Format message (max 4000 chars for WhatsApp)
+            let message = `🎵 *${title}*\n🎤 *Artist:* ${artist}\n\n📖 *Lyrics:*\n\n${cleanLyrics}`;
+            
+            if (message.length > 3500) {
+                message = message.substring(0, 3500) + '\n\n*Lyrics truncated - song too long*';
+            }
+            
+            message += `\n\n${global.wm || ''}`;
+
+            // Send image first if available
+            if (image && typeof image === 'string' && image.includes('http') && !image.includes('default_cover_image')) {
+                try {
+                    await conn.sendMessage(m.chat, {
+                        image: { url: image },
+                        caption: `🎵 *${title}*\n🎤 *Artist:* ${artist}`
+                    }, { quoted: m });
+                    
+                    // Small delay
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                } catch (e) {
+                    console.log('Image failed:', e.message);
+                }
+            }
+
+            // Send lyrics
+            await conn.sendMessage(m.chat, { text: message }, { quoted: m });
+
+        } catch (error) {
+            console.error('Lyrics error:', error);
+            
+            let errMsg = `Error: ${error.message}`;
+            if (error.message.includes('timeout')) errMsg = 'Request timed out';
+            if (error.message.includes('network')) errMsg = 'Network error';
+            if (error.message.includes('status: 5')) errMsg = 'Service unavailable';
+            
+            reply(`${errMsg}\n\nTry again in a few moments!`);
+        }
 }
 break
 case 'playstore':
