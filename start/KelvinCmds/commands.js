@@ -109,7 +109,7 @@ async function playCommand(conn, chatId, message, args) {
                                 document: { url: audioUrl }, 
                                 mimetype: "audio/mpeg", 
                                 fileName: `${title}.mp3`.replace(/[<>:"/\\|?*]/g, '_'),
-                                caption: `🎵 *${title}*\n✅ Downloaded successfully!\n🔗 Source: ${videoUrl}`
+                                caption: `🎵 *${title}*\n✅ Downloaded successfully!`
                             }, { quoted: mp3msg });   
                             break;
                             
