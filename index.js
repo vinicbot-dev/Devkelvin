@@ -709,7 +709,6 @@ conn.ev.on('group-participants.update', async (anu) => {
         // Check group-specific welcome setting
         const welcomeEnabled = global.settingsManager?.isWelcomeEnabled(botNumber, groupId);
         
-        
         if (welcomeEnabled === true) {
             console.log(`[WELCOME] Processing welcome/goodbye for group ${groupId}`);
             
@@ -718,20 +717,37 @@ conn.ev.on('group-participants.update', async (anu) => {
                 const participants = anu.participants;
                 
                 for (const participant of participants) {
+                    
+                    let participantJid;
+                    if (typeof participant === 'string') {
+                        participantJid = participant;
+                    } else if (participant && participant.id) {
+                        // If participant is an object with id property
+                        participantJid = participant.id;
+                    } else {
+                        console.error('[WELCOME] Invalid participant format:', participant);
+                        continue;
+                    }
+                    
                     // Skip if participant is the bot itself
-                    if (participant === botNumber) continue;
+                    if (participantJid === botNumber) continue;
+                    
+                    // Extract user ID safely
+                    let userId;
+                    if (participantJid.includes('@')) {
+                        userId = participantJid.split('@')[0];
+                    } else {
+                        userId = participantJid;
+                    }
                     
                     let ppUrl;
                     try {
-                        ppUrl = await conn.profilePictureUrl(participant, 'image');
+                        ppUrl = await conn.profilePictureUrl(participantJid, 'image');
                     } catch {
                         ppUrl = 'https://i.ibb.co/RBx5SQC/avatar-group-large-v2.png?q=60';
                     }
                     
-                    // Extract user ID
-                    let userId = participant.split('@')[0];
-                    
-                    const name = await conn.getName(participant) || userId;
+                    const name = await conn.getName(participantJid) || userId;
                     
                     if (anu.action === 'add') {
                         const memberCount = groupMetadata.participants.length;
@@ -749,7 +765,7 @@ conn.ev.on('group-participants.update', async (anu) => {
 𝙲𝚊𝚞𝚜𝚎 𝚌𝚑𝚊𝚘𝚜 𝚒𝚝𝚜 𝚊𝚕𝚠𝚊𝚢𝚜 𝚏𝚞𝚗
 
 > ${global.wm}`,
-                            mentions: [participant]
+                            mentions: [participantJid]
                         });
                         console.log(`✅ Welcome message sent for ${name} in ${groupMetadata.subject}`);
                         
@@ -765,7 +781,7 @@ conn.ev.on('group-participants.update', async (anu) => {
 *We're now ${memberCount} members*.
 
 > ${global.wm}`,
-                            mentions: [participant]
+                            mentions: [participantJid]
                         });
                         console.log(`✅ Goodbye message sent for ${name} in ${groupMetadata.subject}`);
                     }
@@ -774,36 +790,57 @@ conn.ev.on('group-participants.update', async (anu) => {
                 console.error('Error in welcome feature:', err);
             }
         } else {
-            
+            // Welcome disabled, skip
         }
         
-       
+        // ADMIN EVENTS SECTION
         if (admineventEnabled === true) {
             console.log('[ADMIN EVENT] Processing admin events');
             
-            if (anu.participants.includes(botNumber)) return;
+            // Check if bot is in the participants list (skip if true)
+            const participantJids = participants.map(p => 
+                typeof p === 'string' ? p : (p?.id || '')
+            ).filter(p => p);
+            
+            if (participantJids.includes(botNumber)) return;
             
             try {
                 let metadata = await conn.groupMetadata(anu.id);
                 let participants = anu.participants;
                 
-                for (let num of participants) {
-                    let check = anu.author !== num && anu.author && anu.author.length > 1;
-                    let tag = check ? [anu.author, num] : [num];
+                for (let participant of participants) {
+                    // Get participant JID safely
+                    let participantJid = typeof participant === 'string' ? participant : participant?.id;
+                    if (!participantJid) continue;
+                    
+                    // Get author JID safely
+                    let authorJid = anu.author;
+                    if (anu.author && typeof anu.author !== 'string' && anu.author.id) {
+                        authorJid = anu.author.id;
+                    }
+                    
+                    let check = authorJid && authorJid !== participantJid;
+                    let tag = check ? [authorJid, participantJid] : [participantJid];
+                    
+                    // Extract user IDs for mention
+                    let participantUserId = participantJid.includes('@') ? 
+                        participantJid.split('@')[0] : participantJid;
+                    let authorUserId = authorJid && authorJid.includes('@') ? 
+                        authorJid.split('@')[0] : authorJid;
                     
                     if (anu.action == "promote") {
                         let promotedUsers = [];
                         for (let participant of participants) {
-                            let userId = participant.split('@')[0];
+                            let pJid = typeof participant === 'string' ? participant : participant?.id;
+                            if (!pJid) continue;
+                            let userId = pJid.includes('@') ? pJid.split('@')[0] : pJid;
                             promotedUsers.push(`@${userId}`);
                         }
-                        
-                        let adminUserId = anu.author?.split('@')[0] || 'Unknown';
                         
                         const promotionMessage = `*『 GROUP PROMOTION 』*\n\n` +
                             `👤 *Promoted User${participants.length > 1 ? 's' : ''}:*\n` +
                             `${promotedUsers.join('\n')}\n\n` +
-                            `👑 *Promoted By:* @${adminUserId}\n\n` +
+                            `👑 *Promoted By:* @${authorUserId || 'Unknown'}\n\n` +
                             `📅 *Date:* ${new Date().toLocaleString()}`;
                         
                         await conn.sendMessage(anu.id, {
@@ -816,16 +853,16 @@ conn.ev.on('group-participants.update', async (anu) => {
                     if (anu.action == "demote") {
                         let demotedUsers = [];
                         for (let participant of participants) {
-                            let userId = participant.split('@')[0];
+                            let pJid = typeof participant === 'string' ? participant : participant?.id;
+                            if (!pJid) continue;
+                            let userId = pJid.includes('@') ? pJid.split('@')[0] : pJid;
                             demotedUsers.push(`@${userId}`);
                         }
-                        
-                        let adminUserId = anu.author?.split('@')[0] || 'Unknown';
                         
                         const demotionMessage = `*『 GROUP DEMOTION 』*\n\n` +
                             `👤 *Demoted User${participants.length > 1 ? 's' : ''}:*\n` +
                             `${demotedUsers.join('\n')}\n\n` +
-                            `👑 *Demoted By:* @${adminUserId}\n\n` +
+                            `👑 *Demoted By:* @${authorUserId || 'Unknown'}\n\n` +
                             `📅 *Date:* ${new Date().toLocaleString()}`;
                         
                         await conn.sendMessage(anu.id, {
@@ -839,7 +876,7 @@ conn.ev.on('group-participants.update', async (anu) => {
                 console.log('Error in admin event feature:', err);
             }
         } else {
-           
+            // Admin events disabled, skip
         }
         
     } catch (error) {
