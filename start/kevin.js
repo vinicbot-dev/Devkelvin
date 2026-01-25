@@ -322,13 +322,12 @@ async function isAdminKelvin(conn, chatId, senderId) {
             return { isSenderAdmin: false, isBotAdmin: false };
         }
 }
-// ========== CALCULATE ADMIN STATUS ==========
+
 let isSenderAdmin = false;
 let isBotAdmin = false;
 
 if (isGroup && m.sender) {
     try {
-        // Call isAdminKelvin to get actual boolean values
         const adminResult = await isAdminKelvin(conn, from, senderId);
         isSenderAdmin = adminResult.isSenderAdmin;
         isBotAdmin = adminResult.isBotAdmin;
@@ -503,7 +502,7 @@ if (m.isGroup && body && !m.key.fromMe) {
 
 if ((m.mtype || '').includes("groupStatusMentionMessage") && m.isGroup) {
     
-    if (!isSenderAdmin && !Access) {
+    if (!isSenderAdmin) {
         await conn.deleteMessage(m.chat, m.key).catch(() => {});
     }
   
@@ -4903,9 +4902,27 @@ case 'instagram': {
 }
 break
 case 'ytmp4': {
-    const chatId = m.chat;
-    await KelvinVideo(conn, chatId, m, args);
-    break;
+if (!text) return reply('.ytmp4 <url>');
+        
+        try {
+            await reply('⏳');
+            
+            const apiUrl = `https://api.nekolabs.my.id/downloader/youtube/play/v1?q=${encodeURIComponent(text)}`;
+            const res = await fetch(apiUrl);
+            const data = await res.json();
+            
+            if (data.success && data.result?.downloadUrl) {
+                await conn.sendMessage(m.chat, {
+                    video: { url: data.result.downloadUrl },
+                    caption: global.wm || ''
+                }, { quoted: m });
+            } else {
+                reply('❌');
+            }
+            
+        } catch {
+            reply('❌');
+        }
 }
 case 'video': {
     try {
