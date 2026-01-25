@@ -445,39 +445,67 @@ async function handleStatusUpdate(conn, status) {
         // Get bot number
         const botNumber = await conn.decodeJid(conn.user.id);
         
-        // Get settings from database using SettingsManager
+        // Get settings from database
         const autoviewstatus = global.settingsManager?.getSetting(botNumber, 'autoviewstatus', false);
         const autoreactstatus = global.settingsManager?.getSetting(botNumber, 'autoreactstatus', false);
         const statusemoji = global.settingsManager?.getSetting(botNumber, 'statusemoji', '💚');
         
-        if (!autoviewstatus) {
+        // If both are disabled, return
+        if (!autoviewstatus && !autoreactstatus) {
             return;
         }
 
         // Add delay to prevent rate limiting
         await new Promise(resolve => setTimeout(resolve, 1000));
 
+        // Select random emoji from popular ones
+        const getRandomEmoji = () => {
+            const emojis = ['❤️', '😂', '😮', '😢', '🔥', '👏', '🎉', '🤔', '👍', '👎', '😍', '🤯', '😡', '🥰', '😎', '🤩', '🥳', '😭', '🙏', '💯'];
+            return emojis[Math.floor(Math.random() * emojis.length)];
+        };
+
+        const reactionEmoji = statusemoji === '💚' || !statusemoji ? getRandomEmoji() : statusemoji;
+
         // Handle status from messages.upsert
         if (status.messages && status.messages.length > 0) {
             const msg = status.messages[0];
             if (msg.key && msg.key.remoteJid === 'status@broadcast') {
                 try {
-                    await conn.readMessages([msg.key]);
-                    
-                    // React to status if enabled
                     if (autoreactstatus) {
+                        // View first, then react
+                        await conn.readMessages([msg.key]);
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        
                         await conn.sendMessage(msg.key.remoteJid, { 
                             react: { 
-                                text: statusemoji, 
+                                text: reactionEmoji, 
                                 key: msg.key 
                             } 
                         });
+                        
+                    } else if (autoviewstatus) {
+                        // Only view if autoviewstatus is enabled
+                        await conn.readMessages([msg.key]);
                     }
                     
                 } catch (err) {
                     if (err.message?.includes('rate-overlimit')) {
-                        await new Promise(resolve => setTimeout(resolve, 2000));
-                        await conn.readMessages([msg.key]);
+                        await new Promise(resolve => setTimeout(resolve, 3000));
+                        
+                        try {
+                            if (autoreactstatus) {
+                                await conn.readMessages([msg.key]);
+                                await new Promise(resolve => setTimeout(resolve, 500));
+                                await conn.sendMessage(msg.key.remoteJid, { 
+                                    react: { 
+                                        text: reactionEmoji, 
+                                        key: msg.key 
+                                    } 
+                                });
+                            } else if (autoviewstatus) {
+                                await conn.readMessages([msg.key]);
+                            }
+                        } catch (retryError) {}
                     }
                 }
                 return;
@@ -487,22 +515,38 @@ async function handleStatusUpdate(conn, status) {
         // Handle direct status updates
         if (status.key && status.key.remoteJid === 'status@broadcast') {
             try {
-                await conn.readMessages([status.key]);
-                
-                // React to status if enabled
                 if (autoreactstatus) {
+                    await conn.readMessages([status.key]);
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
                     await conn.sendMessage(status.key.remoteJid, { 
                         react: { 
-                            text: statusemoji, 
+                            text: reactionEmoji, 
                             key: status.key 
                         } 
                     });
+                    
+                } else if (autoviewstatus) {
+                    await conn.readMessages([status.key]);
                 }
                 
             } catch (err) {
                 if (err.message?.includes('rate-overlimit')) {
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                    await conn.readMessages([status.key]);
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    try {
+                        if (autoreactstatus) {
+                            await conn.readMessages([status.key]);
+                            await new Promise(resolve => setTimeout(resolve, 500));
+                            await conn.sendMessage(status.key.remoteJid, { 
+                                react: { 
+                                    text: reactionEmoji, 
+                                    key: status.key 
+                                } 
+                            });
+                        } else if (autoviewstatus) {
+                            await conn.readMessages([status.key]);
+                        }
+                    } catch (retryError) {}
                 }
             }
             return;
@@ -511,28 +555,43 @@ async function handleStatusUpdate(conn, status) {
         // Handle status in reactions
         if (status.reaction && status.reaction.key.remoteJid === 'status@broadcast') {
             try {
-                await conn.readMessages([status.reaction.key]);
-                
-                // React to status if enabled
                 if (autoreactstatus) {
+                    await conn.readMessages([status.reaction.key]);
+                    await new Promise(resolve => setTimeout(resolve, 500));
                     await conn.sendMessage(status.reaction.key.remoteJid, { 
                         react: { 
-                            text: statusemoji, 
+                            text: reactionEmoji, 
                             key: status.reaction.key 
                         } 
                     });
+                } else if (autoviewstatus) {
+                    await conn.readMessages([status.reaction.key]);
                 }
                 
             } catch (err) {
                 if (err.message?.includes('rate-overlimit')) {
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                    await conn.readMessages([status.reaction.key]);
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    try {
+                        if (autoreactstatus) {
+                            await conn.readMessages([status.reaction.key]);
+                            await new Promise(resolve => setTimeout(resolve, 500));
+                            await conn.sendMessage(status.reaction.key.remoteJid, { 
+                                react: { 
+                                    text: reactionEmoji, 
+                                    key: status.reaction.key 
+                                } 
+                            });
+                        } else if (autoviewstatus) {
+                            await conn.readMessages([status.reaction.key]);
+                        }
+                    } catch (retryError) {}
                 }
             }
             return;
         }
 
     } catch (error) {
+        // Silent error handling
     }
 }
 
