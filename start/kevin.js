@@ -3527,7 +3527,7 @@ case 'arting': {
     await conn.sendMessage(m.chat, { react: { text: '✨', key: m.key }});
     
     try {
-        await conn.sendMessage(m.chat, { image: { url: `https://api.nekorinn.my.id/ai-img/arting?text=${text}` }, caption: `${global.wm}`}, { quoted: m });
+        await conn.sendMessage(m.chat, { image: { url: `https://api.nekorinn.my.id/ai-img/arting?text=${text}` }, caption: `> ${global.wm}`}, { quoted: m });
     } catch (err) {
         console.log(err.message);
         conn.sendMessage(m.chat, { react: { text: '❌', key: m.key }});
@@ -3547,7 +3547,7 @@ let q = args.join(" ");
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${global.wm}` },
+        { image: { url: result }, caption: `> ${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -3568,7 +3568,7 @@ case "blackpinklogo": {
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${global.wm}` },
+        { image: { url: result }, caption: `> ${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -3589,7 +3589,7 @@ case "blackpinkstyle": {
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${global.wm}` },
+        { image: { url: result }, caption: `> ${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -3610,7 +3610,7 @@ case "cartoonstyle": {
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${global.wm}` },
+        { image: { url: result }, caption: `> ${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -3631,7 +3631,7 @@ case "deadpool": {
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${global.wm}` },
+        { image: { url: result }, caption: `> ${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -3652,7 +3652,7 @@ let q = args.join(" ");
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${global.wm}` },
+        { image: { url: result }, caption: `> ${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -3673,7 +3673,7 @@ let q = args.join(" ");
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${global.wm}` },
+        { image: { url: result }, caption: `> ${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -3694,7 +3694,7 @@ case "freecreate": {
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${global.wm}` },
+        { image: { url: result }, caption: `> ${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -3715,7 +3715,7 @@ case "galaxystyle": {
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${global.wm}` },
+        { image: { url: result }, caption: `> ${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -3736,7 +3736,7 @@ case "galaxywallpaper": {
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${global.wm}` },
+        { image: { url: result }, caption: `> ${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -3757,7 +3757,7 @@ case "makingneon": {
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${global.wm}` },
+        { image: { url: result }, caption: `> ${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -3777,7 +3777,7 @@ case "matrix": {
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${global.wm}` },
+        { image: { url: result }, caption: `> ${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -3798,7 +3798,7 @@ let q = args.join(" ");
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${global.wm}` },
+        { image: { url: result }, caption: `> ${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -3819,7 +3819,7 @@ case "sand": {
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${global.wm}` },
+        { image: { url: result }, caption: `> ${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -3840,7 +3840,7 @@ case "summerbeach": {
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${global.wm}` },
+        { image: { url: result }, caption: `> ${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -3861,7 +3861,7 @@ case "topography": {
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${global.wm}` },
+        { image: { url: result }, caption: `> ${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -3882,7 +3882,7 @@ case "typography": {
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${global.wm}` },
+        { image: { url: result }, caption: `> ${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -3903,7 +3903,7 @@ let q = args.join(" ");
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${global.wm}` },
+        { image: { url: result }, caption: `> ${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -3923,7 +3923,7 @@ case 'royal': {
         // Send image directly from URL
         await conn.sendMessage(m.chat, {
             image: { url: apiUrl },
-            caption: `${global.wm}`
+            caption: `> ${global.wm}`
         }, { quoted: m });
         
     } catch (error) {
@@ -3963,7 +3963,7 @@ case 'bear': {
         // Send image directly from URL
         await conn.sendMessage(m.chat, {
             image: { url: apiUrl },
-            caption: `${global.wm}`
+            caption: `> ${global.wm}`
         }, { quoted: m });
         
     } catch (error) {
@@ -3984,7 +3984,7 @@ case '3dpaper': {
         // Send image directly from URL
         await conn.sendMessage(m.chat, {
             image: { url: apiUrl },
-            caption: `${global.wm}`
+            caption: `> ${global.wm}`
         }, { quoted: m });
         
     } catch (error) {
@@ -4005,7 +4005,7 @@ case '3dhologram': {
         // Send image directly from URL
         await conn.sendMessage(m.chat, {
             image: { url: apiUrl },
-            caption: `${global.wm}`
+            caption: `> ${global.wm}`
         }, { quoted: m });
         
     } catch (error) {
@@ -4040,7 +4040,7 @@ case 'balogo': {
             m.chat,
             {
                 image: buffer,
-                caption: `${global.wm}`
+                caption: `> ${global.wm}`
             },
             { quoted: m }
         );
@@ -4074,7 +4074,7 @@ case 'tattoo': {
             m.chat,
             {
                 image: buffer,
-                caption: `${global.wm}`
+                caption: `> ${global.wm}`
             },
             { quoted: m }
         );
@@ -4101,7 +4101,7 @@ let q = args.join(" ");
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${global.wm}` },
+        { image: { url: result }, caption: `> ${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -4122,7 +4122,7 @@ let q = args.join(" ");
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${global.wm}` },
+        { image: { url: result }, caption: `> ${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -4143,7 +4143,7 @@ let q = args.join(" ");
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${global.wm}` },
+        { image: { url: result }, caption: `> ${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -4164,7 +4164,7 @@ let q = args.join(" ");
       let result = await ephoto(link, q);
       await conn.sendMessage(
         m.chat,
-        { image: { url: result }, caption: `${global.wm}` },
+        { image: { url: result }, caption: `> ${global.wm}` },
         { quoted: m }
       );
     } catch (error) {
@@ -4538,7 +4538,6 @@ try {
         console.error("Quran command error:", err.message);
     }
 }
-//===[DOWNLOAD MENU CMDS]===
 break
 case 'song':
 case 'xplay': {
@@ -4554,52 +4553,26 @@ case 'xplay': {
         }
         
         const video = searchResult.videos[0];
-        const videoId = video.videoId;
+        const videoUrl = video.url; // Get full URL instead of just videoId
         
-        // Try different URL formats for the API
-        let audioUrl = null;
-        let apiData = null;
-        
-        // Try with video ID
-        try {
-            const apiUrl1 = `https://okatsu-rolezapiiz.vercel.app/downloader/ytmp3?url=${videoId}`;
-            const res1 = await axios.get(apiUrl1, { timeout: 30000 });
-            apiData = res1.data;
-            if (apiData && apiData.result && (apiData.result.url || apiData.result.downloadUrl)) {
-                audioUrl = apiData.result.url || apiData.result.downloadUrl;
-            }
-        } catch (e) {}
-        
-        // If first try failed, try with full URL
-        if (!audioUrl) {
-            try {
-                const apiUrl2 = `https://okatsu-rolezapiiz.vercel.app/downloader/ytmp3?url=https://youtube.com/watch?v=${videoId}`;
-                const res2 = await axios.get(apiUrl2, { timeout: 30000 });
-                apiData = res2.data;
-                if (apiData && apiData.result && (apiData.result.url || apiData.result.downloadUrl)) {
-                    audioUrl = apiData.result.url || apiData.result.downloadUrl;
-                }
-            } catch (e) {}
+        // Use the new API
+        const apiUrl = `https://yt-dl.officialhectormanuel.workers.dev/?url=${encodeURIComponent(videoUrl)}`;
+        const response = await axios.get(apiUrl, { timeout: 30000 });
+        const data = response.data;
+
+        if (!data?.status) {
+            return reply("Couldn't download the audio from this API.");
         }
-        
-        // If still no audio, fallback to original API
+
+        const audioUrl = data.audio;
         if (!audioUrl) {
-            const fallbackApiUrl = `https://api.privatezia.biz.id/api/downloader/ytplaymp3?query=${encodeURIComponent(text)}`;
-            const fallbackRes = await axios.get(fallbackApiUrl, { timeout: 60000 });
-            const fallbackData = fallbackRes.data;
-            
-            if (fallbackData && fallbackData.result && fallbackData.result.downloadUrl) {
-                audioUrl = fallbackData.result.downloadUrl;
-                apiData = fallbackData;
-            } else {
-                return reply("Couldn't download the audio.");
-            }
+            return reply("No audio URL found in API response.");
         }
 
         const title = video.title || text;
         const duration = video.timestamp || video.duration || "Unknown";
-        const thumbnail = video.thumbnail || `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
-        const videoUrl = `https://youtube.com/watch?v=${videoId}`;
+        const thumbnail = video.thumbnail || `https://img.youtube.com/vi/${video.videoId}/hqdefault.jpg`;
+        const youtubeUrl = `https://youtube.com/watch?v=${video.videoId}`;
 
         // Send song info - jexploit format
         await conn.sendMessage(
@@ -4607,10 +4580,10 @@ case 'xplay': {
             {
                 image: { url: thumbnail },
                 caption:
-                    `*Now Playing* — 𝐒𝐓𝐀𝐑-𝐌𝐃\n\n` +
+                    `*Now Playing* — Jexploit\n\n` +
                     `*Title:* ${title}\n` +
                     `*Duration:* ${duration}\n` +
-                    `*YouTube:* ${videoUrl}\n\n` +
+                    `*YouTube:* ${youtubeUrl}\n\n` +
                     `🔥 Brought to you by *JEXPLOIT*`,
             },
             { quoted: m }
