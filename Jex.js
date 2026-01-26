@@ -83,54 +83,49 @@ if (global.db.data) {
 // Function to fetch MP3 download URL
 async function fetchMp3DownloadUrl(link) {
   const fetchDownloadUrl1 = async (videoUrl) => {
-    const apiUrl = `https://api.nekolabs.my.id/downloader/youtube/play/v1?q=${encodeURIComponent(videoUrl)}`;
+    const apiUrl = `https://veron-apis.zone.id/downloader/youtube?url=${encodeURIComponent(videoUrl)}`;
     try {
       const response = await axios.get(apiUrl);
-      if (response.status !== 200 || !response.data.success) {
-        throw new Error('Failed to fetch from NekoLabs API');
+
+      if (!response.data || !response.data.result) {
+        throw new Error('Failed to fetch from kayiza api');
       }
-      return response.data.result.downloadUrl;
+
+      return response.data.result.mp3 
+          || response.data.result.download 
+          || response.data.result.url;
+
     } catch (error) {
-      console.error('Error with NekoLabs API:', error.message);
+      console.error('Error with Veron API:', error.message);
       throw error;
     }
   };
-
   const fetchDownloadUrl2 = async (videoUrl) => {
-    const format = 'mp3';
-    const url = `https://p.oceansaver.in/ajax/download.php?format=${format}&url=${encodeURIComponent(videoUrl)}&api=dfcb6d76f2f6a9894gjkege8a4ab232222`;
+    const apiUrl = `https://meta-api.zone.id/downloader/youtube?url=${encodeURIComponent(videoUrl)}&format=mp3`;
     try {
-      const response = await axios.get(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
-      });
-      if (!response.data || !response.data.success) throw new Error('Failed to fetch from API2');
+      const response = await axios.get(apiUrl);
 
-      const { id } = response.data;
-      while (true) {
-        const progress = await axios.get(`https://p.oceansaver.in/ajax/progress.php?id=${id}`, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-          }
-        });
-        if (progress.data && progress.data.success && progress.data.progress === 1000) {
-          return progress.data.download_url;
-        }
-        await new Promise(resolve => setTimeout(resolve, 5000));
+      if (!response.data || !response.data.result) {
+        throw new Error('Failed to fetch from kayiza apis');
       }
+
+      return response.data.result.mp3 
+          || response.data.result.download 
+          || response.data.result.url;
+
     } catch (error) {
-      console.error('Error with API2:', error.message);
+      console.error('Error with Meta API:', error.message);
       throw error;
     }
   };
 
+  // MAIN HANDLER
   try {
     let downloadUrl;
     try {
       downloadUrl = await fetchDownloadUrl1(link);
     } catch (error) {
-      console.log('Falling back to second API...');
+      console.log('Falling back to Meta API...');
       downloadUrl = await fetchDownloadUrl2(link);
     }
     return downloadUrl;
