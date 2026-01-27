@@ -152,7 +152,7 @@ async function generateMenu(conn, m, prefix, global) {
             commands: [
                 '𝖧𝗂𝖽𝖾𝗍𝖺𝗀', '𝖪𝗂𝖼𝗄', 'r𝖾𝗌𝖾𝗍𝗅𝗂𝗇𝗄', 'linkgc', 'checkchan', 'antilink', 'antitag',  'antibadword', 
                 'listonline', 'add',  'listactive', 'listinactive', 'close', 'open', 'kick', 'kickinactive', 
-                 'listadmin', 'cancelkick', 'kickall', 'closetime', 'disp24hours', 'disp90days', 'dispoff', 
+                 'listadmin', 'cancelkick', 'kickall', 'closetime', 'disp24hours', 'disp90days', 'dispoff', 'setgrouppp',
                 'tagall2', 'opentime', 'poll', 'allowlink', 'totalmembers', 
                 'mediatag', 'getgrouppp',  'tagall', 'groupinfo', 'userjid', 'unlockgcsettings', 'lockgcsettings',
                 'tagadmin2', 'setgroupname', 'delgrouppp', 'invite', 'editinfo', 'approve', 
@@ -184,7 +184,7 @@ async function generateMenu(conn, m, prefix, global) {
         },
         features: {
             title: ' *SETTING MENU*',
-            commands: ['antidelete', 'anticall', 'antibug', 'autorecording', 'antistatus', 'autotyping', 'alwaysonline',
+            commands: ['antidelete', 'anticall', 'autorecording', 'autotyping', 'alwaysonline',
                       'welcome', 'chatbot', 'autoread', 'adminevent', 'autoviewstatus', 
                       'autoreactstatus', 'antiedit'],
         },
@@ -206,15 +206,15 @@ async function generateMenu(conn, m, prefix, global) {
         },
         other: {
             title: ' *TOOLS MENU*',
-            commands: ['time', 'calculate', 'owner', 'dev', 'fliptext', 'translate', 
+            commands: ['time', 'calculate', 'owner', 'fliptext', 'translate', 
                       'ss2', 'sswebpc', 'kevinfarm', 'say', 'getdevice', 'ss', 'gpass', 'userinfo', 
-                      'npm', 'take', 'telesticker', 'checkapi', 'footballhelp', 'filtervcf', 'qrcode', 'smartphone', 
+                      'npm', 'take', 'telesticker', 'checkapi', 'filtervcf', 'qrcode', 'smartphone', 
                       'removebg', 'obfuscate', 'obfuscate2', 'getabout', 'tinylink', 'vcc', 'getbussiness', 
                       'listpc', 'sswebpc'],
         },
         helpers: {
             title: ' *SUPPORT MENU*',
-            commands: ['helpers'],
+            commands: ['helpers', 'dev'],
         },
         ephoto: {
             title: ' *EPHOTO360MAKER MENU* ',
