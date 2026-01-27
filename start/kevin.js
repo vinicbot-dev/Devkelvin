@@ -122,6 +122,7 @@ const { handleAutoTyping } = require('./KelvinCmds/autotyping');
 const { handleAIChatbot } = require('./KelvinCmds/chatbot');
 const { handleAutoRecording } = require('./KelvinCmds/autorecord');
 const { handleAntiDelete } = require('./KelvinCmds/antidelete');
+const { cleaningSession } = require('./lib/botSession'); 
 const {fetchReactionImage} = require('./lib/reaction')
 const { toAudio } = require('./lib/converter');
 const { remini } = require('./lib/remini')
@@ -1689,6 +1690,32 @@ if (!Access) return reply(mess.owner);
       await sleep(2000);
       reply("*Successfully cleared all the junk files in the tmp folder*");
     });
+}
+break
+case "cleansession":
+case "cleanjunk":
+case "clean": {
+    if (!Access) return reply(mess.owner);
+    
+    try {
+        reply("*Starting session cleanup...*");
+        
+        // Clean session files using your function
+        cleaningSession("./session");
+        
+        // Wait and send success message
+        setTimeout(() => {
+            reply("✅ *Session files cleaned successfully!*\n\n" +
+                  "• Removed old session files (>2 hours)\n" +
+                  "• Preserved credentials (creds.json)\n" +
+                  "• Temporary files cleared");
+        }, 2000);
+        
+    } catch (error) {
+        console.error("Error in cleansession command:", error);
+        reply("*Error: " + error.message + "*");
+    }
+    
 }
 break
 case 'autoreactstatus': {
@@ -4553,9 +4580,33 @@ case 'xplay': {
         }
         
         const video = searchResult.videos[0];
-        const videoUrl = video.url; // Get full URL instead of just videoId
+        const videoUrl = video.url; 
+        let uploadYear = "N/A";
+        const agoMatch = video.ago?.match(/\d{4}/);
+        if (agoMatch) {
+            uploadYear = agoMatch[0];
+        } else {
+            uploadYear = new Date().getFullYear();
+        }
+
+        const searchInfo = 
+            `*SEARCH RESULTS*\n\n` +
+            `*Title:* ${video.title}\n` +
+            `*Artist/Channel:* ${video.author.name}\n` +
+            `*Duration:* ${video.timestamp}\n` +
+            `*Uploaded:* ${video.ago} (${uploadYear})\n` +
+            `*Views:* ${video.views.toLocaleString()}\n\n` +
+            `⬇️ *Downloading audio...*`;
         
-        // Use the new API
+        // Send search info and save the message
+        const searchMessage = await conn.sendMessage(
+            m.chat,
+            {
+                text: searchInfo
+            },
+            { quoted: m }
+        );
+        
         const apiUrl = `https://yt-dl.officialhectormanuel.workers.dev/?url=${encodeURIComponent(videoUrl)}`;
         const response = await axios.get(apiUrl, { timeout: 30000 });
         const data = response.data;
@@ -4570,26 +4621,7 @@ case 'xplay': {
         }
 
         const title = video.title || text;
-        const duration = video.timestamp || video.duration || "Unknown";
-        const thumbnail = video.thumbnail || `https://img.youtube.com/vi/${video.videoId}/hqdefault.jpg`;
-        const youtubeUrl = `https://youtube.com/watch?v=${video.videoId}`;
-
-        // Send song info - jexploit format
-        await conn.sendMessage(
-            m.chat,
-            {
-                image: { url: thumbnail },
-                caption:
-                    `*Now Playing* — Jexploit\n\n` +
-                    `*Title:* ${title}\n` +
-                    `*Duration:* ${duration}\n` +
-                    `*YouTube:* ${youtubeUrl}\n\n` +
-                    `🔥 Brought to you by *JEXPLOIT*`,
-            },
-            { quoted: m }
-        );
-
-        // Send MP3
+        
         await conn.sendMessage(
             m.chat,
             {
@@ -4597,13 +4629,12 @@ case 'xplay': {
                 mimetype: "audio/mpeg",
                 fileName: `${title}.mp3`,
             },
-            { quoted: m }
+            { quoted: searchMessage } 
         );
     } catch (err) {
         console.error("song command error:", err.message);
         reply(`⚠️ Error fetching song: ${err.message}`);
     }
-    
 }
 break
 case 'play': {
