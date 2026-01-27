@@ -140,7 +140,7 @@ async function generateMenu(conn, m, prefix, global) {
                 'addowner', '𝙸𝚍𝚌𝚑', '𝙲𝚛𝚎𝚊𝚝𝚎𝚌𝚑', 'creategroup', 'del', 'setpp', 'delpp', 'private', 'public',
                 'lastseen', 'setprefix', 'togroupstatus', 'groupid', 'readreceipts', 'reportbug', 'clearchat', 
                 'hack', 'groupjids', 'broadcast', 
-                'react', 'restart', 'currentmenu', 'addignorelist', 'delignorelist', 'deljunk', 'settings',
+                'react', 'restart', 'currentmenu', 'addignorelist', 'delignorelist', 'deljunk', 'cleansession', 'settings',
                 'listblocked', 'listsudo', 'setprofilename', 'listignored', 'online', 'join', 
                 'leave', 'setbio', 'resetsettings', 'backup', 'reqeust', 'block',  'toviewonce', 
                 'setownername', 'setawesomemenu', 'resetawesomemenu', 'setbotname', 'unblock', 'unblockall', 'gcaddprivacy', 
