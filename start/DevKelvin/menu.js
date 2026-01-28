@@ -152,10 +152,10 @@ async function generateMenu(conn, m, prefix, global) {
             commands: [
                 '𝖧𝗂𝖽𝖾𝗍𝖺𝗀', '𝖪𝗂𝖼𝗄', 'r𝖾𝗌𝖾𝗍𝗅𝗂𝗇𝗄', 'linkgc', 'checkchan', 'antilink', 'antitag',  'antibadword', 
                 'listonline', 'add',  'listactive', 'listinactive', 'close', 'open', 'kick', 'kickinactive', 
-                 'listadmin', 'cancelkick', 'kickall', 'closetime', 'disp24hours', 'disp90days', 'dispoff', 'setgrouppp',
-                'tagall2', 'opentime', 'poll', 'allowlink', 'totalmembers', 
-                'mediatag', 'getgrouppp',  'tagall', 'groupinfo', 'userjid', 'unlockgcsettings', 'lockgcsettings',
-                'tagadmin2', 'setgroupname', 'delgrouppp', 'invite', 'editinfo', 'approve', 
+                 'cancelkick', 'kickall', 'closetime', 'disp24hours', 'disp90days', 'dispoff', 'setgrouppp',
+                 'opentime', 'poll',  'totalmembers', 
+                'mediatag', 'getgrouppp',  'tagall', 'tagall2', 'groupinfo', 'userjid', 'unlockgcsettings', 'lockgcsettings',
+                'tagadmin', 'setgroupname', 'delgrouppp', 'invite', 'editinfo', 'approve', 
                 'disapproveall', 'listrequest', 'promote', 'demote', 'userjid', 'setdesc', 'vcf'
             ],
         },
@@ -193,7 +193,7 @@ async function generateMenu(conn, m, prefix, global) {
             commands: ['play', 'play2', 'song', 'song2', 'music', 'ytplay', 'gitclone', 'ringtone', 
                       'download', 'pinterest', 'mediafire', 'itunes', 'ytmp4', 'ytstalk', 
                       'apk', 'gdrive', 'playdoc', 'tiktok', 'tiktok2', 'instagram', 
-                      'video', 'tiktokaudio', 'save', 'facebook'],
+                      'video', 'tiktokaudio', 'savestatus', 'facebook'],
         },
         convert: {
             title: ' *CONVERT MENU* ',
