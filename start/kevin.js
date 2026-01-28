@@ -2367,6 +2367,16 @@ if (!Access) return reply(mess.owner);
     await reply(mess.done);
 }
 break
+case "leave":
+case "leavegc": {
+ (!Access) return reply(mess.owner);
+    if (!m.isGroup) return reply(mess.group);
+
+    reply("*Goodbye, it was nice being here!*");
+    await sleep(3000);
+    await conn.groupLeave(m.chat);
+}
+break
 case "setbio": {
 if (!Access) return reply(mess.owner);
 if (!text) return reply(`*Text needed*\nExample: ${prefix + command} ${getSetting(botNumber, 'botname', 'Jexploit')}`);
@@ -9200,83 +9210,6 @@ case "downgrade": {
     } catch (error) {
       reply("❌ *Failed to demote user. They might already be a member or the bot lacks permissions.*");
     }
-  }
-break
-case "admins":
-case "listadmins":
-case "adminlist": {
-    if (!m.isGroup) return reply('❌ *This command only works in groups!*');
-
-    try {
-        // Send loading reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "⏳",
-                key: m.key
-            }
-        });
-
-        const groupMetadata = await conn.groupMetadata(m.chat);
-        const participants = groupMetadata.participants;
-        
-        const admins = participants.filter(p => p.admin);
-        const superAdmin = participants.find(p => p.admin === 'superadmin');
-        const regularAdmins = participants.filter(p => p.admin && p.admin !== 'superadmin');
-
-        if (admins.length === 0) {
-            await conn.sendMessage(m.chat, {
-                react: {
-                    text: "ℹ️",
-                    key: m.key
-                }
-            });
-            return reply('ℹ️ *No admins found in this group!*');
-        }
-
-        let adminList = `👑 *GROUP ADMINS LIST*\n\n`;
-        adminList += `*Group:* ${groupMetadata.subject}\n`;
-        adminList += `*Total Admins:* ${admins.length}\n\n`;
-
-        // Add group owner first
-        if (superAdmin) {
-            adminList += `🤴 *GROUP OWNER*\n`;
-            adminList += `• @${superAdmin.id.split('@')[0]}\n\n`;
-        }
-
-        // Add other admins
-        if (regularAdmins.length > 0) {
-            adminList += `👮 *ADMINS* (${regularAdmins.length})\n`;
-            regularAdmins.forEach((admin, index) => {
-                adminList += `${index + 1}. @${admin.id.split('@')[0]}\n`;
-            });
-        }
-
-        // Success reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "✅",
-                key: m.key
-            }
-        });
-
-        // Send admin list with mentions
-        const mentionJids = admins.map(admin => admin.id);
-        reply(adminList, { mentions: mentionJids });
-
-    } catch (error) {
-        console.error('Error listing admins:', error);
-        
-        // Error reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "❌",
-                key: m.key
-            }
-        });
-        
-        reply('❌ *Failed to get admin list.* Please try again.');
-    }
-    
 }
 break
 case " getgrouppp": {
@@ -9839,7 +9772,16 @@ if (!isSenderAdmin) return reply('❌ You need to be an admin to use this comman
     }
 }
 break
-case "tagadmin2": {
+case "setgroupname": {
+ if (!m.isGroup) return reply(mess.group);
+        if (!isSenderAdmin && !Access) return reply(mess.notadmin);
+        if (!text) return reply("*Desired groupname?*");
+
+        await conn.groupUpdateSubject(m.chat, text);
+        reply(mess.done);
+}
+break
+case "tagadmin": {
     if (!m.isGroup) return reply(mess.group);
     const groupAdmins = participants.filter((p) => p.admin);
     const listAdmin = groupAdmins
@@ -9857,8 +9799,8 @@ case "tagadmin2": {
 break
 case "tagall2": {
 try {
-        if (!isGroup) return reply("❌ This command can only be used in groups");
-        if (!isSenderAdmin) return reply('❌ You need to be an admin to use this command.');
+        if (!isGroup) return reply(mess.group);
+        if (!isSenderAdmin) return reply(mess.notadmin);
 
         let message = "📢 *Attention Everyone!* \n\n";
         const mentions = participants.map(p => p.id);
