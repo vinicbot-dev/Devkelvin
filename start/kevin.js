@@ -2369,9 +2369,8 @@ if (!Access) return reply(mess.owner);
 break
 case "leave":
 case "leavegc": {
- (!Access) return reply(mess.owner);
-    if (!m.isGroup) return reply(mess.group);
-
+if (!m.isGroup) return reply(mess.group);
+if (!Access) return reply(mess.owner);
     reply("*Goodbye, it was nice being here!*");
     await sleep(3000);
     await conn.groupLeave(m.chat);
