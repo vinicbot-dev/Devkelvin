@@ -324,7 +324,6 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
         if (!mek.message) return;
         mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message;
     
-        
         await handleStatusUpdate(conn, chatUpdate);
         
         // If it was a status, return early (handleStatusUpdate will handle it)
@@ -334,6 +333,39 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
 
         if (!conn.public && !mek.key.fromMe && chatUpdate.type === 'notify') return;
         let m = smsg(conn, mek, store);
+       
+        m.isGroup = m.chat.endsWith('@g.us')
+        m.sender = await conn.decodeJid(m.fromMe && conn.user.id || m.participant || m.key.participant || m.chat || '')
+        
+        if (m.isGroup) {
+            m.metadata = await conn.groupMetadata(m.chat).catch(_ => ({})) || {}
+            const admins = []
+            if (m.metadata?.participants) {
+                for (let p of m.metadata.participants) {
+                    if (p.admin !== null) {
+                        if (p.jid) admins.push(p.jid)
+                        if (p.id) admins.push(p.id)
+                        if (p.lid) admins.push(p.lid)
+                    }
+                }
+            }
+            m.admins = admins
+            
+            const checkAdmin = (jid, list) =>
+                list.some(x =>
+                    x === jid ||
+                    (jid.endsWith('@s.whatsapp.net') && x === jid.replace('@s.whatsapp.net', '@lid')) ||
+                    (jid.endsWith('@lid') && x === jid.replace('@lid', '@s.whatsapp.net'))
+                )
+            
+            m.isAdmin = checkAdmin(m.sender, m.admins)
+            m.isBotAdmin = checkAdmin(botNumber, m.admins)
+            m.participant = m.key.participant || ""
+        } else {
+            m.isAdmin = false
+            m.isBotAdmin = false
+        }
+  
         
         require("./start/kevin")(conn, m, chatUpdate, mek, store);
     } catch (err) {
