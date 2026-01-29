@@ -63,7 +63,7 @@ global.AI_CHAT = "false", // Set to "true" to enable AI chatbot by default
 
 // ========= Add modeStatus and versions ========= //
 global.modeStatus = "Public";
-global.versions = "1.4.3";
+global.versions = "1.4.4";
 
 // ========= Setting WM ========= //
 global.packname = 'Jexploit';
@@ -91,7 +91,7 @@ global.mess = {
   done: "*Operation succeeded*",
   notext: "*Please provide the necessary text*",
   premium: "*First become a premium user*",
-  botadmin: "*Jexploit needs to be admin*",
+  botadmin: "Please bot needs admins permission!",
   limited: "*Limit reached*",
   helpersList: [
     { name: "Malvin king", number: "+263776388689", country: "Zimbabwe", flag: "🇿🇼" },
