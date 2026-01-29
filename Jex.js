@@ -617,7 +617,7 @@ function detectUrls(message) {
     return matches ? matches : [];
 }
 
-async function handleLinkViolation(conn, message, isSenderAdmin, botNumber) {
+async function handleLinkViolation(conn, m, message, botNumber) {
     try {
         if (!message || !message.key || !message.key.remoteJid) {
             return;
@@ -627,18 +627,16 @@ async function handleLinkViolation(conn, message, isSenderAdmin, botNumber) {
         const sender = message.key.participant || message.key.remoteJid;
         const messageId = message.key.id;
 
-        // Skip if sender is admin
-        if (isSenderAdmin) {
+     
+        if (m.isAdmin) {
             console.log(`✅ Admin ${sender} allowed to send link`);
             return;
         }
-
-        // Get anti-link settings
-        const isEnabled = global.settingsManager?.getSetting(botNumber, 'antilinkdelete', true);
+          const isEnabled = global.settingsManager?.getSetting(botNumber, 'antilinkdelete', true);
         const mode = global.settingsManager?.getSetting(botNumber, 'antilinkaction', 'delete');
         
-        if (!isEnabled) return;
-
+        if (!isEnabled)
+         return;
         // Detect URLs in the message
         const urls = detectUrls(message.message);
         if (urls.length === 0) return;
@@ -721,16 +719,19 @@ async function handleLinkViolation(conn, message, isSenderAdmin, botNumber) {
     }
 }
 
-async function handleAntiTag(conn, m, isSenderAdmin, botNumber) {
+async function handleAntiTag(conn, m, botNumber) {
     try {
-        if (!m.isGroup) return;
-        
+        if (!m || !m.isGroup || !m.message || m.key.fromMe) {
+            return;
+        }
+
         const chatId = m.chat;
         const sender = m.sender;
-        
+        const message = m.message;
+
         // Skip if sender is admin
-        if (isSenderAdmin) {
-            console.log(`✅ Admin ${sender} allowed to tag members`);
+        if (m.isAdmin) {
+            console.log(`✅ Admin ${sender} allowed to tag users`);
             return;
         }
         
