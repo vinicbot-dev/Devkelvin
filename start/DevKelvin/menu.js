@@ -345,7 +345,9 @@ async function sendMenu(conn, m, prefix, global) {
         // Array of image URLs to choose from randomly
         const imageUrls = [
             'https://files.catbox.moe/9sazwf.jpg',
-            'https://files.catbox.moe/w5vwcu.jpg'
+            'https://files.catbox.moe/x3v8mo.jpg',
+            'https://files.catbox.moe/tv9hwy.jpg',
+            'https://files.catbox.moe/d715fb.jpg'
         ];
 
         // Array of audio URLs to choose from randomly
