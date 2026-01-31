@@ -346,6 +346,7 @@ async function sendMenu(conn, m, prefix, global) {
         const imageUrls = [
             'https://files.catbox.moe/9sazwf.jpg',
             'https://files.catbox.moe/x3v8mo.jpg',
+            'https://files.catbox.moe/p91kk0.jpg',
             'https://files.catbox.moe/tv9hwy.jpg',
             'https://files.catbox.moe/d715fb.jpg'
         ];
