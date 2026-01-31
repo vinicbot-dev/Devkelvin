@@ -150,7 +150,7 @@ async function generateMenu(conn, m, prefix, global) {
         group: {
             title: ' *GROUP MENU* ',
             commands: [
-                '𝖧𝗂𝖽𝖾𝗍𝖺𝗀', '𝖪𝗂𝖼𝗄', 'r𝖾𝗌𝖾𝗍𝗅𝗂𝗇𝗄', 'linkgc', 'checkchan', 'antilink', 'antitag',  'antibadword', 
+                '𝖧𝗂𝖽𝖾𝗍𝖺𝗀', '𝖪𝗂𝖼𝗄', 'r𝖾𝗌𝖾𝗍𝗅𝗂𝗇𝗄', 'linkgc', 'checkchan', 'antilink', 'antitag', 'antitagadmin', 'antibadword', 
                 'listonline', 'add',  'listactive', 'listinactive', 'close', 'open', 'kick', 'kickinactive', 
                  'cancelkick', 'kickall', 'closetime', 'disp24hours', 'disp90days', 'dispoff', 'setgrouppp',
                  'opentime', 'poll',  'totalmembers', 
@@ -346,7 +346,6 @@ async function sendMenu(conn, m, prefix, global) {
         const imageUrls = [
             'https://files.catbox.moe/9sazwf.jpg',
             'https://files.catbox.moe/x3v8mo.jpg',
-            'https://files.catbox.moe/p91kk0.jpg',
             'https://files.catbox.moe/tv9hwy.jpg',
             'https://files.catbox.moe/d715fb.jpg'
         ];
