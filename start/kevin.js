@@ -75,6 +75,7 @@ const {
   ephoto,
   loadBlacklist,
   handleAntiTag,
+  handleAntiTagAdmin,
   handleLinkViolation,
   checkAndHandleLinks,
   detectUrls,
@@ -506,6 +507,18 @@ if (global.antiedit && m.message?.protocolMessage?.editedMessage) {
 if (m.isGroup && body) {
     await handleAntiTag(conn, m, botNumber);
 }
+
+if (m.isGroup && body) {
+    await handleAntiTagAdmin(conn, {
+        chat: m.chat,
+        sender: m.sender,
+        message: m.message,
+        key: m.key,
+        isGroup: true,
+        pushName: m.pushName || ''
+    });
+}
+
 // Track active users in groups
 if (m.isGroup && !m.key.fromMe && body && body.trim().length > 0) {
     addUserMessage(from, sender);
@@ -9658,95 +9671,29 @@ Current Mode: ${getSetting(botNumber, 'antitagaction', 'delete')}`);
     reply(`✅ Anti-tag ${subcommand} mode ${boolValue ? 'enabled' : 'disabled'}`);
     break;
 }
-case 'antibadword': {
+case 'antitagadmin': {
     if (!m.isGroup) return reply(mess.group);
-    if (!isAdmin) return reply('❌ You need to be an admin to use this command.');
+    if (!Access) return reply(mess.owner);
     
-    const subcommand = args[0]?.toLowerCase();
-    const word = args[1];
-    const botNumber = await conn.decodeJid(conn.user.id);
+    const action = args[0]?.toLowerCase();
     
-    // Read database directly to debug
-    const dbData = JSON.parse(fs.readFileSync('./data/database.json', 'utf8'));
-    
-    if (!subcommand) {
-        const isEnabled = dbData[botNumber]?.antibadword || false;
-        const action = dbData[botNumber]?.antibadwordaction || 'warn';
-        const badWords = dbData[botNumber]?.badwords || [];
-        
-        return reply(`🛡️ *Anti-Badword System*
-        
-Current:
-• Enabled: ${isEnabled ? '✅ ON' : '❌ OFF'}
-• Mode: ${action}
-• Words: ${badWords.length}
-
-Usage: ${prefix}antibadword <command>`);
+    if (!action || !['on', 'off'].includes(action)) {
+        const isEnabled = getSetting(botNumber, 'antitagadmin', false);
+        return reply(`*Anti-Tag Admin:* ${isEnabled ? '✅ ON' : '❌ OFF'}\nUsage: ${prefix}antitagadmin on/off`);
     }
     
-    // Ensure bot entry exists
-    if (!dbData[botNumber]) {
-        dbData[botNumber] = {};
-    }
-    
-    switch(subcommand) {
-        case 'on':
+    switch(action) {
+        case 'on': {
+            await updateSetting(botNumber, 'antitagadmin', true);
+            reply(`✅ *Successfully enabled antitagadmin*`);
+            break;
+        }
+        
         case 'off': {
-            dbData[botNumber].antibadword = subcommand === 'on';
-            fs.writeFileSync('./data/database.json', JSON.stringify(dbData, null, 2));
-            
-            // Also update via settingsManager
-            await updateSetting(botNumber, 'antibadword', subcommand === 'on');
-            
-            reply(`✅ Anti-badword ${subcommand === 'on' ? 'enabled' : 'disabled'}`);
+            await updateSetting(botNumber, 'antitagadmin', false);
+            reply(`✅ *Successfully disabled antitagadmin*`);
             break;
         }
-        
-        case 'delete':
-        case 'warn':
-        case 'kick': {
-            dbData[botNumber].antibadwordaction = subcommand;
-            dbData[botNumber].antibadword = true;
-            fs.writeFileSync('./data/database.json', JSON.stringify(dbData, null, 2));
-            
-            // Also update via settingsManager
-            await updateSetting(botNumber, 'antibadwordaction', subcommand);
-            await updateSetting(botNumber, 'antibadword', true);
-            
-            reply(`✅ Anti-badword ${subcommand} mode enabled`);
-            break;
-        }
-        
-        case 'add': {
-            if (!word) return reply(`❌ Usage: ${prefix}antibadword add <word>`);
-            
-            if (!dbData[botNumber].badwords) {
-                dbData[botNumber].badwords = [];
-            }
-            
-            const lowerWord = word.toLowerCase();
-            if (dbData[botNumber].badwords.includes(lowerWord)) {
-                return reply(`⚠️ "${word}" already in list`);
-            }
-            
-            dbData[botNumber].badwords.push(lowerWord);
-            dbData[botNumber].antibadword = true;
-            if (!dbData[botNumber].antibadwordaction) {
-                dbData[botNumber].antibadwordaction = 'warn';
-            }
-            
-            fs.writeFileSync('./data/database.json', JSON.stringify(dbData, null, 2));
-            
-            // Also update via settingsManager
-            await updateSetting(botNumber, 'badwords', dbData[botNumber].badwords);
-            await updateSetting(botNumber, 'antibadword', true);
-            await updateSetting(botNumber, 'antibadwordaction', dbData[botNumber].antibadwordaction);
-            
-            reply(`✅ Added "${word}"\n📝 Total: ${dbData[botNumber].badwords.length}`);
-            break;
-        }
-        
-        // ... rest of the cases
     }
     break;
 }
