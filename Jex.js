@@ -793,6 +793,62 @@ async function handleAntiTag(conn, m, botNumber) {
     }
 }
 
+async function handleAntiTagAdmin(conn, m) {
+    try {
+        if (!m || !m.isGroup || !m.message || m.key.fromMe) {
+            return;
+        }
+
+        const botNumber = await conn.decodeJid(conn.user.id);
+        const isEnabled = global.settingsManager?.getSetting(botNumber, 'antitagadmin', false);
+        
+        if (!isEnabled) return;
+
+        const chatId = m.chat;
+        const sender = m.sender;
+        const message = m.message;
+        
+        // Skip if sender is admin
+        if (m.isAdmin) {
+            return;
+        }
+        
+        // Get group admins
+        const groupMetadata = await conn.groupMetadata(chatId);
+        const admins = groupMetadata.participants.filter(p => p.admin).map(p => p.id);
+        
+        // Check if message contains @admin or tags admin
+        const messageText = extractMessageText(message);
+        const mentionedUsers = m.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+        
+        // Check for @admin mentions
+        const hasAdminMention = messageText.toLowerCase().includes('@admin') || 
+                               messageText.toLowerCase().includes('@admins');
+        
+        // Check if any mentioned user is an admin
+        const isTaggingAdmin = mentionedUsers.some(user => admins.includes(user));
+        
+        if (hasAdminMention || isTaggingAdmin) {
+            // Delete the message
+            try {
+                await conn.sendMessage(chatId, { delete: m.key });
+                console.log(`✅ Deleted admin tag message from ${sender}`);
+                
+                // Warn the user
+                await conn.sendMessage(chatId, {
+                    text: `⚠️ @${sender.split('@')[0]}, please don't tag admins unnecessarily!\nUse group features or report to owner directly.`,
+                    mentions: [sender]
+                });
+            } catch (error) {
+                console.error('Failed to handle admin tag:', error);
+            }
+        }
+        
+    } catch (error) {
+        console.error('Anti-tag admin error:', error);
+    }
+}
+
 module.exports = {
   fetchMp3DownloadUrl,
   fetchVideoDownloadUrl,
@@ -801,6 +857,7 @@ module.exports = {
   handleAntiEdit,
   saveStatusMessage,
   handleLinkViolation,
+  handleAntiTagAdmin,
   detectUrls,
   loadStoredMessages,
   saveStoredMessages,
