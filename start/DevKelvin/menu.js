@@ -134,6 +134,80 @@ async function generateMenu(conn, m, prefix, global) {
                 `👤 ᴅᴇᴠ: ☘ ᴋᴇʟᴠɪɴ ᴛᴇᴄʜ ☘`,
             ],
         },
+        ai: {
+            title: ' *AI MENU*',
+            commands: ['generate', 'ai', 'copilot', 'metaai', 'deepseek', 'venice',  'flux', 'dalle', 'mistral', 'summarize', 'claude', 'gpt4nano', 'bard', 'perplexity', 'kelvinai',  'blackbox', 'gpt'],
+        },
+        audio: {
+            title: ' *AUDIO MENU*',
+            commands: ['bass', 'treble', 'blown', 'robot', 'reverse', 'instrumental', 
+                      'vocalremove', 'karaoke', 'volaudio', 'fast', 'slow'],
+        },
+        cmdTool: {
+            title: ' *BOTSTATUS MENU* ',
+            commands: ['ping', 'pair', 'uptime',  'bothosting', 'repo', 'botstatus', 'botinfo', 'sc', 
+                      'serverinfo', 'alive'],
+        },
+        convert: {
+            title: ' *CONVERT MENU* ',
+            commands: ['toaudio', 'toimage', 'url', 'tovideo', 'topdf', 'sticker'],
+        },
+        download: {
+            title: ' *DOWNLOAD MENU* ',
+            commands: ['play', 'play2', 'song', 'song2', 'music', 'ytplay', 'gitclone', 'ringtone', 
+                      'download', 'pinterest', 'mediafire', 'itunes', 'ytmp4', 'ytstalk', 
+                      'apk', 'gdrive', 'playdoc', 'tiktok', 'tiktok2', 'instagram', 
+                      'video', 'tiktokaudio', 'savestatus', 'facebook'],
+        },
+        ephoto: {
+            title: ' *EPHOTO360MAKER MENU* ',
+            commands: ['blackpinklogo', 'blackpinkstyle', 'glossysilver', 'glitchtext', 
+                      'arting', 'advancedglow', 'cartoonstyle', 'deadpool', 'deletingtext', 
+                      'luxurygold',  '1917style', 'pixelglitch', 'multicoloredneon', 
+                      'effectclouds', 'flagtext', 'freecreate', 'galaxystyle', 'papercut', 'holigram', 'royal', 'bear', 'textonwetglass', 'galaxywallpaper', 
+                      'glowingtext', 'makingneon', 'matrix', 'royaltext', 'sand', 'summerbeach', 
+                      'topography', 'typography', 'flux', 'dragonball'],
+        },
+        features: {
+            title: ' *SETTING MENU*',
+            commands: ['antidelete', 'anticall', 'autorecording', 'autotyping', 'alwaysonline',
+                      'welcome', 'chatbot', 'autoread', 'adminevent', 'autoviewstatus', 
+                      'autoreactstatus', 'antiedit'],
+        },
+        fun: {
+            title: ' *FUN MENU* ',
+            commands: ['dare', 'Quotes', 'truth', 'fact', 'truthdetecter', 'valentines', 
+                      'advice', 'motivate', 'pickupline', '8balls', 'mee', 'emoji', 'trivia',
+                      'lovetest', 'character', 'compatibility', 'compliment', 'jokes'],
+        },
+        group: {
+            title: ' *GROUP MENU* ',
+            commands: [
+                '𝖧𝗂𝖽𝖾𝗍𝖺𝗀', '𝖪𝗂𝖼𝗄', 'r𝖾𝗌𝖾𝗍𝗅𝗂𝗇𝗄', 'linkgc', 'checkchan', 'antilink', 'antitag', 'antitagadmin', 
+                'listonline', 'add',  'listactive', 'listinactive', 'close', 'open', 'kick', 'kickinactive', 
+                 'cancelkick', 'kickall', 'closetime', 'disp24hours', 'disp90days', 'dispoff', 'setgrouppp',
+                 'opentime', 'poll',  'totalmembers', 
+                'mediatag', 'getgrouppp',  'tagall', 'tagall2', 'groupinfo', 'userjid', 'unlockgcsettings', 'lockgcsettings',
+                'tagadmin', 'setgroupname', 'delgrouppp', 'invite', 'editinfo', 'approve', 
+                'disapproveall', 'listrequest', 'promote', 'demote', 'userjid', 'setdesc', 'vcf'
+            ],
+        },
+        helpers: {
+            title: ' *SUPPORT MENU*',
+            commands: ['helpers', 'dev'],
+        },
+        image: {
+            title: ' *IMAGE MENU*',
+            commands: ['wallapaper', 'balogo', 'tattoo', 'remini'],
+        },
+        other: {
+            title: ' *TOOLS MENU*',
+            commands: ['time', 'calculate', 'owner', 'fliptext', 'translate', 
+                      'ss2', 'sswebpc', 'kevinfarm', 'say', 'getdevice', 'ss', 'gpass', 'userinfo', 
+                      'npm', 'take', 'telesticker', 'checkapi', 'filtervcf', 'qrcode', 'smartphone', 
+                      'removebg', 'obfuscate', 'obfuscate2', 'getabout', 'tinylink', 'vcc', 'getbussiness', 
+                      'listpc', 'sswebpc'],
+        },
         owner: {
             title: ' *OWNER MENU*',
             commands: [
@@ -144,33 +218,8 @@ async function generateMenu(conn, m, prefix, global) {
                 'listblocked', 'listsudo', 'setprofilename', 'listignored', 'online', 'join', 
                 'leave', 'setbio', 'resetsettings', 'backup', 'reqeust', 'block',  'toviewonce', 
                 'setownername', 'setawesomemenu', 'resetawesomemenu', 'setbotname', 'unblock', 'unblockall', 'gcaddprivacy', 
-                'ppprivancy', 'tostatus', 'vv', 'vv2', 'idch', 'getpp', 'setmenu1', 'setmenu2', 'setmenu3', 'setmenu4', 'setmenu5', 'setmenu6'
+                'ppprivancy', 'vv', 'vv2', 'idch', 'getpp', 'setmenu1', 'setmenu2', 'setmenu3', 'setmenu4', 'setmenu5', 'setmenu6'
             ],
-        },
-        group: {
-            title: ' *GROUP MENU* ',
-            commands: [
-                '𝖧𝗂𝖽𝖾𝗍𝖺𝗀', '𝖪𝗂𝖼𝗄', 'r𝖾𝗌𝖾𝗍𝗅𝗂𝗇𝗄', 'linkgc', 'checkchan', 'antilink', 'antitag', 'antitagadmin', 'antibadword', 
-                'listonline', 'add',  'listactive', 'listinactive', 'close', 'open', 'kick', 'kickinactive', 
-                 'cancelkick', 'kickall', 'closetime', 'disp24hours', 'disp90days', 'dispoff', 'setgrouppp',
-                 'opentime', 'poll',  'totalmembers', 
-                'mediatag', 'getgrouppp',  'tagall', 'tagall2', 'groupinfo', 'userjid', 'unlockgcsettings', 'lockgcsettings',
-                'tagadmin', 'setgroupname', 'delgrouppp', 'invite', 'editinfo', 'approve', 
-                'disapproveall', 'listrequest', 'promote', 'demote', 'userjid', 'setdesc', 'vcf'
-            ],
-        },
-        ai: {
-            title: ' *AI MENU*',
-            commands: ['generate', 'ai', 'copilot', 'metaai', 'deepseek', 'venice',  'flux', 'dalle', 'mistral', 'summarize', 'claude', 'gpt4nano', 'bard', 'perplexity', 'kelvinai',  'blackbox', 'gpt'],
-        },
-        audio: {
-            title: ' *AUDIO MENU*',
-            commands: ['bass', 'treble', 'blown', 'robot', 'reverse', 'instrumental', 
-                      'vocalremove', 'karaoke', 'volaudio', 'fast', 'slow'],
-        },
-        image: {
-            title: ' *IMAGE MENU*',
-            commands: ['wallapaper', 'balogo', 'tattoo', 'remini'],
         },
         reaction: {
             title: ' *REACTION MENU*',
@@ -182,63 +231,14 @@ async function generateMenu(conn, m, prefix, global) {
  'panic', 'tease', 'shiver', 'bored', 'scream', 'pout', 
  'handhold', 'spank', 'tickle', 'cringe', 'party', 'celebrate'],
         },
-        features: {
-            title: ' *SETTING MENU*',
-            commands: ['antidelete', 'anticall', 'autorecording', 'autotyping', 'alwaysonline',
-                      'welcome', 'chatbot', 'autoread', 'adminevent', 'autoviewstatus', 
-                      'autoreactstatus', 'antiedit'],
-        },
-        download: {
-            title: ' *DOWNLOAD MENU* ',
-            commands: ['play', 'play2', 'song', 'song2', 'music', 'ytplay', 'gitclone', 'ringtone', 
-                      'download', 'pinterest', 'mediafire', 'itunes', 'ytmp4', 'ytstalk', 
-                      'apk', 'gdrive', 'playdoc', 'tiktok', 'tiktok2', 'instagram', 
-                      'video', 'tiktokaudio', 'savestatus', 'facebook'],
-        },
-        convert: {
-            title: ' *CONVERT MENU* ',
-            commands: ['toaudio', 'toimage', 'url', 'tovideo', 'topdf', 'sticker'],
-        },
-        cmdTool: {
-            title: ' *BOTSTATUS MENU* ',
-            commands: ['ping', 'pair', 'uptime',  'bothosting', 'repo', 'botstatus', 'botinfo', 'sc', 
-                      'serverinfo', 'alive'],
-        },
-        other: {
-            title: ' *TOOLS MENU*',
-            commands: ['time', 'calculate', 'owner', 'fliptext', 'translate', 
-                      'ss2', 'sswebpc', 'kevinfarm', 'say', 'getdevice', 'ss', 'gpass', 'userinfo', 
-                      'npm', 'take', 'telesticker', 'checkapi', 'filtervcf', 'qrcode', 'smartphone', 
-                      'removebg', 'obfuscate', 'obfuscate2', 'getabout', 'tinylink', 'vcc', 'getbussiness', 
-                      'listpc', 'sswebpc'],
-        },
-        helpers: {
-            title: ' *SUPPORT MENU*',
-            commands: ['helpers', 'dev'],
-        },
-        ephoto: {
-            title: ' *EPHOTO360MAKER MENU* ',
-            commands: ['blackpinklogo', 'blackpinkstyle', 'glossysilver', 'glitchtext', 
-                      'arting', 'advancedglow', 'cartoonstyle', 'deadpool', 'deletingtext', 
-                      'luxurygold',  '1917style', 'pixelglitch', 'multicoloredneon', 
-                      'effectclouds', 'flagtext', 'freecreate', 'galaxystyle', 'papercut', 'holigram', 'royal', 'bear', 'textonwetglass', 'galaxywallpaper', 
-                      'glowingtext', 'makingneon', 'matrix', 'royaltext', 'sand', 'summerbeach', 
-                      'topography', 'typography', 'flux', 'dragonball'],
+        religion: {
+            title: ' *RELIGION MENU* ',
+            commands: ['Bible', 'Biblelist', 'Quran'],
         },
         search: {
             title: ' *SEARCH MENU* ',
             commands: ['lyrics', 'chord', 'weather', 'movie', 'define', 'gitstalk', 'playstore',
                       'tiktoksearch', 'ytsearch', 'shazam'],
-        },
-        fun: {
-            title: ' *FUN MENU* ',
-            commands: ['dare', 'Quotes', 'truth', 'fact', 'truthdetecter', 'valentines', 
-                      'advice', 'motivate', 'pickupline', '8balls', 'mee', 'emoji', 'trivia',
-                      'lovetest', 'character', 'compatibility', 'compliment', 'jokes'],
-        },
-        religion: {
-            title: ' *RELIGION MENU* ',
-            commands: ['Bible', 'Biblelist', 'Quran'],
         },
         sports: {
             title: ' *SPORTS MENU* ',
