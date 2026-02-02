@@ -49,6 +49,9 @@ const FileType = require('file-type');
 const { Boom } = require('@hapi/boom');
 const PhoneNumber = require('awesome-phonenumber');
 const { File } = require('megajs');
+const port = process.env.PORT || 3000;
+const express = require('express')
+const app = express();
 const { color } = require('./start/lib/color');
 
 
@@ -1220,6 +1223,30 @@ conn.ev.on('call', async (callData) => {
   conn.serializeM = (m) => smsg(conn, m, store);
   return conn;
 }
+
+const porDir = path.join(__dirname, 'data');
+const porPath = path.join(porDir, 'Jexploit.html');
+
+// get runtime
+function getUptime() {
+    return runtime(process.uptime());
+}
+
+app.get("/", (req, res) => {
+    res.sendFile(porPath);
+});
+
+app.get("/uptime", (req, res) => {
+    res.json({ uptime: getUptime() });
+});
+
+app.listen(port, (err) => {
+    if (err) {
+        console.error(color(`Failed to start server on port: ${port}`, 'red'));
+    } else {
+        console.log(color(`[Jexploit] Running on port: ${port}`, 'white'));
+    }
+});
 
 clientstart();
 
