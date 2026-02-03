@@ -1248,20 +1248,7 @@ app.listen(port, (err) => {
     }
 });
 
-setInterval(() => {
-    fetch(`http://localhost:${port}/uptime`)
-        .then(res => console.log(`[Keep-Alive] Pinged at ${new Date().toLocaleTimeString()}`))
-        .catch(err => console.log(`[Keep-Alive] Ping failed: ${err.message}`));
-}, 5 * 60 * 1000); // Every 5 minutes
 
-
-app.get("/keep-alive", (req, res) => {
-    res.json({ 
-        status: "alive", 
-        time: new Date().toISOString(),
-        bot: "Jexploit" 
-    });
-});
 
 clientstart();
 
