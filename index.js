@@ -1244,8 +1244,23 @@ app.listen(port, (err) => {
     if (err) {
         console.error(color(`Failed to start server on port: ${port}`, 'red'));
     } else {
-        console.log(color(`[Jexploit] Running on port: ${port}`, 'white'));
+        console.log(color(`[Vesper-Xmd] Running on port: ${port}`, 'white'));
     }
+});
+
+setInterval(() => {
+    fetch(`http://localhost:${port}/uptime`)
+        .then(res => console.log(`[Keep-Alive] Pinged at ${new Date().toLocaleTimeString()}`))
+        .catch(err => console.log(`[Keep-Alive] Ping failed: ${err.message}`));
+}, 5 * 60 * 1000); // Every 5 minutes
+
+
+app.get("/keep-alive", (req, res) => {
+    res.json({ 
+        status: "alive", 
+        time: new Date().toISOString(),
+        bot: "Jexploit" 
+    });
 });
 
 clientstart();
