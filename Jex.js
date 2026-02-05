@@ -617,7 +617,7 @@ function detectUrls(message) {
     return matches ? matches : [];
 }
 
-async function handleLinkViolation(conn, m, message, botNumber) {
+async function handleLinkViolation(conn, m, message, isSenderAdmin, botNumber) {
     try {
         if (!message || !message.key || !message.key.remoteJid) {
             return;
@@ -628,7 +628,7 @@ async function handleLinkViolation(conn, m, message, botNumber) {
         const messageId = message.key.id;
 
      
-        if (m.isAdmin) {
+        if (isSenderAdmin) {
             console.log(`✅ Admin ${sender} allowed to send link`);
             return;
         }
@@ -719,7 +719,7 @@ async function handleLinkViolation(conn, m, message, botNumber) {
     }
 }
 
-async function handleAntiTag(conn, m, botNumber) {
+async function handleAntiTag(conn, m, isSenderAdmin, botNumber) {
     try {
         if (!m || !m.isGroup || !m.message || m.key.fromMe) {
             return;
@@ -730,7 +730,7 @@ async function handleAntiTag(conn, m, botNumber) {
         const message = m.message;
 
         // Skip if sender is admin
-        if (m.isAdmin) {
+        if (isSenderAdmin) {
             console.log(`✅ Admin ${sender} allowed to tag users`);
             return;
         }
@@ -793,7 +793,7 @@ async function handleAntiTag(conn, m, botNumber) {
     }
 }
 
-async function handleAntiTagAdmin(conn, m) {
+async function handleAntiTagAdmin(conn, isSenderAdmin, m) {
     try {
         if (!m || !m.isGroup || !m.message || m.key.fromMe) {
             return;
