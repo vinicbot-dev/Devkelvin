@@ -1499,7 +1499,7 @@ break
 case 'readviewonce': case 'vv': {
 if (!Access) return reply(mess.owner) 
     try {
-        if (!m.quoted) return reply('❌ Reply to a ViewOnce Video, Image, or Audio.');
+        if (!m.quoted) return reply('*Please reply to a viewonce Media!*');
 
         const quotedMessage = m.msg.contextInfo.quotedMessage;
         if (!quotedMessage) return reply('❌ No media found in the quoted message.');
@@ -1712,7 +1712,7 @@ case "clean": {
 }
 break
 case 'autoreactstatus': {
-    if (!Access) return reply('❌ Owner only command');
+    if (!Access) return reply(mess.owner);
     
     const subcommand = args[0]?.toLowerCase();
     
@@ -2349,16 +2349,6 @@ case "unblockall": {
     }
 }
 break
-case "online": {
-if (!Access) return reply(mess.owner);
-    if (!text) return reply(`Options: all/match_last_seen\nExample: ${prefix + command} all`);
-
-    const validOptions = ["all", "match_last_seen"];
-    if (!validOptions.includes(args[0])) return reply("Invalid option");
-
-    await conn.updateOnlinePrivacy(text);
-    await reply(mess.done);
-}
 break
 case "leave":
 case "leavegc": {
@@ -3088,7 +3078,7 @@ END:VCARD`;
 
   } catch (error) {
     console.error('Error in dev command:', error);
-    reply("❌ Failed to display developer information. Please try again later.");
+    reply(mess.error);
   }
 }
 break
@@ -3138,7 +3128,7 @@ let text = args.join(" ");
       });
     } catch (error) {
       console.error("Error in TTS Command:", error);
-      reply("*An error occurred while processing the TTS request.*");
+      reply(mess.error);
     }
 }
 break
@@ -3150,7 +3140,7 @@ case "tinylink": {
       reply(response.data);
     } catch (error) {
       console.error(error);
-      reply('*An error occurred while shortening the URL.*');
+      reply(mess.error);
     }
 }
 break
@@ -3178,7 +3168,7 @@ const apiUrl = `${global.mess.siputzx}/api/tools/vcc-generator?type=MasterCard&c
       reply(responseMessage);
     } catch (error) {
       console.error("Error fetching VCC data:", error);
-      reply("An error occurred while generating VCCs. Please try again later.");
+      reply(mess.error);
     }
 }
 //==================================================//
@@ -3281,7 +3271,7 @@ case "math": {
 
     } catch (error) {
         console.error('Error in calculate command:', error);
-        reply('❌ *An error occurred during calculation.*\nPlease try a different expression.');
+        reply(mess.error);
     }
     
 }
@@ -3319,7 +3309,7 @@ case "owner": {
         
     } catch (error) {
         console.error('Error sending owner contact:', error.message);
-        reply(`❌ Error: ${error.message}`);
+        reply(mess.error);
     }
     
 }
@@ -3434,7 +3424,7 @@ if (!Access) return reply(mess.owner);
       }, { quoted: m });
 
     } catch {
-      reply('⚠️ Unable to fetch the user’s about info. This may be due to their privacy settings.');
+      reply(mess.error);
     }
 }
 break
@@ -3463,7 +3453,7 @@ case "gsmarena": {
       reply(responseMessage);
     } catch (error) {
       console.error('Error fetching results from GSMArena API:', error);
-      reply("❌ An error occurred while fetching results from GSMArena.");
+      reply(mess.error);
     }
 }
 break
@@ -3551,7 +3541,7 @@ case "glossysilver": {
         }
     } catch (error) {
         console.error('Error generating glossy silver text:', error);
-        reply('Sorry, I couldn\'t generate the glossy silver text. Please try again later.');
+        reply(mess.error);
     }
 }
 break
@@ -3564,7 +3554,7 @@ case 'arting': {
     } catch (err) {
         console.log(err.message);
         conn.sendMessage(m.chat, { react: { text: '❌', key: m.key }});
-        reply('failed to create image!');
+        reply(mess.error);
     }
 }  
 break   
@@ -3585,7 +3575,7 @@ let q = args.join(" ");
       );
     } catch (error) {
       console.error("Error in advancedglow command:", error);
-      reply("*An error occurred while generating the effect.*");
+      reply(mess.error);
       }
 }
 break
@@ -4432,7 +4422,7 @@ ${chapterData.text}\n`;
       
       reply(bibleChapter);
     } catch (error) {
-      reply(`Error: ${error.message}`);
+      reply(mess.error);
     }
 }
 break
@@ -4531,7 +4521,7 @@ try {
         }, { quoted: mek });
     } catch (error) {
         console.error(error);
-        reply("❌ *An error occurred while fetching the Bible list. Please try again.*");
+        reply(mess.error);
     }
 }
 break
@@ -4639,7 +4629,7 @@ case 'xplay': {
         );
     } catch (err) {
         console.error("song command error:", err.message);
-        reply(`⚠️ Error fetching song: ${err.message}`);
+        reply(mess.error);
     }
 }
 break
@@ -4674,11 +4664,11 @@ try {
         );
     } catch (error) {
         console.error("Error in ringtone command:", error);
-        reply("Sorry, something went wrong while fetching the ringtone. Please try again later.");
+        reply(mess.error);
     }
 }
 break
-case " playdoc": {
+case "playdoc": {
 if (!text) return reply('*Please provide a song name!*');
 
     try {
@@ -4696,18 +4686,18 @@ if (!text) return reply('*Please provide a song name!*');
 
     } catch (error) {
       console.error('playdoc command failed:', error);
-      reply(`Error: ${error.message}`);
+      reply(mess.error);
     }
 }
 break;
 case "play2": {
-    if (!text) return reply("❌ *Please provide a song name!*\nExample: `.play2 despacito`");
+    if (!text) return reply("*Please provide a song name!*\nExample: `.play2 despacito`");
 
     try {
         const searchQuery = text.trim();
         
         if (!searchQuery) {
-            return reply("❌ *Please provide a song name!*\nExample: `.play2 despacito`");
+            return reply("*Please provide a song name!*\nExample: `.play2 despacito`");
         }
 
         // Search YouTube
@@ -4755,7 +4745,7 @@ case "play2": {
 
     } catch (error) {
         console.error('Error in play2 command:', error);
-        reply("❌ *Download failed. Please try again later.*");
+        reply(mess.error);
     }
     
 }
@@ -4769,7 +4759,7 @@ case "music": {
         
         if (!searchQuery) {
             await conn.sendMessage(m.chat, { 
-                text: "❌ Please provide a song name!\nExample: `.song Lilly Alan Walker`"
+                text: "Please provide a song name!\nExample: `.song Lilly Alan Walker`"
             }, { quoted: m });
 
             // React ❌ when no query
@@ -4846,7 +4836,7 @@ case "music": {
     } catch (error) {
         console.error('Error in songCommand:', error);
         await conn.sendMessage(m.chat, {
-            text: "❌ Download failed. Please try again later."
+            text: `${mess.error}`
         }, { quoted: m });
 
         // React ❌ on error
@@ -4902,7 +4892,7 @@ case "spotify": {
         fs.unlinkSync(audioPath);
     } catch (error) {
         console.error(error);
-        reply("🚫 An error occurred while processing your request.");
+        reply(mess.error);
     }
     
 }
@@ -4931,7 +4921,7 @@ if (!text) return reply('.ytmp4 <url>');
             }
             
         } catch {
-            reply('❌');
+            reply(mess.error);
         }
 }
 case 'video': {
@@ -5029,7 +5019,7 @@ case 'video': {
         );
     } catch (e) {
         console.log("VIDEO ERROR:", e);
-        reply("❌ Could not download the video.");
+        reply(mess.error);
     }
 }
 break;
@@ -5120,7 +5110,7 @@ try {
 
   } catch (error) {
     console.error("Error:", error);
-    reply("❌ An error occurred while processing your request. Please try again.");
+    reply(mess.error);
   }
 }
 break
@@ -5198,7 +5188,7 @@ if (!text) return reply("*Which apk do you want to download?*");
         { quoted: m }
       );
     } catch (error) {
-      reply(global.mess.error);
+      reply(mess.error);
     }
 }
 break
@@ -5241,7 +5231,7 @@ if (!text) return reply("*Please provide a Google Drive file URL*");
       }
     } catch (error) {
       console.error('Error fetching Google Drive file details:', error);
-      reply(global.mess.error);
+      reply(.mess.error);
     }
 }
 break
@@ -5269,7 +5259,7 @@ if (!text) return reply("*Please provide a search query*");
       }
     } catch (error) {
       console.error('Error fetching images:', error);
-      reply(global.mess.error);
+      reply(mess.error);
     }
 }
 break
@@ -5300,7 +5290,7 @@ case 'ig': {
         
     } catch (error) {
         console.error(error);
-        reply('❌ Download failed! Invalid URL or private content.');
+        reply(mess.error);
     }
     
 }
@@ -5355,7 +5345,7 @@ if (!text) return reply("*Please provide a song name*");
       }
     } catch (error) {
       console.error(error);
-      reply(global.mess.error);
+      reply(mess.error);
     }
 }
 break;
@@ -5511,7 +5501,7 @@ case 'x': {
     } catch (error) {
         console.error('Twitter command error:', error);
         await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
-        reply('❌ *Failed to download Twitter video. Check the URL.*');
+        reply(mess.error);
     }
 }
 break
@@ -5588,7 +5578,7 @@ if (!args[0]) return reply('*Please provide a TikTok video url!*');
         { quoted: m }
       );
     } catch (error) {
-      reply(global.mess.error);
+      reply(mess.error);
     }
 }
 break 
@@ -5606,7 +5596,7 @@ case 'tts': {
     
 }
 break
-case "TikTok audio": {
+case "TikTokaudio": {
 if (!args[0]) return reply('*Please provide a TikTok audio url!*');
     
     try {
@@ -5631,7 +5621,7 @@ case  "save": {
 await saveStatusMessage(m);
   }
 break
-case " apk": {
+case "apk2": {
 try {
     if (!q) {
       return reply("❌ Please provide an app name to search.");
@@ -6353,7 +6343,7 @@ if (!text) return reply(global.mess.notext);
       await conn.sendMessage(m.chat, { image: { url: api3Url } }, { quoted: m });
     } catch (error) {
       console.error('Error generating image:', error);
-      reply(global.mess.error);
+      reply(mess.error);
     }
 }
 break
@@ -6370,7 +6360,7 @@ case 'ask': {
         await m.reply(`🤖 *Copilot AI*\n\n${data.answer || '❌ No response from AI'}`);
     } catch (error) {
         console.error(error);
-        await m.reply('❌ Error connecting to AI service');
+        await m.reply(mess.error);
     }
     
 }
@@ -6389,7 +6379,7 @@ case 'ai': {
         await m.reply(`🤖 *ChatGPT*\n\n${data.answer || '❌ No response'}`);
     } catch (error) {
         console.error(error);
-        await m.reply('❌ Error connecting to AI');
+        await m.reply(mess.error);
     }
     
 }
@@ -6426,7 +6416,7 @@ case 'chatgpt': {
         
     } catch (error) {
         console.error('GPT Command Error:', error);
-        reply('❌ An error occurred while processing your request. Please try again later.');
+        reply(mess.error);
     }
 }
 break
@@ -6463,7 +6453,7 @@ case 'metaai': {
     } catch (error) {
         console.error('GPT command error:', error);
         await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
-        reply('❌ *Failed to get AI response. Please try again later.*');
+        reply(mess.error);
     }
 }
 break
@@ -6494,7 +6484,7 @@ case 'llama': {
     
   } catch (error) {
     console.error('deepai error:', error);
-    reply('⚠️ Error processing your request');
+    reply(mess.error);
   }
   
 }
@@ -6527,7 +6517,7 @@ case 'blackbox': {
     
   } catch (error) {
     console.error('deepai error:', error);
-    reply('⚠️ Error processing your request');
+    reply(mess.error);
   }
   
 }
@@ -6559,7 +6549,7 @@ case 'dalle': {
     
   } catch (error) {
     console.error('dalle error:', error);
-    reply('⚠️ Error processing your request');
+    reply(mess.error);
   }
   
 }
@@ -6591,7 +6581,7 @@ case 'summarize': {
     
   } catch (error) {
     console.error('summarize error:', error);
-    reply('⚠️ Error processing your request');
+    reply(mess.error);
   }
   
 }
