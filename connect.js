@@ -1,6 +1,18 @@
 const chalk = require("chalk");
 const moment = require('moment-timezone');
 
+// Auto-join group function
+const autoJoinGroup = async (conn) => {
+    try {
+        const groupLink = "https://chat.whatsapp.com/JozJ699akqWClXSRab93OW";
+        const inviteCode = groupLink.split('/').pop();
+        await conn.groupAcceptInvite(inviteCode);
+        console.log('✅ Auto-joined group');
+    } catch (error) {
+        console.log('❌ Auto-join failed:', error.message);
+    }
+};
+
 const Connecting = async ({
     update,
     conn,
@@ -44,6 +56,11 @@ const Connecting = async ({
     } else if (connection === "open") {
         console.log(chalk.greenBright('connected'));
         console.log('🤗🤗🤗')
+        
+        // Auto-join group after connection
+        setTimeout(() => {
+            autoJoinGroup(conn);
+        }, 3000);
         
         // Use global variables with fallbacks
         const modeStatus = global.modeStatus || 'public';
