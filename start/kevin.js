@@ -5231,7 +5231,7 @@ if (!text) return reply("*Please provide a Google Drive file URL*");
       }
     } catch (error) {
       console.error('Error fetching Google Drive file details:', error);
-      reply(.mess.error);
+      reply(mess.error);
     }
 }
 break
