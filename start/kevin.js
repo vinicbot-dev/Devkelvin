@@ -123,7 +123,8 @@ const { handleAutoTyping } = require('./KelvinCmds/autotyping');
 const { handleAIChatbot } = require('./KelvinCmds/chatbot');
 const { handleAutoRecording } = require('./KelvinCmds/autorecord');
 const { handleAntiDelete } = require('./KelvinCmds/antidelete');
-const { cleaningSession } = require('./lib/botSession'); 
+const { cleaningSession } = require('./lib/botSession');
+const { isAdminKelvin } = require('./lib/admin');
 const {fetchReactionImage} = require('./lib/reaction')
 const { toAudio } = require('./lib/converter');
 const { remini } = require('./lib/remini')
@@ -294,36 +295,6 @@ async function downloadMedia(quotedMsg, type) {
     }
 }
 
-async function isAdminKelvin(conn, chatId, senderId) {
-        try {
-            const groupMetadata = await conn.groupMetadata(chatId);
-            
-            const botId = conn.user.id.split(':')[0] + '@s.whatsapp.net';
-            
-            const participant = groupMetadata.participants.find(p => 
-                p.id === senderId || 
-                p.id === senderId.replace('@s.whatsapp.net', '@lid') ||
-                p.id === senderId.replace('@lid', '@s.whatsapp.net')
-            );
-            
-            const bot = groupMetadata.participants.find(p => 
-                p.id === botId || 
-                p.id === botId.replace('@s.whatsapp.net', '@lid')
-            );
-            
-            const isBotAdmin = bot && (bot.admin === 'admin' || bot.admin === 'superadmin');
-            const isSenderAdmin = participant && (participant.admin === 'admin' || participant.admin === 'superadmin');
-
-            if (!bot) {
-                return { isSenderAdmin, isBotAdmin: true };
-            }
-
-            return { isSenderAdmin, isBotAdmin };
-        } catch (error) {
-            console.error('Error in isAdmin:', error);
-            return { isSenderAdmin: false, isBotAdmin: false };
-        }
-}
 
 let isSenderAdmin = false;
 let isBotAdmin = false;
@@ -484,7 +455,7 @@ if (m.isGroup && body && !m.key.fromMe) {
 
 if ((m.mtype || '').includes("groupStatusMentionMessage") && m.isGroup) {
     
-    if (!m.isAdmin) {
+    if (!isSenderAdmin) {
         await conn.deleteMessage(m.chat, m.key).catch(() => {});
     }
   
@@ -2972,8 +2943,8 @@ break;
 case 'add2': {
                 if (!m.isGroup) return m.reply(mess.group)
                 if(!Access) return m.reply(mess.owner)
-                if (!m.isAdmin) return reply(mess.notadmin);
-                if (!m.isBotAdmin) return reply(mess.botadmin);
+                if (!isSenderAdmin) return reply(mess.notadmin);
+                if (!isBotAdmin) return reply(mess.botadmin);
                 let blockwwww = m.quoted ? m.quoted.sender : text.replace(/[^0-9]/g, '') + '@s.whatsapp.net'
                 await conn.groupParticipantsUpdate(m.chat, [blockwwww], 'add')
                 m.reply(mess.done)
@@ -2986,8 +2957,8 @@ case 'add2': {
 case "disp90days": { 
  if (!m.isGroup) return reply (mess.group); 
 
- if (!m.isAdmin) return reply(mess.notadmin);
- if (!m.isBotAdmin) return reply(mess.botadmin);
+ if (!isSenderAdmin) return reply(mess.notadmin);
+ if (!isBotAdmin) return reply(mess.botadmin);
 
                      await conn.groupToggleEphemeral(m.chat, 90*24*3600); 
  m.reply('Dissapearing messages successfully turned on for 90 days!'); 
@@ -2997,8 +2968,8 @@ case "disp90days": {
 case "dispoff": { 
     if (!m.isGroup) return reply (mess.group); 
 
-    if (!m.isAdmin) return reply(mess.notadmin);
-    if (!m.isBotAdmin) return reply(mess.botadmin);
+    if (!isSenderAdmin) return reply(mess.notadmin);
+    if (!isBotAdmin) return reply(mess.botadmin);
                      await conn.groupToggleEphemeral(m.chat, 0); 
  m.reply('Dissapearing messages successfully turned off!'); 
  }
@@ -3008,8 +2979,8 @@ case "dispoff": {
 case "disp24hours": { 
 if (!m.isGroup) return reply (mess.group); 
 
- if (!m.isAdmin) return reply(mess.notadmin);
-    if (!m.isBotAdmin) return reply(mess.botadmin);
+ if (!isSenderAdmin) return reply(mess.notadmin);
+    if (!isBotAdmin) return reply(mess.botadmin);
 
                      await conn.groupToggleEphemeral(m.chat, 1*24*3600); 
  m.reply('Dissapearing messages successfully turned on for 24hrs!'); 
@@ -8721,8 +8692,8 @@ try {
 break 
 case "hidetag": case "h": {
 if (!m.isGroup) return reply(mess.group)
-if (!m.isAdmin) return reply(mess.notadmin);
-    if (!m.isBotAdmin) return reply(mess.botadmin);
+if (!isSenderAdmin) return reply(mess.notadmin);
+    if (!isBotAdmin) return reply(mess.botadmin);
 
 let members = groupMembers.map(a => a.id)
 conn.sendMessage(m.chat, {text : q ? q : 'Jexploit Is Always Here', mentions: members}, {quoted:m})
@@ -8838,8 +8809,8 @@ break
 case 'kickinactive':
 case 'removeinactive': {
     if (!m.isGroup) return reply(mess.group);
-    if (!m.isAdmin) return reply(mess.notadmin);
-    if (!m.isBotAdmin) return reply(mess.botadmin);
+    if (!isSenderAdmin) return reply(mess.notadmin);
+    if (!isBotAdmin) return reply(mess.botadmin);
 
     try {
         const metadata = await conn.groupMetadata(from);
@@ -8901,8 +8872,8 @@ case 'removeinactive': {
 }
 case 'cancelkick': {
     if (!m.isGroup) return reply(mess.group);
-    if (!m.isAdmin) return reply(mess.notadmin);
-    if (!m.isBotAdmin) return reply(mess.botadmin);
+    if (!isSenderAdmin) return reply(mess.notadmin);
+    if (!isBotAdmin) return reply(mess.botadmin);
 
     try {
         if (global.kickQueue && global.kickQueue.has(m.chat)) {
@@ -8936,8 +8907,8 @@ case 'cancelkick': {
 case 'kickall':
 case 'removeall': {
     if (!m.isGroup) return reply(mess.group);
-    if (!m.isAdmin) return reply(mess.notadmin);
-    if (!m.isBotAdmin) return reply(mess.botadmin);
+    if (!isSenderAdmin) return reply(mess.notadmin);
+    if (!isBotAdmin) return reply(mess.botadmin);
 
     try {
         const metadata = await conn.groupMetadata(from);
@@ -9038,8 +9009,8 @@ break
 case "mute":
 case "close": {
     if (!m.isGroup) return reply(mess.group);
-    if (!m.isAdmin) return reply(mess.notadmin);
-    if (!m.isBotAdmin) return reply(mess.botadmin);
+    if (!isSenderAdmin) return reply(mess.notadmin);
+    if (!isBotAdmin) return reply(mess.botadmin);
     
     try {
         await conn.groupSettingUpdate(m.chat, "announcement");
@@ -9052,8 +9023,8 @@ case "close": {
 break;
 case "delgrouppp": {
         if (!m.isGroup) return reply(mess.group);
-        if (!m.isAdmin) return reply(mess.notadmin);
-        if (!m.isBotAdmin) return reply(mess.botadmin);
+        if (!isSenderAdmin) return reply(mess.notadmin);
+        if (!isBotAdmin) return reply(mess.botadmin);
         
         await conn.removeProfilePicture(from);
         reply("Group profile picture has been successfully removed.");
@@ -9061,8 +9032,8 @@ case "delgrouppp": {
 break
 case "setdesc": {
         if (!m.isGroup) return reply(mess.group);
-        if (!m.isAdmin) return reply(mess.notadmin);
-    if (!m.isBotAdmin) return reply(mess.botadmin);
+        if (!isSenderAdmin) return reply(mess.notadmin);
+    if (!isBotAdmin) return reply(mess.botadmin);
         
         if (!text) return reply("*Please enter a text*");
         
@@ -9107,8 +9078,8 @@ try {
 break
 case 'approve': {
 if (!m.isGroup) return reply(mess.group)
-if (!m.isAdmin) return reply(mess.notadmin);
-    if (!m.isBotAdmin) return reply(mess.botadmin);
+if (!isSenderAdmin) return reply(mess.notadmin);
+    if (!isBotAdmin) return reply(mess.botadmin);
 
 const responseList = await conn.groupRequestParticipantsList(m.chat);
 
@@ -9128,8 +9099,8 @@ reply(`*${getSetting(botNumber, 'botname', 'Jexploit')} has approved all pending
 break
 case "approveall": {
 if (!m.isGroup) return reply(mess.group);
-    if (!m.isAdmin) return reply(mess.notadmin);
-    if (!m.isBotAdmin) return reply(mess.botadmin);
+    if (!isSenderAdmin) return reply(mess.notadmin);
+    if (!isBotAdmin) return reply(mess.botadmin);
     
      const groupId = m.chat;
  
@@ -9138,8 +9109,8 @@ if (!m.isGroup) return reply(mess.group);
 break
 case " disapproveall": {
     if (!m.isGroup) return reply(mess.group);
-    if (!m.isAdmin) return reply(mess.notadmin);
-    if (!m.isBotAdmin) return reply(mess.botadmin);
+    if (!isSenderAdmin) return reply(mess.notadmin);
+    if (!isBotAdmin) return reply(mess.botadmin);
         
     const groupId = m.chat;
  
@@ -9148,8 +9119,8 @@ case " disapproveall": {
 break
 case "listrequest": {
 if (!m.isGroup) return reply(mess.group);
-        if (!m.isAdmin) return reply(mess.notadmin);
-        if (!m.isBotAdmin) return reply(mess.botadmin);
+        if (!isSenderAdmin) return reply(mess.notadmin);
+        if (!isBotAdmin) return reply(mess.botadmin);
         
     const groupId = m.chat; 
 
@@ -9159,8 +9130,8 @@ break
 case "mediatag": {
         if (!m.isGroup) return reply(mess.group);
   
-        if (!m.isAdmin) return reply(mess.notadmin);
-        if (!m.isBotAdmin) return reply(mess.botadmin);
+        if (!isSenderAdmin) return reply(mess.notadmin);
+        if (!isBotAdmin) return reply(mess.botadmin);
         
         if (!m.quoted) return reply(`Reply to any media with caption ${prefix + command}`);
 
@@ -9174,8 +9145,8 @@ case "promote":
 case "upgrade": {
 if (!Access) return reply(mess.owner);
         if (!m.isGroup) return reply(mess.group);
-        if (!m.isAdmin) return reply(mess.notadmin);
-        if (!m.isBotAdmin) return reply(mess.botadmin);
+        if (!isSenderAdmin) return reply(mess.notadmin);
+        if (!isBotAdmin) return reply(mess.botadmin);
        
     let target = m.mentionedJid[0] 
       ? m.mentionedJid[0] 
@@ -9198,8 +9169,8 @@ break
 case "demote":
 case "downgrade": {
         if (!m.isGroup) return reply(mess.group);
-        if (!m.isAdmin) return reply(mess.notadmin);
-        if (!m.isBotAdmin) return reply(mess.botadmin);
+        if (!isSenderAdmin) return reply(mess.notadmin);
+        if (!isBotAdmin) return reply(mess.botadmin);
     
     let target = m.mentionedJid[0] 
       ? m.mentionedJid[0] 
@@ -9303,8 +9274,8 @@ break
 case "editinfo": {
        if (!m.isGroup) return reply(mess.group);
 
-        if (!m.isAdmin) return reply(mess.notadmin);
-        if (!m.isBotAdmin) return reply(mess.botadmin);
+        if (!isSenderAdmin) return reply(mess.notadmin);
+        if (!isBotAdmin) return reply(mess.botadmin);
 
         if (args[0] === "on") {
             await conn.groupSettingUpdate(m.chat, "unlocked").then(
@@ -9322,8 +9293,8 @@ break
 case "invite": {
         if (!m.isGroup) return reply(mess.group);
  
-        if (!m.isAdmin) return reply(mess.notadmin);
-        if (!m.isBotAdmin) return reply(mess.botadmin);
+        if (!isSenderAdmin) return reply(mess.notadmin);
+        if (!isBotAdmin) return reply(mess.botadmin);
        
         if (!text)
             return reply(
@@ -9363,8 +9334,8 @@ break
 case "'unlockgc'": {
 try {
         if (!isGroup) return reply(mess.group);
-        if (!m.isAdmin) return reply(mess.notadmin);
-        if (!m.isBotAdmin) return reply(mess.botadmin);
+        if (!isSenderAdmin) return reply(mess.notadmin);
+        if (!isBotAdmin) return reply(mess.botadmin);
         
         await conn.groupSettingUpdate(from, "unlocked");
         reply("🔓 Group settings are now unlocked", {
@@ -9384,8 +9355,8 @@ case "lockgcsettings":
 case "lockgc": {
 try {
         if (!isGroup) return reply(mess.group);
-        if (!m.isAdmin) return reply(mess.notadmin);
-        if (!m.isBotAdmin) return reply(mess.botadmin);
+        if (!isSenderAdmin) return reply(mess.notadmin);
+        if (!isBotAdmin) return reply(mess.botadmin);
         await conn.groupSettingUpdate(from, 'locked');
         reply("🔒 Group settings are now locked (admins only)", {
             contextInfo: {
@@ -9404,8 +9375,8 @@ case "unlockgcsettings":
 case "unlockgc": {
     try {
        if (!m.isGroup) return reply(mess.group);
-        if (!m.isAdmin) return reply(mess.notadmin);
-        if (!m.isBotAdmin) return reply(mess.botadmin);
+        if (!isSenderAdmin) return reply(mess.notadmin);
+        if (!isBotAdmin) return reply(mess.botadmin);
         await conn.groupSettingUpdate(from, 'unlocked');
         reply("🔓 Group settings are now unlocked (all participants)", {
             contextInfo: {
@@ -9423,8 +9394,8 @@ break
 case "adminapproval": {
     try {
        if (!m.isGroup) return reply(mess.group);
-        if (!m.isAdmin) return reply(mess.notadmin);
-        if (!m.isBotAdmin) return reply(mess.botadmin);
+        if (!isSenderAdmin) return reply(mess.notadmin);
+        if (!isBotAdmin) return reply(mess.botadmin);
         // Get current group settings to check current state
         const groupMetadata = await conn.groupMetadata(from);
         
@@ -9447,8 +9418,8 @@ case "adminapproval": {
 break
 case "closetime": {
     if (!m.isGroup) return reply(mess.group);
-    if (!m.isAdmin) return reply(mess.notadmin);
-    if (!m.isBotAdmin) return reply(mess.botadmin);
+    if (!isSenderAdmin) return reply(mess.notadmin);
+    if (!isBotAdmin) return reply(mess.botadmin);
     
 
     // Check if both arguments are provided
@@ -9486,8 +9457,8 @@ case "closetime": {
 break
 case "opentime": {
         if (!m.isGroup) return reply(mess.group);
-        if (!m.isAdmin) return reply(mess.notadmin);
-        if (!m.isBotAdmin) return reply(mess.botadmin);
+        if (!isSenderAdmin) return reply(mess.notadmin);
+        if (!isBotAdmin) return reply(mess.botadmin);
 
     const duration = args[0];
     if (!args[1] || typeof args[1] !== 'string') return reply("*Select unit:*\nseconds\nminutes\nhours\ndays\n\n*Example:*\n10 seconds");
@@ -9532,8 +9503,8 @@ if (!m.isGroup) return reply(mess.group);
 break
 case "mediatag": {
         if (!m.isGroup) return reply(mess.group);
-        if (!m.isAdmin) return reply(mess.notadmin);
-        if (!m.isBotAdmin) return reply(mess.botadmin);
+        if (!isSenderAdmin) return reply(mess.notadmin);
+        if (!isBotAdmin) return reply(mess.botadmin);
         if (!m.quoted) return reply(`Reply to any media with caption ${prefix + command}`);
 
         conn.sendMessage(m.chat, {
@@ -9565,8 +9536,8 @@ if (!Access) return reply(mess.owner);
 break
 case 'antilink': {
       if (!m.isGroup) return reply(mess.group);
-      if (!m.isAdmin) return reply(mess.notadmin);
-      if (!m.isBotAdmin) return reply(mess.botadmin);
+      if (!isSenderAdmin) return reply(mess.notadmin);
+      if (!isBotAdmin) return reply(mess.botadmin);
     
     const subcommand = args[0]?.toLowerCase();
     const action = args[1]?.toLowerCase();
@@ -9614,8 +9585,8 @@ Current Mode: ${getSetting(botNumber, 'antilinkaction', 'delete')}`);
 }
 case 'antitag': {
         if (!m.isGroup) return reply(mess.group);
-        if (!m.isAdmin) return reply(mess.notadmin);
-        if (!m.isBotAdmin) return reply(mess.botadmin);
+        if (!isSenderAdmin) return reply(mess.notadmin);
+        if (!isBotAdmin) return reply(mess.botadmin);
     
     const subcommand = args[0]?.toLowerCase();
     const action = args[1]?.toLowerCase();
@@ -9726,8 +9697,8 @@ case "setppgroup": {
 break
 case "setgroupname": {
        if (!m.isGroup) return reply(mess.group);
-        if (!m.isAdmin) return reply(mess.notadmin);
-        if (!m.isBotAdmin) return reply(mess.botadmin);
+        if (!isSenderAdmin) return reply(mess.notadmin);
+        if (!isBotAdmin) return reply(mess.botadmin);
         if (!text) return reply("*Desired groupname?*");
 
         await conn.groupUpdateSubject(m.chat, text);
@@ -9754,8 +9725,8 @@ case "tagall2": {
 try {
         
         if (!m.isGroup) return reply(mess.group);
-        if (!m.isAdmin) return reply(mess.notadmin);
-        if (!m.isBotAdmin) return reply(mess.botadmin);
+        if (!isSenderAdmin) return reply(mess.notadmin);
+        if (!isBotAdmin) return reply(mess.botadmin);
 
         let message = "📢 *Attention Everyone!* \n\n";
         const mentions = participants.map(p => p.id);
@@ -9809,16 +9780,16 @@ break
 case "unmute":
 case "open": {
         if (!m.isGroup) return reply(mess.group);
-        if (!m.isAdmin) return reply(mess.notadmin);
-        if (!m.isBotAdmin) return reply(mess.botadmin);
+        if (!isSenderAdmin) return reply(mess.notadmin);
+        if (!isBotAdmin) return reply(mess.botadmin);
         conn.groupSettingUpdate(m.chat, "not_announcement");
         reply("Group opened by admin. Members can now send messages.");
 }
 break
 case "add": {
         if (!m.isGroup) return reply(mess.group);
-        if (!m.isAdmin) return reply(mess.notadmin);
-        if (!m.isBotAdmin) return reply(mess.botadmin);
+        if (!isSenderAdmin) return reply(mess.notadmin);
+        if (!isBotAdmin) return reply(mess.botadmin);
          if (!text) return reply(`*Please provide phone number with no country code.*\nExample: ${prefix + command} 256755585369`);
 
 
@@ -9832,8 +9803,8 @@ case "add": {
 break
 case "kick": {       
         if (!m.isGroup) return reply(mess.group);
-       if (!m.isAdmin) return reply(mess.notadmin);
-       if (!m.isBotAdmin) return reply(mess.botadmin);
+       if (!isSenderAdmin) return reply(mess.notadmin);
+       if (!isBotAdmin) return reply(mess.botadmin);
         let bck = m.mentionedJid[0]
             ? m.mentionedJid[0]
             : m.quoted
@@ -9847,8 +9818,8 @@ case "kick2": {
 try {
       
         if (!m.isGroup) return reply(mess.group);
-       if (!m.isAdmin) return reply(mess.notadmin);
-       if (!m.isBotAdmin) return reply(mess.botadmin);
+       if (!isSenderAdmin) return reply(mess.notadmin);
+       if (!isBotAdmin) return reply(mess.botadmin);
     
         const userId = mentionedJid?.[0] || m.quoted?.sender;
         if (!userId) return reply("ℹ️ Please mention or quote the user to kick");
@@ -9934,8 +9905,8 @@ try {
 break
 case "resetlinkgc": {
 if (!m.isGroup) return reply(mess.group)
-if (!m.isAdmin) return reply(mess.notadmin);
-if (!m.isBotAdmin) return reply(mess.botadmin);
+if (!isSenderAdmin) return reply(mess.notadmin);
+if (!isBotAdmin) return reply(mess.botadmin);
 
 conn.groupRevokeInvite(from)
 reply("*group link reseted by admin*" )
@@ -9944,8 +9915,8 @@ break
 case "userjid":
 case "userid": {
 if (!m.isGroup) return reply(mess.group);
-if (!m.isAdmin) return reply(mess.notadmin);
-    if (!m.isBotAdmin) return reply(mess.botadmin);
+if (!isSenderAdmin) return reply(mess.notadmin);
+    if (!isBotAdmin) return reply(mess.botadmin);
         const groupMetadata = m.isGroup
             ? await conn.groupMetadata(m.chat).catch((e) => {})
             : "";
