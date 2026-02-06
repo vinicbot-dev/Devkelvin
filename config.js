@@ -55,10 +55,12 @@ global.antilinkkick = false;
 
 
 // ========= Other Global Settings ========= //
+global.SESSION_ID = process.env.SESSION_ID || '';
+global.postgresqls = process.env.DATABASE_URL || "";
+
 global.welcome = true;
 global.adminevent = true;
-global.AI_CHAT = "false", // Set to "true" to enable AI chatbot by default
-
+global.AI_CHAT = "false"; // Set to "true" to enable AI chatbot by default
 
 
 // ========= Add modeStatus and versions ========= //
