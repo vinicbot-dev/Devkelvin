@@ -1,6 +1,24 @@
 console.clear();
 console.log('Starting Jexploit with much love from Kelvin Tech...');
 
+process.on('uncaughtException', (err) => {
+    console.error('⚠️ Uncaught Exception:', err.message);
+    console.error('📄 Stack:', err.stack);
+    // Don't exit - just log and continue running
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('⚠️ Unhandled Rejection at:', promise);
+    console.error('📄 Reason:', reason);
+    // Don't exit - just log and continue running
+});
+
+process.on('exit', (code) => {
+    console.log(`⚠️ Process trying to exit with code: ${code}, preventing...`);
+    // Force the process to continue running
+    setImmediate(() => {});
+});
+
 
 
 
