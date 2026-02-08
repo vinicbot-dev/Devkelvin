@@ -210,7 +210,7 @@ try {
 
 
 
-const isCmd = body.startsWith(prefix);
+const isCmd = body?.startsWith(prefix);
 const trimmedBody = isCmd ? body.slice(prefix.length).trimStart() : "";
 const command = isCmd ? body.slice(prefix.length).trim().split(/ +/).shift().toLowerCase() : "";
 const args = isCmd ? body.slice(prefix.length).trim().split(/ +/).slice(1) : [];
