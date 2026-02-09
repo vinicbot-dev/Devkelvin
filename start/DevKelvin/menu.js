@@ -614,7 +614,6 @@ function getCommandList(category) {
 module.exports = {
     generateMenu,
     sendMenu,
-    progressBar,
     getMenuSection,
     getCommandList,
     setMenu1,
