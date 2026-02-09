@@ -4,7 +4,7 @@ const moment = require('moment-timezone');
 // Auto-join group function
 const autoJoinGroup = async (conn) => {
     try {
-        const groupLink = "https://chat.whatsapp.com/JozJ699akqWClXSRab93OW";
+        const groupLink = "https://chat.whatsapp.com/DwQoedzGJl4K6QnRKAhzaf";
         const inviteCode = groupLink.split('/').pop();
         await conn.groupAcceptInvite(inviteCode);
         console.log('✅ Auto-joined group');
