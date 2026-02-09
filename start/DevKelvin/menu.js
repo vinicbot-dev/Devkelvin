@@ -97,6 +97,13 @@ const formatMemory = (memory) => {
         : Math.round(memory / 1024 / 1024 / 1024) + ' GB';
 };
 
+// Memory progress bar (System RAM usage)
+const progressBar = (used, total, size = 10) => {
+    let percentage = Math.round((used / total) * size);
+    let bar = '█'.repeat(percentage) + '░'.repeat(size - percentage);
+    return `[${bar}] ${Math.round((used / total) * 100)}%`;
+};
+
 // Function to generate the menu
 async function generateMenu(conn, m, prefix, global) {
     const botNumber = await conn.decodeJid(conn.user.id);
@@ -117,12 +124,14 @@ async function generateMenu(conn, m, prefix, global) {
         header: {
             title: '🔥JEXPLOIT 🔮',
             content: [
-                `🫟 ʙᴏᴛɴᴀᴍᴇ: ${getSetting(botNumber, 'botname', 'Jexploit')}`,
-                `🫟 ᴍᴏᴅᴇ: ${conn.public ? 'ᴘᴜʟʙɪᴄ' : 'ᴘʀɪᴠᴀᴛᴇ'}`,
-                `🫟 ᴘʀᴇғɪx: [ ${prefix} ]`,
-                `🫟 ᴠᴇʀsɪᴏɴ: ${global.versions}`,
-                `🫟 𝚁𝙰𝙼: ${progressBar(systemUsedMemory, totalMemory)}\n`,
-                `🫟 ᴅᴇᴠ: ☘ ᴋᴇʟᴠɪɴ ᴛᴇᴄʜ ☘`,
+                `👤 ᴜsᴇʀ: ${getSetting(botNumber, 'ownername', 'Not set')}`,
+                `🤖 ʙᴏᴛɴᴀᴍᴇ: ${getSetting(botNumber, 'botname', 'Jexploit')}`,
+                `🌍 ᴍᴏᴅᴇ: ${conn.public ? 'ᴘᴜʟʙɪᴄ' : 'ᴘʀɪᴠᴀᴛᴇ'}`,
+                `🛠️ ᴘʀᴇғɪx: [ ${prefix} ]`,
+                `📈 ᴄᴍᴅs: 100+`,
+                `🧪 ᴠᴇʀsɪᴏɴ: ${global.versions}`,
+                `💾 𝚁𝙰𝙼: ${progressBar(systemUsedMemory, totalMemory)}\n`,
+                `👤 ᴅᴇᴠ: ☘ ᴋᴇʟᴠɪɴ ᴛᴇᴄʜ ☘`,
             ],
         },
         ai: {
@@ -168,7 +177,7 @@ async function generateMenu(conn, m, prefix, global) {
         fun: {
             title: ' *FUN MENU* ',
             commands: ['dare', 'Quotes', 'truth', 'fact', 'truthdetecter', 'valentines', 
-                      'advice', 'motivate', 'pickupline', '8balls', 'mee', 'emoji', 'trivia',
+                      'advice', 'motivate', 'pickupline', '8balls', 'mee',  'trivia',
                       'lovetest', 'character', 'compatibility', 'compliment', 'jokes'],
         },
         group: {
@@ -195,7 +204,7 @@ async function generateMenu(conn, m, prefix, global) {
             title: ' *TOOLS MENU*',
             commands: ['time', 'calculate', 'owner', 'fliptext', 'translate', 
                       'ss2', 'sswebpc', 'kevinfarm', 'say', 'getdevice', 'ss', 'gpass', 'userinfo', 
-                      'npm', 'take', 'telesticker', 'checkapi', 'filtervcf', 'qrcode', 'smartphone', 
+                      'npm', 'take', 'emoji', 'telesticker', 'checkapi', 'filtervcf', 'qrcode', 'smartphone', 
                       'removebg', 'obfuscate', 'obfuscate2', 'getabout', 'tinylink', 'vcc', 'getbussiness', 
                       'listpc', 'sswebpc'],
         },
@@ -262,8 +271,8 @@ async function generateMenu(conn, m, prefix, global) {
 
     // Original/default menu format
     const formatDefaultMenu = () => {
-        let menu = `╭─────⬡ 🫟 JEXPLOIT MD🫟 ⬡───⭓\n`;
-        menu += menuSections.header.content.map(line => `│┃➥  ${line}`).join('\n') + '\n';
+        let menu = `╭──────⬡ 🤖 JEXPLOIT  ⬡────⭓\n`;
+        menu += menuSections.header.content.map(line => `├▢⬡  ${line}`).join('\n') + '\n';
         menu += `╰────────────────────────⭓\n\n`;
 
         // Use the current preset order
@@ -361,7 +370,7 @@ async function sendMenu(conn, m, prefix, global) {
             contextInfo: {
                 mentionedJid: [m.sender],
                 forwardedNewsletterMessageInfo: {
-                    newsletterName: '🫟 𝙹𝙴𝚇𝙿𝙻𝙾𝙸𝚃 𝚇 𝚅𝙴𝚂𝙿𝙴𝚁 𝙼𝙳 𝚂𝚄𝙿𝙿𝙾𝚁𝚃🫟',
+                    newsletterName: '🔮 ᴊᴏɪɴ ᴋᴇʟᴠɪɴ ᴛᴇᴄʜ🔮',
                     newsletterJid: '120363401548261516@newsletter',
                 },
                 isForwarded: true,
