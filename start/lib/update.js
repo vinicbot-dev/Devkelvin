@@ -172,7 +172,7 @@ async function updateCommand(conn, Access, chatId, message, zipOverride) {
             await conn.sendMessage(chatId, { text: `${summary}\nDependency installation`, edit: statusMessage.key });
         } else {
             await conn.sendMessage(chatId, { text: 'Archive update download', edit: statusMessage.key });
-            const { copiedFiles } = await updateViaZip(zipOverride || settings.updateZipUrl || process.env.UPDATE_ZIP_URL);
+            const { copiedFiles } = await updateViaZip(zipOverride || `${global.updateZipUrl}` || process.env.UPDATE_ZIP_URL);
             await conn.sendMessage(chatId, { text: `Archive extraction: ${copiedFiles.length} files\nDependency installation`, edit: statusMessage.key });
         }
 
