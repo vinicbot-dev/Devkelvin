@@ -213,8 +213,8 @@ async function generateMenu(conn, m, prefix, global) {
             commands: [
                 'addowner', '𝙸𝚍𝚌𝚑', '𝙲𝚛𝚎𝚊𝚝𝚎𝚌𝚑', 'creategroup', 'del', 'setpp', 'delpp', 'private', 'public',
                 'lastseen', 'setprefix', 'togroupstatus', 'groupid', 'readreceipts', 'reportbug', 'clearchat', 
-                'hack', 'groupjids', 'broadcast', 
-                'react', 'restart', 'currentmenu', 'addignorelist', 'delignorelist', 'deljunk', 'cleansession', 'settings',
+               'groupjids', 'broadcast', 
+                'react', 'restart', 'currentmenu', 'addignorelist', 'delignorelist', 'deljunk', 'cleansession', 'settings', 'update',
                 'listblocked', 'listsudo', 'setprofilename', 'listignored', 'online', 'join', 
                 'leave', 'setbio', 'resetsettings', 'backup', 'reqeust', 'block',  'toviewonce', 
                 'setownername', 'setawesomemenu', 'resetawesomemenu', 'setbotname', 'unblock', 'unblockall', 'gcaddprivacy', 
@@ -614,6 +614,7 @@ function getCommandList(category) {
 module.exports = {
     generateMenu,
     sendMenu,
+    progressBar,
     getMenuSection,
     getCommandList,
     setMenu1,
