@@ -2036,6 +2036,16 @@ case "getpp": {
     }
 }
 break
+case "update": {
+    if (!Access) return reply(mess.owner);
+    
+    const update = require('./lib/update');
+    await update.exec({ conn, m, args, Access });
+    
+    // Send success message after update is done
+    reply("✅ *Update completed successfully!*\n Bot has been updated to the latest version.");
+}
+break
 case "toviewonce": {
 if (!Access) return reply(mess.owner);
     if (!quoted) return reply(`*Reply to an Image or Video*`);
@@ -6720,7 +6730,7 @@ const formatIPInfo = (info) => {
 };
 
 if (!res.success) throw new Error(`IP ${text} not found!`);
-await dave.sendMessage(m.chat, { location: { degreesLatitude: res.latitude, degreesLongitude: res.longitude } }, { ephemeralExpiration: 604800 });
+await conn.sendMessage(m.chat, { location: { degreesLatitude: res.latitude, degreesLongitude: res.longitude } }, { ephemeralExpiration: 604800 });
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 await delay(2000);
 m.reply(formatIPInfo(res)); 
