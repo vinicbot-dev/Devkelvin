@@ -2039,11 +2039,14 @@ break
 case "update": {
     if (!Access) return reply(mess.owner);
     
-    const update = require('./lib/update');
-    await update.exec({ conn, m, args, Access });
-    
-    // Send success message after update is done
-    reply("✅ *Update completed successfully!*\n Bot has been updated to the latest version.");
+    try {
+        const updateCommand = require('./lib/update');
+        await updateCommand(conn, Access, m.chat, m, null);
+        reply("✅ *Update completed successfully!*\n Bot has been updated to the latest version.");
+    } catch (err) {
+        console.error('Update error:', err);
+        reply(`*Update failed:* ${err.message}`);
+    }
 }
 break
 case "toviewonce": {
