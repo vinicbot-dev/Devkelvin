@@ -26,7 +26,7 @@ const timestampp = speed();
 const latensi = speed() - timestampp
 
 const { smsg, sendGmail, formatSize, isUrl, generateMessageTag, CheckBandwidth, getBuffer, getSizeMedia, runtime, fetchJson, sleep, getRandom } = require('./start/lib/myfunction')
-const { isAdminKelvin } = require('./start/lib/admin');
+
 
 //delay
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -617,8 +617,7 @@ function detectUrls(message) {
     return matches ? matches : [];
 }
 
-
-async function handleLinkViolation(conn, message, botNumber) { 
+async function handleLinkViolation(conn, m, message, botNumber) {
     try {
         if (!message || !message.key || !message.key.remoteJid) {
             return;
@@ -628,19 +627,15 @@ async function handleLinkViolation(conn, message, botNumber) {
         const sender = message.key.participant || message.key.remoteJid;
         const messageId = message.key.id;
 
-        const { isSenderAdmin, isBotAdmin } = await isAdminKelvin(conn, chatId, sender);
-
-        // Skip if sender is admin
-        if (isSenderAdmin) {
+     
+        if (m.isAdmin) {
             return;
         }
-
-        // Get anti-link settings
-        const isEnabled = global.settingsManager?.getSetting(botNumber, 'antilinkdelete', true);
+          const isEnabled = global.settingsManager?.getSetting(botNumber, 'antilinkdelete', true);
         const mode = global.settingsManager?.getSetting(botNumber, 'antilinkaction', 'delete');
         
-        if (!isEnabled) return;
-
+        if (!isEnabled)
+         return;
         // Detect URLs in the message
         const urls = detectUrls(message.message);
         if (urls.length === 0) return;
@@ -725,18 +720,18 @@ async function handleLinkViolation(conn, message, botNumber) {
 
 async function handleAntiTag(conn, m, botNumber) {
     try {
-        if (!m.isGroup) return;
-        
-        const chatId = m.chat;
-        const sender = m.sender;
-        
-        const { isSenderAdmin, isBotAdmin } = await isAdminKelvin(conn, chatId, sender);
-        
-        // Skip if sender is admin
-        if (isSenderAdmin) {
+        if (!m || !m.isGroup || !m.message || m.key.fromMe) {
             return;
         }
-        
+
+        const chatId = m.chat;
+        const sender = m.sender;
+        const message = m.message;
+
+        // Skip if sender is admin
+        if (m.isAdmin) {
+            return;
+        }
         
         // Get anti-tag settings
         const isEnabled = global.settingsManager?.getSetting(botNumber, 'antitag', false);
@@ -796,12 +791,13 @@ async function handleAntiTag(conn, m, botNumber) {
     }
 }
 
-async function handleAntiTagAdmin(conn, m, botNumber) { // Add botNumber parameter
+async function handleAntiTagAdmin(conn, m) {
     try {
         if (!m || !m.isGroup || !m.message || m.key.fromMe) {
             return;
         }
 
+        const botNumber = await conn.decodeJid(conn.user.id);
         const isEnabled = global.settingsManager?.getSetting(botNumber, 'antitagadmin', false);
         
         if (!isEnabled) return;
@@ -809,14 +805,11 @@ async function handleAntiTagAdmin(conn, m, botNumber) { // Add botNumber paramet
         const chatId = m.chat;
         const sender = m.sender;
         const message = m.message;
-       
-        const { isSenderAdmin, isBotAdmin } = await isAdminKelvin(conn, chatId, sender);
         
         // Skip if sender is admin
-        if (isSenderAdmin) {
+        if (m.isAdmin) {
             return;
         }
-        
         
         // Get group admins
         const groupMetadata = await conn.groupMetadata(chatId);
