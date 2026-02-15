@@ -262,8 +262,8 @@ if (m.isGroup) {
     }
 }
 
-const peler = fs.readFileSync('./start/lib/media/Jexploit.jpg')
-const cina = fs.readFileSync('./start/lib/media/Jex.jpg')
+const peler = fs.readFileSync('./start/lib/Media/Jexploit.jpg')
+const cina = fs.readFileSync('./start/lib/Media/Jex.jpg')
 function getRandomImage() {
 const randomIndex = Math.floor(Math.random() * cina.length)
 return cina[randomIndex]
@@ -2565,21 +2565,20 @@ break
 case "alive": {
     const botUptime = runtime(process.uptime());
     
-    // Array of image URLs
     const imageUrls = [
-        "https://files.catbox.moe/1a4dbr.jpg",
-        "https://files.catbox.moe/9sazwf.jpg"
+        "./start/lib/Media/Jexploit1.jpg",
+        "./start/lib/Media/Jexploit2.jpg"   
     ];
     
     // Array of audio URLs
     const audioUrls = [
-        "https://files.catbox.moe/ndrrz3.mp3",
-        "https://files.catbox.moe/yny58w.mp3",
-        "https://files.catbox.moe/ckie6b.m4a",
-        "https://files.catbox.moe/e0dwjw.mp3",
-        "https://files.catbox.moe/sbaian.mp3",
-        "https://files.catbox.moe/zhr5m2.mp3"
-        
+        './start/lib/Media/JexAudio1.mp3',
+        './start/lib/Media/JexAudio2.mp3',
+        './start/lib/Media/JexAudio3.mp3',
+        './start/lib/Media/JexAudio4.mp3',
+        './start/lib/Media/JexAudio5.mp3',
+        './start/lib/Media/JexAudio6.mp3',
+        './start/lib/Media/JexAudio7.mp3'
     ];
     
     // Randomly select an image URL
@@ -2596,22 +2595,29 @@ case "alive": {
             caption: `*🌹Hi. I am 👑 ${getSetting(botNumber, 'botname', 'JEXPLOIT')}, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime:${botUptime}*`
         },
         { quoted: m }
-    );
+    ).catch(err => {
+        console.error('Image failed:', err.message);
+        // Fallback if image fails
+        return conn.sendMessage(m.chat, {
+            text: `*🌹Hi. I am 👑 ${getSetting(botNumber, 'botname', 'JEXPLOIT')}, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime:${botUptime}*`
+        }, { quoted: m });
+    });
     
-    // Send the randomly selected audio as PTT
+    // Send the randomly selected audio as audio (not PTT)
     await conn.sendMessage(
         m.chat,
         {
             audio: { url: randomAudioUrl },
-            mp3: true,
-            mimetype: 'audio/mp4'
+            mimetype: 'audio/mpeg'  
         },
         { quoted: m }
-    );
+    ).catch(err => console.error('Audio failed:', err.message)); 
+    
+    break;
 }
-break
+
 case 'botinfo': {
-  const botInfo = `
+    const botInfo = `
 ╭─ ⌬ Bot Info
 │ • Name     : ${botname}
 │ • Owner    : ${ownername}
@@ -2619,43 +2625,56 @@ case 'botinfo': {
 │ • ᴄᴍᴅs    : 100+
 │ • Developer: Kelvin tech
 │ • Runtime  : ${runtime(process.uptime())}
-╰─────────────`
+╰─────────────`;
 
-  const imageUrl = "https://files.catbox.moe/1a4dbr.jpg";
-  
-  // Array of audio URLs
-  const audioUrls = [
-        "https://files.catbox.moe/ndrrz3.mp3",
-        "https://files.catbox.moe/yny58w.mp3",
-        "https://files.catbox.moe/ckie6b.m4a",
-        "https://files.catbox.moe/e0dwjw.mp3",
-        "https://files.catbox.moe/sbaian.mp3",
-        "https://files.catbox.moe/zhr5m2.mp3"
-        
+    const imageUrls = [
+        "./start/lib/Media/Jexploit1.jpg", 
+        "./start/lib/Media/Jexploit2.jpg"
     ];
-  // Randomly select an audio URL
-  const randomAudioUrl = audioUrls[Math.floor(Math.random() * audioUrls.length)];
-  
-  // Send the image with caption
-  await conn.sendMessage(
-      m.chat, 
-      { 
-          image: { url: imageUrl },
-          caption: `*🌹Hi. I am 👑 ${getSetting(botNumber, 'botname', 'Jexploit')}, a friendly WhatsApp bot.*${botInfo}`
-      },
-      { quoted: m }
-  );
-  
-  // Send the randomly selected audio as PTT
-  await conn.sendMessage(
-      m.chat,
-      {
-          audio: { url: randomAudioUrl },
-          mp3: true,
-          mimetype: 'audio/mp4'
-      },
-      { quoted: m }
-  );
+    
+    // Array of audio URLs
+    const audioUrls = [
+        './start/lib/Media/JexAudio1.mp3',
+        './start/lib/Media/JexAudio2.mp3',
+        './start/lib/Media/JexAudio3.mp3',
+        './start/lib/Media/JexAudio4.mp3',
+        './start/lib/Media/JexAudio5.mp3',
+        './start/lib/Media/JexAudio6.mp3',
+        './start/lib/Media/JexAudio7.mp3'
+    ];
+    
+    const randomImageUrl = imageUrls[Math.floor(Math.random() * imageUrls.length)];
+    
+    // Randomly select an audio URL
+    const randomAudioUrl = audioUrls[Math.floor(Math.random() * audioUrls.length)];
+    
+    // Send the image with caption
+    await conn.sendMessage(
+        m.chat, 
+        { 
+            image: { url: randomImageUrl },  
+            caption: `*🌹Hi. I am 👑 ${getSetting(botNumber, 'botname', 'Jexploit')}, a friendly WhatsApp bot.*${botInfo}`
+        },
+        { quoted: m }
+    ).catch(err => {
+        console.error('Image failed:', err.message);
+        // Fallback if image fails
+        return conn.sendMessage(m.chat, {
+            text: `*🌹Hi. I am 👑 ${getSetting(botNumber, 'botname', 'Jexploit')}, a friendly WhatsApp bot.*${botInfo}`
+        }, { quoted: m });
+    });
+    
+    // Send the randomly selected audio as audio
+    await conn.sendMessage(
+        m.chat,
+        {
+            audio: { url: randomAudioUrl },
+            mimetype: 'audio/mpeg'  // Fixed mimetype
+        },
+        { quoted: m }
+    ).catch(err => console.error('Audio failed:', err.message));
+    
+    break;
 }
 break
 case "bothosting": {
