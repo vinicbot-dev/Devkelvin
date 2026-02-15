@@ -1,20 +1,7 @@
 console.clear();
 console.log('Starting Jexploit with much love from Kelvin Tech...');
 
-process.on('uncaughtException', (err) => {
-    console.error('⚠️ Uncaught Exception:', err.message);
-    console.error('📄 Stack:', err.stack);
-});
 
-process.on('unhandledRejection', (reason, promise) => {
-    console.error('⚠️ Unhandled Rejection at:', promise);
-    console.error('📄 Reason:', reason);
-});
-
-process.on('exit', (code) => {
-    console.log(`⚠️ Process trying to exit with code: ${code}, preventing...`);
-    setImmediate(() => {});
-});
 
 const settings = require('./settings');
 const config = require('./config');
