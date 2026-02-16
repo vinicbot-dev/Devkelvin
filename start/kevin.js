@@ -156,26 +156,53 @@ const kontributor = JSON.parse(fs.readFileSync('./start/lib/database/owner.json'
 const botNumber = await conn.decodeJid(conn.user.id)
 
 
-function checkAccess(sender) {
-    // Normalize the sender number
-    const normalizedSender = sender.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
-    
-    // Get sudo users from database.json
-    const sudoUsers = getSudo(botNumber) || [];
-    
-    // Create array of all authorized numbers (normalized)
-    const authorizedNumbers = [
-        botNumber,
-        devKelvin,
-        ...(global.owner || []),
-        ...sudoUsers // Get from database.json instead of global.sudo
-    ].map(num => num.replace(/[^0-9]/g, "") + "@s.whatsapp.net");
-    
-    // Check if sender is in authorized list
-    return authorizedNumbers.includes(normalizedSender);
+async function checkAccess(sender) {
+    try {
+        // Normalize the sender number
+        const normalizedSender = sender.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
+        
+        // Get sudo users from database.json (with fallback to empty array)
+        let sudoUsers = [];
+        try {
+            sudoUsers = await getSudo(botNumber) || [];
+            // Ensure it's an array
+            if (!Array.isArray(sudoUsers)) {
+                console.log('⚠️ sudoUsers is not an array, converting...');
+                sudoUsers = sudoUsers ? [sudoUsers] : [];
+            }
+        } catch (error) {
+            console.error('Error getting sudo users:', error);
+            sudoUsers = [];
+        }
+        
+        // Ensure global.owner is array
+        const owners = Array.isArray(global.owner) ? global.owner : [];
+        
+        // Create array of all authorized numbers (normalized)
+        const authorizedNumbers = [
+            botNumber,
+            devKelvin,
+            ...owners,
+            ...sudoUsers
+        ]
+        .filter(num => num) // Remove null/undefined
+        .map(num => {
+            if (!num) return null;
+            // Handle both JIDs and numbers
+            const cleanNum = num.replace(/[^0-9]/g, "");
+            return cleanNum ? cleanNum + "@s.whatsapp.net" : null;
+        })
+        .filter(num => num); // Remove any nulls from mapping
+        
+        // Check if sender is in authorized list
+        return authorizedNumbers.includes(normalizedSender);
+    } catch (error) {
+        console.error('Error in checkAccess:', error);
+        return false; // Deny access on error
+    }
 }
 
-const Access = checkAccess(m.sender);
+const Access = await checkAccess(m.sender);
 
 // Initialize prefix
 let prefix = "."; // Default prefix
