@@ -9479,8 +9479,9 @@ if (!Access) return reply(mess.owner);
 }
 break
 case 'antilink': {
-    if (!m.isGroup) return reply('❌ This command is for groups only!');
-    if (!m.isAdmin && !Access) return reply(mess.admin);
+    if (!m.isGroup) return reply(mess.group);
+    if (!m.isAdmin && !Access) return reply(mess.notadmin);
+    if (!m.isBotAdmin) return reply(mess.botadmin);
     
     const mode = args[0]?.toLowerCase();
     
@@ -9524,8 +9525,9 @@ case 'antilink': {
     break;
 }
 case 'allowlink': {
-    if (!m.isGroup) return reply('❌ This command is for groups only!');
+    if (!m.isGroup) return reply(mess.group);
     if (!m.isAdmin && !Access) return reply(mess.admin);
+    if (!m.isBotAdmin) return reply(mess.botadmin);
     
     const action = args[0]?.toLowerCase();
     
@@ -9610,14 +9612,17 @@ case 'antidemote':
 case 'ad': {
     if (!m.isGroup) return reply(mess.group);
     if (!m.isAdmin && !Access) return reply(mess.admin);
+    if (!m.isBotAdmin) return reply(mess.botadmin);
   
     await antidemoteCommand(conn, m, args, botNumber);
+    
     break;
 }
 case 'antipromote':
 case 'ap': {
     if (!m.isGroup) return reply(mess.group);
     if (!m.isAdmin && !Access) return reply(mess.admin);
+    if (!m.isBotAdmin) return reply(mess.botadmin);
     
     await antipromoteCommand(conn, m, args, botNumber);
     break;
@@ -9625,6 +9630,7 @@ case 'ap': {
 case 'antitag': {
     if (!m.isGroup) return reply(mess.group);
     if (!m.isAdmin && !Access) return reply(mess.admin);
+    if (!m.isBotAdmin) return reply(mess.botadmin);
     
     const mode = args[0]?.toLowerCase();
     const action = args[1]?.toLowerCase();
@@ -9668,8 +9674,9 @@ case 'antitag': {
 }
 case 'antitagadmin':
 case 'antitagadm': {
-    if (!m.isGroup) return reply('❌ This command is for groups only!');
+    if (!m.isGroup) return reply(mess.group);
     if (!m.isAdmin && !Access) return reply(mess.admin);
+    if (!m.isBotAdmin) return reply(mess.botadmin);
     
     const mode = args[0]?.toLowerCase();
     
