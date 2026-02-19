@@ -1,7 +1,9 @@
 const timezones = global.timezones || "Africa/Kampala";
-const moment = require("moment-timezone")
+const moment = require("moment-timezone");
 const more = String.fromCharCode(8206);
 const readmore = more.repeat(4001);
+
+const db = require('../../start/Core/databaseManager');
 
 const { 
 loadStoredMessages,
@@ -12,8 +14,8 @@ async function handleAntiDelete(m, conn) {
     try {
         const botNumber = await conn.decodeJid(conn.user.id);
         
-        // Get anti-delete setting from database
-        const antideleteSetting = global.settingsManager?.getSetting(botNumber, 'antidelete', 'off');
+        // ✅ GET ANTI-DELETE SETTING FROM SQLITE
+        const antideleteSetting = await db.get(botNumber, 'antidelete', 'off');
         
         // Check if anti-delete is enabled
         if (!antideleteSetting || antideleteSetting === 'off') {
@@ -24,8 +26,6 @@ async function handleAntiDelete(m, conn) {
         let chatId = m.chat;
         let deletedBy = m.sender;
         const isGroup = chatId.endsWith('@g.us');
-
-        
 
         let storedMessages = loadStoredMessages();
         let deletedMsg = storedMessages[chatId]?.[messageId];
@@ -57,10 +57,8 @@ async function handleAntiDelete(m, conn) {
         let targetChat;
         if (antideleteSetting === 'private') {
             targetChat = conn.user.id; // Bot owner's inbox
-           
         } else if (antideleteSetting === 'chat') {
             targetChat = chatId; // Same chat where deletion happened
-            
         } else {
             return;
         }
@@ -153,8 +151,6 @@ ${readmore}
                 { quoted: quotedMessage }
             );
         }
-
-        
 
     } catch (err) {
         console.error("❌ Error processing deleted message:", err);
