@@ -1,4 +1,5 @@
 const axios = require("axios");
+const db = require('../../start/Core/databaseManager'); 
 
 // Message memory for conversation context
 let messageMemory = new Map();
@@ -27,8 +28,8 @@ async function handleAIChatbot(m, conn, body, from, isGroup, isCmd, prefix) {
     try {
         const botNumber = await conn.decodeJid(conn.user.id);
         
-        // Get chatbot setting from JSON manager
-        const AI_CHAT = global.settingsManager?.getSetting(botNumber, 'AI_CHAT', false);
+        // ✅ GET AI CHATBOT SETTING FROM SQLITE
+        const AI_CHAT = await db.get(botNumber, 'AI_CHAT', false);
         
         // Check if AI chatbot is enabled
         if (!AI_CHAT) {
@@ -113,7 +114,7 @@ async function handleAIChatbot(m, conn, body, from, isGroup, isCmd, prefix) {
             Respond as Vinic-Xmd AI:`;
 
             // Encode the prompt for the API
-            const query= encodeURIComponent(prompt);
+            const query = encodeURIComponent(prompt);
             
             // Use the API endpoint
             const apiUrl = `https://malvin-api.vercel.app/ai/venice?text=${query}`;
@@ -129,10 +130,10 @@ async function handleAIChatbot(m, conn, body, from, isGroup, isCmd, prefix) {
             }
         }
 
-        // Add footer to response
-          const finalResponse = `${response}\n\n> *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴊᴇxᴘʟᴏɪᴛ ᴀɪ*`;
+        //  footer to response
+        const finalResponse = `${response}\n\n> *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴊᴇxᴘʟᴏɪᴛ ᴀɪ*`;
         
-        // Add AI response to memory
+     
         updateMemory(from, response, false);
         
         await conn.sendMessage(from, {
