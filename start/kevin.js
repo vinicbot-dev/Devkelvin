@@ -47,6 +47,7 @@ const {
 } = require('./lib/myfunction')
 
 const { obfuscateJS } = require("./lib/encapsulation");
+const db = require('./Core/databaseManager');
 const { handleMediaUpload } = require('./lib/catbox');
 const {styletext, remind, Wikimedia, wallpaper} = require('./lib/scraper')
 const { 
@@ -74,6 +75,8 @@ const {
   storeMessage,
   ephoto,
   loadBlacklist,
+  antipromoteCommand,
+  antidemoteCommand,
   handleAntiTag,
   handleAntiTagAdmin,
   handleLinkViolation,
@@ -83,15 +86,6 @@ const {
   recordError,
   shouldLogError } = require('../Jex')
   
-const { 
-getSetting,
-updateSetting,
-getAllSettings,
-getSudo,
-addSudo,
-removeSudo,
-hasSudo
-} = require('./Core/settingManager');
 
 const { generateSettingsText, 
 getProfilePictureDescription,
@@ -156,46 +150,55 @@ const kontributor = JSON.parse(fs.readFileSync('./start/lib/database/owner.json'
 const botNumber = await conn.decodeJid(conn.user.id)
 
 
-function checkAccess(sender) {
-    // Normalize the sender number
-    const normalizedSender = sender.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
-    
-    // Get sudo users from database.json
-    const sudoUsers = getSudo(botNumber) || [];
-    
-    // Create array of all authorized numbers (normalized)
-    const authorizedNumbers = [
-        botNumber,
-        devKelvin,
-        ...(global.owner || []),
-        ...sudoUsers // Get from database.json instead of global.sudo
-    ].map(num => num.replace(/[^0-9]/g, "") + "@s.whatsapp.net");
-    
-    // Check if sender is in authorized list
-    return authorizedNumbers.includes(normalizedSender);
+async function checkAccess(sender) {
+    try {
+        // Normalize the sender number
+        const normalizedSender = sender.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
+        
+        const sudoUsers = await db.getSudo(botNumber) || [];
+        
+        // Get owners from database (you can store owners in db too)
+        const owners = await db.get(botNumber, 'owners', []);
+        
+        // Create array of all authorized numbers (normalized)
+        const authorizedNumbers = [
+            botNumber,
+            devKelvin,
+            ...owners,
+            ...sudoUsers
+        ]
+        .filter(num => num) // Remove null/undefined
+        .map(num => {
+            if (!num) return null;
+            const cleanNum = num.replace(/[^0-9]/g, "");
+            return cleanNum ? cleanNum + "@s.whatsapp.net" : null;
+        })
+        .filter(num => num); // Remove any nulls
+        
+        // Check if sender is in authorized list
+        return authorizedNumbers.includes(normalizedSender);
+    } catch (error) {
+        console.error('Error in checkAccess:', error);
+        return false;
+    }
 }
+const Access = await checkAccess(m.sender);
 
-const Access = checkAccess(m.sender);
-
-// Initialize prefix
 let prefix = "."; // Default prefix
 
-// Load prefix from settings manager
 try {
-    // Get prefix from database, default to "." if not found
-    prefix = getSetting(botNumber, 'prefix', '.');
+    // Get prefix from SQLite
+    prefix = await db.get(botNumber, 'prefix', '.');
 } catch (error) {
-    console.error('Error loading prefix from settings:', error);
+    console.error('Error loading prefix from database:', error);
     prefix = "."; // Fallback to default
 }
 
-// Load alwaysonline from settings manager
 try {
-    const alwaysonlineSetting = getSetting(botNumber, 'alwaysonline');
-    // Handle different possible values (boolean, string 'true'/'false', or undefined)
-    if (alwaysonlineSetting === undefined) {
-        global.alwaysonline = false; // Default value
-    } else if (typeof alwaysonlineSetting === 'boolean') {
+    const alwaysonlineSetting = await db.get(botNumber, 'alwaysonline', false);
+    
+    // Handle different possible values
+    if (typeof alwaysonlineSetting === 'boolean') {
         global.alwaysonline = alwaysonlineSetting;
     } else if (typeof alwaysonlineSetting === 'string') {
         global.alwaysonline = alwaysonlineSetting.toLowerCase() === 'true';
@@ -203,13 +206,12 @@ try {
         global.alwaysonline = false; // Fallback
     }
 } catch (error) {
-    console.error('Error loading alwaysonline from settings:', error);
+    console.error('Error loading alwaysonline from database:', error);
     global.alwaysonline = false; // Default fallback
 }
 
 
-
-const isCmd = body?.startsWith(prefix);
+const isCmd = body?.startsWith?.(prefix);
 const trimmedBody = isCmd ? body.slice(prefix.length).trimStart() : "";
 const command = isCmd ? body.slice(prefix.length).trim().split(/ +/).shift().toLowerCase() : "";
 const args = isCmd ? body.slice(prefix.length).trim().split(/ +/).slice(1) : [];
@@ -530,9 +532,13 @@ if (m.isGroup && body) {
     });
 }
 
-// Track active users in groups
+// Track active users in groups - FIX THIS SECTION
 if (m.isGroup && !m.key.fromMe && body && body.trim().length > 0) {
-    addUserMessage(from, sender);
+    try {
+        await addUserMessage(conn, from, sender);
+    } catch (error) {
+        console.error('Error tracking user activity:', error.message);
+    }
 }
 
 
@@ -660,55 +666,26 @@ case 'resetawesomemenu': {
     }
 }
 break
-case 'setprefix': {
-    if (!Access) return reply(mess.owner);
-    
-    const newPrefix = args[0];
-    if (!newPrefix || newPrefix.length < 1 || newPrefix.length > 3) {
-        return reply(`❌ Usage: ${prefix}setprefix <new_prefix>\nExample: ${prefix}setprefix !\nNote: Prefix must be 1-3 characters`);
-    }
-    
-    if (newPrefix.includes(' ')) {
-        return reply('❌ Prefix cannot contain spaces');
-    }
-    
-    // Get current prefix before update
-    const oldPrefix = getSetting(botNumber, 'prefix', '.');
-    
-    
-    const success = updateSetting(botNumber, 'prefix', newPrefix);
-    
-    if (success) {
-        // Update local variable
-        prefix = newPrefix;
-        
-        reply(`✅ Prefix updated to ${newPrefix}`);
-    } else {
-        reply('❌ Failed to update prefix');
-    }
-    break;
-}
 case 'antiedit': {
     if (!Access) return reply(mess.owner);
     
     const subcommand = args[0]?.toLowerCase();
-    const value = args[1]?.toLowerCase();
     
     if (!subcommand) {
-        return reply(`*Anti-Edit System*
-        
-Usage:
+        const currentMode = await db.get(botNumber, 'antiedit', 'off');
+        return reply(`*ANTI-EDIT SETTINGS*
+
+Current Mode: ${currentMode}
+
+📌 *Commands:*
 • ${prefix}antiedit on - Enable anti-edit (default: chat mode)
 • ${prefix}antiedit off - Disable anti-edit
 • ${prefix}antiedit chat - Send alerts to same chat
 • ${prefix}antiedit private - Send alerts to bot owner's inbox
 • ${prefix}antiedit status - Show current settings
 
-Current Mode: ${getSetting(botNumber, 'antiedit', 'off')}
-Enabled: ${getSetting(botNumber, 'antiedit', 'off') !== 'off' ? '✅' : '❌'}
-
-📌 *Modes:*
-• chat - Alerts sent to same chat where edit happened
+*Modes:*
+• chat - Alerts sent to same chat where editing happened
 • private - Alerts sent to bot owner's private inbox
 • off - Anti-edit disabled`);
     }
@@ -716,51 +693,49 @@ Enabled: ${getSetting(botNumber, 'antiedit', 'off') !== 'off' ? '✅' : '❌'}
     switch(subcommand) {
         case 'on': {
             // Default to chat mode when turning on
-            await updateSetting(botNumber, 'antiedit', 'chat');
-            reply(`*Successfully enabled antiedit chat mode*`);
+            await db.set(botNumber, 'antiedit', 'chat');
+            reply(`✅ Anti-edit enabled (chat mode)`);
             break;
         }
         
         case 'off': {
-            await updateSetting(botNumber, 'antiedit', 'off');
-            reply(`*Successfully disabled antiedit*`);
+            await db.set(botNumber, 'antiedit', 'off');
+            reply(`✅ Anti-edit disabled`);
             break;
         }
         
         case 'chat': {
-            // Enable with specified mode
-            await updateSetting(botNumber, 'antiedit', subcommand);
-            reply(`*Successfully enabled antiedit chat mode*`);
+            await db.set(botNumber, 'antiedit', 'chat');
+            reply(`✅ Anti-edit set to chat mode (alerts sent to same chat)`);
             break;
         }
         
         case 'private': {
-            // Enable with specified mode
-            await updateSetting(botNumber, 'antiedit', subcommand);
-            reply(`*Successfully enabled antiedit private mode*`);
+            await db.set(botNumber, 'antiedit', 'private');
+            reply(`✅ Anti-edit set to private mode (alerts sent to bot owner)`);
             break;
         }
         
         case 'status': {
-            const mode = getSetting(botNumber, 'antiedit', 'off');
-            const isEnabled = mode !== 'off';
+            const currentMode = await db.get(botNumber, 'antiedit', 'off');
+            let statusMsg = `*📊 ANTI-EDIT STATUS*\n\n`;
+            statusMsg += `Mode: *${currentMode}*\n`;
+            statusMsg += `Status: ${currentMode !== 'off' ? '✅ ENABLED' : '❌ DISABLED'}\n\n`;
             
-            reply(`*Anti-Edit Status*
+            if (currentMode === 'chat') {
+                statusMsg += `📍 Alerts will be sent to the same chat where editing occurred.`;
+            } else if (currentMode === 'private') {
+                statusMsg += `📍 Alerts will be sent to bot owner's private inbox.`;
+            } else {
+                statusMsg += `📍 Anti-edit is currently disabled.`;
+            }
             
-• Status: ${isEnabled ? '✅ Enabled' : '❌ Disabled'}
-• Mode: ${mode}
-• Alerts: ${mode === 'chat' ? 'Same chat where edit happens' : 
-           mode === 'private' ? 'Bot owner\'s private inbox' : 
-           'Not active'}
-
-📌 Captures: Edited text messages
-📌 Shows: Original text → Edited text`);
+            reply(statusMsg);
             break;
         }
         
         default: {
-            reply(`❌ Invalid subcommand. Use ${prefix}antiedit to see all options`);
-            break;
+            reply(`❌ Invalid option! Use: on, off, chat, private, status`);
         }
     }
     break;
@@ -772,6 +747,8 @@ case 'antidelete': {
     const value = args[1]?.toLowerCase();
     
     if (!subcommand) {
+        const currentMode = await db.get(botNumber, 'antidelete', 'off');
+        
         return reply(`*Anti-Delete System*
         
 Usage:
@@ -781,8 +758,8 @@ Usage:
 • ${prefix}antidelete private - Send alerts to bot owner's inbox
 • ${prefix}antidelete status - Show current settings
 
-Current Mode: ${getSetting(botNumber, 'antidelete', 'off')}
-Enabled: ${getSetting(botNumber, 'antidelete', 'off') !== 'off' ? '✅' : '❌'}
+Current Mode: ${currentMode}
+Enabled: ${currentMode !== 'off' ? '✅' : '❌'}
 
 📌 *Modes:*
 • chat - Alerts sent to same chat where deletion happened
@@ -792,157 +769,158 @@ Enabled: ${getSetting(botNumber, 'antidelete', 'off') !== 'off' ? '✅' : '❌'}
     
     switch(subcommand) {
         case 'on': {
-            // Default to chat mode when turning on
-            await updateSetting(botNumber, 'antidelete', 'chat');
+            // ✅ Default to chat mode when turning on
+            await db.set(botNumber, 'antidelete', 'chat');
             reply(`*Successfully enabled antidelete chat mode*`);
             break;
         }
         
         case 'off': {
-            await updateSetting(botNumber, 'antidelete', 'off');
+            // ✅ Save to SQLite
+            await db.set(botNumber, 'antidelete', 'off');
             reply(`*Successfully disabled antidelete*`);
             break;
         }
         
         case 'chat': {
-            // Enable with specified mode
-            await updateSetting(botNumber, 'antidelete', subcommand);
+            // ✅ Save to SQLite
+            await db.set(botNumber, 'antidelete', 'chat');
             reply(`*Successfully enabled antidelete chat mode*`);
             break;
         }
         
         case 'private': {
-            // Enable with specified mode
-            await updateSetting(botNumber, 'antidelete', subcommand);
+            // ✅ Save to SQLite
+            await db.set(botNumber, 'antidelete', 'private');
             reply(`*Successfully enabled antidelete private mode*`);
             break;
         }
         
         case 'status': {
-            const mode = getSetting(botNumber, 'antidelete', 'off');
-            const isEnabled = mode !== 'off';
-            
+            // ✅ Get current status from SQLite
+            const currentMode = await db.get(botNumber, 'antidelete', 'off');
             reply(`*Anti-Delete Status*
             
-• Status: ${isEnabled ? '✅ Enabled' : '❌ Disabled'}
-• Mode: ${mode}
-• Alerts: ${mode === 'chat' ? 'Same chat where deletion happens' : 
-           mode === 'private' ? 'Bot owner\'s private inbox' : 
-           'Not active'}
+Mode: ${currentMode}
+Enabled: ${currentMode !== 'off' ? '✅' : '❌'}
 
-📌 Captures: Text messages, images, videos, documents
-📌 Works in: Groups and private chats`);
-            break;
-        }
-        
-        case 'test': {
-            // Test the anti-delete feature
-            const mode = getSetting(botNumber, 'antidelete', 'off');
-            if (mode === 'off') {
-                reply('❌ Anti-delete is disabled. Enable it first with .antidelete on');
-                break;
-            }
-            
-            reply(`*Anti-Delete Test*
-            
-Anti-delete is working in *${mode}* mode
-Status: ✅ Active
-
-Send a message, delete it, and see the alert in:
-${mode === 'chat' ? '• This chat' : '• Bot owner\'s inbox'}
-
-Note: This only works for messages sent AFTER anti-delete was enabled.`);
+Chat Mode: Sends alerts to the same chat
+Private Mode: Sends alerts to bot owner's inbox`);
             break;
         }
         
         default: {
-            reply(`❌ Invalid subcommand. Use ${prefix}antidelete to see all options`);
-            break;
+            reply(`❌ Invalid subcommand. Use: on, off, chat, private, status`);
         }
     }
     break;
 }
-case "addowner": 
-case "addsudo": {
+// ========== PREFIX COMMAND ==========
+case 'setprefix':
+case 'prefix': {
     if (!Access) return reply(mess.owner);
     
-    if (m.chat.endsWith('@g.us') && !(m.mentionedJid && m.mentionedJid[0]) && !(m.quoted && m.quoted.sender)) {
-        return reply('Reply to or tag a person!');
+    const newPrefix = args[0];
+    if (!newPrefix) {
+        const currentPrefix = await db.get(botNumber, 'prefix', '.');
+        return reply(`*📝 PREFIX SETTINGS*\n\nCurrent prefix: *${currentPrefix}*\n\nUsage: ${currentPrefix}setprefix <new prefix>\nExample: ${currentPrefix}setprefix !`);
     }
-
-    let mentionedUser = m.mentionedJid && m.mentionedJid[0];
-    let quotedUser = m.quoted && m.quoted.sender;
-    let userToAdd = mentionedUser || quotedUser || (text ? text.replace(/\D/g, "") + "@s.whatsapp.net" : null) || m.chat;
-
-    if (!userToAdd) return reply('Mention a user or reply to their message to add them to the sudo list.');
-
-    // Add to database.json
-    const success = await addSudo(botNumber, userToAdd);
     
-    if (success) {
-        // Also update global.sudo for immediate use
-        if (!global.sudo) global.sudo = [];
-        if (!global.sudo.includes(userToAdd)) {
-            global.sudo.push(userToAdd);
-        }
-        await reply(`✅ +${userToAdd.split('@')[0]} added to the sudo list.\nThey can now use any function of the bot even in private mode.`);
-    } else {
-        await reply(`ℹ️ +${userToAdd.split('@')[0]} is already a sudo user.`);
-    }  
+    await db.set(botNumber, 'prefix', newPrefix);
+    reply(`✅ Prefix has been changed to: *${newPrefix}*`);
     break;
 }
-case "listsudo": {
+case 'alwaysonline':
+case 'online': {
     if (!Access) return reply(mess.owner);
     
-    // Get sudo list from database.json
-    const sudoList = getSudo(botNumber);
+    const mode = args[0]?.toLowerCase();
+    if (!mode || !['on', 'off'].includes(mode)) {
+        const current = await db.get(botNumber, 'alwaysonline', false);
+        return reply(`❌ Usage: ${prefix}alwaysonline <on/off>\n\nCurrent: ${current ? 'ON ✅' : 'OFF ❌'}`);
+    }
     
-    // Also sync with global.sudo for consistency
-    global.sudo = sudoList;
-
-    if (sudoList.length === 0) {
-        reply('The sudo list is empty.');
+    const boolValue = mode === 'on';
+    await db.set(botNumber, 'alwaysonline', boolValue);
+    global.alwaysonline = boolValue; // Update global variable
+    
+    reply(`✅ Always online mode ${boolValue ? 'enabled' : 'disabled'}`);
+    break;
+}
+case 'addowner': {
+    if (!Access) return reply(mess.owner);
+    
+    const user = m.mentionedJid[0] || args[0];
+    if (!user) return reply('❌ Mention user or provide JID');
+    
+    // Get current owners
+    let owners = await db.get(botNumber, 'owners', []);
+    
+    // Normalize the JID
+    const normalizedJid = user.includes('@s.whatsapp.net') ? user : user + '@s.whatsapp.net';
+    
+    if (!owners.includes(normalizedJid)) {
+        owners.push(normalizedJid);
+        await db.set(botNumber, 'owners', owners);
+        reply(`✅ @${normalizedJid.split('@')[0]} added to owners list!`, { mentions: [normalizedJid] });
     } else {
-        let sudoText = '*SUDO USERS LIST*\n\n';
-        sudoList.forEach((jid, index) => {
-            const number = jid.split('@')[0];
-            sudoText += `${index + 1}. wa.me/${number}\n`;
+        reply(`❌ User is already an owner!`);
+    }
+    break;
+}
+
+case 'removeowner': {
+    if (!Access) return reply(mess.owner);
+    
+    const user = m.mentionedJid[0] || args[0];
+    if (!user) return reply('Mention user or provide JID');
+    
+    // Get current owners
+    let owners = await db.get(botNumber, 'owners', []);
+    
+    // Normalize the JID
+    const normalizedJid = user.includes('@s.whatsapp.net') ? user : user + '@s.whatsapp.net';
+    
+    const index = owners.indexOf(normalizedJid);
+    if (index > -1) {
+        owners.splice(index, 1);
+        await db.set(botNumber, 'owners', owners);
+        reply(`✅ @${normalizedJid.split('@')[0]} removed from owners list!`, { mentions: [normalizedJid] });
+    } else {
+        reply(`❌ User is not in owners list!`);
+    }
+    break;
+}
+
+case 'listowners': {
+    const owners = await db.get(botNumber, 'owners', []);
+    const sudo = await db.getSudo(botNumber);
+    
+    if (owners.length === 0 && sudo.length === 0) {
+        return reply('📋 No owners or sudo users found.');
+    }
+    
+    let message = `*AUTHORIZED USERS*\n\n`;
+    
+    if (owners.length > 0) {
+        message += `*📋 Owners:*\n`;
+        owners.forEach((jid, i) => {
+            message += `${i+1}. @${jid.split('@')[0]}\n`;
         });
-        sudoText += `\nTotal: ${sudoList.length} user(s)`;
-        reply(sudoText);
+        message += `\n`;
     }
-    break;
-}
-
-case "delsudo":
-case "removesudo": {
-    if (!Access) return reply(mess.owner);
     
-    if (m.chat.endsWith('@g.us') && !(m.mentionedJid && m.mentionedJid[0]) && !(m.quoted && m.quoted.sender)) {
-        return reply('Reply to or tag a person to remove!');
+    if (sudo.length > 0) {
+        message += `*Sudo Users:*\n`;
+        sudo.forEach((jid, i) => {
+            message += `${i+1}. @${jid.split('@')[0]}\n`;
+        });
     }
-
-    let mentionedUser = m.mentionedJid && m.mentionedJid[0];
-    let quotedUser = m.quoted && m.quoted.sender;
-    let userToRemove = mentionedUser || quotedUser || (text ? text.replace(/\D/g, "") + "@s.whatsapp.net" : null);
-
-    if (!userToRemove) return reply('Mention a user or reply to their message to remove them from sudo list.');
-
-    // Remove from database.json
-    const success = await removeSudo(botNumber, userToRemove);
     
-    if (success) {
-        // Also update global.sudo
-        if (global.sudo) {
-            const index = global.sudo.indexOf(userToRemove);
-            if (index > -1) {
-                global.sudo.splice(index, 1);
-            }
-        }
-        await reply(`✅ +${userToRemove.split('@')[0]} removed from sudo list.`);
-    } else {
-        await reply(`❌ +${userToRemove.split('@')[0]} is not in sudo list.`);
-    }
+    await conn.sendMessage(m.chat, {
+        text: message,
+        mentions: [...owners, ...sudo]
+    }, { quoted: m });
     break;
 }
 case "setownernumber": {
@@ -965,30 +943,39 @@ case "setownernumber": {
     }
 
     // Store the old number for comparison
-    const oldNumber = getSetting(botNumber, 'ownernumber', 'Not set');
+    const oldNumber = await db.get(botNumber, 'ownernumber', 'Not set');
 
-    // Update owner number in SettingsManager
-    await updateSetting(botNumber, 'ownernumber', newNumber);
+    // Update owner number in SQLite
+    await db.set(botNumber, 'ownernumber', newNumber);
 
-    // Update owner array in global
+    // Update owner array in database
     const newOwnerJid = newNumber + "@s.whatsapp.net";
-    global.owner = [newOwnerJid]; // Replace entire array with new owner
+    const currentOwners = await db.get(botNumber, 'owners', []);
+    
+    // Add new owner to owners list if not already there
+    if (!currentOwners.includes(newOwnerJid)) {
+        currentOwners.push(newOwnerJid);
+        await db.set(botNumber, 'owners', currentOwners);
+    }
 
-    // Update sudo array if needed
-    if (!global.sudo) global.sudo = [];
-    if (!global.sudo.includes(newOwnerJid)) {
-        global.sudo.push(newOwnerJid);
+    // Update global for current session
+    global.owner = [newOwnerJid];
+
+    // Add to sudo if not already there
+    const currentSudo = await db.getSudo(botNumber);
+    if (!currentSudo.includes(newOwnerJid)) {
+        await db.addSudo(botNumber, newOwnerJid);
     }
 
     reply(`✅ Owner number set to: ${newNumber}`);
-    
+    break;
 }
-break
 case "setownername": {
     if (!Access) return reply(mess.owner);
     
     if (!text) {
-        return reply(`*SET OWNER NAME*\n\n*Usage:* ${prefix}setownername [new owner name]\n*Example:* ${prefix}setownername Kelvin Tech\n\n*Current owner name:* ${getSetting(botNumber, 'ownername', 'Not set')}`);
+        const currentName = await db.get(botNumber, 'ownername', 'Not set');
+        return reply(`*SET OWNER NAME*\n\n*Usage:* ${prefix}setownername [new owner name]\n*Example:* ${prefix}setownername Kelvin Tech\n\n*Current owner name:* ${currentName}`);
     }
 
     try {
@@ -1001,24 +988,26 @@ case "setownername": {
             return reply('❌ *Owner name too short!* Minimum 2 characters required.');
         }
 
-        // Set the new owner name using SettingsManager
-        await updateSetting(botNumber, 'ownername', text.trim());
+        // Set the new owner name in SQLite
+        await db.set(botNumber, 'ownername', text.trim());
 
-        // Simple success message
+        // Update global for current session
+        global.ownername = text.trim();
+
         reply(`✅ Owner name set to: ${text.trim()}`);
 
     } catch (error) {
         console.error('Error in setownername command:', error);
         reply('❌ *Failed to update owner name.* Please try again.');
     }
-   
+    break;
 }
-break
 case "setbotname": {
     if (!Access) return reply(mess.owner);
     
     if (!text) {
-        return reply(`*SET BOT NAME*\n\n*Usage:* ${prefix}setbotname [new name]\n*Example:* ${prefix}setbotname Jexploit Pro\n\n*Current bot name:* ${getSetting(botNumber, 'botname', 'Not set')}`);
+        const currentName = await db.get(botNumber, 'botname', 'Not set');
+        return reply(`*SET BOT NAME*\n\n*Usage:* ${prefix}setbotname [new name]\n*Example:* ${prefix}setbotname Jexploit Pro\n\n*Current bot name:* ${currentName}`);
     }
 
     try {
@@ -1031,42 +1020,19 @@ case "setbotname": {
             return reply('❌ *Bot name too short!* Minimum 2 characters required.');
         }
 
-        // Set the new bot name using SettingsManager
-        await updateSetting(botNumber, 'botname', text.trim());
+        // Set the new bot name in SQLite
+        await db.set(botNumber, 'botname', text.trim());
 
-        // Simple success message
+        // Update global for current session
+        global.botname = text.trim();
+
         reply(`✅ Bot name set to: ${text.trim()}`);
 
     } catch (error) {
         console.error('Error in setbotname command:', error);
         reply('❌ *Failed to update bot name.* Please try again.');
     }
-    
-}
-break
-case 'delsudo': {
-  if (!Access) return reply(mess.owner);
-  
-  if (m.chat.endsWith('@g.us') && !(m.mentionedJid && m.mentionedJid[0]) && !(m.quoted && m.quoted.sender)) {
-    return reply('Reply to or tag a person!');
-  }
-
-  let mentionedUser = m.mentionedJid && m.mentionedJid[0];
-  let quotedUser = m.quoted && m.quoted.sender;
-  let userToRemove = mentionedUser || quotedUser || (text ? text.replace(/\D/g, "") + "@s.whatsapp.net" : null) || m.chat;
-
-  if (!userToRemove) return reply('Mention a user or reply to their message to remove them from the sudo list.');
-
-  const sudoList = global.sudo;
-  const index = sudoList.indexOf(userToRemove);
-
-  if (index !== -1) {
-    sudoList.splice(index, 1);
-    await reply(`+${userToRemove.split('@')[0]} removed from the sudo list.`);
-  } else {
-    await reply(`+${userToRemove.split('@')[0]} is not in the sudo list.`);
-  }
-  
+    break;
 }
 break
 case 'cekidch': case 'idch': {
@@ -1458,53 +1424,10 @@ if (!Access) return reply(mess.owner);
     reply(mess.done);
 }
 break
-case 'alwaysonline': {
-    if (!Access) return reply(mess.owner);
-    
-    const status = args[0]?.toLowerCase();
-    
-    if (!status || (status !== 'on' && status !== 'off')) {
-        const currentStatus = global.alwaysonline ? '✅ ON' : '❌ OFF';
-        return reply(`*Always Online Mode*\n\n` +
-            `Current Status: ${currentStatus}\n\n` +
-            `Usage: ${prefix}alwaysonline <on/off>\n\n` +
-            `• on - Bot will show as always online (green dot)\n` +
-            `• off - Bot will show as unavailable\n\n` +
-            `Note: This controls the bot's online status indicator in WhatsApp.`);
-    }
-    
-    const isEnabled = status === 'on';
-    
-    try {
-        // Save to database.json
-        const success = updateSetting(botNumber, 'alwaysonline', isEnabled);
-        
-        if (success) {
-            // Update global variable
-            global.alwaysonline = isEnabled;
-            
-            // Apply presence update immediately
-            if (isEnabled) {
-                await conn.sendPresenceUpdate("available", from);
-                reply('✅ Always online mode enabled successfully.');
-            } else {
-                await conn.sendPresenceUpdate("unavailable", from);
-                reply('Always online mode disabled');
-            }
-        } else {
-            reply('❌ Failed to save setting to database. Please try again.');
-        }
-    } catch (error) {
-        console.error('Error updating alwaysonline:', error);
-        reply('❌ Error updating always online setting. Please try again.');
-    }
-    
-}
-break
 case "public": {
 if (!Access) return reply(mess.owner) 
 conn.public = true
-reply(`*${getSetting(botNumber, 'botname', 'JEXPLOIT')} successfully changed to public mode*.`)
+reply(`*${global.botname} successfully changed to public mode*.`)
 }
 break
 case 'readviewonce': case 'vv': {
@@ -1575,7 +1498,7 @@ case "reboot": {
     if (!Access) return reply(mess.owner);
     
     try {
-        await reply(`*Restarting ${getSetting(botNumber, 'botname', 'Jexploit')} Bot...*\n\nPlease wait 10-15 seconds for the bot to restart.`);
+        await reply(`*Restarting ${global.botname} Bot...*\n\nPlease wait 10-15 seconds for the bot to restart.`);
         
         // A small delay to ensure the message is sent
         await sleep(2000);
@@ -1736,8 +1659,8 @@ Usage:
 • ${prefix}autoreactstatus status - Show current settings
 • ${prefix}autoreactstatus emoji <emoji> - Set custom reaction emoji
 
-Current Status: ${getSetting(botNumber, 'autoreactstatus', false) ? '✅ Enabled' : '❌ Disabled'}
-Current Emoji: ${getSetting(botNumber, 'statusemoji', '💚') || '💚'}
+Current Status: ${global.botname, 'autoreactstatus', false ? '✅ Enabled' : '❌ Disabled'}
+Current Emoji: ${global.botname, 'statusemoji', '💚' || '💚'}
 
 📌 Feature: Automatically reacts to status updates
 📌 Works on: All status updates
@@ -1788,252 +1711,175 @@ Bot automatically reacts to status updates when enabled.`);
     }
     break;
 }
-case 'autoviewstatus': {
-    if (!Access) return reply('❌ Owner only command');
+case 'autoviewstatus':
+case 'viewstatus': {
+    if (!Access) return reply(mess.owner);
     
-    const subcommand = args[0]?.toLowerCase();
-    
-    if (!subcommand) {
-        return reply(`👀 *Auto-View Status System*
-        
-Usage:
-• ${prefix}autoviewstatus on - Enable auto-view status
-• ${prefix}autoviewstatus off - Disable auto-view status
-• ${prefix}autoviewstatus status - Show current settings
-
-Current Status: ${getSetting(botNumber, 'autoviewstatus', false) ? '✅ Enabled' : '❌ Disabled'}
-
-📌 Feature: Automatically marks status updates as viewed
-📌 Works on: All status updates (stories)
-📌 Note: Privacy-friendly - uses official WhatsApp API`);
+    const mode = args[0]?.toLowerCase();
+    if (!mode || !['on', 'off'].includes(mode)) {
+        const current = await db.get(botNumber, 'autoviewstatus', false);
+        return reply(`❌ Usage: ${prefix}autoviewstatus <on/off>\n\nCurrent: ${current ? 'ON ✅' : 'OFF ❌'}`);
     }
     
-    switch(subcommand) {
-        case 'on': {
-            await updateSetting(botNumber, 'autoviewstatus', true);
-            reply(`✅ Auto-view status enabled\nAll status updates will be automatically marked as viewed`);
-            break;
-        }
-        
-        case 'off': {
-            await updateSetting(botNumber, 'autoviewstatus', false);
-            reply(`✅ Auto-view status disabled`);
-            break;
-        }
-        
-        case 'status': {
-            const isEnabled = getSetting(botNumber, 'autoviewstatus', false);
-            reply(`👀 *Auto-View Status Status*
-            
-• Status: ${isEnabled ? '✅ Enabled' : '❌ Disabled'}
-• Action: ${isEnabled ? 'Auto marks status as viewed' : 'Disabled'}
-
-Status updates are automatically marked as read when enabled.`);
-            break;
-        }
-        
-        default: {
-            reply(`❌ Invalid subcommand. Use ${prefix}autoviewstatus on/off/status`);
-            break;
-        }
+    const boolValue = mode === 'on';
+    await db.set(botNumber, 'autoviewstatus', boolValue);
+    reply(`✅ Auto-view status ${boolValue ? 'enabled' : 'disabled'}`);
+    break;
+}
+case 'autoreactstatus':
+case 'reactstatus': {
+    if (!Access) return reply(mess.owner);
+    
+    const mode = args[0]?.toLowerCase();
+    if (!mode || !['on', 'off'].includes(mode)) {
+        const current = await db.get(botNumber, 'autoreactstatus', false);
+        return reply(`❌ Usage: ${prefix}autoreactstatus <on/off>\n\nCurrent: ${current ? 'ON ✅' : 'OFF ❌'}`);
     }
+    
+    const boolValue = mode === 'on';
+    await db.set(botNumber, 'autoreactstatus', boolValue);
+    reply(`✅ Auto-react status ${boolValue ? 'enabled' : 'disabled'}`);
+    break;
+}
+case 'statusemoji':
+case 'setstatusemoji': {
+    if (!Access) return reply(mess.owner);
+    
+    const emoji = args[0];
+    if (!emoji) {
+        const current = await db.get(botNumber, 'statusemoji', '💚');
+        return reply(`❌ Usage: ${prefix}statusemoji <emoji>\n\nCurrent: ${current}\nExample: ${prefix}statusemoji ❤️`);
+    }
+    
+    await db.set(botNumber, 'statusemoji', emoji);
+    reply(`✅ Status reaction emoji set to: ${emoji}`);
     break;
 }
 case 'welcome': {
-      if (!m.isGroup) return reply(mess.group);
-      if (!Access) return reply(mess.owner);
-      
-    const action = args[0]?.toLowerCase();
-    const groupId = m.chat;
-    const botNumber = await conn.decodeJid(conn.user.id);
+    if (!m.isGroup) return reply(global.group);
+    if (!m.isAdmin && !Access) return reply(mess.admin);
     
-    if (!action || !['on', 'off', 'status'].includes(action)) {
-        const isEnabled = global.settingsManager?.isWelcomeEnabledForGroup(botNumber, groupId);
-        return reply(`👋 *Group Welcome Settings*
-        
-Usage:
-• ${prefix}welcome on - Enable welcome/goodbye in this group
-• ${prefix}welcome off - Disable welcome/goodbye in this group
-• ${prefix}welcome status - Show current status
-
-Current Status: ${isEnabled ? '✅ Enabled' : '❌ Disabled'}
-        
-📌 This setting is per-group. Each group can have its own welcome setting.`);
+    const mode = args[0]?.toLowerCase();
+    if (!mode || !['on', 'off'].includes(mode)) {
+        const current = await db.getGroupSetting(botNumber, m.chat, 'welcome', false);
+        return reply(`❌ Usage: ${prefix}welcome <on/off>\n\nCurrent: ${current ? 'ON ✅' : 'OFF ❌'}`);
     }
     
-    switch(action) {
-        case 'on': {
-            await global.settingsManager?.setGroupSetting(botNumber, groupId, 'welcome', true);
-            reply(`✅ Welcome messages enabled for this group!`);
-            break;
-        }
-        
-        case 'off': {
-            await global.settingsManager?.setGroupSetting(botNumber, groupId, 'welcome', false);
-            reply(`✅ Welcome messages disabled for this group!`);
-            break;
-        }
-        
-        case 'status': {
-            const isEnabled = global.settingsManager?.isWelcomeEnabledForGroup(botNumber, groupId);
-            reply(`📊 *Welcome Status for This Group*
-            
-• Status: ${isEnabled ? '✅ Enabled' : '❌ Disabled'}
-• Group: ${await conn.getName(groupId) || groupId}
-• When enabled: Welcome + Goodbye messages will be sent`);
-            break;
-        }
-    }
+    const boolValue = mode === 'on';
+    await db.setGroupSetting(botNumber, m.chat, 'welcome', boolValue);
+    reply(`✅ Welcome messages ${boolValue ? 'enabled' : 'disabled'} for this group`);
     break;
 }
 case 'adminevent': {
     if (!Access) return reply(mess.owner);
     
-    const subcommand = args[0]?.toLowerCase();
-    
-    if (!subcommand) {
-        return reply(`*Admin Event System*
-        
-Usage:
-• ${prefix}adminevent on - Enable admin event notifications
-• ${prefix}adminevent off - Disable admin event notifications
-• ${prefix}adminevent status - Show current status
-
-Current Status: ${getSetting(botNumber, 'adminevent', true) ? '✅ Enabled' : '❌ Disabled'}
-
-📌 Notifications for:
-• Member promotions (👤 → 👑)
-• Member demotions (👑 → 👤)`);
+    const mode = args[0]?.toLowerCase();
+    if (!mode || !['on', 'off'].includes(mode)) {
+        const current = await db.get(botNumber, 'adminevent', false);
+        return reply(`❌ Usage: ${prefix}adminevent <on/off>\n\nCurrent: ${current ? 'ON ✅' : 'OFF ❌'}`);
     }
     
-    switch(subcommand) {
-        case 'on': {
-            await updateSetting(botNumber, 'adminevent', true);
-            reply(`✅ Admin event notifications enabled`);
-            break;
-        }
-        
-        case 'off': {
-            await updateSetting(botNumber, 'adminevent', false);
-            reply(`✅ Admin event notifications disabled`);
-            break;
-        }
-        
-        case 'status': {
-            const isEnabled = getSetting(botNumber, 'adminevent', true);
-            reply(`👑 *Admin Event Status*
-            
-• Status: ${isEnabled ? '✅ Enabled' : '❌ Disabled'}
-• Events: ${isEnabled ? 'Promotion + Demotion notifications' : 'Disabled'}
-
-Send ${prefix}adminevent on/off to toggle`);
-            break;
-        }
-        
-        default: {
-            reply(`❌ Invalid subcommand. Use ${prefix}adminevent on/off/status`);
-            break;
-        }
-    }
+    const boolValue = mode === 'on';
+    await db.set(botNumber, 'adminevent', boolValue);
+    reply(`✅ Admin event notifications ${boolValue ? 'enabled' : 'disabled'}`);
     break;
 }
 case 'anticall': {
     if (!Access) return reply(mess.owner);
     
-    const subcommand = args[0]?.toLowerCase();
-    
-    if (!subcommand) {
-        return reply(`*Anti-Call System*
-        
-Usage:
-• ${prefix}anticall off - Disable anti-call (allow all calls)
-• ${prefix}anticall decline - Decline calls and send message
-• ${prefix}anticall block - Block calls and block callers
-• ${prefix}anticall status - Show current status
-
-Current Mode: ${getSetting(botNumber, 'anticall', 'off')}
-Enabled: ${getSetting(botNumber, 'anticall', 'off') !== 'off' ? '✅' : '❌'}
-
-📌 *Modes:*
-• off - Allow all calls (disabled)
-• decline - Decline calls + send warning message
-• block - Block calls + block user + send message
-
-📌 *Owner Exceptions:*
-• Bot owner calls are always allowed`);
+    const mode = args[0]?.toLowerCase();
+    if (!mode || !['on', 'off', 'block'].includes(mode)) {
+        const current = await db.get(botNumber, 'anticall', 'off');
+        return reply(`❌ Usage: ${prefix}anticall <on/off/block>\n\nCurrent: ${current}`);
     }
     
-    switch(subcommand) {
-        case 'off': {
-            await updateSetting(botNumber, 'anticall', 'off');
-            reply(`✅ Anti-call disabled\nAll calls will be accepted`);
-            break;
-        }
-        
-        case 'decline': {
-            await updateSetting(botNumber, 'anticall', 'decline');
-            reply(`✅ Anti-call set to *decline* mode\nCalls will be declined with warning message`);
-            break;
-        }
-        
-        case 'block': {
-            await updateSetting(botNumber, 'anticall', 'block');
-            reply(`✅ Anti-call set to *block* mode\nCalls will be blocked + users blocked`);
-            break;
-        }
-        
-        case 'status': {
-            const mode = getSetting(botNumber, 'anticall', 'off');
-            const isEnabled = mode !== 'off';
-            
-            reply(`*Anti-Call Status*
-            
-• Status: ${isEnabled ? '✅ Enabled' : '❌ Disabled'}
-• Mode: ${mode}
-• Action: ${mode === 'decline' ? 'Decline call + send message' : 
-           mode === 'block' ? 'Block call + block user + send message' : 
-           'Allow all calls'}
-
-📌 Owner calls: Always allowed
-📌 Cooldown: 30 seconds between warnings`);
-            break;
-        }
-        
-        case 'test': {
-            const mode = getSetting(botNumber, 'anticall', 'off');
-            if (mode === 'off') {
-                reply('❌ Anti-call is disabled. Enable it first with .anticall decline/block');
-                break;
-            }
-            
-            reply(`🔧 *Anti-Call Test*
-            
-Anti-call is active in *${mode}* mode
-Next incoming call will be:
-${mode === 'decline' ? '• Declined with warning message' : '• Blocked + user blocked'}
-
-Try calling the bot to test the feature.`);
-            break;
-        }
-        
-        default: {
-            reply(`❌ Invalid mode. Use: off, decline, or block`);
-            break;
-        }
-    }
+    let value;
+    if (mode === 'on') value = 'decline';
+    else if (mode === 'off') value = 'off';
+    else if (mode === 'block') value = 'block';
+    
+    await db.set(botNumber, 'anticall', value);
+    
+    let response = '';
+    if (value === 'decline') response = '✅ Anticall enabled (calls will be declined)';
+    else if (value === 'block') response = '✅ Anticall enabled (callers will be blocked)';
+    else response = '✅ Anticall disabled';
+    
+    reply(response);
     break;
 }
-case 'settings':
-case 'config': {
+case "settings":
+case "botsettings":
+case "status": {
     if (!Access) return reply(mess.owner);
     
-    // Get current prefix
-    const currentPrefix = getSetting(botNumber, 'prefix', '.');
+    // Fetch all settings from SQLite
+    const [
+        prefix,
+        alwaysonline,
+        antidelete,
+        antiedit,
+        anticall,
+        antilinkdelete,
+        antilinkaction,
+        antibadword,
+        antibadwordaction,
+        antitag,
+        antitagaction,
+        autorecording,
+        autoTyping,
+        autoread,
+        autoreact,
+        AI_CHAT,
+        autoviewstatus,
+        autoreactstatus,
+        statusemoji,
+        welcome,
+        adminevent
+    ] = await Promise.all([
+        db.get(botNumber, 'prefix', '.'),
+        db.get(botNumber, 'alwaysonline', false),
+        db.get(botNumber, 'antidelete', 'off'),
+        db.get(botNumber, 'antiedit', 'off'),
+        db.get(botNumber, 'anticall', 'off'),
+        db.get(botNumber, 'antilink', false),
+        db.get(botNumber, 'antilinkaction', 'delete'),
+        db.get(botNumber, 'antibadword', false),
+        db.get(botNumber, 'antibadwordaction', 'delete'),
+        db.get(botNumber, 'antitag', false),
+        db.get(botNumber, 'antitagaction', 'delete'),
+        db.get(botNumber, 'autorecording', false),
+        db.get(botNumber, 'autoTyping', false),
+        db.get(botNumber, 'autoread', false),
+        db.get(botNumber, 'autoreact', false),
+        db.get(botNumber, 'AI_CHAT', false),
+        db.get(botNumber, 'autoviewstatus', false),
+        db.get(botNumber, 'autoreactstatus', false),
+        db.get(botNumber, 'statusemoji', '💚'),
+        db.get(botNumber, 'welcome', false),
+        db.get(botNumber, 'adminevent', false)
+    ]);
+
+    let settingsMsg = `*📊 BOT SETTINGS STATUS*\n\n`;
+    settingsMsg += `🔸 Prefix: ${prefix}\n`;
+    settingsMsg += `🔸 Always Online: ${alwaysonline ? 'True' : 'False'}\n`;
+    settingsMsg += `🔸 Anti-Delete: ${antidelete !== 'off' ? 'True (' + antidelete + ')' : 'False'}\n`;
+    settingsMsg += `🔸 Anti-Edit: ${antiedit !== 'off' ? 'True (' + antiedit + ')' : 'False'}\n`;
+    settingsMsg += `🔸 Anti-Call: ${anticall !== 'off' ? 'True (' + anticall + ')' : 'False'}\n`;
+    settingsMsg += `🔸 Anti-Link: ${antilinkdelete ? 'True (' + antilinkaction + ')' : 'False'}\n`;
+    settingsMsg += `🔸 Anti-Badword: ${antibadword ? 'True (' + antibadwordaction + ')' : 'False'}\n`;
+    settingsMsg += `🔸 Anti-Tag: ${antitag ? 'True (' + antitagaction + ')' : 'False'}\n`;
+    settingsMsg += `🔸 Auto-Recording: ${autorecording ? 'True' : 'False'}\n`;
+    settingsMsg += `🔸 Auto-Typing: ${autoTyping ? 'True' : 'False'}\n`;
+    settingsMsg += `🔸 Auto-Read: ${autoread ? 'True' : 'False'}\n`;
+    settingsMsg += `🔸 Auto-React: ${autoreact ? 'True' : 'False'}\n`;
+    settingsMsg += `🔸 AI Chatbot: ${AI_CHAT ? 'True' : 'False'}\n`;
+    settingsMsg += `🔸 Auto-View Status: ${autoviewstatus ? 'True' : 'False'}\n`;
+    settingsMsg += `🔸 Auto-React Status: ${autoreactstatus ? 'True (' + statusemoji + ')' : 'False'}\n`;
+    settingsMsg += `🔸 Welcome Message: ${welcome ? 'True' : 'False'}\n`;
+    settingsMsg += `🔸 Admin Events: ${adminevent ? 'True' : 'False'}`;
     
-    // Generate settings text using the function
-    const settingsText = generateSettingsText(botNumber, currentPrefix);
-    
-    reply(settingsText);
+    reply(settingsMsg);
     break;
 }
 case "getpp": {
@@ -2131,7 +1977,7 @@ break
 case "private": {
 if (!Access) return reply(mess.owner) 
 conn.public = false
-reply(`*${getSetting(botNumber, 'botname', 'Jexploit')} successfully changed to private mode*.`)
+reply(`*${global.botname} successfully changed to private mode*.`)
 }
 break
 case "join": {
@@ -2282,44 +2128,24 @@ case "groupid": {
     });
 }
 break
-case 'autorecording': {
-    if (!Access) return reply(mess.owner);
-    const mode = args[0]?.toLowerCase();
-    if (!mode || !['on', 'off'].includes(mode)) {
-        return reply(`❌ Usage: ${prefix}autorecording <on/off>\nExample: ${prefix}autorecording on`);
-    }
-    
-    const boolValue = mode === 'on';
-    await updateSetting(botNumber, 'autorecording', boolValue);
-    reply(`✅ Auto-recording ${boolValue ? 'enabled' : 'disabled'}`);
-    break;
-}
-
 case 'autotyping':
 case 'typing': {
+    // Get setting (with caching, low memory!)
+    const autoTyping = await db.get(botNumber, 'autoTyping', false);
+    
     if (!Access) return reply(mess.owner);
     
     const mode = args[0]?.toLowerCase();
     if (!mode || !['on', 'off'].includes(mode)) {
-        return reply(`❌ Usage: ${prefix}autotyping <on/off>\nExample: ${prefix}autotyping on`);
+        return reply(`❌ Usage: ${prefix}autotyping <on/off>`);
     }
     
     const boolValue = mode === 'on';
-    await updateSetting(botNumber, 'autoTyping', boolValue);
+    
+    // Save to database (batched, efficient!)
+    await db.set(botNumber, 'autoTyping', boolValue);
+    
     reply(`✅ Auto-typing ${boolValue ? 'enabled' : 'disabled'}`);
-    break;
-}
-case 'autoread': {
-    if (!Access) return reply(mess.owner);
-    
-    const mode = args[0]?.toLowerCase();
-    if (!mode || !['on', 'off'].includes(mode)) {
-        return reply(`❌ Usage: ${prefix}autoread <on/off>\nExample: ${prefix}autoread on`);
-    }
-    
-    const boolValue = mode === 'on';
-    await updateSetting(botNumber, 'autoread', boolValue);
-    reply(`✅ Auto-read ${boolValue ? 'enabled' : 'disabled'}`);
     break;
 }
 case 'autoreact': {
@@ -2327,24 +2153,67 @@ case 'autoreact': {
     
     const mode = args[0]?.toLowerCase();
     if (!mode || !['on', 'off'].includes(mode)) {
-        return reply(`❌ Usage: ${prefix}autoreact <on/off>\nExample: ${prefix}autoreact on`);
+        const current = await db.get(botNumber, 'autoreact', false);
+        return reply(`❌ Usage: ${prefix}autoreact <on/off>\n\nCurrent: ${current ? 'ON ✅' : 'OFF ❌'}`);
     }
     
     const boolValue = mode === 'on';
-    await updateSetting(botNumber, 'autoreact', boolValue);
+    await db.set(botNumber, 'autoreact', boolValue);
     reply(`✅ Auto-react ${boolValue ? 'enabled' : 'disabled'}`);
     break;
 }
-
-case 'chatbot': {
+case 'autoread': {
     if (!Access) return reply(mess.owner);
+    
     const mode = args[0]?.toLowerCase();
     if (!mode || !['on', 'off'].includes(mode)) {
-        return reply(`❌ Usage: ${prefix}chatbot <on/off>\nExample: ${prefix}chatbot on`);
+        const current = await db.get(botNumber, 'autoread', false);
+        return reply(`❌ Usage: ${prefix}autoread <on/off>\n\nCurrent: ${current ? 'ON ✅' : 'OFF ❌'}`);
     }
     
     const boolValue = mode === 'on';
-    await updateSetting(botNumber, 'AI_CHAT', boolValue);
+    await db.set(botNumber, 'autoread', boolValue);
+    reply(`✅ Auto-read ${boolValue ? 'enabled' : 'disabled'}`);
+    break;
+}
+case 'autorecord':
+case 'autorecording': {
+    if (!Access) return reply(mess.owner);
+    
+    const mode = args[0]?.toLowerCase();
+    if (!mode || !['on', 'off'].includes(mode)) {
+        const current = await db.get(botNumber, 'autorecording', false);
+        return reply(`❌ Usage: ${prefix}autorecord <on/off>\n\nCurrent: ${current ? 'ON ✅' : 'OFF ❌'}`);
+    }
+    
+    const boolValue = mode === 'on';
+    await db.set(botNumber, 'autorecording', boolValue);
+    reply(`✅ Auto-recording ${boolValue ? 'enabled' : 'disabled'}`);
+    break;
+}
+case 'aichat':
+case 'aichatbot':
+case 'setai': {
+    if (!Access) return reply(mess.owner);
+    
+    const mode = args[0]?.toLowerCase();
+    if (!mode || !['on', 'off'].includes(mode)) {
+        const current = await db.get(botNumber, 'AI_CHAT', false);
+        return reply(`❌ Usage: ${prefix}aichat <on/off>\n\nCurrent: ${current ? 'ON ✅' : 'OFF ❌'}`);
+    }
+    // Message memory for conversation context
+   let messageMemory = new Map();
+   const MAX_MEMORY = 150; // Maximum messages to remember per chat
+   
+    const boolValue = mode === 'on';
+    await db.set(botNumber, 'AI_CHAT', boolValue);
+    
+    // Clear memory when turning off/on
+    if (boolValue) {
+        // Clear old memory when turning on
+        messageMemory.clear();
+    }
+    
     reply(`✅ AI Chatbot ${boolValue ? 'enabled' : 'disabled'}`);
     
 }
@@ -2385,7 +2254,7 @@ if (!Access) return reply(mess.owner);
 break
 case "setbio": {
 if (!Access) return reply(mess.owner);
-if (!text) return reply(`*Text needed*\nExample: ${prefix + command} ${getSetting(botNumber, 'botname', 'Jexploit')}`);
+if (!text) return reply(`*Text needed*\nExample: ${prefix + command} ${global.botname}`);
 
     await conn.updateProfileStatus(text);
     reply(`*Successfully updated bio to "${text}"*`);
@@ -2405,7 +2274,7 @@ const startTime = performance.now();
       const latency = `${(endTime - startTime).toFixed(2)} ms`;
       
       await conn.sendMessage(m.chat, {
-        text: `*🏓 ${getSetting(botNumber, 'botname', 'JEXPLOIT')} Speed:* ${latency}`,
+        text: `*🏓 ${global.botname} Speed:* ${latency}`,
         edit: sentMessage.key, 
         contextInfo: { quotedMessage: m.message }
       });
@@ -2592,14 +2461,14 @@ case "alive": {
         m.chat, 
         { 
             image: { url: randomImageUrl },
-            caption: `*🌹Hi. I am 👑 ${getSetting(botNumber, 'botname', 'JEXPLOIT')}, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime:${botUptime}*`
+            caption: `*🌹Hi. I am 👑 Jexploit, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime:${botUptime}*`
         },
         { quoted: m }
     ).catch(err => {
         console.error('Image failed:', err.message);
         // Fallback if image fails
         return conn.sendMessage(m.chat, {
-            text: `*🌹Hi. I am 👑 ${getSetting(botNumber, 'botname', 'JEXPLOIT')}, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime:${botUptime}*`
+            text: `*🌹Hi. I am 👑 Jexploit, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime:${botUptime}*`
         }, { quoted: m });
     });
     
@@ -2653,14 +2522,14 @@ case 'botinfo': {
         m.chat, 
         { 
             image: { url: randomImageUrl },  
-            caption: `*🌹Hi. I am 👑 ${getSetting(botNumber, 'botname', 'Jexploit')}, a friendly WhatsApp bot.*${botInfo}`
+            caption: `*🌹Hi. I am 👑 Jexploit, a friendly WhatsApp bot.*${botInfo}`
         },
         { quoted: m }
     ).catch(err => {
         console.error('Image failed:', err.message);
         // Fallback if image fails
         return conn.sendMessage(m.chat, {
-            text: `*🌹Hi. I am 👑 ${getSetting(botNumber, 'botname', 'Jexploit')}, a friendly WhatsApp bot.*${botInfo}`
+            text: `*🌹Hi. I am 👑 Jexploit, a friendly WhatsApp bot.*${botInfo}`
         }, { quoted: m });
     });
     
@@ -4544,7 +4413,7 @@ try {
 27. Revelation
 
 
-💢 ${getSetting(botNumber, 'botname', 'Jexploit')} 💢
+💢 ${global.botname} 💢
 `;
 
         // Remplacer ce lien par l'URL de l'image que tu m'enverras
@@ -5554,7 +5423,7 @@ case 'tiktok':
 case 'tt': {
     if (!text) return reply(conn, `Use: ${prefix + command} <tiktok_link>`, m)
     
-    await reply(`Please wait ${getSetting(botNumber, 'botname', 'Jexploit')} 💪 its fetching you video...`)
+    await reply(`Please wait ${global.botname} 💪 its fetching you video...`)
     
     
     try {
@@ -6948,7 +6817,7 @@ try {
     await conn.sendMessage(from, {
         image: { url: `https://image.thum.io/get/fullpage/${url}` },
         caption: "- 🖼️ *Screenshot Generated*\n\n" +
-                `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ${getSetting(botNumber, 'botname', 'Jexploit')}💪 💜`
+                `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ${global.botname}💪 💜`
     }, { quoted: mek });
 
   } catch (error) {
@@ -7678,7 +7547,7 @@ try {
 
     // Create the response message
     const message = `
-*${getSetting(botNumber, 'botname', 'Jexploit')} npm search*
+*${global.botname} npm search*
 
 *👀 NPM PACKAGE:* ${packageName}
 *📄 DESCRIPTION:* ${description}
@@ -8591,7 +8460,7 @@ try {
         console.log('JSON response:', json);
 
         // Format the pickup line message
-        const pickupLine = `*Here's a pickup line for you:*\n\n"${json.pickupline}"\n\n> *© ᴅʀᴏᴘᴘᴇᴅ ʙʏ ${getSetting(botNumber, 'botname', 'Jexploit')}*`;
+        const pickupLine = `*Here's a pickup line for you:*\n\n"${json.pickupline}"\n\n> *© ᴅʀᴏᴘᴘᴇᴅ ʙʏ ${global.botname}*`;
 
         // Send the pickup line to the chat
         await conn.sendMessage(from, { text: pickupLine }, { quoted: m });
@@ -8777,7 +8646,8 @@ case 'listactive':
 case 'activeusers': {
     if (!m.isGroup) return reply(mess.group);
     
-    const activeUsers = getActiveUsers(from, 15); // Get top 15 active users
+    // Get active users from SQLite
+    const activeUsers = await getActiveUsers(conn, m.chat, 15); // Get top 15 active users
     
     if (!activeUsers.length) {
         return reply('*📊 No active users found in this group.*\n\nSend some messages first to track activity!');
@@ -9142,7 +9012,7 @@ try {
             document: fs.readFileSync(nmfilect), 
             mimetype: 'text/vcard', 
             fileName: 'jexploit.vcf', 
-            caption: `\nDone saving.\nGroup Name: *${cmiggc.subject}*\nContacts: *${cmiggc.participants.length}*\n> Powered by ${getSetting(botNumber, 'botname', 'Jexploit')} `}, { quoted: mek });
+            caption: `\nDone saving.\nGroup Name: *${cmiggc.subject}*\nContacts: *${cmiggc.participants.length}*\n> Powered by ${global.botname} `}, { quoted: mek });
 
         fs.unlinkSync(nmfilect); // Cleanup the file after sending
     } catch (err) {
@@ -9167,7 +9037,7 @@ for (const participan of responseList) {
     );
     console.log(response);
 }
-reply(`*${getSetting(botNumber, 'botname', 'Jexploit')} has approved all pending requests✅*`);
+reply(`*${global.botname} has approved all pending requests✅*`);
 
 }
 break
@@ -9609,127 +9479,237 @@ if (!Access) return reply(mess.owner);
 }
 break
 case 'antilink': {
-      if (!m.isGroup) return reply(mess.group);
-      if (!m.isAdmin) return reply(mess.notadmin);
-      if (!m.isBotAdmin) return reply(mess.botadmin);
+    if (!m.isGroup) return reply('❌ This command is for groups only!');
+    if (!m.isAdmin && !Access) return reply(mess.admin);
     
-    const subcommand = args[0]?.toLowerCase();
-    const action = args[1]?.toLowerCase();
+    const mode = args[0]?.toLowerCase();
     
-    if (!subcommand) {
-        return reply(`🔗 *Anti-Link System*
-        
-Usage:
-• ${prefix}antilink delete on/off - Delete mode
-• ${prefix}antilink warn on/off - Warn mode  
-• ${prefix}antilink kick on/off - Kick mode
-• ${prefix}antilink status - Show settings
-
-Current Mode: ${getSetting(botNumber, 'antilinkaction', 'delete')}`);
+    if (!mode) {
+        const status = await db.getGroupSetting(botNumber, m.chat, 'antilink', false);
+        const currentMode = await db.getGroupSetting(botNumber, m.chat, 'antilinkmode', 'delete');
+        return reply(`*ANTILINK SETTINGS*\n\nStatus: ${status ? '✅ ON' : '❌ OFF'}\nMode: ${currentMode}\n\nOptions:\n• ${prefix}antilink on\n• ${prefix}antilink off\n• ${prefix}antilink delete\n• ${prefix}antilink warn\n• ${prefix}antilink kick`);
     }
     
-    if (subcommand === 'status') {
-        const mode = getSetting(botNumber, 'antilinkaction', 'delete');
-        const isEnabled = getSetting(botNumber, 'antilinkdelete', true);
-        
-        reply(`🔗 *Anti-Link Status*
-        
-• Enabled: ${isEnabled ? '✅ ON' : '❌ OFF'}
-• Mode: ${mode}
-• Action: ${mode === 'delete' ? 'Delete messages' : 
-           mode === 'warn' ? 'Delete + warn (3 warnings = kick)' : 
-           'Delete + kick'}`);
-        break;
+    // Handle on/off
+    if (mode === 'on') {
+        await db.setGroupSetting(botNumber, m.chat, 'antilink', true);
+        return reply('✅ Antilink has been enabled');
     }
     
-    if (!['delete', 'warn', 'kick'].includes(subcommand) || !['on', 'off'].includes(action)) {
-        reply(`❌ Invalid. Use:\n• ${prefix}antilink delete on/off\n• ${prefix}antilink warn on/off\n• ${prefix}antilink kick on/off`);
-        break;
+    if (mode === 'off') {
+        await db.setGroupSetting(botNumber, m.chat, 'antilink', false);
+        return reply('✅ Antilink has been disabled');
     }
     
-    // Set the mode
-    await updateSetting(botNumber, 'antilinkaction', subcommand);
+    // Handle mode settings
+    if (mode === 'delete') {
+        await db.setGroupSetting(botNumber, m.chat, 'antilinkmode', 'delete');
+        await db.setGroupSetting(botNumber, m.chat, 'antilink', true); // Auto-enable
+        return reply('✅ Antilink mode set to: *Delete* (messages will be deleted)');
+    }
     
-    // Turn on/off
-    const boolValue = action === 'on';
-    await updateSetting(botNumber, 'antilinkdelete', boolValue);
+    if (mode === 'warn') {
+        await db.setGroupSetting(botNumber, m.chat, 'antilinkmode', 'warn');
+        await db.setGroupSetting(botNumber, m.chat, 'antilink', true); // Auto-enable
+        return reply('✅ Antilink mode set to: *Warn* (users will be warned)');
+    }
     
-    reply(`✅ Anti-link ${subcommand} mode ${boolValue ? 'enabled' : 'disabled'}`);
+    if (mode === 'kick') {
+        await db.setGroupSetting(botNumber, m.chat, 'antilinkmode', 'kick');
+        await db.setGroupSetting(botNumber, m.chat, 'antilink', true); // Auto-enable
+        return reply('✅ Antilink mode set to: *Kick* (users will be kicked)');
+    }
+    
+    reply(`❌ Invalid option! Use: on, off, delete, warn, kick`);
     break;
 }
-case 'antitag': {
-        if (!m.isGroup) return reply(mess.group);
-        if (!isSenderAdmin) return reply(mess.notadmin);
-        if (!m.isBotAdmin) return reply(mess.botadmin);
-    
-    const subcommand = args[0]?.toLowerCase();
-    const action = args[1]?.toLowerCase();
-    
-    if (!subcommand) {
-        return reply(`🏷️ *Anti-Tag System*
-        
-Usage:
-• ${prefix}antitag delete on/off - Delete mode
-• ${prefix}antitag warn on/off - Warn mode  
-• ${prefix}antitag kick on/off - Kick mode
-• ${prefix}antitag status - Show settings
-
-Current Mode: ${getSetting(botNumber, 'antitagaction', 'delete')}`);
-    }
-    
-    if (subcommand === 'status') {
-        const mode = getSetting(botNumber, 'antitagaction', 'delete');
-        const isEnabled = getSetting(botNumber, 'antitag', false);
-        
-        reply(`🏷️ *Anti-Tag Status*
-        
-• Enabled: ${isEnabled ? '✅ ON' : '❌ OFF'}
-• Mode: ${mode}
-• Action: ${mode === 'delete' ? 'Delete messages' : 
-           mode === 'warn' ? 'Delete + warn' : 
-           'Delete + kick'}`);
-        break;
-    }
-    
-    if (!['delete', 'warn', 'kick'].includes(subcommand) || !['on', 'off'].includes(action)) {
-        reply(`❌ Invalid. Use:\n• ${prefix}antitag delete on/off\n• ${prefix}antitag warn on/off\n• ${prefix}antitag kick on/off`);
-        break;
-    }
-    
-    // Set the mode
-    await updateSetting(botNumber, 'antitagaction', subcommand);
-    
-    // Turn on/off
-    const boolValue = action === 'on';
-    await updateSetting(botNumber, 'antitag', boolValue);
-    
-    reply(`✅ Anti-tag ${subcommand} mode ${boolValue ? 'enabled' : 'disabled'}`);
-    break;
-}
-case 'antitagadmin': {
-    if (!m.isGroup) return reply(mess.group);
-    if (!Access) return reply(mess.owner);
+case 'allowlink': {
+    if (!m.isGroup) return reply('❌ This command is for groups only!');
+    if (!m.isAdmin && !Access) return reply(mess.admin);
     
     const action = args[0]?.toLowerCase();
     
-    if (!action || !['on', 'off'].includes(action)) {
-        const isEnabled = getSetting(botNumber, 'antitagadmin', false);
-        return reply(`*Anti-Tag Admin:* ${isEnabled ? '✅ ON' : '❌ OFF'}\nUsage: ${prefix}antitagadmin on/off`);
+    // Get target user from:
+    // 1. Mentioned user
+    // 2. Quoted message sender
+    // 3. Argument (phone number)
+    let target = m.mentionedJid[0] || (m.quoted ? m.quoted.sender : args[1]);
+    
+    if (!action) {
+        const allowed = await db.getGroupSetting(botNumber, m.chat, 'allowlink', []);
+        return reply(`*📋 ALLOWLINK COMMANDS*\n\n• ${prefix}allowlink add @user (or reply to their message)\n• ${prefix}allowlink remove @user (or reply to their message)\n• ${prefix}allowlink list\n• ${prefix}allowlink clear\n\nTotal allowed: ${allowed.length}`);
     }
     
-    switch(action) {
-        case 'on': {
-            await updateSetting(botNumber, 'antitagadmin', true);
-            reply(`✅ *Successfully enabled antitagadmin*`);
-            break;
+    // ADD USER
+    if (action === 'add') {
+        if (!target) return reply('❌ Please mention the user, reply to their message, or provide their number!\nExample: .allowlink add @user');
+        
+        const jid = target.includes('@s.whatsapp.net') ? target : target + '@s.whatsapp.net';
+        let allowed = await db.getGroupSetting(botNumber, m.chat, 'allowlink', []);
+        
+        if (allowed.includes(jid)) {
+            return reply(`❌ @${jid.split('@')[0]} is already in allowlist`, { mentions: [jid] });
         }
         
-        case 'off': {
-            await updateSetting(botNumber, 'antitagadmin', false);
-            reply(`✅ *Successfully disabled antitagadmin*`);
-            break;
-        }
+        allowed.push(jid);
+        await db.setGroupSetting(botNumber, m.chat, 'allowlink', allowed);
+        
+        // Get username for better response
+        const name = await conn.getName(jid) || jid.split('@')[0];
+        return reply(`✅ @${name} can now post links`, { mentions: [jid] });
     }
+    
+    // REMOVE USER
+    if (action === 'remove') {
+        if (!target) return reply('❌ Please mention the user, reply to their message, or provide their number!\nExample: .allowlink remove @user');
+        
+        const jid = target.includes('@s.whatsapp.net') ? target : target + '@s.whatsapp.net';
+        let allowed = await db.getGroupSetting(botNumber, m.chat, 'allowlink', []);
+        
+        const index = allowed.indexOf(jid);
+        if (index === -1) {
+            return reply(`❌ @${jid.split('@')[0]} is not in allowlist`, { mentions: [jid] });
+        }
+        
+        allowed.splice(index, 1);
+        await db.setGroupSetting(botNumber, m.chat, 'allowlink', allowed);
+        
+        const name = await conn.getName(jid) || jid.split('@')[0];
+        return reply(`✅ @${name} removed from allowlist`, { mentions: [jid] });
+    }
+    
+    // LIST ALLOWED USERS
+    if (action === 'list') {
+        let allowed = await db.getGroupSetting(botNumber, m.chat, 'allowlink', []);
+        
+        if (allowed.length === 0) {
+            return reply('📋 No users are allowed to post links');
+        }
+        
+        let msg = `*📋 ALLOWED USERS (${allowed.length})*\n\n`;
+        allowed.forEach((jid, i) => {
+            msg += `${i + 1}. @${jid.split('@')[0]}\n`;
+        });
+        
+        return conn.sendMessage(m.chat, { 
+            text: msg, 
+            mentions: allowed 
+        }, { quoted: m });
+    }
+    
+    // CLEAR ALL ALLOWED USERS
+    if (action === 'clear') {
+        await db.setGroupSetting(botNumber, m.chat, 'allowlink', []);
+        return reply('✅ All users removed from allowlist');
+    }
+    
+    reply(`❌ Invalid action! Use: add, remove, list, clear`);
+    break;
+}
+case 'antidemote':
+case 'ad': {
+    if (!m.isGroup) return reply(mess.group);
+    if (!m.isAdmin && !Access) return reply(mess.admin);
+  
+    await antidemoteCommand(conn, m, args, botNumber);
+    break;
+}
+case 'antipromote':
+case 'ap': {
+    if (!m.isGroup) return reply(mess.group);
+    if (!m.isAdmin && !Access) return reply(mess.admin);
+    
+    await antipromoteCommand(conn, m, args, botNumber);
+    break;
+}
+case 'antitag': {
+    if (!m.isGroup) return reply(mess.group);
+    if (!m.isAdmin && !Access) return reply(mess.admin);
+    
+    const mode = args[0]?.toLowerCase();
+    const action = args[1]?.toLowerCase();
+    
+    // Delete mode
+    if (mode === 'delete' && action === 'on') {
+        await db.setGroupSetting(botNumber, m.chat, 'antitagmode', 'delete');
+        await db.setGroupSetting(botNumber, m.chat, 'antitag', true);
+        return reply('✅ Delete mode ON');
+    }
+    if (mode === 'delete' && action === 'off') {
+        await db.setGroupSetting(botNumber, m.chat, 'antitag', false);
+        return reply('❌ Delete mode OFF');
+    }
+    
+    // Warn mode
+    if (mode === 'warn' && action === 'on') {
+        await db.setGroupSetting(botNumber, m.chat, 'antitagmode', 'warn');
+        await db.setGroupSetting(botNumber, m.chat, 'antitag', true);
+        return reply('✅ Warn mode ON');
+    }
+    if (mode === 'warn' && action === 'off') {
+        await db.setGroupSetting(botNumber, m.chat, 'antitag', false);
+        return reply('❌ Warn mode OFF');
+    }
+    
+    // Kick mode
+    if (mode === 'kick' && action === 'on') {
+        await db.setGroupSetting(botNumber, m.chat, 'antitagmode', 'kick');
+        await db.setGroupSetting(botNumber, m.chat, 'antitag', true);
+        return reply('✅ Kick mode ON');
+    }
+    if (mode === 'kick' && action === 'off') {
+        await db.setGroupSetting(botNumber, m.chat, 'antitag', false);
+        return reply('❌ Kick mode OFF');
+    }
+    
+    // Show help if invalid
+    reply('❌ Use: delete on/off, warn on/off, kick on/off');
+    break;
+}
+case 'antitagadmin':
+case 'antitagadm': {
+    if (!m.isGroup) return reply('❌ This command is for groups only!');
+    if (!m.isAdmin && !Access) return reply(mess.admin);
+    
+    const mode = args[0]?.toLowerCase();
+    
+    if (!mode) {
+        const status = await db.getGroupSetting(botNumber, m.chat, 'antitagadmin', false);
+        const currentAction = await db.getGroupSetting(botNumber, m.chat, 'antitagadminaction', 'warn');
+        return reply(`*👑 ANTITAG ADMIN SETTINGS*\n\nStatus: ${status ? '✅ ON' : '❌ OFF'}\nAction: ${currentAction}\n\nOptions:\n• ${prefix}antitagadmin on\n• ${prefix}antitagadmin off\n• ${prefix}antitagadmin delete\n• ${prefix}antitagadmin warn\n• ${prefix}antitagadmin kick`);
+    }
+    
+    // Handle on/off
+    if (mode === 'on') {
+        await db.setGroupSetting(botNumber, m.chat, 'antitagadmin', true);
+        return reply('✅ Anti-tag admin has been enabled');
+    }
+    
+    if (mode === 'off') {
+        await db.setGroupSetting(botNumber, m.chat, 'antitagadmin', false);
+        return reply('✅ Anti-tag admin has been disabled');
+    }
+    
+    // Handle action settings
+    if (mode === 'delete') {
+        await db.setGroupSetting(botNumber, m.chat, 'antitagadminaction', 'delete');
+        await db.setGroupSetting(botNumber, m.chat, 'antitagadmin', true); // Auto-enable
+        return reply('✅ Anti-tag admin set to: *Delete* (messages will be deleted)');
+    }
+    
+    if (mode === 'warn') {
+        await db.setGroupSetting(botNumber, m.chat, 'antitagadminaction', 'warn');
+        await db.setGroupSetting(botNumber, m.chat, 'antitagadmin', true); // Auto-enable
+        return reply('✅ Anti-tag admin set to: *Warn* (3 warnings then kick)');
+    }
+    
+    if (mode === 'kick') {
+        await db.setGroupSetting(botNumber, m.chat, 'antitagadminaction', 'kick');
+        await db.setGroupSetting(botNumber, m.chat, 'antitagadmin', true); // Auto-enable
+        return reply('✅ Anti-tag admin set to: *Kick* (users will be kicked immediately)');
+    }
+    
+    reply(`❌ Invalid option! Use: on, off, delete, warn, kick`);
     break;
 }
 case "setgrouppp":
