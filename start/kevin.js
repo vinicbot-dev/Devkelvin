@@ -2306,7 +2306,7 @@ case "uptime": {
         const uptimeFormatted = runtime(uptime); // Using your existing runtime function
         
         // Get bot name from settings
-        const botname = getSetting(botNumber, 'botname', 'JEXPLOIT');
+        const botname = `${global.botname}`;
         
         // Get version from global or use default
         const version = global.versions || versions || '2.0.0';
