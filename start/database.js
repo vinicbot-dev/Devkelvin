@@ -1,148 +1,154 @@
-// start/lib/database.js
-const fs = require('fs');
+// database.js
+const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
 
-class LowMemoryDatabase {
-    constructor(dbPath) {
-        this.dbPath = dbPath;
-        this.cache = new Map();
-        this.cacheSize = 100; // Maximum items in cache
-        this.writeQueue = [];
-        this.writeInterval = 5000; // Batch write every 5 seconds
-        this.isWriting = false;
-        this.init();
-    }
-
-    init() {
-        // Ensure database directory exists
-        const dir = path.dirname(this.dbPath);
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
+class SQLiteDatabase {
+    constructor(dbPath = './data/bot.db') {
+        // Ensure data directory exists
+        const dataDir = path.dirname(dbPath);
+        if (!fs.existsSync(dataDir)) {
+            fs.mkdirSync(dataDir, { recursive: true });
         }
         
-        // Initialize empty DB if doesn't exist
-        if (!fs.existsSync(this.dbPath)) {
-            fs.writeFileSync(this.dbPath, '{}');
-        }
+        this.db = new sqlite3.Database(dbPath);
+        this.initialized = this.init(); // Store the init promise
+    }
+    
+    async init() {
+        console.log('📦 Creating database tables...');
         
-        // Start batch writer
-        setInterval(() => this.flushWrites(), this.writeInterval);
-    }
-
-    async read(key) {
-        // Check cache first
-        if (this.cache.has(key)) {
-            return this.cache.get(key);
-        }
-
-        try {
-            const data = await this.readFile();
-            const value = data[key] || null;
-            
-            // Add to cache with LRU logic
-            this.addToCache(key, value);
-            
-            return value;
-        } catch (error) {
-            console.error('Database read error:', error);
-            return null;
-        }
-    }
-
-    async write(key, value) {
-        // Queue write operation
-        this.writeQueue.push({ key, value, timestamp: Date.now() });
-        
-        // Update cache
-        this.addToCache(key, value);
-        
-        // If queue is large, flush immediately
-        if (this.writeQueue.length >= 50) {
-            await this.flushWrites();
-        }
-    }
-
-    async delete(key) {
-        this.writeQueue.push({ key, value: undefined, timestamp: Date.now() });
-        this.cache.delete(key);
-    }
-
-    addToCache(key, value) {
-        // Simple LRU: remove oldest if cache is full
-        if (this.cache.size >= this.cacheSize) {
-            const firstKey = this.cache.keys().next().value;
-            this.cache.delete(firstKey);
-        }
-        this.cache.set(key, value);
-    }
-
-    async flushWrites() {
-        if (this.writeQueue.length === 0 || this.isWriting) return;
-
-        this.isWriting = true;
-
-        try {
-            // Group writes by key (keep only the latest write for each key)
-            const writes = new Map();
-            for (const item of this.writeQueue) {
-                writes.set(item.key, item);
-            }
-
-            const data = await this.readFile();
-            
-            // Apply all writes
-            for (const [key, item] of writes) {
-                if (item.value === undefined) {
-                    delete data[key];
-                } else {
-                    data[key] = item.value;
+        // Create tables - wait for each to complete
+        await new Promise((resolve, reject) => {
+            this.db.run(`
+                CREATE TABLE IF NOT EXISTS settings (
+                    bot_number TEXT,
+                    key TEXT,
+                    value TEXT,
+                    PRIMARY KEY (bot_number, key)
+                )
+            `, (err) => {
+                if (err) reject(err);
+                else {
+                    console.log('✅ Settings table ready');
+                    resolve();
                 }
+            });
+        });
+        
+        await new Promise((resolve, reject) => {
+            this.db.run(`
+                CREATE TABLE IF NOT EXISTS sudo_users (
+                    bot_number TEXT,
+                    user_jid TEXT,
+                    PRIMARY KEY (bot_number, user_jid)
+                )
+            `, (err) => {
+                if (err) reject(err);
+                else {
+                    console.log('✅ Sudo users table ready');
+                    resolve();
+                }
+            });
+        });
+        
+        await new Promise((resolve, reject) => {
+            this.db.run(`
+                CREATE TABLE IF NOT EXISTS group_settings (
+                    bot_number TEXT,
+                    group_id TEXT,
+                    key TEXT,
+                    value TEXT,
+                    PRIMARY KEY (bot_number, group_id, key)
+                )
+            `, (err) => {
+                if (err) reject(err);
+                else {
+                    console.log('✅ Group settings table ready');
+                    resolve();
+                }
+            });
+        });
+        
+        console.log('✅ All database tables ready!');
+    }
+    
+    async getSetting(botNumber, key) {
+        // Wait for initialization before querying
+        await this.initialized;
+        
+        return new Promise((resolve, reject) => {
+            this.db.get(
+                'SELECT value FROM settings WHERE bot_number = ? AND key = ?',
+                [botNumber, key],
+                (err, row) => {
+                    if (err) {
+                        console.error('❌ Error in getSetting:', err);
+                        reject(err);
+                    } else {
+                        try {
+                            resolve(row ? JSON.parse(row.value) : null);
+                        } catch (e) {
+                            resolve(row ? row.value : null);
+                        }
+                    }
+                }
+            );
+        });
+    }
+    
+    async setSetting(botNumber, key, value) {
+        // Wait for initialization before querying
+        await this.initialized;
+        
+        return new Promise((resolve, reject) => {
+            let valueToStore;
+            try {
+                valueToStore = typeof value === 'string' ? value : JSON.stringify(value);
+            } catch (e) {
+                valueToStore = String(value);
             }
             
-            // Write to file (minified to save space)
-            await fs.promises.writeFile(
-                this.dbPath,
-                JSON.stringify(data)
+            this.db.run(
+                `INSERT OR REPLACE INTO settings (bot_number, key, value) VALUES (?, ?, ?)`,
+                [botNumber, key, valueToStore],
+                (err) => {
+                    if (err) {
+                        console.error('❌ Error in setSetting:', err);
+                        reject(err);
+                    } else {
+                        resolve(true);
+                    }
+                }
             );
-            
-            this.writeQueue = [];
-        } catch (error) {
-            console.error('Database write error:', error);
-        } finally {
-            this.isWriting = false;
-        }
+        });
     }
-
-    async readFile() {
-        try {
-            const content = await fs.promises.readFile(this.dbPath, 'utf8');
-            return JSON.parse(content) || {};
-        } catch (error) {
-            console.error('Database read error:', error);
-            return {};
-        }
+    
+    async getSudo(botNumber) {
+        // Wait for initialization before querying
+        await this.initialized;
+        
+        return new Promise((resolve, reject) => {
+            this.db.all(
+                'SELECT user_jid FROM sudo_users WHERE bot_number = ?',
+                [botNumber],
+                (err, rows) => {
+                    if (err) {
+                        console.error('❌ Error in getSudo:', err);
+                        reject(err);
+                    } else {
+                        resolve(rows.map(r => r.user_jid));
+                    }
+                }
+            );
+        });
     }
-
-    async getAllKeys() {
-        const data = await this.readFile();
-        return Object.keys(data);
-    }
-
-    async getAllValues() {
-        const data = await this.readFile();
-        return Object.values(data);
-    }
-
-    async clear() {
-        this.cache.clear();
-        this.writeQueue = [];
-        await fs.promises.writeFile(this.dbPath, '{}');
-    }
-
-    async getSize() {
-        const data = await this.readFile();
-        return Object.keys(data).length;
+    
+    // Add this method to check if database is ready
+    async isReady() {
+        await this.initialized;
+        return true;
     }
 }
 
-module.exports = LowMemoryDatabase;
+module.exports = SQLiteDatabase;
