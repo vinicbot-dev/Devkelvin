@@ -1,10 +1,11 @@
-// ========== AUTO-RECORDING HANDLER (USING JSON SETTINGS) ==========
+const db = require('../../start/Core/databaseManager');
+
 async function handleAutoRecording(m, conn) {
     try {
         const botNumber = await conn.decodeJid(conn.user.id);
         
-        // Get auto-recording setting from JSON manager
-        const autorecording = global.settingsManager?.getSetting(botNumber, 'autorecording', false);
+        // ✅ GET AUTO-RECORDING SETTING FROM SQLITE
+        const autorecording = await db.get(botNumber, 'autorecording', false);
         
         // Check if auto-recording is enabled
         if (!autorecording) {
@@ -31,9 +32,7 @@ async function handleAutoRecording(m, conn) {
         // Send recording indicator (voice message recording)
         await conn.sendPresenceUpdate('recording', m.chat);
         
-       
-        
-        // Stop recording after 3 seconds
+        // Stop recording after 5 seconds
         setTimeout(async () => {
             await conn.sendPresenceUpdate('paused', m.chat);
         }, 5000);
