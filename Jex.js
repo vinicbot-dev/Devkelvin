@@ -967,7 +967,7 @@ async function antidemoteCommand(conn, m, args, Access, botNumber) {
             case 'on':
                 await db.setAntidemote(botNumber, chatId, true);
                 await conn.sendMessage(chatId, { 
-                    text: '✅ *antidemote enabled successfully*
+                    text: '✅ *antidemote enabled successfully*'
                 }, { quoted: m });
                 break;
 
