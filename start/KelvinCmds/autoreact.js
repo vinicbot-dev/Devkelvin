@@ -1,10 +1,11 @@
-// ========== AUTO-REACT FUNCTION (USING JSON SETTINGS) ==========
+const db = require('../../start/Core/databaseManager'); 
+
 async function handleAutoReact(m, conn) {
     try {
         const botNumber = await conn.decodeJid(conn.user.id);
         
-        // Get auto-react setting from JSON manager
-        const autoreact = global.settingsManager?.getSetting(botNumber, 'autoreact', false);
+        // ✅ GET AUTO-REACT SETTING FROM SQLITE
+        const autoreact = await db.get(botNumber, 'autoreact', false);
         
         // Check if auto-react is enabled
         if (!autoreact) {
@@ -28,8 +29,6 @@ async function handleAutoReact(m, conn) {
                 key: m.key
             }
         });
-        
-        
         
     } catch (error) {
         console.error("❌ Error in auto-react:", error);
