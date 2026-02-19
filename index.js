@@ -46,9 +46,6 @@ const port = process.env.PORT || 3000;
 const express = require('express')
 const app = express();
 const { color } = require('./start/lib/color');
-
-const db = require('./data/database.json');
-
 const {
   smsg,
   sendGmail,
@@ -63,6 +60,8 @@ const {
 
 const {
 detectUrls,
+handleAntidemote,
+handleAntipromote,
 handleStatusUpdate
  } = require('./Jex');
 
@@ -73,7 +72,8 @@ const {
   writeExifVid
 } = require('./start/lib/exif');
 
-const { cleaningSession } = require('./start/lib/botSession'); 
+const { cleaningSession } = require('./start/lib/botSession');
+const db = require('./start/Core/databaseManager'); 
 
 const usePairingCode = true;
 
@@ -250,6 +250,12 @@ function cleanupOldMessages() {
     console.log(`- Remaining messages: ${keptMessages}`);
 }
 
+function startAutoCleanup() {
+    setInterval(() => {
+        cleanupOldMessages();
+    }, 15 * 60 * 1000);
+}
+
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -259,6 +265,7 @@ async function clientstart() {
     cleaningSession(sessionDir);
     const creds = await loadSession();
     await cleanupOldMessages();
+    startAutoCleanup();
     
     const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
    
@@ -297,7 +304,6 @@ async function clientstart() {
         defaultCongestionControl: 1,
     });
 
-    // ============= 🔥 KEEP-ALIVE =============
     const keepAliveInterval = 10 * 60 * 1000; // 10 minutes
     setInterval(async () => {
         try {
@@ -309,7 +315,6 @@ async function clientstart() {
             // Silently fail
         }
     }, keepAliveInterval);
-    // ============= END KEEP-ALIVE =============
 
     conn.decodeJid = (jid) => {
         if (!jid) return jid;
@@ -723,7 +728,7 @@ async function clientstart() {
             }
         });
     }, 30_000);
-    // ============= END JUNK CLEANUP =============
+    
 
     function getTypeMessage(message) {
         if (!message) return 'unknown';
@@ -744,55 +749,67 @@ async function clientstart() {
     });
   
     conn.ev.on('group-participants.update', async (anu) => {
-        try {
-            const botNumber = conn.decodeJid(conn.user.id);
-            const groupId = anu.id;
+    try {
+        const botNumber = conn.decodeJid(conn.user.id);
+        const groupId = anu.id;
+        
+        // Get settings
+        const admineventEnabled = await db.get(botNumber, 'adminevent', false);
+        const welcomeEnabled = await db.isWelcomeEnabled(botNumber, groupId);
+        
+        // ========== HANDLE ANTIDEMOTE ==========
+        if (anu.action === 'demote') {
             
-            const admineventEnabled = global.settingsManager?.getSetting(botNumber, 'adminevent', false);
-            const welcomeEnabled = global.settingsManager?.isWelcomeEnabled(botNumber, groupId);
+            await handleAntidemote(conn, groupId, anu.participants, anu.author);
+        }
+        
+        if (anu.action === 'promote') {
             
-            if (welcomeEnabled === true) {
-                console.log(`[WELCOME] Processing welcome/goodbye for group ${groupId}`);
+            await handleAntipromote(conn, groupId, anu.participants, anu.author);
+        }
+        
+        if (welcomeEnabled === true) {
+            console.log(`[WELCOME] Processing welcome/goodbye for group ${groupId}`);
+            
+            try {
+                const groupMetadata = await conn.groupMetadata(groupId);
+                const participants = anu.participants;
                 
-                try {
-                    const groupMetadata = await conn.groupMetadata(groupId);
-                    const participants = anu.participants;
+                for (const participant of participants) {
                     
-                    for (const participant of participants) {
-                        
-                        let participantJid;
-                        if (typeof participant === 'string') {
-                            participantJid = participant;
-                        } else if (participant && participant.id) {
-                            participantJid = participant.id;
-                        } else {
-                            console.error('[WELCOME] Invalid participant format:', participant);
-                            continue;
-                        }
-                        
-                        if (participantJid === botNumber) continue;
-                        
-                        let userId;
-                        if (participantJid.includes('@')) {
-                            userId = participantJid.split('@')[0];
-                        } else {
-                            userId = participantJid;
-                        }
-                        
-                        let ppUrl;
-                        try {
-                            ppUrl = await conn.profilePictureUrl(participantJid, 'image');
-                        } catch {
-                            ppUrl = 'https://i.ibb.co/RBx5SQC/avatar-group-large-v2.png?q=60';
-                        }
-                        
-                        const name = await conn.getName(participantJid) || userId;
-                        
-                        if (anu.action === 'add') {
-                            const memberCount = groupMetadata.participants.length;
-                            await conn.sendMessage(groupId, {
-                                image: { url: ppUrl },
-                                caption: `
+                    let participantJid;
+                    if (typeof participant === 'string') {
+                        participantJid = participant;
+                    } else if (participant && participant.id) {
+                        participantJid = participant.id;
+                    } else {
+                        console.error('[WELCOME] Invalid participant format:', participant);
+                        continue;
+                    }
+                    
+                    if (participantJid === botNumber) continue;
+                    
+                    let userId;
+                    if (participantJid.includes('@')) {
+                        userId = participantJid.split('@')[0];
+                    } else {
+                        userId = participantJid;
+                    }
+                    
+                    let ppUrl;
+                    try {
+                        ppUrl = await conn.profilePictureUrl(participantJid, 'image');
+                    } catch {
+                        ppUrl = 'https://i.ibb.co/RBx5SQC/avatar-group-large-v2.png?q=60';
+                    }
+                    
+                    const name = await conn.getName(participantJid) || userId;
+                    
+                    if (anu.action === 'add') {
+                        const memberCount = groupMetadata.participants.length;
+                        await conn.sendMessage(groupId, {
+                            image: { url: ppUrl },
+                            caption: `
 *${global.botname} welcome* @${userId}  
 
 *𝙶𝚛𝚘𝚞𝚙 𝙽𝚊𝚖𝚎: ${groupMetadata.subject}*
@@ -804,15 +821,15 @@ async function clientstart() {
 𝙲𝚊𝚞𝚜𝚎 𝚌𝚑𝚊𝚘𝚜 𝚒𝚝𝚜 𝚊𝚕𝚠𝚊𝚢𝚜 𝚏𝚞𝚗
 
 > ${global.wm}`,
-                                mentions: [participantJid]
-                            });
-                            console.log(`✅ Welcome message sent for ${name} in ${groupMetadata.subject}`);
-                            
-                        } else if (anu.action === 'remove') {
-                            const memberCount = groupMetadata.participants.length;
-                            await conn.sendMessage(groupId, {
-                                image: { url: ppUrl },
-                                caption: `
+                            mentions: [participantJid]
+                        });
+                        console.log(`✅ Welcome message sent for ${name} in ${groupMetadata.subject}`);
+                        
+                    } else if (anu.action === 'remove') {
+                        const memberCount = groupMetadata.participants.length;
+                        await conn.sendMessage(groupId, {
+                            image: { url: ppUrl },
+                            caption: `
 *👋 Goodbye* 😪 @${userId}
 
 *Left at: ${moment.tz(timezones).format('HH:mm:ss')}, ${moment.tz(timezones).format('DD/MM/YYYY')}*
@@ -820,210 +837,214 @@ async function clientstart() {
 *We're now ${memberCount} members*.
 
 > ${global.wm}`,
-                                mentions: [participantJid]
-                            });
-                            console.log(`✅ Goodbye message sent for ${name} in ${groupMetadata.subject}`);
-                        }
+                            mentions: [participantJid]
+                        });
+                        console.log(`✅ Goodbye message sent for ${name} in ${groupMetadata.subject}`);
                     }
-                } catch (err) {
-                    console.error('Error in welcome feature:', err);
                 }
+            } catch (err) {
+                console.error('Error in welcome feature:', err);
             }
-            
-            if (admineventEnabled === true) {
-                console.log('[ADMIN EVENT] Processing admin events');
-                
-                const participantJids = participants.map(p => 
-                    typeof p === 'string' ? p : (p?.id || '')
-                ).filter(p => p);
-                
-                if (participantJids.includes(botNumber)) return;
-                
-                try {
-                    let metadata = await conn.groupMetadata(anu.id);
-                    let participants = anu.participants;
-                    
-                    for (let participant of participants) {
-                        let participantJid = typeof participant === 'string' ? participant : participant?.id;
-                        if (!participantJid) continue;
-                        
-                        let authorJid = anu.author;
-                        if (anu.author && typeof anu.author !== 'string' && anu.author.id) {
-                            authorJid = anu.author.id;
-                        }
-                        
-                        let check = authorJid && authorJid !== participantJid;
-                        let tag = check ? [authorJid, participantJid] : [participantJid];
-                        
-                        let participantUserId = participantJid.includes('@') ? 
-                            participantJid.split('@')[0] : participantJid;
-                        let authorUserId = authorJid && authorJid.includes('@') ? 
-                            authorJid.split('@')[0] : authorJid;
-                        
-                        if (anu.action == "promote") {
-                            let promotedUsers = [];
-                            for (let participant of participants) {
-                                let pJid = typeof participant === 'string' ? participant : participant?.id;
-                                if (!pJid) continue;
-                                let userId = pJid.includes('@') ? pJid.split('@')[0] : pJid;
-                                promotedUsers.push(`@${userId}`);
-                            }
-                            
-                            const promotionMessage = `*『 GROUP PROMOTION 』*\n\n` +
-                                `👤 *Promoted User${participants.length > 1 ? 's' : ''}:*\n` +
-                                `${promotedUsers.join('\n')}\n\n` +
-                                `👑 *Promoted By:* @${authorUserId || 'Unknown'}\n\n` +
-                                `📅 *Date:* ${new Date().toLocaleString()}`;
-                            
-                            await conn.sendMessage(anu.id, {
-                                text: promotionMessage,
-                                mentions: tag
-                            });
-                            console.log(`✅ Promotion message sent in ${metadata.subject}`);
-                        }
-                        
-                        if (anu.action == "demote") {
-                            let demotedUsers = [];
-                            for (let participant of participants) {
-                                let pJid = typeof participant === 'string' ? participant : participant?.id;
-                                if (!pJid) continue;
-                                let userId = pJid.includes('@') ? pJid.split('@')[0] : pJid;
-                                demotedUsers.push(`@${userId}`);
-                            }
-                            
-                            const demotionMessage = `*『 GROUP DEMOTION 』*\n\n` +
-                                `👤 *Demoted User${participants.length > 1 ? 's' : ''}:*\n` +
-                                `${demotedUsers.join('\n')}\n\n` +
-                                `👑 *Demoted By:* @${authorUserId || 'Unknown'}\n\n` +
-                                `📅 *Date:* ${new Date().toLocaleString()}`;
-                            
-                            await conn.sendMessage(anu.id, {
-                                text: demotionMessage,
-                                mentions: tag
-                            });
-                            console.log(`✅ Demotion message sent in ${metadata.subject}`);
-                        }
-                    }
-                } catch (err) {
-                    console.log('Error in admin event feature:', err);
-                }
-            }
-            
-        } catch (error) {
-            console.error('Error in group-participants.update:', error);
         }
-    });
+        
+        // ========== HANDLE ADMIN EVENTS ==========
+        if (admineventEnabled === true) {
+            console.log('[ADMIN EVENT] Processing admin events');
+            
+            const participantJids = anu.participants.map(p => 
+                typeof p === 'string' ? p : (p?.id || '')
+            ).filter(p => p);
+            
+            if (participantJids.includes(botNumber)) return;
+            
+            try {
+                let metadata = await conn.groupMetadata(anu.id);
+                let participants = anu.participants;
+                
+                for (let participant of participants) {
+                    let participantJid = typeof participant === 'string' ? participant : participant?.id;
+                    if (!participantJid) continue;
+                    
+                    let authorJid = anu.author;
+                    if (anu.author && typeof anu.author !== 'string' && anu.author.id) {
+                        authorJid = anu.author.id;
+                    }
+                    
+                    let check = authorJid && authorJid !== participantJid;
+                    let tag = check ? [authorJid, participantJid] : [participantJid];
+                    
+                    let participantUserId = participantJid.includes('@') ? 
+                        participantJid.split('@')[0] : participantJid;
+                    let authorUserId = authorJid && authorJid.includes('@') ? 
+                        authorJid.split('@')[0] : authorJid;
+                    
+                    if (anu.action == "promote") {
+                        let promotedUsers = [];
+                        for (let participant of participants) {
+                            let pJid = typeof participant === 'string' ? participant : participant?.id;
+                            if (!pJid) continue;
+                            let userId = pJid.includes('@') ? pJid.split('@')[0] : pJid;
+                            promotedUsers.push(`@${userId}`);
+                        }
+                        
+                        const promotionMessage = `*『 GROUP PROMOTION 』*\n\n` +
+                            `👤 *Promoted User${participants.length > 1 ? 's' : ''}:*\n` +
+                            `${promotedUsers.join('\n')}\n\n` +
+                            `👑 *Promoted By:* @${authorUserId || 'Unknown'}\n\n` +
+                            `📅 *Date:* ${new Date().toLocaleString()}`;
+                        
+                        await conn.sendMessage(anu.id, {
+                            text: promotionMessage,
+                            mentions: tag
+                        });
+                        console.log(`✅ Promotion message sent in ${metadata.subject}`);
+                    }
+                    
+                    if (anu.action == "demote") {
+                        let demotedUsers = [];
+                        for (let participant of participants) {
+                            let pJid = typeof participant === 'string' ? participant : participant?.id;
+                            if (!pJid) continue;
+                            let userId = pJid.includes('@') ? pJid.split('@')[0] : pJid;
+                            demotedUsers.push(`@${userId}`);
+                        }
+                        
+                        const demotionMessage = `*『 GROUP DEMOTION 』*\n\n` +
+                            `👤 *Demoted User${participants.length > 1 ? 's' : ''}:*\n` +
+                            `${demotedUsers.join('\n')}\n\n` +
+                            `👑 *Demoted By:* @${authorUserId || 'Unknown'}\n\n` +
+                            `📅 *Date:* ${new Date().toLocaleString()}`;
+                        
+                        await conn.sendMessage(anu.id, {
+                            text: demotionMessage,
+                            mentions: tag
+                        });
+                        console.log(`✅ Demotion message sent in ${metadata.subject}`);
+                    }
+                }
+            } catch (err) {
+                console.log('Error in admin event feature:', err);
+            }
+        }
+        
+    } catch (error) {
+        console.error('Error in group-participants.update:', error);
+    }
+});
         
     conn.ev.on('call', async (callData) => {
-        try {
-            const botNumber = await conn.decodeJid(conn.user.id);
-            const anticallSetting = global.settingsManager?.getSetting(botNumber, 'anticall', 'off');
+    try {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        
+        // GET ANTICALL SETTING FROM SQLITE
+        const anticallSetting = await db.get(botNumber, 'anticall', 'off');
+        
+        if (!anticallSetting || anticallSetting === 'off') {
+            console.log(chalk.gray('[ANTICALL] Disabled'));
+            return;
+        }
+        
+        for (let call of callData) {
+            const from = call.from;
+            const callId = call.id;
             
-            if (!anticallSetting || anticallSetting === 'off') {
-                console.log(chalk.gray('[ANTICALL] Disabled'));
-                return;
+            // Get owners from database
+            const owners = await db.get(botNumber, 'owners', []);
+            const isOwner = owners.some(num => from.includes(num.replace('+', '').replace(/[^0-9]/g, '')));
+            
+            if (isOwner) {
+                console.log(chalk.green(`[ANTICALL] Allowing call from owner: ${from}`));
+                continue;
             }
             
-            for (let call of callData) {
-                const from = call.from;
-                const callId = call.id;
+            try {
+                const now = Date.now();
+                const lastWarn = global.recentCallers?.get(from) || 0;
+                const COOLDOWN = 30 * 1000;
                 
-                const ownerNumbers = global.owner || [];
-                const isOwner = ownerNumbers.some(num => from.includes(num.replace('+', '').replace(/[^0-9]/g, '')));
-                
-                if (isOwner) {
-                    console.log(chalk.green(`[ANTICALL] Allowing call from owner: ${from}`));
+                if (now - lastWarn < COOLDOWN) {
+                    console.log(chalk.yellow(`[ANTICALL] Suppressing repeated warning to ${from}`));
+                    try {
+                        if (typeof conn.rejectCall === 'function') {
+                            await conn.rejectCall(callId, from);
+                        }
+                    } catch (e) {}
                     continue;
                 }
                 
-                try {
-                    const now = Date.now();
-                    const lastWarn = global.recentCallers?.get(from) || 0;
-                    const COOLDOWN = 30 * 1000;
-                    
-                    if (now - lastWarn < COOLDOWN) {
-                        console.log(chalk.yellow(`[ANTICALL] Suppressing repeated warning to ${from}`));
-                        try {
-                            if (typeof conn.rejectCall === 'function') {
-                                await conn.rejectCall(callId, from);
-                            }
-                        } catch (e) {}
-                        continue;
+                if (!global.recentCallers) global.recentCallers = new Map();
+                global.recentCallers.set(from, now);
+                
+                setTimeout(() => {
+                    if (global.recentCallers?.has(from)) {
+                        global.recentCallers.delete(from);
                     }
-                    
-                    if (!global.recentCallers) global.recentCallers = new Map();
-                    global.recentCallers.set(from, now);
-                    
-                    setTimeout(() => {
-                        if (global.recentCallers?.has(from)) {
-                            global.recentCallers.delete(from);
-                        }
-                    }, COOLDOWN);
-                    
-                } catch (e) {
-                    console.error(chalk.red('[ANTICALL] recentCallers check failed:'), e);
-                    if (!global.recentCallers) global.recentCallers = new Map();
+                }, COOLDOWN);
+                
+            } catch (e) {
+                console.error(chalk.red('[ANTICALL] recentCallers check failed:'), e);
+                if (!global.recentCallers) global.recentCallers = new Map();
+            }
+            
+            console.log(chalk.yellow(`[ANTICALL] ${anticallSetting} call from: ${from}`));
+            
+            try {
+                const callerName = await conn.getName(from) || from.split('@')[0];
+                let warningMessage = '';
+                
+                if (anticallSetting === 'block') {
+                    warningMessage = `🚫 *CALL BLOCKED*\n\n` +
+                        `*Caller:* @${from.split('@')[0]}\n` +
+                        `*Time:* ${moment().tz(timezones).format('HH:mm:ss')}\n` +
+                        `*Date:* ${moment().tz(timezones).format('DD/MM/YYYY')}\n\n` +
+                        `*🌹 Hi, I am ${global.botname}, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kelvin Tech.*\n\n` +
+                        `*My owner cannot receive calls at this moment. Calls are automatically blocked.*\n\n` +
+                        `> ${global.wm}`;
+                } else {
+                    warningMessage = `🚫 *CALL DECLINED*\n\n` +
+                        `*Caller:* @${from.split('@')[0]}\n` +
+                        `*Time:* ${moment().tz(timezones).format('HH:mm:ss')}\n` +
+                        `*Date:* ${moment().tz(timezones).format('DD/MM/YYYY')}\n\n` +
+                        `*🌹 Hi, I am ${global.botname}, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kelvin Tech.*\n\n` +
+                        `*My owner cannot receive calls at this moment. Please avoid unnecessary calling.*\n\n` +
+                        `> ${global.wm}`;
                 }
+
+                await conn.sendMessage(from, { 
+                    text: warningMessage,
+                    mentions: [from]
+                });
                 
-                console.log(chalk.yellow(`[ANTICALL] ${anticallSetting} call from: ${from}`));
+                console.log(chalk.green(`[ANTICALL] Warning message sent to chat: ${from}`));
                 
-                try {
-                    const callerName = await conn.getName(from) || from.split('@')[0];
-                    let warningMessage = '';
+            } catch (msgError) {
+                console.error(chalk.red('[ANTICALL] Failed to send message to chat:'), msgError);
+            }
+            
+            try {
+                if (typeof conn.rejectCall === 'function') {
+                    await conn.rejectCall(callId, from);
+                    console.log(chalk.green(`[ANTICALL] Successfully ${anticallSetting === 'block' ? 'blocked' : 'declined'} call from: ${from}`));
                     
                     if (anticallSetting === 'block') {
-                        warningMessage = `🚫 *CALL BLOCKED*\n\n` +
-                            `*Caller:* @${from.split('@')[0]}\n` +
-                            `*Time:* ${moment().tz(timezones).format('HH:mm:ss')}\n` +
-                            `*Date:* ${moment().tz(timezones).format('DD/MM/YYYY')}\n\n` +
-                            `*🌹 Hi, I am ${global.botname}, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kelvin Tech.*\n\n` +
-                            `*My owner cannot receive calls at this moment. Calls are automatically blocked.*\n\n` +
-                            `> ${global.wm}`;
-                    } else {
-                        warningMessage = `🚫 *CALL DECLINED*\n\n` +
-                            `*Caller:* @${from.split('@')[0]}\n` +
-                            `*Time:* ${moment().tz(timezones).format('HH:mm:ss')}\n` +
-                            `*Date:* ${moment().tz(timezones).format('DD/MM/YYYY')}\n\n` +
-                            `*🌹 Hi, I am ${global.botname}, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kelvin Tech.*\n\n` +
-                            `*My owner cannot receive calls at this moment. Please avoid unnecessary calling.*\n\n` +
-                            `> ${global.wm}`;
-                    }
-
-                    await conn.sendMessage(from, { 
-                        text: warningMessage,
-                        mentions: [from]
-                    });
-                    
-                    console.log(chalk.green(`[ANTICALL] Warning message sent to chat: ${from}`));
-                    
-                } catch (msgError) {
-                    console.error(chalk.red('[ANTICALL] Failed to send message to chat:'), msgError);
-                }
-                
-                try {
-                    if (typeof conn.rejectCall === 'function') {
-                        await conn.rejectCall(callId, from);
-                        console.log(chalk.green(`[ANTICALL] Successfully ${anticallSetting === 'block' ? 'blocked' : 'declined'} call from: ${from}`));
-                        
-                        if (anticallSetting === 'block') {
-                            try {
-                                await conn.updateBlockStatus(from, 'block');
-                                console.log(chalk.red(`[ANTICALL] Blocked user: ${from}`));
-                            } catch (blockError) {
-                                console.error(chalk.red('[ANTICALL] Failed to block user:'), blockError);
-                            }
+                        try {
+                            await conn.updateBlockStatus(from, 'block');
+                            console.log(chalk.red(`[ANTICALL] Blocked user: ${from}`));
+                        } catch (blockError) {
+                            console.error(chalk.red('[ANTICALL] Failed to block user:'), blockError);
                         }
-                    } else {
-                        console.log(chalk.yellow('[ANTICALL] conn.rejectCall not available'));
                     }
-                } catch (rejectError) {
-                    console.error(chalk.red('[ANTICALL] Failed to decline/block call:'), rejectError);
+                } else {
+                    console.log(chalk.yellow('[ANTICALL] conn.rejectCall not available'));
                 }
+            } catch (rejectError) {
+                console.error(chalk.red('[ANTICALL] Failed to decline/block call:'), rejectError);
             }
-        } catch (error) {
-            console.error(chalk.red('[ANTICALL ERROR]'), error);
         }
-    });
+    } catch (error) {
+        console.error(chalk.red('[ANTICALL ERROR]'), error);
+    }
+});
 
     conn.getFile = async (PATH, returnAsFilename) => {
         let res, filename;
