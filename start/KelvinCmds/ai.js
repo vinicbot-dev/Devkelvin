@@ -9,12 +9,12 @@ async function veniceAICommand(conn, chatId, query, message) {
             }, { quoted: message });
         }
 
-        // Send thinking message - will NOT be deleted
         await conn.sendMessage(chatId, {
             text: "🤔 *Venice AI Thinking...*"
         }, { quoted: message });
 
-        const apiUrl = `https://apiskeith.vercel.app/ai/venice?q=${encodeURIComponent(query)}`;
+        // Updated API endpoint
+        const apiUrl = `https://apiskeith.top/ai/venice?q=${encodeURIComponent(query)}`;
         const response = await axios.get(apiUrl, { timeout: 30000 });
         
         if (!response.data?.status) {
@@ -49,12 +49,12 @@ async function mistralAICommand(conn, chatId, query, message) {
             }, { quoted: message });
         }
 
-        // Send thinking message - will NOT be deleted
         await conn.sendMessage(chatId, {
             text: "🤔 *Mistral AI Thinking...*"
         }, { quoted: message });
 
-        const apiUrl = `https://apiskeith.vercel.app/ai/mistral?q=${encodeURIComponent(query)}`;
+        // Updated API endpoint
+        const apiUrl = `https://apiskeith.top/ai/mistral?q=${encodeURIComponent(query)}`;
         const response = await axios.get(apiUrl, { timeout: 30000 });
         
         if (!response.data?.status) {
@@ -89,12 +89,12 @@ async function perplexityAICommand(conn, chatId, query, message) {
             }, { quoted: message });
         }
 
-        // Send thinking message - will NOT be deleted
         await conn.sendMessage(chatId, {
             text: "🤔 *Perplexity AI Thinking...*"
         }, { quoted: message });
 
-        const apiUrl = `https://apiskeith.vercel.app/ai/perplexity?q=${encodeURIComponent(query)}`;
+        // Updated API endpoint
+        const apiUrl = `https://apiskeith.top/ai/perplexity?q=${encodeURIComponent(query)}`;
         const response = await axios.get(apiUrl, { timeout: 30000 });
         
         if (!response.data?.status) {
@@ -129,12 +129,12 @@ async function bardAICommand(conn, chatId, query, message) {
             }, { quoted: message });
         }
 
-        // Send thinking message - will NOT be deleted
         await conn.sendMessage(chatId, {
             text: "🤔 *Bard AI Thinking...*"
         }, { quoted: message });
 
-        const apiUrl = `https://apiskeith.vercel.app/ai/bard?q=${encodeURIComponent(query)}`;
+        // Updated API endpoint
+        const apiUrl = `https://apiskeith.top/ai/bard?q=${encodeURIComponent(query)}`;
         const response = await axios.get(apiUrl, { timeout: 30000 });
         
         if (!response.data?.status) {
@@ -169,12 +169,12 @@ async function gpt4NanoAICommand(conn, chatId, query, message) {
             }, { quoted: message });
         }
 
-        // Send thinking message - will NOT be deleted
         await conn.sendMessage(chatId, {
             text: "🤔 *GPT-4 Nano Thinking...*"
         }, { quoted: message });
 
-        const apiUrl = `https://apiskeith.vercel.app/ai/gpt41Nano?q=${encodeURIComponent(query)}`;
+        // Updated API endpoint
+        const apiUrl = `https://apiskeith.top/ai/gpt41Nano?q=${encodeURIComponent(query)}`;
         const response = await axios.get(apiUrl, { timeout: 30000 });
         
         if (!response.data?.status) {
@@ -201,20 +201,20 @@ async function gpt4NanoAICommand(conn, chatId, query, message) {
     }
 }
 
-async function keithAICommand(conn, chatId, query, message) {
+async function kelvinAICommand(conn, chatId, query, message) {
     try {
         if (!query) {
             return await conn.sendMessage(chatId, {
-                text: "🤖 *Kelvin AI*\n\nPlease ask me something!\n\nExample:\n.keithai Hello, how are you?\n.kelvinai What can you do?"
+                text: "🤖 *Kelvin AI*\n\nPlease ask me something!\n\nExample:\n.kelvinai Hello, how are you?\n.keithai What can you do?"
             }, { quoted: message });
         }
 
-        // Send thinking message - will NOT be deleted
         await conn.sendMessage(chatId, {
             text: "🤔 *Kelvin AI Thinking...*"
         }, { quoted: message });
 
-        const apiUrl = `https://apiskeith.vercel.app/keithai?q=${encodeURIComponent(query)}`;
+        // Updated API endpoint
+        const apiUrl = `https://apiskeith.top/keithai?q=${encodeURIComponent(query)}`;
         const response = await axios.get(apiUrl, { timeout: 30000 });
         
         if (!response.data?.status) {
@@ -236,7 +236,7 @@ async function keithAICommand(conn, chatId, query, message) {
     } catch (error) {
         console.error('Kelvin AI Error:', error.message);
         await conn.sendMessage(chatId, { 
-            text: "❌ Error connecting to Keith AI. Please try again." 
+            text: "Error connecting to Kelvin AI. Please try again." 
         }, { quoted: message });
     }
 }
@@ -249,12 +249,12 @@ async function claudeAICommand(conn, chatId, query, message) {
             }, { quoted: message });
         }
 
-        // Send thinking message - will NOT be deleted
         await conn.sendMessage(chatId, {
             text: "🤔 *Claude AI Thinking...*"
         }, { quoted: message });
 
-        const apiUrl = `https://apiskeith.vercel.app/ai/claudeai?q=${encodeURIComponent(query)}`;
+        // Updated API endpoint
+        const apiUrl = `https://apiskeith.top/ai/claudeai?q=${encodeURIComponent(query)}`;
         const response = await axios.get(apiUrl, { timeout: 30000 });
         
         if (!response.data?.status) {
@@ -287,6 +287,6 @@ module.exports = {
     perplexityAICommand,
     bardAICommand,
     gpt4NanoAICommand,
-    keithAICommand,
+    kelvinAICommand,
     claudeAICommand
 }
