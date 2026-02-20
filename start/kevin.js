@@ -103,7 +103,7 @@ mistralAICommand,
 perplexityAICommand,
 bardAICommand,
 gpt4NanoAICommand,
-keithAICommand,
+kelvinAICommand,
 claudeAICommand
 } = require('./KelvinCmds/ai');
 const { KelvinVideo } = require('./KelvinCmds/video');
@@ -4840,7 +4840,7 @@ if (!text) return reply('.ytmp4 <YouTube URL>');
         try {
             await reply('⏳ Downloading video...');
             
-            const apiUrl = `https://apiskeith.vercel.app/download/mp4?url=${encodeURIComponent(text)}`;
+            const apiUrl = `https://apiskeith.top/download/mp4?url=${encodeURIComponent(text)}`;
             const res = await axios.get(apiUrl);
             const data = res.data;
             
@@ -5313,90 +5313,60 @@ conn.sendMessage(m.chat, { audio: { url: json.music }, mimetype: 'audio/mpeg' },
 }
 }
 break       
-case 'facebook':
-case 'fb': {
-    if (!text) return reply(`*Please provide a Facebook link!*\n\nExample:\n.fb https://www.facebook.com/share/r/19zyz6X8KJ/`);
+case 'fb':
+case 'facebook': {
+    if (!text) return reply(`Please provide a Facebook video URL\n\nExample: ${prefix}fb https://www.facebook.com/share/r/19zyz6X8KJ/`);
+
+    const url = text.trim();
+    
+    // Validate URL
+    if (!url.includes('facebook.com') && !url.includes('fb.watch')) {
+        return reply('Please provide a valid Facebook URL');
+    }
+
+    // Send processing message
+    await reply('⏳ Downloading Facebook video... Please wait...');
+    await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
 
     try {
-        // React while processing
-        await conn.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
-
-        // Use the new API
-        const apiUrl = `https://apiskeith.vercel.app/download/fbdown?url=${encodeURIComponent(text)}`;
+        // Fetch video from API
+        const apiUrl = `https://apiskeith.top/download/fbdown?url=${encodeURIComponent(url)}`;
+        const response = await axios.get(apiUrl, { timeout: 30000 });
         
-        // Fetch response
-        const response = await fetch(apiUrl);
-        const data = await response.json();
-
-        if (data.status && data.result && data.result.media) {
-            // Prefer HD video if available, otherwise use SD
-            const videoUrl = data.result.media.hd || data.result.media.sd;
-            
-            if (!videoUrl) {
-                reply('❌ *No video found in this Facebook post*');
-                await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
-                break;
-            }
-            
-            // Get title and thumbnail
-            const title = data.result.title || 'Facebook Video';
-            const thumbnail = data.result.thumbnail || null;
-            
-            // Create caption with title and global watermark
-            let caption = '';
-            if (title && title !== 'Facebook Video') {
-                // Decode HTML entities if present
-                const decodedTitle = title.replace(/&#x([0-9a-f]+);/gi, (match, hex) => 
-                    String.fromCharCode(parseInt(hex, 16))
-                );
-                caption += `📹 *${decodedTitle}*\n\n`;
-            }
-            
-            // Add global watermark if defined
-            if (global.wm) {
-                caption += `${global.wm}`;
-            } else {
-                caption += `⬇️ Downloaded via ${global.botname || 'Bot'}`;
-            }
-            
-            // Send the video
-            await conn.sendMessage(
-                m.chat,
-                {
-                    video: { url: videoUrl },
-                    mimetype: 'video/mp4',
-                    caption: caption.trim(),
-                    fileName: `facebook_${Date.now()}.mp4`,
-                    ...(thumbnail && {
-                        thumbnail: { url: thumbnail },
-                        jpegThumbnail: thumbnail
-                    })
-                },
-                { quoted: m }
-            );
-            
-            // Success reaction
-            await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
-            
-        } else {
-            throw new Error('No media found or API error');
+        // Check response
+        if (!response.data?.status) {
+            throw new Error('Invalid API response');
         }
+
+        const videoUrl = response.data.result;
         
+        if (!videoUrl) {
+            throw new Error('No video URL found');
+        }
+
+        // Send the video with global.wm caption
+        await conn.sendMessage(m.chat, {
+            video: { url: videoUrl },
+            caption: global.wm || '© Jexploit Bot',
+            mimetype: 'video/mp4'
+        }, { quoted: m });
+
+        // Success reaction
+        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
     } catch (error) {
-        console.error('Facebook command error:', error);
-        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+        console.error('Facebook download error:', error);
+        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
         
-        let errorMessage = '❌ *Failed to download Facebook video.*\n';
-        
-        if (error.message.includes('No media found')) {
-            errorMessage += 'The link may not contain a video or is private.';
-        } else if (error.message.includes('NetworkError') || error.message.includes('fetch')) {
-            errorMessage += 'Network error. Please check your connection.';
+        let errorMsg = '❌ Failed to download video. ';
+        if (error.message.includes('timeout')) {
+            errorMsg += 'Request timed out.';
+        } else if (error.message.includes('No video URL')) {
+            errorMsg += 'Could not retrieve video URL.';
         } else {
-            errorMessage += 'Please check the URL and try again.';
+            errorMsg += 'Please try again later.';
         }
-        
-        reply(errorMessage);
+        reply(errorMsg);
     }
     break;
 }
@@ -6549,12 +6519,351 @@ case 'gpt41nano': {
 }
 
 case 'kelvinai': {
-    await keithAICommand(conn, m.chat, text, m);
+    await kelvinAICommand(conn, m.chat, text, m);
     break;
 }
 
 case 'claude': {
     await claudeAICommand(conn, m.chat, text, m);
+    break;
+}
+case 'math':
+case 'simplify': {
+    if (!text) return reply(`Please provide a math expression to simplify.\n\nExample:\n${prefix}math 2^8\n${prefix}simplify (5+3)*2`);
+
+    const expression = text.trim();
+    
+    // Send processing message
+    await reply('Simplifying expression... Please wait...');
+    await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
+
+    try {
+      
+        const apiUrl = `https://apiskeith.top/math/simplify?expr=${encodeURIComponent(expression)}`;
+        const response = await axios.get(apiUrl, { timeout: 10000 });
+        
+        // Check response
+        if (!response.data?.status) {
+            throw new Error('Invalid API response');
+        }
+
+        const result = response.data.result;
+        
+        // Format the response
+        const replyMsg = `🧮 *Math Simplification*\n\n` +
+                        `📝 *Expression:* ${response.data.expression}\n` +
+                        `✅ *Result:* ${result}\n\n` +
+                        `> ${global.wm}`;
+
+        await conn.sendMessage(m.chat, { text: replyMsg }, { quoted: m });
+        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+    } catch (error) {
+        console.error('Math API Error:', error.message);
+        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+        
+        let errorMsg = '❌ Failed to simplify expression. ';
+        if (error.message.includes('timeout')) {
+            errorMsg += 'Request timed out.';
+        } else {
+            errorMsg += 'Please check your expression and try again.';
+        }
+        reply(errorMsg);
+    }
+    break;
+}
+case 'dictionary':
+case 'dict':
+case 'define': {
+    if (!text) return reply(`*Dictionary*\n\nPlease provide a word to define.\n\nExample:\n${prefix}dictionary cat\n${prefix}define hello\n${prefix}dict computer`);
+
+    const word = text.trim().toLowerCase();
+    
+    // Send processing message
+    await reply(`🔍 Searching definition for: *${word}*...`);
+    await conn.sendMessage(m.chat, { react: { text: '📖', key: m.key } });
+
+    try {
+        // Call the dictionary API
+        const apiUrl = `https://apiskeith.top/education/dictionary?q=${encodeURIComponent(word)}`;
+        const response = await axios.get(apiUrl, { timeout: 15000 });
+        
+        // Check response
+        if (!response.data?.status || !response.data?.result) {
+            throw new Error('Invalid API response');
+        }
+
+        const data = response.data.result;
+        
+        // Format the dictionary entry
+        let definitionText = `📖 *Dictionary: ${data.word}*\n\n`;
+        
+        // Add phonetics if available
+        if (data.phonetics && data.phonetics.length > 0) {
+            const pronunciation = data.phonetics.find(p => p.text) || data.phonetics[0];
+            if (pronunciation.text) {
+                definitionText += `🔊 *Pronunciation:* ${pronunciation.text}\n`;
+            }
+        }
+        
+        definitionText += `\n`;
+        
+        // Add meanings
+        if (data.meanings && data.meanings.length > 0) {
+            data.meanings.forEach((meaning, index) => {
+                definitionText += `*${meaning.partOfSpeech.toUpperCase()}*\n`;
+                
+                if (meaning.definitions && meaning.definitions.length > 0) {
+                    // Show first 3 definitions to avoid long messages
+                    meaning.definitions.slice(0, 3).forEach((def, i) => {
+                        definitionText += `${i+1}. ${def.definition}\n`;
+                        
+                        // Add example if available
+                        if (def.example) {
+                            definitionText += `   _\"${def.example}\"_\n`;
+                        }
+                    });
+                    
+                    if (meaning.definitions.length > 3) {
+                        definitionText += `   *+${meaning.definitions.length - 3} more definitions*\n`;
+                    }
+                }
+                
+                // Add synonyms if available
+                if (meaning.synonyms && meaning.synonyms.length > 0) {
+                    definitionText += `   *Synonyms:* ${meaning.synonyms.slice(0, 5).join(', ')}`;
+                    if (meaning.synonyms.length > 5) {
+                        definitionText += ` +${meaning.synonyms.length - 5} more`;
+                    }
+                    definitionText += `\n`;
+                }
+                
+                definitionText += `\n`;
+            });
+        }
+        
+        // Add source
+        if (data.sourceUrls && data.sourceUrls.length > 0) {
+            definitionText += `📚 *Source:* ${data.sourceUrls[0]}\n`;
+        }
+        
+        // Check if message is too long and truncate if needed
+        if (definitionText.length > 4000) {
+            definitionText = definitionText.substring(0, 4000) + '\n\n_...definition truncated (too long)_';
+        }
+
+        await conn.sendMessage(m.chat, { text: definitionText }, { quoted: m });
+        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+    } catch (error) {
+        console.error('Dictionary API Error:', error.message);
+        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+        
+        let errorMsg = `❌ Could not find definition for "*${word}*". `;
+        if (error.message.includes('timeout')) {
+            errorMsg += 'Request timed out.';
+        } else if (error.response?.status === 404) {
+            errorMsg = `❌ No definition found for "*${word}*". Please check the spelling.`;
+        } else {
+            errorMsg += 'Please try again later.';
+        }
+        reply(errorMsg);
+    }
+    break;
+}
+case 'poem':
+case 'randompoem': {
+    // Send processing message
+    await reply('Finding a random poem for you... Please wait...');
+    await conn.sendMessage(m.chat, { react: { text: '📖', key: m.key } });
+
+    try {
+        // the random poem API
+        const apiUrl = 'https://apiskeith.top/education/randompoem';
+        const response = await axios.get(apiUrl, { timeout: 15000 });
+        
+        // Check response
+        if (!response.data?.status || !response.data?.result) {
+            throw new Error('Invalid API response');
+        }
+
+        const poem = response.data.result;
+        
+        // Format the poem beautifully
+        let poemText = `📜 *${poem.title}*\n`;
+        poemText += `✍️ *by ${poem.author}*\n\n`;
+        
+        // Add the poem lines
+        if (poem.lines && poem.lines.length > 0) {
+            poemText += poem.lines.join('\n');
+        } else if (poem.fullText) {
+            poemText += poem.fullText;
+        }
+        
+        // Add line count at the bottom
+        if (poem.lineCount) {
+            poemText += `\n\n_━━━━━━━━━━━━━━_\n📊 *${poem.lineCount} lines*`;
+        }
+
+        await conn.sendMessage(m.chat, { text: poemText }, { quoted: m });
+        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+    } catch (error) {
+        console.error('Random Poem API Error:', error.message);
+        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+        
+        let errorMsg = '❌ Failed to fetch a random poem. ';
+        if (error.message.includes('timeout')) {
+            errorMsg += 'Request timed out.';
+        } else {
+            errorMsg += 'Please try again later.';
+        }
+        reply(errorMsg);
+    }
+    break;
+}
+case 'fruit':
+case 'fruitinfo': {
+    if (!text) return reply(`🍎 *Fruit Information*\n\nPlease provide a fruit name.\n\nExample:\n${prefix}fruit apple\n${prefix}fruitinfo banana\n${prefix}fruit orange`);
+
+    const fruitName = text.trim().toLowerCase();
+    
+    // Send processing message
+    await reply(`🔍 Searching for information about: *${fruitName}*...`);
+    await conn.sendMessage(m.chat, { react: { text: '🍊', key: m.key } });
+
+    try {
+        // Call the fruit API
+        const apiUrl = `https://apiskeith.top/education/fruit?q=${encodeURIComponent(fruitName)}`;
+        const response = await axios.get(apiUrl, { timeout: 10000 });
+        
+        // Check response
+        if (!response.data?.status || !response.data?.result) {
+            throw new Error('Invalid API response');
+        }
+
+        const fruit = response.data.result;
+        
+        // Format the fruit information
+        let fruitText = `🍎 *Fruit: ${fruit.name}*\n\n`;
+        fruitText += `📚 *Scientific Classification*\n`;
+        fruitText += `• Family: ${fruit.family || 'N/A'}\n`;
+        fruitText += `• Genus: ${fruit.genus || 'N/A'}\n`;
+        fruitText += `• Order: ${fruit.order || 'N/A'}\n\n`;
+        
+        // Add nutrition information if available
+        if (fruit.nutritions) {
+            fruitText += `*Nutrition Facts (per 100g)*\n`;
+            fruitText += `• Calories: ${fruit.nutritions.calories || 0} kcal\n`;
+            fruitText += `• Fat: ${fruit.nutritions.fat || 0}g\n`;
+            fruitText += `• Sugar: ${fruit.nutritions.sugar || 0}g\n`;
+            fruitText += `• Carbohydrates: ${fruit.nutritions.carbohydrates || 0}g\n`;
+            fruitText += `• Protein: ${fruit.nutritions.protein || 0}g\n`;
+        }
+
+        await conn.sendMessage(m.chat, { text: fruitText }, { quoted: m });
+        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+    } catch (error) {
+        console.error('Fruit API Error:', error.message);
+        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+        
+        let errorMsg = `❌ Could not find information for "${fruitName}". `;
+        if (error.message.includes('timeout')) {
+            errorMsg += 'Request timed out.';
+        } else if (error.response?.status === 404) {
+            errorMsg = `❌ No information found for "${fruitName}". Please check the spelling.`;
+        } else {
+            errorMsg += 'Please try again later.';
+        }
+        reply(errorMsg);
+    }
+    break;
+}
+case 'book':
+case 'booksearch': {
+    if (!text) return reply(`📚 *Book Search*\n\nPlease provide a book title to search.\n\nExample:\n${prefix}book a doll's house\n${prefix}booksearch harry potter\n${prefix}book moby dick`);
+
+    const query = text.trim();
+    
+    // Send processing message
+    await reply(`🔍 Searching for books: *${query}*...`);
+    await conn.sendMessage(m.chat, { react: { text: '📚', key: m.key } });
+
+    try {
+        // Call the book search API
+        const apiUrl = `https://apiskeith.top/education/booksearch?q=${encodeURIComponent(query)}`;
+        const response = await axios.get(apiUrl, { timeout: 15000 });
+        
+        // Check response
+        if (!response.data?.status || !response.data?.result || response.data.result.length === 0) {
+            throw new Error('No books found');
+        }
+
+        const books = response.data.result;
+        
+        // Format the results
+        let bookText = `📚 *Book Search Results for "${query}"*\n\n`;
+        bookText += `━━━━━━━━━━━━━━━━━━\n\n`;
+        
+        // Show first 3 books to avoid long messages
+        const maxBooks = Math.min(books.length, 3);
+        
+        for (let i = 0; i < maxBooks; i++) {
+            const book = books[i];
+            
+            bookText += `📖 *${i+1}. ${book.title}*\n`;
+            
+            // Add authors
+            if (book.authors && book.authors.length > 0) {
+                const authorNames = book.authors.map(a => a.name).join(', ');
+                bookText += `✍️ *Author:* ${authorNames}\n`;
+            }
+            
+            // Add brief summary (truncated)
+            if (book.summary) {
+                const shortSummary = book.summary.length > 200 
+                    ? book.summary.substring(0, 200) + '...' 
+                    : book.summary;
+                bookText += `📝 *Summary:* ${shortSummary}\n`;
+            }
+            
+            // Add key metadata
+            bookText += `📊 *Downloads:* ${book.downloadCount?.toLocaleString() || 0}\n`;
+            bookText += `🔤 *Language:* ${book.languages?.join(', ') || 'en'}\n`;
+            
+            // Add subjects/topics (first 2)
+            if (book.subjects && book.subjects.length > 0) {
+                const subjects = book.subjects.slice(0, 2).join(' • ');
+                bookText += `🏷️ *Topics:* ${subjects}`;
+                if (book.subjects.length > 2) bookText += ` +${book.subjects.length - 2} more`;
+                bookText += `\n`;
+            }
+            
+            bookText += `\n━━━━━━━━━━━━━━━━━━\n\n`;
+        }
+        
+        if (books.length > 3) {
+            bookText += `_...and ${books.length - 3} more results. Search more specifically for detailed results._`;
+        }
+
+        await conn.sendMessage(m.chat, { text: bookText }, { quoted: m });
+        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+    } catch (error) {
+        console.error('Book Search API Error:', error.message);
+        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+        
+        let errorMsg = `❌ No books found for "${query}". `;
+        if (error.message.includes('timeout')) {
+            errorMsg = '❌ Request timed out. Please try again.';
+        } else if (error.message.includes('No books found')) {
+            errorMsg = `❌ No books found matching "${query}". Try a different title.`;
+        } else {
+            errorMsg += 'Please try again later.';
+        }
+        reply(errorMsg);
+    }
     break;
 }
 case "helpers": {
