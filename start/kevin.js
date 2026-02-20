@@ -1756,8 +1756,8 @@ case 'setstatusemoji': {
     break;
 }
 case 'welcome': {
-    if (!m.isGroup) return reply(global.group);
-    if (!m.isAdmin && !Access) return reply(mess.admin);
+    if (!m.isGroup) return reply(mess.group);
+    if (!m.isAdmin && !Access) return reply(mess.notadmin);
     
     const mode = args[0]?.toLowerCase();
     if (!mode || !['on', 'off'].includes(mode)) {
@@ -1788,24 +1788,45 @@ case 'anticall': {
     if (!Access) return reply(mess.owner);
     
     const mode = args[0]?.toLowerCase();
-    if (!mode || !['on', 'off', 'block'].includes(mode)) {
+    const action = args[1]?.toLowerCase();
+    
+    // Show help if no arguments
+    if (!mode) {
         const current = await db.get(botNumber, 'anticall', 'off');
-        return reply(`❌ Usage: ${prefix}anticall <on/off/block>\n\nCurrent: ${current}`);
+        return reply(`*ANTICALL*\n\n` +
+            `• ${prefix}anticall decline on\n` +
+            `• ${prefix}anticall decline off\n` +
+            `• ${prefix}anticall block on\n` +
+            `• ${prefix}anticall block off\n\n` +
+            `Current: ${current}`);
     }
     
-    let value;
-    if (mode === 'on') value = 'decline';
-    else if (mode === 'off') value = 'off';
-    else if (mode === 'block') value = 'block';
+    // Handle decline mode
+    if (mode === 'decline') {
+        if (action === 'on') {
+            await db.set(botNumber, 'anticall', 'decline');
+            return reply('✅ Anticall ON (calls will be declined)');
+        }
+        if (action === 'off') {
+            await db.set(botNumber, 'anticall', 'off');
+            return reply('❌ Anticall OFF');
+        }
+    }
     
-    await db.set(botNumber, 'anticall', value);
+    // Handle block mode
+    if (mode === 'block') {
+        if (action === 'on') {
+            await db.set(botNumber, 'anticall', 'block');
+            return reply('✅ Anticall BLOCK ON (callers will be blocked)');
+        }
+        if (action === 'off') {
+            await db.set(botNumber, 'anticall', 'off');
+            return reply('❌ Anticall OFF');
+        }
+    }
     
-    let response = '';
-    if (value === 'decline') response = '✅ Anticall enabled (calls will be declined)';
-    else if (value === 'block') response = '✅ Anticall enabled (callers will be blocked)';
-    else response = '✅ Anticall disabled';
-    
-    reply(response);
+    // Invalid command
+    reply('❌ Use: .anticall decline on/off or .anticall block on/off');
     break;
 }
 case "settings":
@@ -2130,7 +2151,7 @@ case "groupid": {
 break
 case 'autotyping':
 case 'typing': {
-    // Get setting (with caching, low memory!)
+    if (!Access) return reply(mess.owner);
     const autoTyping = await db.get(botNumber, 'autoTyping', false);
     
     if (!Access) return reply(mess.owner);
