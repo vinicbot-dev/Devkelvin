@@ -35,7 +35,7 @@ https://jexploitsession.zone.id/
         await conn.sendMessage(
             chatId,
             {
-                image: { url: 'https://files.catbox.moe/9sazwf.jpg' }, // Your bot image
+                image: { url: './start/lib/Media/Jexploit1.jpg' }, // Your bot image
                 caption: txt
             },
             { quoted: message }
