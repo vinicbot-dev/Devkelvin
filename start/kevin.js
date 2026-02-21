@@ -3104,11 +3104,9 @@ const apiUrl = `${global.mess.siputzx}/api/tools/vcc-generator?type=MasterCard&c
       reply(mess.error);
     }
 }
-//==================================================//
 break
 case "calculate":
-case "calc":
-case "math": {
+case "calc": {
     try {
         if (!text) return reply(`📝 *Examples:*\n${prefix}calc 5 + 3\n${prefix}calc 10% of 200\n${prefix}calc 2^3\n${prefix}calc sqrt(16)`);
 
