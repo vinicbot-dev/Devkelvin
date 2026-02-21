@@ -1943,17 +1943,19 @@ case "getpp": {
     }
 }
 break
-case "update": {
+case "update":
+case "botupdate":
+case "upgrade": {
     if (!Access) return reply(mess.owner);
     
     try {
         const updateCommand = require('./lib/update');
-        await updateCommand(conn, Access, m.chat, m, null);
-        reply("✅ *Update completed successfully!*\n Bot has been updated to the latest version.");
+        await updateCommand(conn, Access, m.chat, m);
     } catch (err) {
         console.error('Update error:', err);
         reply(`*Update failed:* ${err.message}`);
     }
+    
 }
 break
 case "toviewonce": {
