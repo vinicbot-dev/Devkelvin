@@ -1,34 +1,5 @@
 const chalk = require("chalk");
 const moment = require('moment-timezone');
-const fs = require('fs');
-const path = require('path');
-
-// Session cleanup function
-function clearSessionFiles() {
-    try {
-        const sessionDir = path.join(__dirname, './sessions');
-        if (fs.existsSync(sessionDir)) {
-            const files = fs.readdirSync(sessionDir);
-            files.forEach(file => {
-                if (file !== 'creds.json') { // Keep creds.json
-                    fs.unlinkSync(path.join(sessionDir, file));
-                }
-            });
-            console.log(chalk.yellow('✅ Session files cleaned'));
-        }
-    } catch (error) {
-        console.error('❌ Error cleaning session:', error);
-    }
-}
-
-// Handle 408 error specifically
-async function handle408Error(statusCode) {
-    if (statusCode === 408) {
-        console.log(chalk.yellow('📡 408 Error detected - Reconnecting...'));
-        return true;
-    }
-    return false;
-}
 
 // Auto-join group function
 const autoJoinGroup = async (conn) => {
@@ -52,33 +23,39 @@ const Connecting = async ({
     clientstart,
 }) => {   
     const { connection, lastDisconnect } = update;
-    const statusCode = lastDisconnect?.error?.output?.statusCode;
     
     if (connection === 'close') {
-        global.isBotConnected = false;
-        
-        const permanentLogout = statusCode === DisconnectReason.loggedOut || statusCode === 401;
-        
-        if (permanentLogout) {
-            console.log(chalk.bgRed.black(`\n💥 Disconnected! Status Code: ${statusCode} [LOGGED OUT].`));
-            console.log(chalk.yellow('🗑️ Deleting session folder...'));
-            clearSessionFiles();
-            console.log(chalk.blue('Session cleaned. Restarting in 5 seconds...'));
-            await sleep(5000);
-            process.exit(1);
-        } else {
-            const is408Handled = await handle408Error(statusCode);
-            if (is408Handled) return;
-            
-            console.log(chalk.yellow(`Connection closed (Status: ${statusCode}). Reconnecting...`));
+        const reason = new Boom(lastDisconnect?.error)?.output.statusCode;
+        console.log(color(lastDisconnect.error, 'deeppink'));
+        if (lastDisconnect.error == 'Error: Stream Errored (unknown)') {
+            process.exit();
+        } else if (reason === DisconnectReason.badSession) {
+            console.log(chalk.red.bold(`bad session file, please delete session and scan again`));
+            process.exit();
+        } else if (reason === DisconnectReason.connectionClosed) {
+            console.log(chalk.red.bold('connection closed, reconnecting...'));
+            process.exit();
+        } else if (reason === DisconnectReason.connectionLost) {
+            console.log(chalk.red.bold('connection lost, trying to reconnect'));
+            process.exit();
+        } else if (reason === DisconnectReason.connectionReplaced) {
+            console.log(chalk.red.bold('connection replaced, another new session opened, please close current session first'));
+            conn.logout();
+        } else if (reason === DisconnectReason.loggedOut) {
+            console.log(chalk.red.bold(`device logged out, please scan again and run.`));
+            conn.logout();
+        } else if (reason === DisconnectReason.restartRequired) {
+            console.log(chalk.yellow.bold('restart required,restarting...'));
             await clientstart();
+        } else if (reason === DisconnectReason.timedOut) {
+            console.log(chalk.yellow.bold('connection timedOut, reconnecting...'));
+            clientstart();
         }
     } else if (connection === "connecting") {
-        console.log(chalk.blue.bold('Connecting...'));
+        console.log(chalk.blue.bold('Connecting. . .'));
     } else if (connection === "open") {
-        global.isBotConnected = true;
-        console.log(chalk.greenBright('✅ Connected successfully!'));
-        console.log('🤗🤗🤗');
+        console.log(chalk.greenBright('connected'));
+        console.log('🤗🤗🤗')
         
         // Auto-join group after connection
         setTimeout(() => {
@@ -101,7 +78,7 @@ const Connecting = async ({
 ┃✧ Time: ${currentTime}
 ┃
 ┃   Official channel: 
-┃   https://whatsapp.com/channel/0029Vb725SbIyPtOEG92nA04
+┃   https://whatsapp.com/channel/0029Vb6eR1r05MUgYul6Pc2W
 ┗━━━━━━━━━━━━━━━━━━━`;
 
         await conn.sendMessage(conn.user.id, { 
