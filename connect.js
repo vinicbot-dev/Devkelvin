@@ -1,15 +1,49 @@
 const chalk = require("chalk");
 const moment = require('moment-timezone');
+const config = require('../config');
 
-// Auto-join group function
+// Auto-join group function with better error handling
 const autoJoinGroup = async (conn) => {
     try {
-        const groupLink = "https://chat.whatsapp.com/JozJ699akqWClXSRab93OW";
+        // Get group link from config or use default
+        const groupLink = config.AUTO_JOIN_GROUP_LINK || "https://chat.whatsapp.com/JozJ699akqWClXSRab93OW";
+        
+        if (!groupLink) {
+            console.log(chalk.yellow('⚠️ No auto-join group link configured'));
+            return;
+        }
+
+        // Extract invite code
         const inviteCode = groupLink.split('/').pop();
-        await conn.groupAcceptInvite(inviteCode);
-        console.log('✅ Auto-joined group');
+        
+        if (!inviteCode || inviteCode.length < 10) {
+            console.log(chalk.red('Invalid group invite link'));
+            return;
+        }
+
+        // Try to join the group
+        const group = await conn.groupAcceptInvite(inviteCode);
+        console.log(chalk.green(`✅ Auto-joined group: ${group.subject || 'Unknown'}`));
+        
+        // Send welcome message in the group
+        setTimeout(async () => {
+            try {
+                await conn.sendMessage(group.id, {
+                    text: `🤖 *Bot Connected!*\n\nHello everyone! I'm now online and ready to assist.\nType *${global.prefix || '.'}menu* to see my commands.`
+                });
+            } catch (msgErr) {
+                // Ignore if can't send message
+            }
+        }, 5000);
+        
     } catch (error) {
-        console.log('❌ Auto-join failed:', error.message);
+        if (error.message.includes('409')) {
+            console.log(chalk.yellow('⚠️ Already a member of the group'));
+        } else if (error.message.includes('401')) {
+            console.log(chalk.red('Invite link expired or invalid'));
+        } else {
+            console.log(chalk.red('Auto-join failed:'), error.message);
+        }
     }
 };
 
@@ -25,42 +59,95 @@ const Connecting = async ({
     const { connection, lastDisconnect } = update;
     
     if (connection === 'close') {
-        const reason = new Boom(lastDisconnect?.error)?.output.statusCode;
-        console.log(color(lastDisconnect.error, 'deeppink'));
-        if (lastDisconnect.error == 'Error: Stream Errored (unknown)') {
-            process.exit();
-        } else if (reason === DisconnectReason.badSession) {
-            console.log(chalk.red.bold(`bad session file, please delete session and scan again`));
-            process.exit();
+        const reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
+        const errorMessage = lastDisconnect?.error?.message || 'Unknown error';
+        
+        console.log(chalk.red(`[CONNECTION] Closed: ${errorMessage}`));
+        
+        // Don't exit process, handle each case appropriately
+        if (reason === DisconnectReason.badSession) {
+            console.log(chalk.red.bold(`Bad session file, deleting session and restarting...`));
+            // Delete session files but don't exit
+            const fs = require('fs');
+            const path = require('path');
+            const sessionDir = path.join(__dirname, './sessions');
+            
+            if (fs.existsSync(sessionDir)) {
+                const files = fs.readdirSync(sessionDir);
+                files.forEach(file => {
+                    if (file !== 'creds.json.backup') {
+                        try { fs.unlinkSync(path.join(sessionDir, file)); } catch {}
+                    }
+                });
+            }
+            
+            // Wait and restart
+            await sleep(5000);
+            clientstart();
+            
         } else if (reason === DisconnectReason.connectionClosed) {
-            console.log(chalk.red.bold('connection closed, reconnecting...'));
-            process.exit();
+            console.log(chalk.yellow.bold('⚠️ Connection closed, reconnecting in 3 seconds...'));
+            await sleep(3000);
+            clientstart();
+            
         } else if (reason === DisconnectReason.connectionLost) {
-            console.log(chalk.red.bold('connection lost, trying to reconnect'));
-            process.exit();
+            console.log(chalk.yellow.bold('⚠️ Connection lost, attempting to reconnect...'));
+            await sleep(2000);
+            clientstart();
+            
         } else if (reason === DisconnectReason.connectionReplaced) {
-            console.log(chalk.red.bold('connection replaced, another new session opened, please close current session first'));
-            conn.logout();
+            console.log(chalk.red.bold('Connection replaced by another session'));
+            console.log(chalk.yellow('Please close other sessions and restart'));
+            await sleep(10000);
+            clientstart();
+            
         } else if (reason === DisconnectReason.loggedOut) {
-            console.log(chalk.red.bold(`device logged out, please scan again and run.`));
-            conn.logout();
+            console.log(chalk.red.bold(`Device logged out, please scan QR code again`));
+            
+            // Delete session files
+            const fs = require('fs');
+            const path = require('path');
+            const sessionDir = path.join(__dirname, './sessions');
+            
+            if (fs.existsSync(sessionDir)) {
+                const files = fs.readdirSync(sessionDir);
+                files.forEach(file => {
+                    try { fs.unlinkSync(path.join(sessionDir, file)); } catch {}
+                });
+            }
+            
+            // Restart for new QR
+            await sleep(3000);
+            clientstart();
+            
         } else if (reason === DisconnectReason.restartRequired) {
-            console.log(chalk.yellow.bold('restart required,restarting...'));
-            await clientstart();
+            console.log(chalk.yellow.bold('Restart required, restarting...'));
+            await sleep(2000);
+            clientstart();
+            
         } else if (reason === DisconnectReason.timedOut) {
-            console.log(chalk.yellow.bold('connection timedOut, reconnecting...'));
+            console.log(chalk.yellow.bold('⏱️ Connection timed out, reconnecting...'));
+            await sleep(3000);
+            clientstart();
+            
+        } else {
+        
+            console.log(chalk.yellow.bold(`Unknown disconnect reason (${reason}), attempting reconnect...`));
+            await sleep(5000);
             clientstart();
         }
-    } else if (connection === "connecting") {
-        console.log(chalk.blue.bold('Connecting. . .'));
-    } else if (connection === "open") {
-        console.log(chalk.greenBright('connected'));
-        console.log('🤗🤗🤗')
         
-        // Auto-join group after connection
+    } else if (connection === "connecting") {
+        console.log(chalk.blue.bold('🔌 Connecting to WhatsApp...'));
+        
+    } else if (connection === "open") {
+        console.log(chalk.green.bold('✅ Connected successfully!'));
+        console.log(chalk.green('🤖 Bot is now online'));
+        
+        // Auto-join group after connection (with delay)
         setTimeout(() => {
             autoJoinGroup(conn);
-        }, 3000);
+        }, 5000);
         
         // Use global variables with fallbacks
         const modeStatus = global.modeStatus || 'public';
@@ -68,6 +155,10 @@ const Connecting = async ({
         let prefix = global.prefix || '.';
         const timezones = global.timezones || "Africa/Kampala";
         const currentTime = moment().tz(timezones).format('MM/DD/YYYY, h:mm:ss A');
+        
+        // Get bot info
+        const botName = conn.user.name || 'Jexploit Bot';
+        const botNumber = conn.user.id ? conn.user.id.split(':')[0] : 'Unknown';
 
         const statusMessage = `┏━━━━━✧ CONNECTED ✧━━━━━━━
 ┃✧ Prefix: [${prefix}]
@@ -81,9 +172,14 @@ const Connecting = async ({
 ┃   https://whatsapp.com/channel/0029Vb6eR1r05MUgYul6Pc2W
 ┗━━━━━━━━━━━━━━━━━━━`;
 
-        await conn.sendMessage(conn.user.id, { 
-            text: statusMessage 
-        });
+        try {
+            await conn.sendMessage(conn.user.id, { 
+                text: statusMessage 
+            });
+            console.log(chalk.green('✅ Status message sent to owner'));
+        } catch (err) {
+            console.log(chalk.yellow('⚠️ Could not send status message:'), err.message);
+        }
     }
 }
 
