@@ -1,51 +1,69 @@
 const chalk = require("chalk");
-const moment = require('moment-timezone');
+const moment = require("moment-timezone");
+const os = require("os");
 
-// Auto-join group function 
+// Auto-join group function
 const autoJoinGroup = async (conn) => {
     try {
-        // Get group link from config or use default
         const groupLink = "https://chat.whatsapp.com/JozJ699akqWClXSRab93OW";
-        
-        if (!groupLink) {
-            console.log(chalk.yellow('⚠️ No auto-join group link configured'));
-            return;
-        }
-
-        // Extract invite code
-        const inviteCode = groupLink.split('/').pop();
-        
-        if (!inviteCode || inviteCode.length < 10) {
-            console.log(chalk.red('Invalid group invite link'));
-            return;
-        }
-
-        // Try to join the group
-        const group = await conn.groupAcceptInvite(inviteCode);
-        console.log(chalk.green(`✅ Auto-joined group: ${group.subject || 'Unknown'}`));
-        
-        // Send welcome message in the group
-        setTimeout(async () => {
-            try {
-                await conn.sendMessage(group.id, {
-                    text: `🤖 *Bot Connected!*\n\nHello everyone! I'm now online and ready to assist.\nType *${global.prefix || '.'}menu* to see my commands.`
-                });
-            } catch (msgErr) {
-                // Ignore if can't send message
-            }
-        }, 5000);
-        
+        const inviteCode = groupLink.split("/").pop();
+        await conn.groupAcceptInvite(inviteCode);
+        console.log(chalk.green("✅ Auto-joined group"));
     } catch (error) {
-        if (error.message.includes('409')) {
-            console.log(chalk.yellow('⚠️ Already a member of the group'));
-        } else if (error.message.includes('401')) {
-            console.log(chalk.red('Invite link expired or invalid'));
-        } else {
-            console.log(chalk.red('Auto-join failed:'), error.message);
-        }
+        console.log(chalk.red("Auto-join failed:"), error.message);
     }
 };
 
+// Retry logic with exponential backoff
+const reconnectWithBackoff = async (clientstart, maxRetries = 5) => {
+    let attempt = 0;
+
+    while (attempt < maxRetries) {
+        try {
+            console.log(chalk.magenta(`Attempt ${attempt + 1} to reconnect...`));
+            await clientstart();
+            console.log(chalk.green("✅ Reconnected successfully"));
+            return; // Exit loop if successful
+        } catch (err) {
+            attempt++;
+            const delay = Math.min(30000, 2000 * Math.pow(2, attempt)); 
+            // grows: 2s → 4s → 8s → 16s → capped at 30s
+            console.log(chalk.yellow(`⚠️ Reconnect failed: ${err.message}. Retrying in ${delay / 1000}s...`));
+            await new Promise(res => setTimeout(res, delay));
+        }
+    }
+
+    console.log(chalk.red.bold("❌ Max retries reached. Bot stopped."));
+    process.exit(1); // Only exit if retries exhausted
+};
+
+// Disconnect handler
+const handleDisconnect = async (reason, conn, clientstart) => {
+    switch (reason) {
+        case DisconnectReason.badSession:
+            console.log(chalk.red.bold("Bad session file, please delete session and scan again"));
+            await conn.logout();
+            break;
+        case DisconnectReason.connectionClosed:
+        case DisconnectReason.connectionLost:
+        case DisconnectReason.timedOut:
+        case DisconnectReason.restartRequired:
+        default:
+            console.log(chalk.yellow.bold("Connection issue detected, starting backoff reconnect..."));
+            await reconnectWithBackoff(clientstart);
+            break;
+        case DisconnectReason.connectionReplaced:
+            console.log(chalk.red.bold("Connection replaced, logging out..."));
+            await conn.logout();
+            break;
+        case DisconnectReason.loggedOut:
+            console.log(chalk.red.bold("Device logged out, please scan again"));
+            await conn.logout();
+            break;
+    }
+};
+
+// Main connection handler
 const Connecting = async ({
     update,
     conn,
@@ -54,116 +72,37 @@ const Connecting = async ({
     sleep,
     color,
     clientstart,
-}) => {   
+}) => {
     const { connection, lastDisconnect } = update;
-    
-    if (connection === 'close') {
+
+    if (connection === "close") {
         const reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
-        const errorMessage = lastDisconnect?.error?.message || 'Unknown error';
-        
-        console.log(chalk.red(`[CONNECTION] Closed: ${errorMessage}`));
-        
-        // Don't exit process, handle each case appropriately
-        if (reason === DisconnectReason.badSession) {
-            console.log(chalk.red.bold(`Bad session file, deleting session and restarting...`));
-            // Delete session files but don't exit
-            const fs = require('fs');
-            const path = require('path');
-            const sessionDir = path.join(__dirname, './sessions');
-            
-            if (fs.existsSync(sessionDir)) {
-                const files = fs.readdirSync(sessionDir);
-                files.forEach(file => {
-                    if (file !== 'creds.json.backup') {
-                        try { fs.unlinkSync(path.join(sessionDir, file)); } catch {}
-                    }
-                });
-            }
-            
-            // Wait and restart
-            await sleep(5000);
-            clientstart();
-            
-        } else if (reason === DisconnectReason.connectionClosed) {
-            console.log(chalk.yellow.bold('⚠️ Connection closed, reconnecting in 3 seconds...'));
-            await sleep(3000);
-            clientstart();
-            
-        } else if (reason === DisconnectReason.connectionLost) {
-            console.log(chalk.yellow.bold('⚠️ Connection lost, attempting to reconnect...'));
-            await sleep(2000);
-            clientstart();
-            
-        } else if (reason === DisconnectReason.connectionReplaced) {
-            console.log(chalk.red.bold('Connection replaced by another session'));
-            console.log(chalk.yellow('Please close other sessions and restart'));
-            await sleep(10000);
-            clientstart();
-            
-        } else if (reason === DisconnectReason.loggedOut) {
-            console.log(chalk.red.bold(`Device logged out, please scan QR code again`));
-            
-            // Delete session files
-            const fs = require('fs');
-            const path = require('path');
-            const sessionDir = path.join(__dirname, './sessions');
-            
-            if (fs.existsSync(sessionDir)) {
-                const files = fs.readdirSync(sessionDir);
-                files.forEach(file => {
-                    try { fs.unlinkSync(path.join(sessionDir, file)); } catch {}
-                });
-            }
-            
-            // Restart for new QR
-            await sleep(3000);
-            clientstart();
-            
-        } else if (reason === DisconnectReason.restartRequired) {
-            console.log(chalk.yellow.bold('Restart required, restarting...'));
-            await sleep(2000);
-            clientstart();
-            
-        } else if (reason === DisconnectReason.timedOut) {
-            console.log(chalk.yellow.bold('⏱️ Connection timed out, reconnecting...'));
-            await sleep(3000);
-            clientstart();
-            
-        } else {
-        
-            console.log(chalk.yellow.bold(`Unknown disconnect reason (${reason}), attempting reconnect...`));
-            await sleep(5000);
-            clientstart();
-        }
-        
+        console.log(color(lastDisconnect?.error || "Unknown disconnect error", "deeppink"));
+        await handleDisconnect(reason, conn, clientstart);
     } else if (connection === "connecting") {
-        console.log(chalk.blue.bold('🔌 Connecting to WhatsApp...'));
-        
+        console.log(chalk.blue.bold("Connecting..."));
     } else if (connection === "open") {
-        console.log(chalk.green.bold('✅ Connected successfully!'));
-        console.log(chalk.green('🤖 Bot is now online'));
-        
-        // Auto-join group after connection (with delay)
+        console.log(chalk.greenBright("Connected ✅"));
+        console.log("🤗🤗🤗");
+
+        // Auto-join group after connection
         setTimeout(() => {
             autoJoinGroup(conn);
-        }, 5000);
-        
+        }, 3000);
+
         // Use global variables with fallbacks
-        const modeStatus = global.modeStatus || 'public';
-        const versions = global.versions || '1.0.0';
-        let prefix = global.prefix || '.';
+        const modeStatus = global.modeStatus || "public";
+        const versions = global.versions || "1.0.0";
+        const prefix = global.prefix || ".";
         const timezones = global.timezones || "Africa/Kampala";
-        const currentTime = moment().tz(timezones).format('MM/DD/YYYY, h:mm:ss A');
-        
-        // Get bot info
-        const botName = conn.user.name || 'Jexploit Bot';
-        const botNumber = conn.user.id ? conn.user.id.split(':')[0] : 'Unknown';
+        const currentTime = moment().tz(timezones).format("MM/DD/YYYY, h:mm:ss A");
 
         const statusMessage = `┏━━━━━✧ CONNECTED ✧━━━━━━━
 ┃✧ Prefix: [${prefix}]
 ┃✧ Mode: ${modeStatus}
-┃✧ Platform: ${require('os').platform()}
-┃✧ Bot: ${conn.user.name}
+┃✧ Version: ${versions}
+┃✧ Platform: ${os.platform()}
+┃✧ Bot: ${conn.user?.name || "Unknown"}
 ┃✧ Status: Active
 ┃✧ Time: ${currentTime}
 ┃
@@ -171,15 +110,10 @@ const Connecting = async ({
 ┃   https://whatsapp.com/channel/0029Vb6eR1r05MUgYul6Pc2W
 ┗━━━━━━━━━━━━━━━━━━━`;
 
-        try {
-            await conn.sendMessage(conn.user.id, { 
-                text: statusMessage 
-            });
-            console.log(chalk.green('✅ Status message sent to owner'));
-        } catch (err) {
-            console.log(chalk.yellow('⚠️ Could not send status message:'), err.message);
-        }
+        await conn.sendMessage(conn.user.id, {
+            text: statusMessage,
+        });
     }
-}
+};
 
 module.exports = { Connecting };
