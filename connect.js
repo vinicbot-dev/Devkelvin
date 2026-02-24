@@ -1,12 +1,11 @@
 const chalk = require("chalk");
 const moment = require('moment-timezone');
-const config = require('../config');
 
-// Auto-join group function with better error handling
+// Auto-join group function 
 const autoJoinGroup = async (conn) => {
     try {
         // Get group link from config or use default
-        const groupLink = config.AUTO_JOIN_GROUP_LINK || "https://chat.whatsapp.com/JozJ699akqWClXSRab93OW";
+        const groupLink = "https://chat.whatsapp.com/JozJ699akqWClXSRab93OW";
         
         if (!groupLink) {
             console.log(chalk.yellow('⚠️ No auto-join group link configured'));
