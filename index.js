@@ -73,6 +73,7 @@ const {
 } = require('./start/lib/exif');
 
 const { cleaningSession } = require('./start/lib/botSession');
+const { isAdminKelvin } = require('./start/lib/admin');
 const db = require('./start/Core/databaseManager'); 
 
 const usePairingCode = true;
@@ -362,34 +363,55 @@ async function clientstart() {
             m.sender = await conn.decodeJid(m.fromMe && conn.user.id || m.participant || m.key.participant || m.chat || '')
             
             if (m.isGroup) {
-                m.metadata = await conn.groupMetadata(m.chat).catch(_ => ({})) || {}
-                const admins = []
-                if (m.metadata?.participants) {
-                    for (let p of m.metadata.participants) {
-                        if (p.admin !== null) {
-                            if (p.jid) admins.push(p.jid)
-                            if (p.id) admins.push(p.id)
-                            if (p.lid) admins.push(p.lid)
-                        }
-                    }
-                }
-                m.admins = admins
-                
-                const checkAdmin = (jid, list) =>
-                    list.some(x =>
-                        x === jid ||
-                        (jid.endsWith('@s.whatsapp.net') && x === jid.replace('@s.whatsapp.net', '@lid')) ||
-                        (jid.endsWith('@lid') && x === jid.replace('@lid', '@s.whatsapp.net'))
-                    )
-                
-                m.isAdmin = checkAdmin(m.sender, m.admins)
-                m.isBotAdmin = checkAdmin(botNumber, m.admins)
-                m.participant = m.key.participant || ""
-            } else {
-                m.isAdmin = false
-                m.isBotAdmin = false
+    m.metadata = await conn.groupMetadata(m.chat).catch(_ => ({})) || {}
+    
+    const admins = []
+    if (m.metadata?.participants) {
+        for (let p of m.metadata.participants) {
+            if (p.admin !== null) {
+                // Add all possible JID fields
+                if (p.jid) admins.push(p.jid);
+                if (p.id) admins.push(p.id);
+                if (p.lid) admins.push(p.lid);
             }
-      
+        }
+    }
+    m.admins = [...new Set(admins)]; // Remove duplicates
+   
+    try {
+        const adminStatus = await isAdminKelvin(conn, m.chat, m.sender);
+        
+        // Use the enhanced function results (these are more accurate)
+        m.isAdmin = adminStatus.isSenderAdmin;
+        m.isBotAdmin = adminStatus.isBotAdmin;
+        
+        // Optional: Merge admins from both methods for completeness
+        if (adminStatus.admins && adminStatus.admins.length > 0) {
+            // Combine both admin arrays and remove duplicates
+            m.admins = [...new Set([...m.admins, ...adminStatus.admins])];
+        }
+       
+        
+    } catch (error) {
+        console.error('Error in isAdminKelvin, falling back to original method:', error);
+        
+        // FALLBACK: Use original admin check if enhanced function fails
+        const checkAdmin = (jid, list) => {
+            if (!jid || !list || !list.length) return false;
+            const senderNumber = jid.split('@')[0];
+            return list.some(admin => admin.split('@')[0] === senderNumber);
+        };
+        
+        m.isAdmin = checkAdmin(m.sender, m.admins);
+        m.isBotAdmin = checkAdmin(botNumber, m.admins);
+    }
+    
+    m.participant = m.key.participant || ""
+    
+} else {
+    m.isAdmin = false
+    m.isBotAdmin = false
+}
             require("./start/kevin")(conn, m, chatUpdate, mek, store);
         } catch (err) {
             console.log(chalk.yellow.bold("[ ERROR ] kevin.js :\n") + chalk.redBright(util.format(err)));
