@@ -276,7 +276,7 @@ async function clientstart() {
         console.log("[ JEXPLOIT] Connecting to WhatsApp ⏳️...");
     } catch (error) {
         console.log(chalk.yellow(`[⚠️] Using stable fallback version`));
-        waVersion = [2, 3000, 1017546695];
+        waVersion = [2, 3000, 1033105955]; 
     }
 
     const conn = makeWASocket({
