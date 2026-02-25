@@ -57,8 +57,7 @@ async function playCommand(conn, chatId, message, args) {
         // Add loading reaction
         await conn.sendMessage(chatId, { react: { text: '⏳', key: message.key } });
 
-        // Use the new API
-        const apiUrl = `https://apiskeith.vercel.app/download/audio?url=${encodeURIComponent(videoUrl)}`;
+          const apiUrl = `https://apiskeith.top/download/audio?url=${encodeURIComponent(videoUrl)}`;
         
         // Fetch audio with timeout
         const response = await axios.get(apiUrl, { timeout: 60000 });
@@ -109,7 +108,7 @@ async function playCommand(conn, chatId, message, args) {
                                 document: { url: audioUrl }, 
                                 mimetype: "audio/mpeg", 
                                 fileName: `${title}.mp3`.replace(/[<>:"/\\|?*]/g, '_'),
-                                caption: `🎵 *${title}*\n✅ Downloaded successfully!`
+                                caption: `🎵 *${title}*\n✅ Downloaded successfully!\n🔗 Source: ${videoUrl}`
                             }, { quoted: mp3msg });   
                             break;
                             
@@ -194,6 +193,7 @@ async function playCommand(conn, chatId, message, args) {
         }, { quoted: message });
     }
 }
+
 
 async function takeCommand(conn, chatId, message, args) {
     try {
