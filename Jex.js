@@ -433,158 +433,63 @@ ${readmore}
     }
 }
 // Function to handle status updates
-async function handleStatusUpdate(conn, status) {
+async function handleStatusUpdate(kelvin, status) {
     try {
-        // Get bot number
-        const botNumber = await conn.decodeJid(conn.user.id);
-        
-        // ✅ GET SETTINGS FROM SQLITE
+        const botNumber = await kelvin.decodeJid(kelvin.user.id);
+
         const autoviewstatus = await db.get(botNumber, 'autoviewstatus', false);
         const autoreactstatus = await db.get(botNumber, 'autoreactstatus', false);
         const statusemoji = await db.get(botNumber, 'statusemoji', '💚');
-        
-        // If both are disabled, return
-        if (!autoviewstatus && !autoreactstatus) {
-            return;
-        }
 
-        // Add delay to prevent rate limiting
+        if (!autoviewstatus && !autoreactstatus) return;
+
+        // Delay to prevent rate limiting
         await new Promise(resolve => setTimeout(resolve, 1000));
 
-        // Select random emoji from popular ones
         const getRandomEmoji = () => {
-            const emojis = ['❤️', '😂', '😮', '😢', '🔥', '👏', '🎉', '🤔', '👍', '👎', '😍', '🤯', '😡', '🥰', '😎', '🤩', '🥳', '😭', '🙏', '💯'];
+            const emojis = ['❤️','😂','😮','😢','🔥','👏','🎉','🤔','👍','👎','😍','🤯','😡','🥰','😎','🤩','🥳','😭','🙏','💯'];
             return emojis[Math.floor(Math.random() * emojis.length)];
         };
 
         const reactionEmoji = statusemoji === '💚' || !statusemoji ? getRandomEmoji() : statusemoji;
 
-        // Handle status from messages.upsert
-        if (status.messages && status.messages.length > 0) {
-            const msg = status.messages[0];
-            if (msg.key && msg.key.remoteJid === 'status@broadcast') {
+        // Normalize key extraction
+        const msgKey = status?.messages?.[0]?.key 
+                    || status?.key 
+                    || status?.reaction?.key;
+
+        if (!msgKey || msgKey.remoteJid !== 'status@broadcast') return;
+
+        // Helper to view + react
+        const viewAndReact = async () => {
+            await kelvin.readMessages([msgKey]);
+            if (autoreactstatus) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                await kelvin.sendMessage(msgKey.remoteJid, { 
+                    react: { text: reactionEmoji, key: msgKey } 
+                });
+            }
+        };
+
+        try {
+            if (autoreactstatus || autoviewstatus) {
+                await viewAndReact();
+            }
+        } catch (err) {
+            if (err.message?.includes('rate-overlimit')) {
+                await new Promise(resolve => setTimeout(resolve, 3000));
                 try {
-                    if (autoreactstatus) {
-                        // View first, then react
-                        await conn.readMessages([msg.key]);
-                        await new Promise(resolve => setTimeout(resolve, 500));
-                        
-                        await conn.sendMessage(msg.key.remoteJid, { 
-                            react: { 
-                                text: reactionEmoji, 
-                                key: msg.key 
-                            } 
-                        });
-                        
-                    } else if (autoviewstatus) {
-                        // Only view if autoviewstatus is enabled
-                        await conn.readMessages([msg.key]);
-                    }
-                    
-                } catch (err) {
-                    if (err.message?.includes('rate-overlimit')) {
-                        await new Promise(resolve => setTimeout(resolve, 3000));
-                        
-                        try {
-                            if (autoreactstatus) {
-                                await conn.readMessages([msg.key]);
-                                await new Promise(resolve => setTimeout(resolve, 500));
-                                await conn.sendMessage(msg.key.remoteJid, { 
-                                    react: { 
-                                        text: reactionEmoji, 
-                                        key: msg.key 
-                                    } 
-                                });
-                            } else if (autoviewstatus) {
-                                await conn.readMessages([msg.key]);
-                            }
-                        } catch (retryError) {}
-                    }
+                    await viewAndReact();
+                } catch (retryError) {
+                    // Optional: log retryError for debugging
                 }
-                return;
+            } else {
+                // Optional: log err for debugging
             }
-        }
-
-        // Handle direct status updates
-        if (status.key && status.key.remoteJid === 'status@broadcast') {
-            try {
-                if (autoreactstatus) {
-                    await conn.readMessages([status.key]);
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    
-                    await conn.sendMessage(status.key.remoteJid, { 
-                        react: { 
-                            text: reactionEmoji, 
-                            key: status.key 
-                        } 
-                    });
-                    
-                } else if (autoviewstatus) {
-                    await conn.readMessages([status.key]);
-                }
-                
-            } catch (err) {
-                if (err.message?.includes('rate-overlimit')) {
-                    await new Promise(resolve => setTimeout(resolve, 3000));
-                    try {
-                        if (autoreactstatus) {
-                            await conn.readMessages([status.key]);
-                            await new Promise(resolve => setTimeout(resolve, 500));
-                            await conn.sendMessage(status.key.remoteJid, { 
-                                react: { 
-                                    text: reactionEmoji, 
-                                    key: status.key 
-                                } 
-                            });
-                        } else if (autoviewstatus) {
-                            await conn.readMessages([status.key]);
-                        }
-                    } catch (retryError) {}
-                }
-            }
-            return;
-        }
-
-        // Handle status in reactions
-        if (status.reaction && status.reaction.key.remoteJid === 'status@broadcast') {
-            try {
-                if (autoreactstatus) {
-                    await conn.readMessages([status.reaction.key]);
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    await conn.sendMessage(status.reaction.key.remoteJid, { 
-                        react: { 
-                            text: reactionEmoji, 
-                            key: status.reaction.key 
-                        } 
-                    });
-                } else if (autoviewstatus) {
-                    await conn.readMessages([status.reaction.key]);
-                }
-                
-            } catch (err) {
-                if (err.message?.includes('rate-overlimit')) {
-                    await new Promise(resolve => setTimeout(resolve, 3000));
-                    try {
-                        if (autoreactstatus) {
-                            await conn.readMessages([status.reaction.key]);
-                            await new Promise(resolve => setTimeout(resolve, 500));
-                            await conn.sendMessage(status.reaction.key.remoteJid, { 
-                                react: { 
-                                    text: reactionEmoji, 
-                                    key: status.reaction.key 
-                                } 
-                            });
-                        } else if (autoviewstatus) {
-                            await conn.readMessages([status.reaction.key]);
-                        }
-                    } catch (retryError) {}
-                }
-            }
-            return;
         }
 
     } catch (error) {
-        // Silent error handling
+        // Silent error handling, but consider branded logging
     }
 }
 
