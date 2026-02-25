@@ -28,7 +28,8 @@ const timezones = global.timezones || "Africa/Kampala"; // Default to Uganda tim
 const acrcloud = require ('acrcloud')
 const moment = require("moment-timezone")
 const { spawn, exec, execSync } = require('child_process')
-const { default: baileys, proto, jidNormalizedUser, generateWAMessage, generateWAMessageFromContent, getContentType, downloadContentFromMessage,prepareWAMessageMedia } = require("@whiskeysockets/baileys")
+const { default: baileys, proto, jidNormalizedUser, generateWAMessage, generateWAMessageFromContent,
+generateWAMessageContent, getContentType, downloadContentFromMessage,prepareWAMessageMedia } = require("@whiskeysockets/baileys")
 
 const { 
   smsg, 
@@ -376,6 +377,135 @@ async function webp2mp4(source) {
   let $2 = cheerio.load(html2);
   return new URL($2('div#output > p.outfile > video > source').attr('src'), res2.url).toString();
 }
+
+
+//  functions that help in togstatus
+async function buildPayloadFromQuoted(quotedMessage, conn) {
+    if (quotedMessage.videoMessage) {
+        const buffer = await downloadToBuffer(quotedMessage.videoMessage, 'video');
+        return { 
+            video: buffer, 
+            caption: quotedMessage.videoMessage.caption || '',
+            gifPlayback: quotedMessage.videoMessage.gifPlayback || false,
+            mimetype: quotedMessage.videoMessage.mimetype || 'video/mp4'
+        };
+    } else if (quotedMessage.imageMessage) {
+        const buffer = await downloadToBuffer(quotedMessage.imageMessage, 'image');
+        return { 
+            image: buffer, 
+            caption: quotedMessage.imageMessage.caption || '',
+            mimetype: quotedMessage.imageMessage.mimetype || 'image/jpeg'
+        };
+    } else if (quotedMessage.audioMessage) {
+        const buffer = await downloadToBuffer(quotedMessage.audioMessage, 'audio');
+        if (quotedMessage.audioMessage.ptt) {
+            const audioVn = await toVN(buffer);
+            return { audio: audioVn, mimetype: "audio/ogg; codecs=opus", ptt: true };
+        } else {
+            return { audio: buffer, mimetype: quotedMessage.audioMessage.mimetype || 'audio/mpeg', ptt: false };
+        }
+    } else if (quotedMessage.stickerMessage) {
+        try {
+            const buffer = await downloadToBuffer(quotedMessage.stickerMessage, 'sticker');
+            const imageBuffer = await convertStickerToImage(buffer, quotedMessage.stickerMessage.mimetype);
+            return { 
+                image: imageBuffer, 
+                caption: quotedMessage.stickerMessage.caption || '',
+                mimetype: 'image/png',
+                convertedSticker: true,
+                originalMimetype: quotedMessage.stickerMessage.mimetype
+            };
+        } catch (conversionError) {
+            console.error('Sticker conversion failed:', conversionError);
+            return { text: `⚠️ Sticker conversion failed (${quotedMessage.stickerMessage.mimetype || 'unknown'})` };
+        }
+    } else if (quotedMessage.conversation || quotedMessage.extendedTextMessage?.text) {
+        const textContent = quotedMessage.conversation || quotedMessage.extendedTextMessage?.text || '';
+        return { text: textContent };
+    }
+    return null;
+}
+
+async function downloadToBuffer(message, type) {
+    const stream = await downloadContentFromMessage(message, type);
+    let buffer = Buffer.from([]);
+    for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
+    return buffer;
+}
+
+async function convertStickerToImage(stickerBuffer, mimetype = 'image/webp') {
+    try {
+        return await convertStickerToImageSimple(stickerBuffer);
+    } catch (error) {
+        console.error('Sticker conversion failed:', error);
+        throw new Error(`Sticker conversion failed: ${error.message}`);
+    }
+}
+
+async function convertStickerToImageSimple(stickerBuffer) {
+    if (stickerBuffer.slice(0, 12).toString('hex').includes('52494646')) { // RIFF header
+        console.log('Detected WebP sticker, using fallback conversion');
+        return stickerBuffer; 
+    }
+    return stickerBuffer;
+}
+
+async function toVN(inputBuffer) {
+    return new Promise((resolve, reject) => {
+        const inStream = new PassThrough();
+        inStream.end(inputBuffer);
+        const outStream = new PassThrough();
+        const chunks = [];
+        ffmpeg(inStream)
+            .noVideo()
+            .audioCodec("libopus")
+            .format("ogg")
+            .audioBitrate("48k")
+            .audioChannels(1)
+            .audioFrequency(48000)
+            .on("error", reject)
+            .on("end", () => resolve(Buffer.concat(chunks)))
+            .pipe(outStream, { end: true });
+        outStream.on("data", chunk => chunks.push(chunk));
+    });
+}
+
+async function sendGroupStatus(conn, jid, content) {
+    const inside = await generateWAMessageContent(content, { upload: conn.waUploadToServer });
+    const messageSecret = crypto.randomBytes(32);
+    const m = generateWAMessageFromContent(jid, {
+        messageContextInfo: { messageSecret },
+        groupStatusMessageV2: { message: { ...inside, messageContextInfo: { messageSecret } } }
+    }, {});
+    await conn.relayMessage(jid, m.message, { messageId: m.key.id });
+    return m;
+}
+
+function detectMediaType(quotedMessage, payload = null) {
+    if (!quotedMessage) return 'Text';
+    if (quotedMessage.videoMessage) return 'Video';
+    if (quotedMessage.imageMessage) return 'Image';
+    if (quotedMessage.audioMessage) return 'Audio';
+    if (quotedMessage.stickerMessage) {
+        if (payload && payload.convertedSticker) return 'Sticker → Image';
+        return 'Sticker';
+    }
+    return 'Text';
+}
+
+function getHelpText() {
+    return `
+✦ *GROUP STATUS* ✦
+
+Commands:
+✦ togroupstatus / .tosgroup
+
+Usage:
+✦ tosgroup text
+✦ Reply to media/sticker with .tosgroup
+✦ Add caption after command`;
+}
+
 
 
   // Function to check bandwidth (download/upload)
@@ -1643,73 +1773,6 @@ case "clean": {
         reply("*Error: " + error.message + "*");
     }
     
-}
-break
-case 'autoreactstatus': {
-    if (!Access) return reply(mess.owner);
-    
-    const subcommand = args[0]?.toLowerCase();
-    
-    if (!subcommand) {
-        return reply(`*Auto-React Status System*
-        
-Usage:
-• ${prefix}autoreactstatus on - Enable auto-react to status
-• ${prefix}autoreactstatus off - Disable auto-react to status
-• ${prefix}autoreactstatus status - Show current settings
-• ${prefix}autoreactstatus emoji <emoji> - Set custom reaction emoji
-
-Current Status: ${global.botname, 'autoreactstatus', false ? '✅ Enabled' : '❌ Disabled'}
-Current Emoji: ${global.botname, 'statusemoji', '💚' || '💚'}
-
-📌 Feature: Automatically reacts to status updates
-📌 Works on: All status updates
-📌 Default emoji: 💚 (can be customized)`);
-    }
-    
-    switch(subcommand) {
-        case 'on': {
-            await updateSetting(botNumber, 'autoreactstatus', true);
-            reply(`✅ Auto-react to status enabled\nBot will automatically react to status updates`);
-            break;
-        }
-        
-        case 'off': {
-            await updateSetting(botNumber, 'autoreactstatus', false);
-            reply(`✅ Auto-react to status disabled`);
-            break;
-        }
-        
-        case 'emoji': {
-            const emoji = args[1];
-            if (!emoji) {
-                return reply(`❌ Please provide an emoji\nUsage: ${prefix}autoreactstatus emoji 😂\nExample: ${prefix}autoreactstatus emoji ❤️`);
-            }
-            
-            await updateSetting(botNumber, 'statusemoji', emoji);
-            reply(`✅ Status reaction emoji set to: ${emoji}\nBot will use this emoji when reacting to status updates`);
-            break;
-        }
-        
-        case 'status': {
-            const isEnabled = getSetting(botNumber, 'autoreactstatus', false);
-            const emoji = getSetting(botNumber, 'statusemoji', '💚');
-            reply(`*Auto-React Status Status*
-            
-• Status: ${isEnabled ? '✅ Enabled' : '❌ Disabled'}
-• Emoji: ${emoji}
-• Action: ${isEnabled ? 'Auto reacts with ' + emoji : 'Disabled'}
-
-Bot automatically reacts to status updates when enabled.`);
-            break;
-        }
-        
-        default: {
-            reply(`❌ Invalid subcommand. Use ${prefix}autoreactstatus on/off/status/emoji`);
-            break;
-        }
-    }
-    break;
 }
 case 'autoviewstatus':
 case 'viewstatus': {
@@ -9278,6 +9341,63 @@ case "tagall": {
             quoted: m,
         }
     );
+}
+break
+case "togstatus": {
+if (!isGroup) return reply(global.mess.notgroup);
+            if (!m.isAdmin) return reply(mess.notadmin);
+            if (!m.isBotAdmin) return reply(mess.botadmin);
+        
+        try {
+            const messageText = m.message?.conversation || m.message?.extendedTextMessage?.text || '';
+            const quotedMessage = m.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+            const commandRegex = /^[.!#/]?(togstatus|swgc|groupstatus|tosgroup)\s*/i;
+
+            if (!quotedMessage && (!messageText.trim() || messageText.trim().match(commandRegex))) {
+                return reply(getHelpText());
+            }
+
+            let payload = null;
+            let textAfterCommand = '';
+
+            if (messageText.trim()) {
+                const match = messageText.match(commandRegex);
+                if (match) textAfterCommand = messageText.slice(match[0].length).trim();
+            }
+
+            if (quotedMessage) {
+                payload = await buildPayloadFromQuoted(quotedMessage, kelvin);
+                if (textAfterCommand && payload) {
+                    if (payload.video || payload.image || (payload.convertedSticker && payload.image)) {
+                        payload.caption = textAfterCommand;
+                    }
+                }
+            } else if (messageText.trim()) {
+                if (textAfterCommand) {
+                    payload = { text: textAfterCommand };
+                } else {
+                    return reply(getHelpText());
+                }
+            }
+
+            if (!payload) {
+                return reply(getHelpText());
+            }
+
+            // Send group status
+            await sendGroupStatus(kelvin, m.chat, payload);
+
+            const mediaType = detectMediaType(quotedMessage, payload);
+            let successMsg = `✅ ${mediaType} sent!`;
+            if (payload.caption) successMsg += `\n📝 "${payload.caption}"`;
+            if (payload.convertedSticker) successMsg += `\n(sticker → image)`;
+
+            await reply(successMsg);
+
+        } catch (error) {
+            console.error('Error in group status command:', error);
+            await reply(`Error: ${error.message}`);
+        }
 }
 break
 case "mute":
