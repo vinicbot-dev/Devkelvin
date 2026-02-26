@@ -49,6 +49,7 @@ const {
 
 const { obfuscateJS } = require("./lib/encapsulation");
 const db = require('./Core/databaseManager');
+const GroupDB = require('./Metadata/group');
 const { handleMediaUpload } = require('./lib/catbox');
 const {styletext, remind, Wikimedia, wallpaper} = require('./lib/scraper')
 const { 
@@ -97,7 +98,7 @@ getLastSeenDescription
 } = require('./KelvinCmds/owner');
 
 const {  takeCommand, musicCommand, ytplayCommand, handleMediafireDownload,  InstagramCommand, telestickerCommand, playCommand } = require('./KelvinCmds/commands')
-const { getInactiveUsers, isAdmin, checkAdminStatus, addUserMessage, getActiveUsers } = require('./KelvinCmds/group')
+
 const {
 veniceAICommand,
 mistralAICommand,
@@ -662,10 +663,9 @@ if (m.isGroup && body) {
     });
 }
 
-// Track active users in groups - FIX THIS SECTION
 if (m.isGroup && !m.key.fromMe && body && body.trim().length > 0) {
     try {
-        await addUserMessage(conn, from, sender);
+        await GroupDB.addMessage(from, sender); 
     } catch (error) {
         console.error('Error tracking user activity:', error.message);
     }
@@ -684,7 +684,7 @@ case 'jex': {
 
     try {
         await sendMenu(conn, m, prefix, global);
-        // Loading message will remain visible along with the menu
+        
     } catch (error) {
         console.error('Error in menu command:', error);
         await conn.sendMessage(m.chat, {
@@ -9039,27 +9039,25 @@ case 'listactive':
 case 'activeusers': {
     if (!m.isGroup) return reply(mess.group);
     
-    // Get active users from SQLite
-    const activeUsers = await getActiveUsers(conn, m.chat, 15); // Get top 15 active users
-    
-    if (!activeUsers.length) {
-        return reply('*📊 No active users found in this group.*\n\nSend some messages first to track activity!');
-    }
-    
-    let message = `📊 *ACTIVE USERS - ${groupName || 'This Group'}*\n\n`;
-    
-    activeUsers.forEach((user, index) => {
-        const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🔹';
-        message += `${medal} ${index + 1}. @${user.jid.split('@')[0]} - *${user.count} messages*\n`;
-    });
-    
-    message += `\n📈 *Total tracked users:* ${activeUsers.length}`;
-    
-    await conn.sendMessage(m.chat, { 
-        text: message, 
-        mentions: activeUsers.map(u => u.jid) 
-    }, { quoted: m });
-    
+     const activeUsers = await GroupDB.getActiveUsers(from, 15);
+        
+        if (!activeUsers.length) {
+            return reply('*📊 No active users found in this group.*\n\nSend some messages first to track activity!');
+        }
+        
+        let message = `📊 *ACTIVE USERS - ${groupName || 'This Group'}*\n\n`;
+        
+        activeUsers.forEach((user, index) => {
+            const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🔹';
+            message += `${medal} ${index + 1}. @${user.jid.split('@')[0]} - *${user.count} messages*\n`;
+        });
+        
+        message += `\n📈 *Total tracked users:* ${activeUsers.length}`;
+        
+        await conn.sendMessage(m.chat, { 
+            text: message, 
+            mentions: activeUsers.map(u => u.jid) 
+        }, { quoted: m });
 }
 break
 case 'listinactive':
@@ -9067,29 +9065,29 @@ case 'inactiveusers': {
     if (!m.isGroup) return reply(mess.group);
     
     try {
-        const metadata = await conn.groupMetadata(from);
-        const allParticipants = metadata.participants.map(p => p.id);
-        const inactiveUsers = getInactiveUsers(from, allParticipants);
-        
-        if (!inactiveUsers.length) {
-            return reply('*✅ No inactive users found in this group!*\n\nAll participants have sent messages.');
-        }
-        
-        let message = `⚠️ *INACTIVE USERS - ${groupName || 'This Group'}*\n\n`;
-        message += `_Users who haven't sent any messages:_\n\n`;
-        message += inactiveUsers.map((user, i) => `🔹 ${i + 1}. @${user.split('@')[0]}`).join('\n');
-        message += `\n\n📊 *Total inactive:* ${inactiveUsers.length}`;
+            const metadata = await kelvin.groupMetadata(from);
+            const allParticipants = metadata.participants.map(p => p.id);
+            
+            const inactiveUsers = await GroupDB.getInactiveUsers(from, allParticipants);
+            
+            if (!inactiveUsers.length) {
+                return reply('*✅ No inactive users found in this group!*\n\nAll participants have sent messages.');
+            }
+            
+            let message = `⚠️ *INACTIVE USERS - ${groupName || 'This Group'}*\n\n`;
+            message += `_Users who haven't sent any messages:_\n\n`;
+            message += inactiveUsers.map((user, i) => `🔹 ${i + 1}. @${user.split('@')[0]}`).join('\n');
+            message += `\n\n📊 *Total inactive:* ${inactiveUsers.length}`;
 
-        await conn.sendMessage(m.chat, { 
-            text: message, 
-            mentions: inactiveUsers 
-        }, { quoted: m });
-        
-    } catch (error) {
-        console.error('Error in listinactive command:', error);
-        await reply('❌ *Error fetching group data!*');
-    }
-    
+            await conn.sendMessage(m.chat, { 
+                text: message, 
+                mentions: inactiveUsers 
+            }, { quoted: m });
+            
+        } catch (error) {
+            console.error('Error in listinactive command:', error);
+            reply('*Error fetching group data!*');
+        }
 }
 break
 case 'groupactivity':
@@ -9099,8 +9097,8 @@ case 'activity': {
     try {
         const metadata = await conn.groupMetadata(from);
         const allParticipants = metadata.participants.map(p => p.id);
-        const activeUsers = getActiveUsers(from, 1000); // Get all active users
-        const inactiveUsers = getInactiveUsers(from, allParticipants);
+        const activeUsers = await GroupDB.getActiveUsers(from, 1000); // Get all active users
+        const inactiveUsers = await GroupDB.getInactiveUsers(from, allParticipants);
         
         let message = `📊 *GROUP ACTIVITY - ${groupName || 'This Group'}*\n\n`;
         message += `*Total Members:* ${allParticipants.length}\n`;
