@@ -9343,8 +9343,8 @@ case "tagall": {
     );
 }
 break
-case "togstatus": {
-if (!isGroup) return reply(global.mess.notgroup);
+*": {
+if (!isGroup) return reply(mess.notgroup);
             if (!m.isAdmin) return reply(mess.notadmin);
             if (!m.isBotAdmin) return reply(mess.botadmin);
         
@@ -9366,7 +9366,7 @@ if (!isGroup) return reply(global.mess.notgroup);
             }
 
             if (quotedMessage) {
-                payload = await buildPayloadFromQuoted(quotedMessage, kelvin);
+                payload = await buildPayloadFromQuoted(quotedMessage, conn);
                 if (textAfterCommand && payload) {
                     if (payload.video || payload.image || (payload.convertedSticker && payload.image)) {
                         payload.caption = textAfterCommand;
@@ -9385,7 +9385,7 @@ if (!isGroup) return reply(global.mess.notgroup);
             }
 
             // Send group status
-            await sendGroupStatus(kelvin, m.chat, payload);
+            await sendGroupStatus(conn, m.chat, payload);
 
             const mediaType = detectMediaType(quotedMessage, payload);
             let successMsg = `✅ ${mediaType} sent!`;
