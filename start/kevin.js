@@ -19,6 +19,7 @@ const path = require('path')
 const { getDevice } = require('@whiskeysockets/baileys')
 const fsp = fs.promises;
 const lolcatjs = require('lolcatjs')
+const crypto = require('crypto')
 const speed = require('performance-now')
 const { performance } = require("perf_hooks")
 const more = String.fromCharCode(8206);
@@ -9065,7 +9066,7 @@ case 'inactiveusers': {
     if (!m.isGroup) return reply(mess.group);
     
     try {
-            const metadata = await kelvin.groupMetadata(from);
+            const metadata = await conn.groupMetadata(from);
             const allParticipants = metadata.participants.map(p => p.id);
             
             const inactiveUsers = await GroupDB.getInactiveUsers(from, allParticipants);
