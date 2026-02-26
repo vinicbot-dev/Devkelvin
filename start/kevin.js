@@ -9341,7 +9341,7 @@ case "tagall": {
     );
 }
 break
-*": {
+case "togstatus": {
 if (!isGroup) return reply(mess.notgroup);
             if (!m.isAdmin) return reply(mess.notadmin);
             if (!m.isBotAdmin) return reply(mess.botadmin);
