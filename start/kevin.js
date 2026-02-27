@@ -2725,176 +2725,102 @@ const used = process.memoryUsage();
       conn.sendMessage(m.chat, { text: response.trim() }, { quoted: m });
 }
 break
-case 'p':
+case 'pr':
 case 'pair': {
-    if (!text) return reply('*🔢 Provide a phone number*\n📌 *Example:* .pair 256755585369\n📌 *Example:* .pair +256755585369');
-
-    try {
-        // React while processing
-        await conn.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
-
-        // Clean the phone number
-        const number = text.replace(/\+|\s/g, '').trim();
-        
-        // Validate phone number
-        if (!/^\d{10,15}$/.test(number)) {
-            return reply('❌ *Invalid phone number format!*\nPlease provide a valid number (10-15 digits).');
+ if (!text) {
+            return reply(
+                `Oops! You forgot the number.\n\nExample:\n${prefix + command} 25674293XXXX`
+            );
         }
 
-        // Jexploit Session API endpoint
-        const jexploitUrl = `https://jexploitsession.zone.id/pair?number=${encodeURIComponent(number)}`;
-        
-        // Backup API endpoints (original ones)
-        const backupApis = [
-            `https://vinic-xmd-pair-2-kevintech.onrender.com/pair?number=${encodeURIComponent(number)}`,
-            `https://vinic-xmd-pairing-site-dsf-crew-devs.onrender.com/pair?number=${encodeURIComponent(number)}`
-        ];
+        // Normalize and validate numbers
+        const numbers = text.split(",")
+            .map(v => v.replace(/[^0-9]/g, "")) // keep only digits
+            .filter(v => v.length >= 6 && v.length <= 20);
 
-        let pairCode = null;
-        let apiUsed = 'Jexploit Session Service';
-        let pairUrl = ''; // To store the pairing URL
-
-        // Try Jexploit API first
-        try {
-            console.log(`[PAIR] Trying Jexploit API: ${jexploitUrl}`);
-            const response = await fetch(jexploitUrl, { 
-                timeout: 15000,
-                headers: {
-                    'User-Agent': 'Jexploit-Bot/1.0'
-                }
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                console.log('[PAIR] Jexploit API response:', data);
-                
-                // Handle Jexploit API response format
-                if (data.code) {
-                    pairCode = data.code;
-                } else if (data.pairCode) {
-                    pairCode = data.pairCode;
-                } else if (data.result?.code) {
-                    pairCode = data.result.code;
-                } else if (data.data?.code) {
-                    pairCode = data.data.code;
-                } else if (typeof data === 'string') {
-                    // If API returns plain string
-                    pairCode = data;
-                }
-                
-                // If Jexploit returns a direct link instead of just code
-                if (data.link) {
-                    pairUrl = data.link;
-                } else if (data.url) {
-                    pairUrl = data.url;
-                }
-                
-                // If no URL but we have code, construct the Jexploit pairing URL
-                if (pairCode && !pairUrl) {
-                    pairUrl = `https://jexploitsession.zone.id/link?code=${encodeURIComponent(pairCode)}`;
-                }
-            } else {
-                console.log(`[PAIR] Jexploit API failed with status: ${response.status}`);
-            }
-        } catch (error) {
-            console.log(`[PAIR] Jexploit API error: ${error.message}`);
+        if (numbers.length === 0) {
+            await conn.sendMessage(
+                m.chat,
+                { text: "Invalid number format. Please use digits only (6–20 digits)." },
+                { quoted: m }
+            );
+            return;
         }
 
-        // If Jexploit API failed, try backup APIs
-        if (!pairCode && !pairUrl) {
-            console.log('[PAIR] Trying backup APIs...');
-            apiUsed = 'Backup API';
+        for (const number of numbers) {
+            const whatsappID = `${number}@s.whatsapp.net`;
             
-            for (const url of backupApis) {
-                try {
-                    console.log(`[PAIR] Trying backup: ${url}`);
-                    const response = await fetch(url, { timeout: 10000 });
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        
-                        // Handle different API response formats
-                        if (data.code) {
-                            pairCode = data.code;
-                        } else if (data.pairCode) {
-                            pairCode = data.pairCode;
-                        } else if (data.result?.code) {
-                            pairCode = data.result.code;
-                        } else if (data.data?.code) {
-                            pairCode = data.data.code;
-                        } else if (typeof data === 'string') {
-                            // If API returns plain string
-                            pairCode = data;
-                        }
-                        
-                        if (pairCode) {
-                            apiUsed = url.includes('kevintech') ? 'KevinTech API' : 'DSF Crew API';
-                            // For backup APIs, create the Jexploit URL
-                            pairUrl = `https://jexploitsession.zone.id/link?code=${encodeURIComponent(pairCode)}`;
-                            break;
-                        }
-                    }
-                } catch (error) {
-                    console.log(`[PAIR] Backup API ${url} failed: ${error.message}`);
+            try {
+                // Check if number exists on WhatsApp
+                const result = await conn.onWhatsApp(whatsappID);
+
+                if (!result?.[0]?.exists) {
+                    await conn.sendMessage(
+                        m.chat,
+                        { text: `Number ${number} is not registered on WhatsApp.` },
+                        { quoted: m }
+                    );
                     continue;
                 }
-            }
-        }
 
-        if (!pairCode && !pairUrl) {
-            throw new Error('No pair code or URL received from any API');
-        }
+                // Notify processing
+                await conn.sendMessage(
+                    m.chat,
+                    { text: `Generating code for: ${number}` },
+                    { quoted: m }
+                );
 
-        // Create formatted response
-        let responseText = '';
-        
-        if (pairUrl) {
-            // If we have a direct URL
-            responseText = `✅ *PAIRING LINK GENERATED*\n\n` +
-                `📱 *Phone Number:* ${number}\n` +
-                `🔗 *Pairing Link:* ${pairUrl}\n` +
-                `⚡ *Source:* ${apiUsed}\n\n` +
-                `📲 *HOW TO LINK WHATSAPP:*\n` +
-                `1. Click the link above on your phone\n` +
-                `2. OR Open the link in your mobile browser\n` +
-                `3. Follow the instructions to link WhatsApp\n\n` +
-                `⏳ *Link expires in 2 minutes!*\n` +
-                `🔒 *Keep this link private!*`;
+                // Fetch pairing code from API
+                const axios = require('axios');
+                const response = await axios.get(
+                    `https://vinic-xmd-pairing-site-dsf-crew-devs.onrender.com/code?number=${number}`,
+                    { timeout: 20000 }
+                );
+
+                const code = response.data?.code;
+                if (!code || code === "Service Unavailable") {
+                    throw new Error("Service Unavailable");
+                }
+
+                // Send the pairing code
+                await sleep(3000);
+                await conn.sendMessage(
+                    m.chat,
+                    { text: `${code}` },
+                    { quoted: m }
+                );
+
+                // Send help instructions
+                await conn.sendMessage(
+                    m.chat,
+                    { 
+                        text: `How to Link ${number}\n\n` +
+                              `1. Copy the code above\n` +
+                              `2. Open WhatsApp\n` +
+                              `3. Go to Settings > Linked Devices\n` +
+                              `4. Tap Link a Device\n` +
+                              `5. Enter the code\n` +
+                              `6. Wait for it to load\n` +
+                              `7. Done! Your device is now linked.\n\n` +
+                              `Tip: Use the session_id in your DM to deploy.`
+                    },
+                    { quoted: m }
+                );
+
+            } catch (apiError) {
+                console.error("API Error:", apiError.message);
                 
-            // Also show the code if available
-            if (pairCode) {
-                responseText += `\n\n🔑 *Alternative - Use Code:* \`\`\`${pairCode}\`\`\``;
+                const errorMessage = apiError.message === "Service Unavailable"
+                    ? "Service is currently unavailable. Please try again later."
+                    : "Failed to generate pairing code. Please try again later.";
+
+                await conn.sendMessage(
+                    m.chat,
+                    { text: errorMessage },
+                    { quoted: m }
+                );
             }
-        } else if (pairCode) {
-            // If we only have code
-            responseText = `✅ *PAIR CODE GENERATED*\n\n` +
-                `*Phone Number:* ${number}\n` +
-                `*Pair Code:* \`\`\`${pairCode}\`\`\`\n` +
-                `*Pairing Link:* https://jexploitsession.zone.id/link?code=${encodeURIComponent(pairCode)}\n` +
-                `*Source:* ${apiUsed}\n\n` +
-                `*HOW TO LINK WHATSAPP:*\n` +
-                `Method 1: Use the link above on your phone\n` +
-                `Method 2: Go to WhatsApp > Settings > Linked Devices > Link with Phone > Enter code\n\n` +
-                `⏳ *Code expires in 2 minutes!*\n` +
-                `🔒 *Keep this code private!*`;
         }
-
-        // Send the pair code/link
-        await conn.sendMessage(
-            m.chat,
-            { text: responseText },
-            { quoted: m }
-        );
-
-        // Success reaction
-        await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
-
-    } catch (error) {
-        console.error('Pair command error:', error);
-        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
-        
-        reply(`❌ *Failed to generate pair code!*\n\nPossible reasons:\n• Jexploit session service is down\n• Invalid phone number format\n• Network issues\n\nTry again or contact support.\n\n🔗 *Alternative:* Visit https://jexploitsession.zone.id manually`);
-    }
 }
 break
 case "serverinfo": { 
