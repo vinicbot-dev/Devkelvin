@@ -263,12 +263,6 @@ function cleanupOldMessages() {
     console.log(`- Remaining messages: ${keptMessages}`);
 }
 
-function startAutoCleanup() {
-    setInterval(() => {
-        cleanupOldMessages();
-    }, 15 * 60 * 1000);
-}
-
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -278,7 +272,6 @@ async function clientstart() {
     cleaningSession(sessionDir);
     const creds = await loadSession();
     await cleanupOldMessages();
-    startAutoCleanup();
     
     const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
    
