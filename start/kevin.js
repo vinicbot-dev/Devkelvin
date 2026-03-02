@@ -2279,6 +2279,7 @@ case 'autorecording': {
     break;
 }
 case 'aichat':
+case 'chatbot':
 case 'aichatbot':
 case 'setai': {
     if (!Access) return reply(mess.owner);
