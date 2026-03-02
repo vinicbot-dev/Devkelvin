@@ -195,62 +195,73 @@ async function clientstart() {
         try {
             let mek = chatUpdate.messages[0];
             if (!mek.message) return;
-            
-            mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') 
-                ? mek.message.ephemeralMessage.message 
-                : mek.message;
+            mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message;
         
             await handleStatusUpdate(conn, chatUpdate);
             
-            if (mek.key && mek.key.remoteJid === 'status@broadcast') return;
+            if (mek.key && mek.key.remoteJid === 'status@broadcast') {
+                return;
+            }
 
             if (!conn.public && !mek.key.fromMe && chatUpdate.type === 'notify') return;
-            
             let m = smsg(conn, mek, store);
            
             m.isGroup = m.chat.endsWith('@g.us')
             m.sender = await conn.decodeJid(m.fromMe && conn.user.id || m.participant || m.key.participant || m.chat || '')
             
             if (m.isGroup) {
-                m.metadata = await conn.groupMetadata(m.chat).catch(_ => ({})) || {}
-                const admins = []
-                if (m.metadata?.participants) {
-                    for (let p of m.metadata.participants) {
-                        if (p.admin !== null) {
-                            if (p.jid) admins.push(p.jid);
-                            if (p.id) admins.push(p.id);
-                            if (p.lid) admins.push(p.lid);
-                        }
-                    }
-                }
-                m.admins = [...new Set(admins)];
-           
-                try {
-                    const adminStatus = await isAdminKelvin(conn, m.chat, m.sender);
-                    m.isAdmin = adminStatus.isSenderAdmin;
-                    m.isBotAdmin = adminStatus.isBotAdmin;
-                    if (adminStatus.admins && adminStatus.admins.length > 0) {
-                        m.admins = [...new Set([...m.admins, ...adminStatus.admins])];
-                    }
-                } catch (error) {
-                    const checkAdmin = (jid, list) => {
-                        if (!jid || !list || !list.length) return false;
-                        const senderNumber = jid.split('@')[0];
-                        return list.some(admin => admin.split('@')[0] === senderNumber);
-                    };
-                    m.isAdmin = checkAdmin(m.sender, m.admins);
-                    m.isBotAdmin = checkAdmin(botNumber, m.admins);
-                }
-                m.participant = m.key.participant || ""
-            } else {
-                m.isAdmin = false;
-                m.isBotAdmin = false;
+    m.metadata = await conn.groupMetadata(m.chat).catch(_ => ({})) || {}
+    
+    const admins = []
+    if (m.metadata?.participants) {
+        for (let p of m.metadata.participants) {
+            if (p.admin !== null) {
+                // Add all possible JID fields
+                if (p.jid) admins.push(p.jid);
+                if (p.id) admins.push(p.id);
+                if (p.lid) admins.push(p.lid);
             }
-     
+        }
+    }
+    m.admins = [...new Set(admins)]; // Remove duplicates
+   
+    try {
+        const adminStatus = await isAdminKelvin(conn, m.chat, m.sender);
+        
+        // Use the enhanced function results (these are more accurate)
+        m.isAdmin = adminStatus.isSenderAdmin;
+        m.isBotAdmin = adminStatus.isBotAdmin;
+        
+        // Optional: Merge admins from both methods for completeness
+        if (adminStatus.admins && adminStatus.admins.length > 0) {
+            // Combine both admin arrays and remove duplicates
+            m.admins = [...new Set([...m.admins, ...adminStatus.admins])];
+        }
+       
+        
+    } catch (error) {
+        console.error('Error in isAdminKelvin, falling back to original method:', error);
+        
+        // FALLBACK: Use original admin check if enhanced function fails
+        const checkAdmin = (jid, list) => {
+            if (!jid || !list || !list.length) return false;
+            const senderNumber = jid.split('@')[0];
+            return list.some(admin => admin.split('@')[0] === senderNumber);
+        };
+        
+        m.isAdmin = checkAdmin(m.sender, m.admins);
+        m.isBotAdmin = checkAdmin(botNumber, m.admins);
+    }
+    
+    m.participant = m.key.participant || ""
+    
+} else {
+    m.isAdmin = false
+    m.isBotAdmin = false
+}
             require("./start/kevin")(conn, m, chatUpdate, mek, store);
-            
         } catch (err) {
-            console.log(chalk.yellow.bold("[ ERROR ]") + err.message);
+            console.log(chalk.yellow.bold("[ ERROR ] kevin.js :\n") + chalk.redBright(util.format(err)));
         }
     });
         
