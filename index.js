@@ -1,8 +1,6 @@
 console.clear();
 console.log('Starting Jexploit with much love from Kelvin Tech...');
 
-
-
 const settings = require('./settings');
 const config = require('./config');
 
@@ -18,40 +16,30 @@ const {
   getContentType,
   jidDecode,
   proto,
-  browsers,
   delay
 } = require("@whiskeysockets/baileys");
 
 const pino = require('pino');
 const readline = require("readline");
 const fs = require('fs');
-const os = require('os');
 const path = require('path')
-const more = String.fromCharCode(8206);
 const chalk = require('chalk');
-const _ = require('lodash');
 const NodeCache = require("node-cache");
-const lolcatjs = require('lolcatjs');
-const readmore = more.repeat(4001);
 const util = require('util');
 const axios = require('axios');
-const fetch = require('node-fetch');
-const timezones = global.timezones || "Africa/Kampala";
 const moment = require('moment-timezone');
 const FileType = require('file-type');
 const { Boom } = require('@hapi/boom');
-const PhoneNumber = require('awesome-phonenumber');
 const { File } = require('megajs');
 const port = process.env.PORT || 3000;
 const express = require('express')
 const app = express();
 const { color } = require('./start/lib/color');
+
 const {
   smsg,
-  sendGmail,
   formatSize,
   isUrl,
-  generateMessageTag,
   getBuffer,
   getSizeMedia,
   runtime,
@@ -72,7 +60,6 @@ const {
   writeExifVid
 } = require('./start/lib/exif');
 
-const { cleaningSession } = require('./start/lib/botSession');
 const { isAdminKelvin } = require('./start/lib/admin');
 const db = require('./start/Core/databaseManager'); 
 
@@ -91,87 +78,11 @@ const question = (text) => {
   });
 };
 
-const yargs = require('yargs/yargs');
-
-//=========SESSION-AUTH=====================
 const sessionDir = path.join(__dirname, 'sessions');
-const credsPath = path.join(sessionDir, 'creds.json');
 
 // Create session directory if it doesn't exist
 if (!fs.existsSync(sessionDir)) {
     fs.mkdirSync(sessionDir, { recursive: true });
-}
-
-// ============= 🔥 SESSION CLEANUP FUNCTION - PREVENTS 500+ FILES =============
-function cleanOldSessionFiles() {
-    try {
-        if (!fs.existsSync(sessionDir)) return;
-        const files = fs.readdirSync(sessionDir);
-        const now = Date.now();
-        const protectedFiles = new Set(['creds.json', 'login.json']);
-        const shortLived = ['pre-key-', 'sender-key-', 'app-state-sync', 'device-list-'];
-        const longLived = ['session-'];
-        const shortMaxAge = 12 * 60 * 60 * 1000; // 12 hours
-        const longMaxAge = 48 * 60 * 60 * 1000;  // 48 hours
-
-        const cleanable = files.filter((item) => {
-            if (protectedFiles.has(item)) return false;
-            const isShort = shortLived.some(p => item.startsWith(p));
-            const isLong = longLived.some(p => item.startsWith(p));
-            if (!isShort && !isLong) return false;
-            try {
-                const stats = fs.statSync(path.join(sessionDir, item));
-                const age = now - stats.mtimeMs;
-                return isShort ? age > shortMaxAge : age > longMaxAge;
-            } catch { return false; }
-        });
-        
-        if (cleanable.length > 0) {
-            cleanable.forEach((file) => {
-                try { fs.unlinkSync(path.join(sessionDir, file)); } catch {}
-            });
-            console.log(chalk.yellow(`[Session Cleanup] ✅ Removed ${cleanable.length} stale files (${files.length - cleanable.length} kept).`));
-        }
-    } catch (error) {
-        console.error(chalk.red('[SESSION CLEANUP] ❌ Error:'), error.message);
-    }
-}
-
-// Run session cleanup immediately and every hour
-cleanOldSessionFiles();
-setInterval(cleanOldSessionFiles, 3600000); // 1 hour
-
-async function loadSession() {
-    try {
-        if (!settings.SESSION_ID) {
-            console.log('No SESSION_ID provided - QR login will be generated');
-            return null;
-        }
-
-        console.log('[⏳] Downloading creds data...');
-        console.log('[🔰] Downloading MEGA.nz session...');
-
-        const megaFileId = settings.SESSION_ID.startsWith('jexploit~') 
-            ? settings.SESSION_ID.replace("jexploit~", "") 
-            : settings.SESSION_ID;
-
-        const filer = File.fromURL(`https://mega.nz/file/${megaFileId}`);
-
-        const data = await new Promise((resolve, reject) => {
-            filer.download((err, data) => {
-                if (err) reject(err);
-                else resolve(data);
-            });
-        });
-
-        fs.writeFileSync(credsPath, data);
-        console.log('[✅] MEGA session downloaded successfully');
-        return JSON.parse(data.toString());
-    } catch (error) {
-        console.error('❌ Error loading session:', error.message);
-        console.log('Will generate QR code instead');
-        return null;
-    }
 }
 
 // Auto-join group function
@@ -186,92 +97,44 @@ const autoJoinGroup = async (conn) => {
     }
 };
 
-const storeFile = "./start/lib/database/store.json";
-const maxMessageAge = 24 * 60 * 60; //24 hours
-
-function loadStoredMessages() {
-    if (fs.existsSync(storeFile)) {
-        try {
-            return JSON.parse(fs.readFileSync(storeFile));
-        } catch (err) {
-            console.error("⚠️ Error loading store.json:", err);
-            return {};
-        }
-    }
-    return {};
-}
-
-function saveStoredMessages(chatId, messageId, messageData) {
-    let storedMessages = loadStoredMessages();
-
-    if (!storedMessages[chatId]) storedMessages[chatId] = {};
-    if (!storedMessages[chatId][messageId]) {
-        storedMessages[chatId][messageId] = messageData;
-        fs.writeFileSync(storeFile, JSON.stringify(storedMessages, null, 2));
-    }
-}
-
-function cleanupOldMessages() {
-    let now = Math.floor(Date.now() / 1000);
-    let storedMessages = {};
-
-    if (fs.existsSync(storeFile)) {
-        try {
-            storedMessages = JSON.parse(fs.readFileSync(storeFile));
-        } catch (err) {
-            console.error("❌ Error reading store.json:", err);
-            return;
-        }
-    }
-
-    let totalMessages = 0, oldMessages = 0, keptMessages = 0;
-
-    for (let chatId in storedMessages) {
-        let messages = storedMessages[chatId];
-
-        for (let messageId in messages) {
-            let messageTimestamp = messages[messageId].timestamp;
-
-            if (typeof messageTimestamp === "object" && messageTimestamp.low !== undefined) {
-                messageTimestamp = messageTimestamp.low;
-            }
-
-            if (messageTimestamp > 1e12) {
-                messageTimestamp = Math.floor(messageTimestamp / 1000);
-            }
-
-            totalMessages++;
-
-            if (now - messageTimestamp > maxMessageAge) {
-                delete storedMessages[chatId][messageId];
-                oldMessages++;
-            } else {
-                keptMessages++;
-            }
-        }
-        
-        if (Object.keys(storedMessages[chatId]).length === 0) {
-            delete storedMessages[chatId];
-        }
-    }
-
-    fs.writeFileSync(storeFile, JSON.stringify(storedMessages, null, 2));
-
-    console.log("[JEXPLOIT] 🧹 Cleaning up:");
-    console.log(`- Total messages processed: ${totalMessages}`);
-    console.log(`- Old messages removed: ${oldMessages}`);
-    console.log(`- Remaining messages: ${keptMessages}`);
-}
-
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// Optimized session loading
+async function loadSession() {
+    try {
+        if (!settings.SESSION_ID) {
+            console.log('No SESSION_ID provided - QR login will be generated');
+            return null;
+        }
+
+        console.log('[⏳] Downloading session...');
+
+        const megaFileId = settings.SESSION_ID.startsWith('jexploit~') 
+            ? settings.SESSION_ID.replace("jexploit~", "") 
+            : settings.SESSION_ID;
+
+        const filer = File.fromURL(`https://mega.nz/file/${megaFileId}`);
+
+        const data = await new Promise((resolve, reject) => {
+            filer.download((err, data) => {
+                if (err) reject(err);
+                else resolve(data);
+            });
+        });
+
+        fs.writeFileSync(path.join(sessionDir, 'creds.json'), data);
+        console.log('[✅] Session downloaded');
+        return JSON.parse(data.toString());
+    } catch (error) {
+        console.error('Error loading session:', error.message);
+        return null;
+    }
+}
+
 async function clientstart() {
-    console.log(chalk.cyan.bold('[🧹] Cleaning old session files...'));
-    cleaningSession(sessionDir);
     const creds = await loadSession();
-    await cleanupOldMessages();
     
     const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
    
@@ -279,9 +142,8 @@ async function clientstart() {
     try {
         const { version } = await fetchLatestBaileysVersion();
         waVersion = version;
-        console.log("[ JEXPLOIT] Connecting to WhatsApp ⏳️...");
+        console.log("[ JEXPLOIT] Connecting...");
     } catch (error) {
-        console.log(chalk.yellow(`[⚠️] Using stable fallback version`));
         waVersion = [2, 3000, 1017546695]; 
     }
 
@@ -289,56 +151,19 @@ async function clientstart() {
         printQRInTerminal: !usePairingCode,
         syncFullHistory: false,
         markOnlineOnConnect: true,
-        connectTimeoutMs: 60000,
-        defaultQueryTimeoutMs: 30000,
-        keepAliveIntervalMs: 25000,
-        maxRetries: 5,
-        generateHighQualityLinkPreview: false,
-        linkPreviewImageThumbnailWidth: 64,
+        connectTimeoutMs: 30000, // Reduced timeout
+        defaultQueryTimeoutMs: 20000,
+        keepAliveIntervalMs: 30000,
+        maxRetries: 3,
         version: waVersion,
         browser: ["Ubuntu", "Chrome", "120.0.0.0"],
-        logger: pino({ level: 'silent' }),
+        logger: pino({ level: 'error' }), // Reduced logging
         auth: {
             creds: state.creds,
-            keys: makeCacheableSignalKeyStore(state.keys, pino().child({
-                level: 'silent',
-                stream: 'store'
-            })),
+            keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'error' })),
         },
-        fireInitQueries: false, 
-        emitOwnEvents: true,
-        defaultCongestionControl: 1,
     });
 
-    const keepAliveInterval = 10 * 60 * 1000; // 10 minutes
-    setInterval(async () => {
-        try {
-            if (conn?.user?.id) {
-                await conn.sendPresenceUpdate('available');
-                console.log(chalk.green('[Keep-Alive] ✅ Ping sent - Connection kept alive'));
-            }
-        } catch (e) {
-            // Silently fail
-        }
-    }, keepAliveInterval);
-
-    conn.decodeJid = (jid) => {
-        if (!jid) return jid;
-        if (/:\d+@/gi.test(jid)) {
-            let decode = jidDecode(jid) || {};
-            return decode.user && decode.server && decode.user + '@' + decode.server || jid;
-        } else return jid;
-    };
-
-    const botNumber = conn.decodeJid(conn.user?.id) || 'default';
-
-    if (!creds && !conn.authState.creds.registered) {
-        const phoneNumber = await question(chalk.greenBright(`Thanks for choosing Jexploit-bot. Please provide your number start with 256xxx:\n`));
-        const code = await conn.requestPairingCode(phoneNumber.trim());
-        console.log(chalk.cyan(`Code: ${code}`));
-        console.log(chalk.cyan(`Jexploit: Please use this code to connect your WhatsApp account.`));
-    }
-          
     const { makeInMemoryStore } = require("./start/lib/store/");
     const store = makeInMemoryStore({
         logger: pino().child({
@@ -349,80 +174,86 @@ async function clientstart() {
     
     store.bind(conn.ev);
 
+    conn.decodeJid = (jid) => {
+        if (!jid) return jid;
+        if (/:\d+@/gi.test(jid)) {
+            let decode = jidDecode(jid) || {};
+            return decode.user && decode.server ? decode.user + '@' + decode.server : jid;
+        }
+        return jid;
+    };
+
+    const botNumber = conn.decodeJid(conn.user?.id) || 'default';
+
+    if (!creds && !conn.authState.creds.registered) {
+        const phoneNumber = await question(chalk.greenBright(`Enter number (e.g 256xxx):\n`));
+        const code = await conn.requestPairingCode(phoneNumber.trim());
+        console.log(chalk.cyan(`Code: ${code}`));
+    }
+
     conn.ev.on('messages.upsert', async chatUpdate => {
         try {
             let mek = chatUpdate.messages[0];
             if (!mek.message) return;
-            mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message;
+            
+            mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') 
+                ? mek.message.ephemeralMessage.message 
+                : mek.message;
         
             await handleStatusUpdate(conn, chatUpdate);
             
-            if (mek.key && mek.key.remoteJid === 'status@broadcast') {
-                return;
-            }
+            if (mek.key && mek.key.remoteJid === 'status@broadcast') return;
 
             if (!conn.public && !mek.key.fromMe && chatUpdate.type === 'notify') return;
+            
             let m = smsg(conn, mek, store);
            
             m.isGroup = m.chat.endsWith('@g.us')
             m.sender = await conn.decodeJid(m.fromMe && conn.user.id || m.participant || m.key.participant || m.chat || '')
             
             if (m.isGroup) {
-    m.metadata = await conn.groupMetadata(m.chat).catch(_ => ({})) || {}
-    
-    const admins = []
-    if (m.metadata?.participants) {
-        for (let p of m.metadata.participants) {
-            if (p.admin !== null) {
-                // Add all possible JID fields
-                if (p.jid) admins.push(p.jid);
-                if (p.id) admins.push(p.id);
-                if (p.lid) admins.push(p.lid);
+                m.metadata = await conn.groupMetadata(m.chat).catch(_ => ({})) || {}
+                const admins = []
+                if (m.metadata?.participants) {
+                    for (let p of m.metadata.participants) {
+                        if (p.admin !== null) {
+                            if (p.jid) admins.push(p.jid);
+                            if (p.id) admins.push(p.id);
+                            if (p.lid) admins.push(p.lid);
+                        }
+                    }
+                }
+                m.admins = [...new Set(admins)];
+           
+                try {
+                    const adminStatus = await isAdminKelvin(conn, m.chat, m.sender);
+                    m.isAdmin = adminStatus.isSenderAdmin;
+                    m.isBotAdmin = adminStatus.isBotAdmin;
+                    if (adminStatus.admins && adminStatus.admins.length > 0) {
+                        m.admins = [...new Set([...m.admins, ...adminStatus.admins])];
+                    }
+                } catch (error) {
+                    const checkAdmin = (jid, list) => {
+                        if (!jid || !list || !list.length) return false;
+                        const senderNumber = jid.split('@')[0];
+                        return list.some(admin => admin.split('@')[0] === senderNumber);
+                    };
+                    m.isAdmin = checkAdmin(m.sender, m.admins);
+                    m.isBotAdmin = checkAdmin(botNumber, m.admins);
+                }
+                m.participant = m.key.participant || ""
+            } else {
+                m.isAdmin = false;
+                m.isBotAdmin = false;
             }
-        }
-    }
-    m.admins = [...new Set(admins)]; // Remove duplicates
-   
-    try {
-        const adminStatus = await isAdminKelvin(conn, m.chat, m.sender);
-        
-        // Use the enhanced function results (these are more accurate)
-        m.isAdmin = adminStatus.isSenderAdmin;
-        m.isBotAdmin = adminStatus.isBotAdmin;
-        
-        // Optional: Merge admins from both methods for completeness
-        if (adminStatus.admins && adminStatus.admins.length > 0) {
-            // Combine both admin arrays and remove duplicates
-            m.admins = [...new Set([...m.admins, ...adminStatus.admins])];
-        }
-       
-        
-    } catch (error) {
-        console.error('Error in isAdminKelvin, falling back to original method:', error);
-        
-        // FALLBACK: Use original admin check if enhanced function fails
-        const checkAdmin = (jid, list) => {
-            if (!jid || !list || !list.length) return false;
-            const senderNumber = jid.split('@')[0];
-            return list.some(admin => admin.split('@')[0] === senderNumber);
-        };
-        
-        m.isAdmin = checkAdmin(m.sender, m.admins);
-        m.isBotAdmin = checkAdmin(botNumber, m.admins);
-    }
-    
-    m.participant = m.key.participant || ""
-    
-} else {
-    m.isAdmin = false
-    m.isBotAdmin = false
-}
+     
             require("./start/kevin")(conn, m, chatUpdate, mek, store);
+            
         } catch (err) {
-            console.log(chalk.yellow.bold("[ ERROR ] kevin.js :\n") + chalk.redBright(util.format(err)));
+            console.log(chalk.yellow.bold("[ ERROR ]") + err.message);
         }
     });
-    
+        
     
     conn.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect } = update;
