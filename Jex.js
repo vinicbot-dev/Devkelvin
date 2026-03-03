@@ -433,9 +433,9 @@ ${readmore}
     }
 }
 // Function to handle status updates
-async function handleStatusUpdate(kelvin, status) {
+async function handleStatusUpdate(conn, status) {
     try {
-        const botNumber = await kelvin.decodeJid(kelvin.user.id);
+        const botNumber = await conn.decodeJid(conn.user.id);
 
         const autoviewstatus = await db.get(botNumber, 'autoviewstatus', false);
         const autoreactstatus = await db.get(botNumber, 'autoreactstatus', false);
@@ -462,10 +462,10 @@ async function handleStatusUpdate(kelvin, status) {
 
         // Helper to view + react
         const viewAndReact = async () => {
-            await kelvin.readMessages([msgKey]);
+            await conn.readMessages([msgKey]);
             if (autoreactstatus) {
                 await new Promise(resolve => setTimeout(resolve, 500));
-                await kelvin.sendMessage(msgKey.remoteJid, { 
+                await conn.sendMessage(msgKey.remoteJid, { 
                     react: { text: reactionEmoji, key: msgKey } 
                 });
             }
@@ -1037,6 +1037,217 @@ async function handleAntipromote(conn, chatId, participants, author) {
     }
 }
 
+async function handleBadword(conn, m, botNumber) {
+    try {
+        if (!m || !m.isGroup || !m.message || m.key.fromMe) {
+            return;
+        }
+
+        const chatId = m.chat;
+        const sender = m.sender;
+        const messageText = extractMessageText(m.message);
+
+        if (!messageText) return;
+
+        // Skip if sender is admin
+        if (m.isAdmin) {
+            return;
+        }
+
+        // Get antibadword settings
+        const isEnabled = await db.getGroupSetting(botNumber, chatId, 'antibadword', false);
+        if (!isEnabled) return;
+
+        const badwords = await db.getGroupSetting(botNumber, chatId, 'badwords', []);
+        if (badwords.length === 0) return;
+
+        const action = await db.getGroupSetting(botNumber, chatId, 'badwordaction', 'delete');
+
+        // Check if message contains any badword
+        const foundBadword = badwords.some(word => 
+            messageText.toLowerCase().includes(word.toLowerCase())
+        );
+
+        if (!foundBadword) return;
+
+        console.log(`🔴 Badword detected from ${sender} in ${chatId} - Action: ${action}`);
+
+        // Delete the message
+        try {
+            await conn.sendMessage(chatId, { delete: m.key });
+            console.log(`✅ Deleted badword message from ${sender} in ${chatId}`);
+        } catch (deleteError) {
+            console.log('❌ Failed to delete message - Bot may need admin permissions');
+            return;
+        }
+
+        // Handle based on action
+        switch(action) {
+            case 'warn': {
+                // Initialize warnings map if not exists
+                if (!global.badwordWarnings) global.badwordWarnings = new Map();
+                
+                const warningKey = `${chatId}:${sender}`;
+                const userWarnings = global.badwordWarnings.get(warningKey) || { count: 0, lastWarning: 0 };
+                
+                userWarnings.count++;
+                userWarnings.lastWarning = Date.now();
+                global.badwordWarnings.set(warningKey, userWarnings);
+                
+                let responseMessage = `⚠️ @${sender.split('@')[0]}, inappropriate words are not allowed in this group!\nWarning: *${userWarnings.count}/3*`;
+                
+                // Auto-kick after 3 warnings
+                if (userWarnings.count >= 3) {
+                    try {
+                        await conn.groupParticipantsUpdate(chatId, [sender], "remove");
+                        responseMessage = `🚫 @${sender.split('@')[0]} *has been removed for using inappropriate words*.`;
+                        global.badwordWarnings.delete(warningKey);
+                    } catch (kickError) {
+                        responseMessage = `⚠️ @${sender.split('@')[0]}, inappropriate words are not allowed! (Failed to remove - check bot permissions)`;
+                    }
+                }
+                
+                await sleep(1000);
+                await conn.sendMessage(chatId, {
+                    text: responseMessage,
+                    mentions: [sender]
+                });
+                break;
+            }
+            
+            case 'kick': {
+                try {
+                    await conn.groupParticipantsUpdate(chatId, [sender], "remove");
+                    await sleep(1000);
+                    await conn.sendMessage(chatId, {
+                        text: `🚫 @${sender.split('@')[0]} *has been removed for using inappropriate words*.`,
+                        mentions: [sender]
+                    });
+                } catch (kickError) {
+                    await sleep(1000);
+                    await conn.sendMessage(chatId, {
+                        text: `⚠️ @${sender.split('@')[0]}, inappropriate words are not allowed! (Failed to remove - check bot permissions)`,
+                        mentions: [sender]
+                    });
+                }
+                break;
+            }
+            
+            case 'delete':
+            default: {
+                // Just delete the message, no warning
+                break;
+            }
+        }
+
+    } catch (error) {
+        console.error('❌ Error in handleBadword:', error);
+    }
+}
+
+async function handleAntisticker(conn, m, botNumber) {
+    try {
+        if (!m || !m.isGroup || !m.message || m.key.fromMe) {
+            return;
+        }
+
+        const chatId = m.chat;
+        const sender = m.sender;
+
+        // Skip if sender is admin
+        if (m.isAdmin) {
+            return;
+        }
+
+        // Check if message is a sticker
+        const isSticker = m.mtype === 'stickerMessage' || 
+                          m.message?.stickerMessage || 
+                          (m.quoted && m.quoted.mtype === 'stickerMessage');
+
+        if (!isSticker) return;
+
+        // Get antisticker settings
+        const isEnabled = await db.getGroupSetting(botNumber, chatId, 'antisticker', false);
+        if (!isEnabled) return;
+
+        const action = await db.getGroupSetting(botNumber, chatId, 'antistickeraction', 'delete');
+
+        console.log(`🖼️ Sticker detected from ${sender} in ${chatId} - Action: ${action}`);
+
+        // Delete the sticker message
+        try {
+            await conn.sendMessage(chatId, { delete: m.key });
+            console.log(`✅ Deleted sticker message from ${sender} in ${chatId}`);
+        } catch (deleteError) {
+            console.log('❌ Failed to delete sticker - Bot may need admin permissions');
+            return;
+        }
+
+        // Handle based on action
+        switch(action) {
+            case 'warn': {
+                // Initialize warnings map if not exists
+                if (!global.stickerWarnings) global.stickerWarnings = new Map();
+                
+                const warningKey = `${chatId}:${sender}`;
+                const userWarnings = global.stickerWarnings.get(warningKey) || { count: 0, lastWarning: 0 };
+                
+                userWarnings.count++;
+                userWarnings.lastWarning = Date.now();
+                global.stickerWarnings.set(warningKey, userWarnings);
+                
+                let responseMessage = `⚠️ @${sender.split('@')[0]}, stickers are not allowed in this group!\nWarning: *${userWarnings.count}/3*`;
+                
+                // Auto-kick after 3 warnings
+                if (userWarnings.count >= 3) {
+                    try {
+                        await conn.groupParticipantsUpdate(chatId, [sender], "remove");
+                        responseMessage = `🚫 @${sender.split('@')[0]} *has been removed for sending stickers*.`;
+                        global.stickerWarnings.delete(warningKey);
+                    } catch (kickError) {
+                        responseMessage = `⚠️ @${sender.split('@')[0]}, stickers are not allowed! (Failed to remove - check bot permissions)`;
+                    }
+                }
+                
+                await sleep(1000);
+                await conn.sendMessage(chatId, {
+                    text: responseMessage,
+                    mentions: [sender]
+                });
+                break;
+            }
+            
+            case 'kick': {
+                try {
+                    await conn.groupParticipantsUpdate(chatId, [sender], "remove");
+                    await sleep(1000);
+                    await conn.sendMessage(chatId, {
+                        text: `🚫 @${sender.split('@')[0]} *has been removed for sending stickers*.`,
+                        mentions: [sender]
+                    });
+                } catch (kickError) {
+                    await sleep(1000);
+                    await conn.sendMessage(chatId, {
+                        text: `⚠️ @${sender.split('@')[0]}, stickers are not allowed! (Failed to remove - check bot permissions)`,
+                        mentions: [sender]
+                    });
+                }
+                break;
+            }
+            
+            case 'delete':
+            default: {
+                // Just delete the sticker, no warning
+                break;
+            }
+        }
+
+    } catch (error) {
+        console.error('❌ Error in handleAntisticker:', error);
+    }
+}
+
+
 module.exports = {
   fetchMp3DownloadUrl,
   fetchVideoDownloadUrl,
@@ -1049,6 +1260,8 @@ module.exports = {
   handleAntipromote,
   antipromoteCommand,
   antidemoteCommand,
+  handleBadword,
+  handleAntisticker,
   handleAntiTagAdmin,
   detectUrls,
   loadStoredMessages,
