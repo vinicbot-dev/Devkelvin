@@ -9,8 +9,6 @@ class DatabaseManager {
         this.cacheTimeout = 30000; // 30 seconds
     }
 
-    // ==================== GENERAL SETTINGS ====================
-    
     async get(botNumber, key, defaultValue = null) {
         const cacheKey = `${botNumber}:${key}`;
         const cached = this.cache.get(cacheKey);
@@ -184,6 +182,67 @@ async removeAntipromote(botNumber, groupId) {
     return this.setGroupSetting(botNumber, groupId, 'antipromote', false);
 }
 
+// ==================== ANTIBADWORD SETTINGS ====================
+
+async setBadword(botNumber, groupId, word) {  // ✅ Correct - no 'function' keyword
+    let badwords = await this.getGroupSetting(botNumber, groupId, 'badwords', []);
+    if (!badwords.includes(word)) {
+        badwords.push(word);
+        await this.setGroupSetting(botNumber, groupId, 'badwords', badwords);
+        return true;
+    }
+    return false;
+}
+
+async removeBadword(botNumber, groupId, word) {
+    let badwords = await this.getGroupSetting(botNumber, groupId, 'badwords', []);
+    const index = badwords.indexOf(word);
+    if (index > -1) {
+        badwords.splice(index, 1);
+        await this.setGroupSetting(botNumber, groupId, 'badwords', badwords);
+        return true;
+    }
+    return false;
+}
+
+async getBadwords(botNumber, groupId) {
+    return await this.getGroupSetting(botNumber, groupId, 'badwords', []);
+}
+
+async setBadwordAction(botNumber, groupId, action) {
+    return await this.setGroupSetting(botNumber, groupId, 'badwordaction', action);
+}
+
+async getBadwordAction(botNumber, groupId) {
+    return await this.getGroupSetting(botNumber, groupId, 'badwordaction', 'delete');
+}
+
+async setBadwordStatus(botNumber, groupId, enabled) {
+    return await this.setGroupSetting(botNumber, groupId, 'antibadword', enabled);
+}
+
+async getBadwordStatus(botNumber, groupId) {
+    return await this.getGroupSetting(botNumber, groupId, 'antibadword', false);
+}
+
+// ==================== ANTISTICKER SETTINGS ====================
+
+async setAntistickerStatus(botNumber, groupId, enabled) {
+    return await this.setGroupSetting(botNumber, groupId, 'antisticker', enabled);
+}
+
+async getAntistickerStatus(botNumber, groupId) {
+    return await this.getGroupSetting(botNumber, groupId, 'antisticker', false);
+}
+
+async setAntistickerAction(botNumber, groupId, action) {
+    return await this.setGroupSetting(botNumber, groupId, 'antistickeraction', action);
+}
+
+async getAntistickerAction(botNumber, groupId) {
+    return await this.getGroupSetting(botNumber, groupId, 'antistickeraction', 'delete');
+}
+
     // ==================== CACHE MANAGEMENT ====================
 
     clearCache(botNumber = null) {
@@ -199,6 +258,5 @@ async removeAntipromote(botNumber, groupId) {
     }
 }
 
-// ✅ CREATE AND EXPORT THE INSTANCE
 const dbManager = new DatabaseManager();
 module.exports = dbManager;
