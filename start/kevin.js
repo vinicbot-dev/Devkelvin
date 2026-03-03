@@ -84,6 +84,8 @@ const {
   handleAntiTagAdmin,
   handleLinkViolation,
   checkAndHandleLinks,
+  handleBadword,
+  handleAntisticker,
   detectUrls,
   delay,
   recordError,
@@ -662,6 +664,13 @@ if (m.isGroup && body) {
         isGroup: true,
         pushName: m.pushName || ''
     });
+}
+if (m.isGroup && body && !m.key.fromMe) {
+    await handleBadword(conn, m, botNumber);
+}
+
+if (m.isGroup && !m.key.fromMe) {
+    await handleAntisticker(conn, m, botNumber);
 }
 
 if (m.isGroup && !m.key.fromMe && body && body.trim().length > 0) {
@@ -10095,6 +10104,182 @@ case 'antitagadm': {
     reply(`❌ Invalid option! Use: on, off, delete, warn, kick`);
     break;
 }
+case "antibadword": {
+if (!isGroup) return reply(global.mess.notgroup);
+            if (!m.isAdmin) return reply(global.mess.notadmin);
+            if (!m.isBotAdmin) return reply(global.mess.botadmin);
+
+        const chatId = m.chat;
+        const mode = args[0]?.toLowerCase();
+        const action = args[1]?.toLowerCase();
+
+        // Show help if no arguments
+        if (!mode) {
+            const status = await db.getGroupSetting(botNumber, chatId, 'antibadword', false);
+            const currentAction = await db.getGroupSetting(botNumber, chatId, 'badwordaction', 'delete');
+            const badwords = await db.getGroupSetting(botNumber, chatId, 'badwords', []);
+            
+            let helpText = `╭──❖ 「 ANTIBADWORD 」 ❖──
+│
+│  *Status* : ${status ? '✅ ON' : '❌ OFF'}
+│  *Action* : ${currentAction}
+│  *Words*  : ${badwords.length}
+│
+│  *Commands:*
+│  • ${prefix}antibadword delete on
+│  • ${prefix}antibadword delete off
+│  • ${prefix}antibadword warn on
+│  • ${prefix}antibadword warn off
+│  • ${prefix}antibadword kick on
+│  • ${prefix}antibadword kick off
+│  • ${prefix}antibadword add <word>
+│  • ${prefix}antibadword remove <word>
+│  • ${prefix}antibadword list
+│  • ${prefix}antibadword clear
+│
+│  *Examples:*
+│  • ${prefix}antibadword delete on
+│  • ${prefix}antibadword add fuck
+│
+╰─────────❖`;
+
+            return reply(helpText);
+        }
+
+        // Handle add word
+        if (mode === 'add') {
+            const word = action;
+            if (!word) return reply('❌ Please provide a word to add.\nExample: .antibadword add fuck');
+            
+            let badwords = await db.getGroupSetting(botNumber, chatId, 'badwords', []);
+            if (badwords.includes(word.toLowerCase())) {
+                return reply(`The word "${word}" is already in the list.`);
+            }
+            
+            badwords.push(word.toLowerCase());
+            await db.setGroupSetting(botNumber, chatId, 'badwords', badwords);
+            
+            return reply(`✅ Added *${word}* to badword list.\nTotal badwords: ${badwords.length}`);
+        }
+
+        // Handle remove word
+        if (mode === 'remove') {
+            const word = action;
+            if (!word) return reply('Please provide a word to remove.\nExample: .antibadword remove fuck');
+            
+            let badwords = await db.getGroupSetting(botNumber, chatId, 'badwords', []);
+            const index = badwords.indexOf(word.toLowerCase());
+            
+            if (index === -1) {
+                return reply(`The word "${word}" is not in the list.`);
+            }
+            
+            badwords.splice(index, 1);
+            await db.setGroupSetting(botNumber, chatId, 'badwords', badwords);
+            
+            return reply(`✅ Removed *${word}* from badword list.\nTotal badwords: ${badwords.length}`);
+        }
+
+        // Handle list
+        if (mode === 'list') {
+            let badwords = await db.getGroupSetting(botNumber, chatId, 'badwords', []);
+            
+            if (badwords.length === 0) {
+                return reply('📋 No badwords added yet. Use `.antibadword add <word>` to add some.');
+            }
+            
+            let listText = `╭──❖ 「 BADWORD LIST 」 ❖──\n│\n`;
+            badwords.forEach((word, i) => {
+                listText += `│  ${i + 1}. ${word}\n`;
+            });
+            listText += `│\n╰─────────❖`;
+            
+            return reply(listText);
+        }
+
+        // Handle clear
+        if (mode === 'clear') {
+            await db.setGroupSetting(botNumber, chatId, 'badwords', []);
+            return reply('✅ All badwords have been cleared from the list.');
+        }
+
+        // Handle action modes (delete, warn, kick)
+        if (['delete', 'warn', 'kick'].includes(mode)) {
+            if (!action || !['on', 'off'].includes(action)) {
+                return reply(`❌ Please specify on or off.\nExample: .antibadword ${mode} on`);
+            }
+
+            const enabled = action === 'on';
+            
+            // Set the action type
+            await db.setGroupSetting(botNumber, chatId, 'badwordaction', mode);
+            // Enable/disable the feature
+            await db.setGroupSetting(botNumber, chatId, 'antibadword', enabled);
+            
+            return reply(`✅ Antibadword *${mode}* has been *${action}* for this group.`);
+        }
+
+        // Invalid command
+        reply('❌ Invalid command! Use `.antibadword` to see available commands.');
+}
+break
+case "antisticker": {
+            if (!isGroup) return reply(global.mess.notgroup);
+            if (!m.isAdmin) return reply(global.mess.notadmin);
+            if (!m.isBotAdmin) return reply(global.mess.botadmin);
+            
+
+        const chatId = m.chat;
+        const mode = args[0]?.toLowerCase();
+        const action = args[1]?.toLowerCase();
+
+        // Show help if no arguments
+        if (!mode) {
+            const status = await db.getGroupSetting(botNumber, chatId, 'antisticker', false);
+            const currentAction = await db.getGroupSetting(botNumber, chatId, 'antistickeraction', 'delete');
+            
+            let helpText = `╭──❖ 「 ANTISTICKER 」 ❖──
+│
+│  *Status* : ${status ? '✅ ON' : '❌ OFF'}
+│  *Action* : ${currentAction}
+│
+│  *Commands:*
+│  • ${prefix}antisticker delete on
+│  • ${prefix}antisticker delete off
+│  • ${prefix}antisticker warn on
+│  • ${prefix}antisticker warn off
+│  • ${prefix}antisticker kick on
+│  • ${prefix}antisticker kick off
+│
+│  *Examples:*
+│  • ${prefix}antisticker delete on
+│  • ${prefix}antisticker warn on
+│
+╰─────────❖`;
+
+            return reply(helpText);
+        }
+
+        // Handle action modes (delete, warn, kick)
+        if (['delete', 'warn', 'kick'].includes(mode)) {
+            if (!action || !['on', 'off'].includes(action)) {
+                return reply(`Please specify on or off.\nExample: .antisticker ${mode} on`);
+            }
+
+            const enabled = action === 'on';
+            
+            // Set the action type
+            await db.setGroupSetting(botNumber, chatId, 'antistickeraction', mode);
+            // Enable/disable the feature
+            await db.setGroupSetting(botNumber, chatId, 'antisticker', enabled);
+            
+            return reply(`✅ Antisticker *${mode}* has been *${action}* for this group.`);
+        }
+
+        // Invalid command
+        reply('❌ Invalid command! Use `.antisticker` to see available commands.');
+}
+break
 case "setgrouppp":
 case "setppgroup": {
  if (!m.isGroup) return reply(mess.group);
