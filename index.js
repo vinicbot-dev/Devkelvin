@@ -101,38 +101,71 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Optimized session loading
 async function loadSession() {
     try {
         if (!settings.SESSION_ID) {
-            console.log('No SESSION_ID provided - QR login will be generated');
+            console.log(chalk.yellow('[ ⏳ ] No SESSION_ID provided - Using QR/Pairing code'));
             return null;
         }
 
-        console.log('[⏳] Downloading session...');
+        console.log(chalk.blue(`[ 🔍 ] Processing session ID: ${settings.SESSION_ID.substring(0, 20)}...`));
 
-        const megaFileId = settings.SESSION_ID.startsWith('jexploit~') 
-            ? settings.SESSION_ID.replace("jexploit~", "") 
-            : settings.SESSION_ID;
+        let sessionData;
 
-        const filer = File.fromURL(`https://mega.nz/file/${megaFileId}`);
-
-        const data = await new Promise((resolve, reject) => {
-            filer.download((err, data) => {
-                if (err) reject(err);
-                else resolve(data);
+        // Check for MEGA format (jexploit~ or malvin~)
+        if (settings.SESSION_ID.startsWith("jexploit~") || settings.SESSION_ID.startsWith("malvin~")) {
+            console.log(chalk.bold.yellow('[ 📥 ] Downloading MEGA.nz session'));
+            
+            const megaFileId = settings.SESSION_ID.startsWith("jexploit~") 
+                ? settings.SESSION_ID.replace("jexploit~", "") 
+                : settings.SESSION_ID.replace("malvin~", "");
+                
+            const filer = File.fromURL(`https://mega.nz/file/${megaFileId}`);
+            
+            const data = await new Promise((resolve, reject) => {
+                filer.download((err, data) => {
+                    if (err) reject(err);
+                    else resolve(data);
+                });
             });
-        });
+            
+            await fs.promises.writeFile(credsPath, data);
+            sessionData = JSON.parse(data.toString());
+            console.log(chalk.green('[ ✅ ] MEGA session downloaded successfully'));
+            
+        // Check for Base64 format (VISPER-BOT~)
+        } else if (settings.SESSION_ID.startsWith("VISPER-BOT~")) {
+            console.log(chalk.green('[ ⏳ ] Decoding base64 session'));
+            
+            const base64Data = settings.SESSION_ID.replace("VISPER-BOT~", "");
+            
+            if (!/^[A-Za-z0-9+/=]+$/.test(base64Data)) {
+                throw new Error("Invalid base64 format in SESSION_ID");
+            }
+            
+            const decodedData = Buffer.from(base64Data, "base64");
+            
+            try {
+                sessionData = JSON.parse(decodedData.toString("utf-8"));
+            } catch (error) {
+                throw new Error("Failed to parse decoded base64 session data: " + error.message);
+            }
+            
+            await fs.promises.writeFile(credsPath, decodedData);
+            console.log(chalk.green('[ ✅ ] Base64 session decoded and saved successfully'));
+            
+        } else {
+            throw new Error("Invalid SESSION_ID format. Use 'VISPER-BOT~' for base64 or 'jexploit~/malvin~' for MEGA.nz");
+        }
 
-        fs.writeFileSync(path.join(sessionDir, 'creds.json'), data);
-        console.log('[✅] Session downloaded');
-        return JSON.parse(data.toString());
+        return sessionData;
+
     } catch (error) {
-        console.error('Error loading session:', error.message);
+        console.error(chalk.red('[ ❌ ] Error loading session:', error.message));
+        console.log(chalk.yellow('[ 🟢 ] Will attempt QR code or pairing code login'));
         return null;
     }
 }
-
 async function clientstart() {
     const creds = await loadSession();
     
