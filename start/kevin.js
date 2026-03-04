@@ -846,13 +846,13 @@ Current Mode: ${currentMode}
         
         case 'chat': {
             await db.set(botNumber, 'antiedit', 'chat');
-            reply(`✅ Anti-edit set to chat mode (alerts sent to same chat)`);
+            reply(`✅.*Successfully enabled antiedit chat mode*`);
             break;
         }
         
         case 'private': {
             await db.set(botNumber, 'antiedit', 'private');
-            reply(`✅ Anti-edit set to private mode (alerts sent to bot owner)`);
+            reply(`✅ *Successfully enabled antiedit private mode*`);
             break;
         }
         
@@ -1878,7 +1878,7 @@ case 'anticall': {
     if (mode === 'decline') {
         if (action === 'on') {
             await db.set(botNumber, 'anticall', 'decline');
-            return reply('✅ Anticall ON (calls will be declined)');
+            return reply('✅ *Successfully enabled anticall decline mode*');
         }
         if (action === 'off') {
             await db.set(botNumber, 'anticall', 'off');
@@ -1890,7 +1890,7 @@ case 'anticall': {
     if (mode === 'block') {
         if (action === 'on') {
             await db.set(botNumber, 'anticall', 'block');
-            return reply('✅ Anticall BLOCK ON (callers will be blocked)');
+            return reply('✅ *Successfully enabled anticall block mode*');
         }
         if (action === 'off') {
             await db.set(botNumber, 'anticall', 'off');
@@ -9891,19 +9891,19 @@ case 'antilink': {
     if (mode === 'delete') {
         await db.setGroupSetting(botNumber, m.chat, 'antilinkmode', 'delete');
         await db.setGroupSetting(botNumber, m.chat, 'antilink', true); // Auto-enable
-        return reply('✅ Antilink mode set to: *Delete* (messages will be deleted)');
+        return reply('✅ *Successfully enabled antilink delete mode*');
     }
     
     if (mode === 'warn') {
         await db.setGroupSetting(botNumber, m.chat, 'antilinkmode', 'warn');
         await db.setGroupSetting(botNumber, m.chat, 'antilink', true); // Auto-enable
-        return reply('✅ Antilink mode set to: *Warn* (users will be warned)');
+        return reply('✅ *Successfully enabled antilink warn mode*');
     }
     
     if (mode === 'kick') {
         await db.setGroupSetting(botNumber, m.chat, 'antilinkmode', 'kick');
         await db.setGroupSetting(botNumber, m.chat, 'antilink', true); // Auto-enable
-        return reply('✅ Antilink mode set to: *Kick* (users will be kicked)');
+        return reply('✅.*Successfully enabled antilink kick mode*');
     }
     
     reply(`❌ Invalid option! Use: on, off, delete, warn, kick`);
@@ -10024,33 +10024,33 @@ case 'antitag': {
     if (mode === 'delete' && action === 'on') {
         await db.setGroupSetting(botNumber, m.chat, 'antitagmode', 'delete');
         await db.setGroupSetting(botNumber, m.chat, 'antitag', true);
-        return reply('✅ Delete mode ON');
+        return reply('✅ *Successfully enabled antitag delete mode*');
     }
     if (mode === 'delete' && action === 'off') {
         await db.setGroupSetting(botNumber, m.chat, 'antitag', false);
-        return reply('❌ Delete mode OFF');
+        return reply('*Successfully disenabled antitag delete mode*');
     }
     
     // Warn mode
     if (mode === 'warn' && action === 'on') {
         await db.setGroupSetting(botNumber, m.chat, 'antitagmode', 'warn');
         await db.setGroupSetting(botNumber, m.chat, 'antitag', true);
-        return reply('✅ Warn mode ON');
+        return reply('✅ *Successfully enabled antitag warn mode*');
     }
     if (mode === 'warn' && action === 'off') {
         await db.setGroupSetting(botNumber, m.chat, 'antitag', false);
-        return reply('❌ Warn mode OFF');
+        return reply('*Successfully disenabled antitag warn mode*');
     }
     
     // Kick mode
     if (mode === 'kick' && action === 'on') {
         await db.setGroupSetting(botNumber, m.chat, 'antitagmode', 'kick');
         await db.setGroupSetting(botNumber, m.chat, 'antitag', true);
-        return reply('✅ Kick mode ON');
+        return reply('✅ *Successfully enabled antitag kick mode*');
     }
     if (mode === 'kick' && action === 'off') {
         await db.setGroupSetting(botNumber, m.chat, 'antitag', false);
-        return reply('❌ Kick mode OFF');
+        return reply('*Successfully disenabled antitag kick mode*');
     }
     
     // Show help if invalid
@@ -10086,19 +10086,19 @@ case 'antitagadm': {
     if (mode === 'delete') {
         await db.setGroupSetting(botNumber, m.chat, 'antitagadminaction', 'delete');
         await db.setGroupSetting(botNumber, m.chat, 'antitagadmin', true); // Auto-enable
-        return reply('✅ Anti-tag admin set to: *Delete* (messages will be deleted)');
+        return reply('✅ *Successfully enabled antitagadmin delete mode*');
     }
     
     if (mode === 'warn') {
         await db.setGroupSetting(botNumber, m.chat, 'antitagadminaction', 'warn');
         await db.setGroupSetting(botNumber, m.chat, 'antitagadmin', true); // Auto-enable
-        return reply('✅ Anti-tag admin set to: *Warn* (3 warnings then kick)');
+        return reply('✅ *Successfully enabled antitagadmin warn mode*');
     }
     
     if (mode === 'kick') {
         await db.setGroupSetting(botNumber, m.chat, 'antitagadminaction', 'kick');
         await db.setGroupSetting(botNumber, m.chat, 'antitagadmin', true); // Auto-enable
-        return reply('✅ Anti-tag admin set to: *Kick* (users will be kicked immediately)');
+        return reply('✅ *Successfully enabled antitagadmin kick mode*');
     }
     
     reply(`❌ Invalid option! Use: on, off, delete, warn, kick`);
