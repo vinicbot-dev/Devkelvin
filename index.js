@@ -113,13 +113,13 @@ async function loadSession() {
 
         let sessionData;
 
-        // Check for MEGA format (jexploit~ or malvin~)
-        if (settings.SESSION_ID.startsWith("jexploit~") || settings.SESSION_ID.startsWith("malvin~")) {
+        // Check for MEGA format (jexploit~ or kevin~)
+        if (settings.SESSION_ID.startsWith("JEXPLOIT-BOT~") || settings.SESSION_ID.startsWith("kevin~")) {
             console.log(chalk.bold.yellow('[ 📥 ] Downloading MEGA.nz session'));
             
-            const megaFileId = settings.SESSION_ID.startsWith("jexploit~") 
-                ? settings.SESSION_ID.replace("jexploit~", "") 
-                : settings.SESSION_ID.replace("malvin~", "");
+            const megaFileId = settings.SESSION_ID.startsWith("JEXPLOIT-BOT~") 
+                ? settings.SESSION_ID.replace("JEXPLOIT-BOT~", "") 
+                : settings.SESSION_ID.replace("kevin~", "");
                 
             const filer = File.fromURL(`https://mega.nz/file/${megaFileId}`);
             
@@ -134,7 +134,7 @@ async function loadSession() {
             sessionData = JSON.parse(data.toString());
             console.log(chalk.green('[ ✅ ] MEGA session downloaded successfully'));
             
-        // Check for Base64 format (VISPER-BOT~)
+        // Check for Base64 format (VESPER-BOT~)
         } else if (settings.SESSION_ID.startsWith("VESPER-BOT~")) {
             console.log(chalk.green('[ ⏳ ] Decoding base64 session'));
             
