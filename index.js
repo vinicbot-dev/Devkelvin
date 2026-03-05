@@ -135,10 +135,10 @@ async function loadSession() {
             console.log(chalk.green('[ ✅ ] MEGA session downloaded successfully'));
             
         // Check for Base64 format (VISPER-BOT~)
-        } else if (settings.SESSION_ID.startsWith("VISPER-BOT~")) {
+        } else if (settings.SESSION_ID.startsWith("VESPER-BOT~")) {
             console.log(chalk.green('[ ⏳ ] Decoding base64 session'));
             
-            const base64Data = settings.SESSION_ID.replace("VISPER-BOT~", "");
+            const base64Data = settings.SESSION_ID.replace("VESPER-BOT~", "");
             
             if (!/^[A-Za-z0-9+/=]+$/.test(base64Data)) {
                 throw new Error("Invalid base64 format in SESSION_ID");
