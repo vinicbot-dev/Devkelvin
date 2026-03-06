@@ -235,8 +235,6 @@ async function clientstart() {
                 : mek.message;
         
             await handleStatusUpdate(conn, chatUpdate);
-            
-            if (mek.key && mek.key.remoteJid === 'status@broadcast') return;
 
             if (!conn.public && !mek.key.fromMe && chatUpdate.type === 'notify') return;
             
