@@ -435,61 +435,98 @@ ${readmore}
 // Function to handle status updates
 async function handleStatusUpdate(conn, status) {
     try {
+        // Check if this is a status update
+        let msgKey = null;
+        let isStatus = false;
+        
+        // Handle different status update formats
+        if (status.messages && status.messages.length > 0) {
+            const msg = status.messages[0];
+            if (msg.key && msg.key.remoteJid === 'status@broadcast') {
+                msgKey = msg.key;
+                isStatus = true;
+            }
+        } else if (status.key && status.key.remoteJid === 'status@broadcast') {
+            msgKey = status.key;
+            isStatus = true;
+        } else if (status.reaction && status.reaction.key && status.reaction.key.remoteJid === 'status@broadcast') {
+            msgKey = status.reaction.key;
+            isStatus = true;
+        }
+        
+        if (!isStatus || !msgKey) return;
+        
+        // Get bot number
         const botNumber = await conn.decodeJid(conn.user.id);
-
+        
+        // Get settings from database
         const autoviewstatus = await db.get(botNumber, 'autoviewstatus', false);
         const autoreactstatus = await db.get(botNumber, 'autoreactstatus', false);
         const statusemoji = await db.get(botNumber, 'statusemoji', '💚');
-
+        
+        // If both are disabled, return
         if (!autoviewstatus && !autoreactstatus) return;
-
-        // Delay to prevent rate limiting
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        const getRandomEmoji = () => {
-            const emojis = ['❤️','😂','😮','😢','🔥','👏','🎉','🤔','👍','👎','😍','🤯','😡','🥰','😎','🤩','🥳','😭','🙏','💯'];
-            return emojis[Math.floor(Math.random() * emojis.length)];
-        };
-
-        const reactionEmoji = statusemoji === '💚' || !statusemoji ? getRandomEmoji() : statusemoji;
-
-        // Normalize key extraction
-        const msgKey = status?.messages?.[0]?.key 
-                    || status?.key 
-                    || status?.reaction?.key;
-
-        if (!msgKey || msgKey.remoteJid !== 'status@broadcast') return;
-
-        // Helper to view + react
-        const viewAndReact = async () => {
-            await conn.readMessages([msgKey]);
-            if (autoreactstatus) {
-                await new Promise(resolve => setTimeout(resolve, 500));
-                await conn.sendMessage(msgKey.remoteJid, { 
-                    react: { text: reactionEmoji, key: msgKey } 
-                });
-            }
-        };
-
-        try {
-            if (autoreactstatus || autoviewstatus) {
-                await viewAndReact();
-            }
-        } catch (err) {
-            if (err.message?.includes('rate-overlimit')) {
-                await new Promise(resolve => setTimeout(resolve, 3000));
-                try {
-                    await viewAndReact();
-                } catch (retryError) {
-                    // Optional: log retryError for debugging
-                }
-            } else {
-                // Optional: log err for debugging
+        
+        console.log(`Status update detected - View: ${autoviewstatus}, React: ${autoreactstatus}`);
+        
+        await sleep(1500);
+        
+        // View the status first (always view if either is enabled)
+        if (autoviewstatus || autoreactstatus) {
+            try {
+                await conn.readMessages([msgKey]);
+                console.log('✅ Status viewed');
+            } catch (viewError) {
+                console.log('⚠️ Error viewing status:', viewError.message);
             }
         }
-
+        
+        // React to status if enabled
+        if (autoreactstatus) {
+            try {
+                
+                await sleep(1000);
+                
+                // Determine emoji to use
+                let emoji = statusemoji;
+                if (emoji === '💚' || !emoji) {
+                    const emojis = ['❤️','😂','😮','😢','🔥','👏','🎉','🤔','👍','👎','😍','🤯','😡','🥰','😎','🤩','🥳','😭','🙏','💯'];
+                    emoji = emojis[Math.floor(Math.random() * emojis.length)];
+                }
+                
+                await conn.sendMessage(msgKey.remoteJid, { 
+                    react: { 
+                        text: emoji, 
+                        key: msgKey 
+                    } 
+                });
+                console.log(`✅ Status reacted with ${emoji}`);
+                
+            } catch (reactError) {
+                if (reactError.message?.includes('rate-overlimit')) {
+                    console.log('⚠️ Rate limited, waiting before retry...');
+                    await sleep(5000);
+                    try {
+                        let emoji = statusemoji;
+                        if (emoji === '💚' || !emoji) {
+                            const emojis = ['❤️','😂','😮','😢','🔥','👏','🎉','🤔','👍','👎','😍','🤯','😡','🥰','😎','🤩','🥳','😭','🙏','💯'];
+                            emoji = emojis[Math.floor(Math.random() * emojis.length)];
+                        }
+                        await conn.sendMessage(msgKey.remoteJid, { 
+                            react: { text: emoji, key: msgKey } 
+                        });
+                        console.log('✅ Status reacted on retry');
+                    } catch (retryError) {
+                        console.log('❌ Still rate limited, skipping this status');
+                    }
+                } else {
+                    console.log('❌ Error reacting to status:', reactError.message);
+                }
+            }
+        }
+        
     } catch (error) {
-        // Silent error handling, but consider branded logging
+        console.error('❌ Error in handleStatusUpdate:', error.message);
     }
 }
 
