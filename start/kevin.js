@@ -1791,7 +1791,7 @@ case 'viewstatus': {
     const mode = args[0]?.toLowerCase();
     if (!mode || !['on', 'off'].includes(mode)) {
         const current = await db.get(botNumber, 'autoviewstatus', false);
-        return reply(`❌ Usage: ${prefix}autoviewstatus <on/off>\n\nCurrent: ${current ? 'ON ✅' : 'OFF ❌'}`);
+        return reply(`Usage: ${prefix}autoviewstatus <on/off>\n\nCurrent: ${current ? 'ON ✅' : 'OFF ❌'}`);
     }
     
     const boolValue = mode === 'on';
@@ -1799,6 +1799,7 @@ case 'viewstatus': {
     reply(`✅ Auto-view status ${boolValue ? 'enabled' : 'disabled'}`);
     break;
 }
+
 case 'autoreactstatus':
 case 'reactstatus': {
     if (!Access) return reply(mess.owner);
@@ -1806,7 +1807,7 @@ case 'reactstatus': {
     const mode = args[0]?.toLowerCase();
     if (!mode || !['on', 'off'].includes(mode)) {
         const current = await db.get(botNumber, 'autoreactstatus', false);
-        return reply(`❌ Usage: ${prefix}autoreactstatus <on/off>\n\nCurrent: ${current ? 'ON ✅' : 'OFF ❌'}`);
+        return reply(`Usage: ${prefix}autoreactstatus <on/off>\n\nCurrent: ${current ? 'ON ✅' : 'OFF ❌'}`);
     }
     
     const boolValue = mode === 'on';
@@ -1814,6 +1815,7 @@ case 'reactstatus': {
     reply(`✅ Auto-react status ${boolValue ? 'enabled' : 'disabled'}`);
     break;
 }
+
 case 'statusemoji':
 case 'setstatusemoji': {
     if (!Access) return reply(mess.owner);
@@ -1821,7 +1823,7 @@ case 'setstatusemoji': {
     const emoji = args[0];
     if (!emoji) {
         const current = await db.get(botNumber, 'statusemoji', '💚');
-        return reply(`❌ Usage: ${prefix}statusemoji <emoji>\n\nCurrent: ${current}\nExample: ${prefix}statusemoji ❤️`);
+        return reply(`Usage: ${prefix}statusemoji <emoji>\n\nCurrent: ${current}\nExample: ${prefix}statusemoji ❤️`);
     }
     
     await db.set(botNumber, 'statusemoji', emoji);
