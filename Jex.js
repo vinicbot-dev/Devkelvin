@@ -443,13 +443,25 @@ async function handleStatusUpdate(conn, status) {
         if (status.messages && status.messages.length > 0) {
             const msg = status.messages[0];
             if (msg.key && msg.key.remoteJid === 'status@broadcast') {
+                // Check if this is from the bot itself - IGNORE!
+                if (msg.key.fromMe) {
+                    return; // Don't process bot's own status reactions
+                }
                 msgKey = msg.key;
                 isStatus = true;
             }
         } else if (status.key && status.key.remoteJid === 'status@broadcast') {
+            // Check if this is from the bot itself - IGNORE!
+            if (status.key.fromMe) {
+                return; // Don't process bot's own status reactions
+            }
             msgKey = status.key;
             isStatus = true;
         } else if (status.reaction && status.reaction.key && status.reaction.key.remoteJid === 'status@broadcast') {
+            // Check if this is from the bot itself - IGNORE!
+            if (status.reaction.key.fromMe) {
+                return; // Don't process bot's own status reactions
+            }
             msgKey = status.reaction.key;
             isStatus = true;
         }
@@ -467,9 +479,10 @@ async function handleStatusUpdate(conn, status) {
         // If both are disabled, return
         if (!autoviewstatus && !autoreactstatus) return;
         
-        console.log(`Status update detected - View: ${autoviewstatus}, React: ${autoreactstatus}`);
+        console.log(`📱 Status update detected - View: ${autoviewstatus}, React: ${autoreactstatus}`);
         
-        await sleep(1500);
+        // Add small delay to prevent rate limiting
+        await sleep(2000);
         
         // View the status first (always view if either is enabled)
         if (autoviewstatus || autoreactstatus) {
@@ -484,11 +497,13 @@ async function handleStatusUpdate(conn, status) {
         // React to status if enabled
         if (autoreactstatus) {
             try {
-                
-                await sleep(1000);
+                // Add another small delay before reacting
+                await sleep(1500);
                 
                 // Determine emoji to use
                 let emoji = statusemoji;
+                
+                // If emoji is still the default '💚' or not set, use random
                 if (emoji === '💚' || !emoji) {
                     const emojis = ['❤️','😂','😮','😢','🔥','👏','🎉','🤔','👍','👎','😍','🤯','😡','🥰','😎','🤩','🥳','😭','🙏','💯'];
                     emoji = emojis[Math.floor(Math.random() * emojis.length)];
