@@ -2393,6 +2393,10 @@ case "uptime": {
     const startTime = performance.now();
 
     try {
+        // Debug: Check if functions exist
+        console.log('getServerUptime exists:', typeof getServerUptime);
+        console.log('runtime exists:', typeof runtime);
+        
         const sentMessage = await conn.sendMessage(m.chat, {
             text: "⚡ Testing connection...",
             contextInfo: { quotedMessage: m.message }
@@ -2401,8 +2405,9 @@ case "uptime": {
         const endTime = performance.now();
         const ping = `${(endTime - startTime).toFixed(2)}`;
         
-        // Get SERVER uptime (persists across bot restarts)
+        // Get SERVER uptime
         const serverUptime = getServerUptime();
+        console.log('Server uptime:', serverUptime);
         
         const botname = `${global.botname || 'Jexploit'}`;
         const version = global.versions || '1.0.0';
@@ -2421,8 +2426,9 @@ case "uptime": {
         });
 
     } catch (error) {
+        console.error('❌ Uptime command error:', error);
         await conn.sendMessage(m.chat, {
-            text: '❌ An error occurred while testing connection.',
+            text: `❌ Error: ${error.message}`,
             contextInfo: { quotedMessage: m.message }
         });
     }
