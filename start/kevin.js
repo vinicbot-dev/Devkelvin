@@ -77,6 +77,8 @@ const {
   saveStoredMessages,
   storeMessage,
   ephoto,
+  getServerUptim,
+  getServerStartTime,
   loadBlacklist,
   antipromoteCommand,
   antidemoteCommand,
