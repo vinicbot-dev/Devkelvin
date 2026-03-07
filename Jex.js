@@ -80,6 +80,39 @@ if (global.db.data) {
   };
 }
 
+const UPTIME_FILE = path.join(__dirname, 'data', 'server_uptime.json');
+
+// Create data folder if it doesn't exist
+const dataDir = path.join(__dirname, 'data');
+if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+}
+
+// Get or create server start time
+function getServerStartTime() {
+    try {
+        if (fs.existsSync(UPTIME_FILE)) {
+            const data = JSON.parse(fs.readFileSync(UPTIME_FILE, 'utf8'));
+            return data.startTime;
+        }
+    } catch (e) {
+        console.log('Creating new uptime file in data folder...');
+    }
+    
+    // Create new uptime file with current time
+    const startTime = Date.now();
+    fs.writeFileSync(UPTIME_FILE, JSON.stringify({ startTime, createdAt: new Date().toISOString() }));
+    return startTime;
+}
+
+const SERVER_START_TIME = getServerStartTime();
+
+// Function to get server uptime
+function getServerUptime() {
+    const uptimeMs = Date.now() - SERVER_START_TIME;
+    const uptimeSeconds = Math.floor(uptimeMs / 1000);
+    return runtime(uptimeSeconds);
+}
 
 // Function to fetch MP3 download URL
 async function fetchMp3DownloadUrl(link) {
@@ -1319,7 +1352,8 @@ module.exports = {
   loadStoredMessages,
   saveStoredMessages,
   storeMessage,
-  handleStatusUpdate,
+  getServerUptime,
+  getServerStartTime,
   ephoto,
   loadBlacklist,
   handleAntiTag,
