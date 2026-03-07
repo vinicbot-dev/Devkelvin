@@ -2529,7 +2529,7 @@ case 'repo': {
 }
 break
 case "alive": {
-    const botUptime = runtime(process.uptime());
+     const serverUptime = getServerUptime();
     
     const imageUrls = [
         "./start/lib/Media/Jexploit1.jpg",
@@ -2565,7 +2565,7 @@ case "alive": {
         console.error('Image failed:', err.message);
         // Fallback if image fails
         return conn.sendMessage(m.chat, {
-            text: `*🌹Hi. I am 👑 Jexploit, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime:${botUptime}*`
+            text: `*🌹Hi. I am 👑 Jexploit, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime:${serverUptime}*`
         }, { quoted: m });
     });
     
