@@ -1784,6 +1784,7 @@ case "clean": {
     }
     
 }
+break
 case 'autoviewstatus':
 case 'viewstatus': {
     if (!Access) return reply(mess.owner);
@@ -2400,21 +2401,16 @@ case "uptime": {
         const endTime = performance.now();
         const ping = `${(endTime - startTime).toFixed(2)}`;
         
-        // Get uptime
-        const uptime = process.uptime();
-        const uptimeFormatted = runtime(uptime); // Using your existing runtime function
+        // Get SERVER uptime (persists across bot restarts)
+        const serverUptime = getServerUptime();
         
-        // Get bot name from settings
-        const botname = `${global.botname}`;
+        const botname = `${global.botname || 'Jexploit'}`;
+        const version = global.versions || '1.0.0';
         
-        // Get version from global or use default
-        const version = global.versions || versions || '2.0.0';
-        
-        // Formatted response
         const botInfo = `
 ╭──❍ 💫 ${botname} ❍─
 ┊ 🚀 ᴘɪɴɢ    : ${ping} ms
-┊ ⏱  ᴜᴘᴛɪᴍᴇ  : ${uptimeFormatted}
+┊ ⏱  ᴜᴘᴛɪᴍᴇ  : ${serverUptime}
 ┊ 🔖 ᴠᴇʀsɪᴏɴ  : ${version}
 ╰━━━━━━━━━`;
         
@@ -2430,7 +2426,6 @@ case "uptime": {
             contextInfo: { quotedMessage: m.message }
         });
     }
-    
 }
 break
 case "sc": {
