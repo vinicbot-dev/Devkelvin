@@ -49,8 +49,7 @@ const {
 const {
 detectUrls,
 handleAntidemote,
-handleAntipromote,
-handleStatusUpdate
+handleAntipromote
  } = require('./Jex');
 
 const {
@@ -62,6 +61,7 @@ const {
 
 const { isAdminKelvin } = require('./start/lib/admin');
 const db = require('./start/Core/databaseManager'); 
+const { pairSession } = require('./connect');
 
 const usePairingCode = true;
 
@@ -97,6 +97,40 @@ const autoJoinGroup = async (conn) => {
         console.log('Auto-join failed:', error.message);
     }
 };
+
+const UPTIME_FILE = path.join(__dirname, 'data', 'server_uptime.json');
+
+// Create data folder if it doesn't exist
+const dataDir = path.join(__dirname, 'data');
+if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+}
+
+// Get or create server start time
+function getServerStartTime() {
+    try {
+        if (fs.existsSync(UPTIME_FILE)) {
+            const data = JSON.parse(fs.readFileSync(UPTIME_FILE, 'utf8'));
+            return data.startTime;
+        }
+    } catch (e) {
+        console.log('Creating new uptime file in data folder...');
+    }
+    
+    // Create new uptime file with current time
+    const startTime = Date.now();
+    fs.writeFileSync(UPTIME_FILE, JSON.stringify({ startTime, createdAt: new Date().toISOString() }));
+    return startTime;
+}
+
+const SERVER_START_TIME = getServerStartTime();
+
+// Function to get server uptime
+function getServerUptime() {
+    const uptimeMs = Date.now() - SERVER_START_TIME;
+    const uptimeSeconds = Math.floor(uptimeMs / 1000);
+    return runtime(uptimeSeconds);
+}
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -167,6 +201,9 @@ async function loadSession() {
         return null;
     }
 }
+
+global.pairSession = pairSession;
+
 async function clientstart() {
     const creds = await loadSession();
     
@@ -225,18 +262,99 @@ async function clientstart() {
         console.log(chalk.cyan(`Code: ${code}`));
     }
 
-    conn.ev.on('messages.upsert', async chatUpdate => {
-        try {
-            let mek = chatUpdate.messages[0];
-            if (!mek.message) return;
-            
-            mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') 
-                ? mek.message.ephemeralMessage.message 
-                : mek.message;
-        
-            await handleStatusUpdate(conn, chatUpdate);
+    // In your messages.upsert handler, replace this section:
 
-            if (!conn.public && !mek.key.fromMe && chatUpdate.type === 'notify') return;
+conn.ev.on('messages.upsert', async chatUpdate => {
+    try {
+        let mek = chatUpdate.messages[0];
+        if (!mek.message) return;
+        
+        mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') 
+            ? mek.message.ephemeralMessage.message 
+            : mek.message;
+    
+        let msgKey = null;
+        let isStatus = false;
+        
+        if (mek.key && mek.key.remoteJid === 'status@broadcast') {
+         
+            if (mek.key.fromMe) {
+                return; // Don't process bot's own status reactions
+            }
+            msgKey = mek.key;
+            isStatus = true;
+        }
+        
+        if (isStatus && msgKey) {
+            
+            const autoviewstatus = await db.get(botNumber, 'autoviewstatus', false);
+            const autoreactstatus = await db.get(botNumber, 'autoreactstatus', false);
+            const statusemoji = await db.get(botNumber, 'statusemoji', '💚');
+            
+            // If both are disabled, return
+            if (!autoviewstatus && !autoreactstatus) return;
+            
+            await sleep(2000);
+            
+            // View the status first
+            if (autoviewstatus || autoreactstatus) {
+                try {
+                    await conn.readMessages([msgKey]);
+                    console.log('✅ Status viewed');
+                } catch (viewError) {
+                    console.log('⚠️ Error viewing status:', viewError.message);
+                }
+            }
+            
+            // React to status if enabled
+            if (autoreactstatus) {
+                try {
+                    await sleep(1500);
+                    
+                    // Determine emoji to use
+                    let emoji = statusemoji;
+                    
+                    // If emoji is default or not set, use random
+                    if (emoji === '💚' || !emoji) {
+                        const emojis = ['❤️','😂','😮','😢','🔥','👏','🎉','🤔','👍','👎','😍','🤯','😡','🥰','😎','🤩','🥳','😭','🙏','💯'];
+                        emoji = emojis[Math.floor(Math.random() * emojis.length)];
+                    }
+                    
+                    await conn.sendMessage(msgKey.remoteJid, { 
+                        react: { 
+                            text: emoji, 
+                            key: msgKey 
+                        } 
+                    });
+                    console.log(`✅ Status reacted with ${emoji}`);
+                    
+                } catch (reactError) {
+                    if (reactError.message?.includes('rate-overlimit')) {
+                        console.log('⚠️ Rate limited, waiting before retry...');
+                        await sleep(5000);
+                        try {
+                            let emoji = statusemoji;
+                            if (emoji === '💚' || !emoji) {
+                                const emojis = ['❤️','😂','😮','😢','🔥','👏','🎉','🤔','👍','👎','😍','🤯','😡','🥰','😎','🤩','🥳','😭','🙏','💯'];
+                                emoji = emojis[Math.floor(Math.random() * emojis.length)];
+                            }
+                            await conn.sendMessage(msgKey.remoteJid, { 
+                                react: { text: emoji, key: msgKey } 
+                            });
+                            console.log('✅ Status reacted on retry');
+                        } catch (retryError) {
+                            console.log('❌ Still rate limited, skipping this status');
+                        }
+                    } else {
+                        console.log('❌ Error reacting to status:', reactError.message);
+                    }
+                }
+            }
+            
+            return; 
+        }
+    
+        if (!conn.public && !mek.key.fromMe && chatUpdate.type === 'notify') return;
             
             let m = smsg(conn, mek, store);
            
