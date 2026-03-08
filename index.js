@@ -103,6 +103,87 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+const storeFile = "./start/lib/database/store.json";
+const maxMessageAge = 24 * 60 * 60; //24 hours
+
+function loadStoredMessages() {
+    if (fs.existsSync(storeFile)) {
+        try {
+            return JSON.parse(fs.readFileSync(storeFile));
+        } catch (err) {
+            console.error("⚠️ Error loading store.json:", err);
+            return {};
+        }
+    }
+    return {};
+}
+
+function saveStoredMessages(chatId, messageId, messageData) {
+    let storedMessages = loadStoredMessages(); // Now this will work
+
+    if (!storedMessages[chatId]) storedMessages[chatId] = {};
+    if (!storedMessages[chatId][messageId]) {
+        storedMessages[chatId][messageId] = messageData;
+        fs.writeFileSync(storeFile, JSON.stringify(storedMessages, null, 2));
+    }
+}
+
+function cleanupOldMessages() {
+    let now = Math.floor(Date.now() / 1000);
+    let storedMessages = {};
+
+    if (fs.existsSync(storeFile)) {
+        try {
+            storedMessages = JSON.parse(fs.readFileSync(storeFile));
+        } catch (err) {
+            console.error("❌ Error reading store.json:", err);
+            return;
+        }
+    }
+
+    let totalMessages = 0, oldMessages = 0, keptMessages = 0;
+
+    for (let chatId in storedMessages) {
+        let messages = storedMessages[chatId];
+
+        for (let messageId in messages) {
+            let messageTimestamp = messages[messageId].timestamp;
+
+            if (typeof messageTimestamp === "object" && messageTimestamp.low !== undefined) {
+                messageTimestamp = messageTimestamp.low;
+            }
+
+            if (messageTimestamp > 1e12) {
+                messageTimestamp = Math.floor(messageTimestamp / 1000);
+            }
+
+            totalMessages++;
+
+            if (now - messageTimestamp > maxMessageAge) {
+                delete storedMessages[chatId][messageId];
+                oldMessages++;
+            } else {
+                keptMessages++;
+            }
+        }
+        
+        if (Object.keys(storedMessages[chatId]).length === 0) {
+            delete storedMessages[chatId];
+        }
+    }
+
+    fs.writeFileSync(storeFile, JSON.stringify(storedMessages, null, 2));
+
+    console.log("[JEXPLOIT] 🧹 Cleaning up:");
+    console.log(`- Total messages processed: ${totalMessages}`);
+    console.log(`- Old messages removed: ${oldMessages}`);
+    console.log(`- Remaining messages: ${keptMessages}`);
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function loadSession() {
     try {
         if (!settings.SESSION_ID) {
@@ -169,13 +250,12 @@ async function loadSession() {
     }
 }
 
-global.pairSession = pairSession;
 
 async function clientstart() {
-
-    const creds = await loadSession();
-    
+    console.log(chalk.cyan.bold('[🧹] Cleaning old session files...'));
     cleaningSession(sessionDir);
+    const creds = await loadSession();
+    await cleanupOldMessages();
     
     const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
    
