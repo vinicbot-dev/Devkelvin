@@ -87,18 +87,6 @@ if (!fs.existsSync(sessionDir)) {
     fs.mkdirSync(sessionDir, { recursive: true });
 }
 
-// ========== MULTI-USER SESSION MANAGER ==========
-const userSessionsDir = path.join(__dirname, 'user_sessions');
-
-// Create user sessions directory if it doesn't exist
-if (!fs.existsSync(userSessionsDir)) {
-    fs.mkdirSync(userSessionsDir, { recursive: true });
-    console.log(chalk.green('📁 Created user_sessions directory for multi-user support'));
-}
-
-// Store current user for session loading
-global.currentUser = null;
-
 // Auto-join group function
 const autoJoinGroup = async (conn) => {
     try {
@@ -181,6 +169,7 @@ async function loadSession() {
     }
 }
 
+global.pairSession = pairSession;
 
 async function clientstart() {
 
@@ -188,25 +177,7 @@ async function clientstart() {
     
     cleaningSession(sessionDir);
     
-    // ========== LOAD CORRECT USER SESSION ==========
-let sessionPath = './sessions'; // Default session
-
-// If we have a current user, try to load their session
-if (global.currentUser) {
-    const userSessionPath = path.join(userSessionsDir, global.currentUser);
-    if (fs.existsSync(userSessionPath)) {
-        sessionPath = userSessionPath;
-        console.log(chalk.cyan(`👤 Loading session for user: ${global.currentUser}`));
-    } else {
-        console.log(chalk.yellow(`⚠️ No session found for user: ${global.currentUser}, using default`));
-        global.currentUser = null; // Reset if no session
-    }
-}
-
-const {
-    state,
-    saveCreds 
-} = await useMultiFileAuthState(sessionPath);
+    const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
    
     let waVersion;
     try {
