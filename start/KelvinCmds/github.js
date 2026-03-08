@@ -23,9 +23,6 @@ async function githubCommand(conn, chatId, message) {
  *Owner:* ${ownerName}
 🔗 *URL:* ${json.html_url}
 
-🔗 *Session Id:* 
-https://jexploitsession.zone.id/
-
  *Please fork and star the repository!*
  *Powered by Kelvin Tech*
 `;
