@@ -4682,6 +4682,83 @@ case "play2": {
     }
     
 }
+case "play3":
+case "Robertplay": {
+if (!text) return reply(`Please Provide Me A song Query or Link\n\nExample: ${prefix + command} shape of you`);
+
+        try {
+            await conn.sendMessage(m.chat, { 
+                react: { text: "⏳", key: m.key } 
+            });
+
+            // Search YouTube
+            const search = await yts(text);
+            
+            if (!search.videos || !search.videos.length) {
+                return reply("No result Found");
+            }
+
+            const video = search.videos[0];
+            
+            // MP3 API using Arslan
+            const apiUrl = `https://arslan-apis.vercel.app/download/ytmp3?url=${video.url}`;
+            const res = await axios.get(apiUrl, { timeout: 60000 });
+
+            if (!res.data || !res.data.status || !res.data.result || !res.data.result.download || !res.data.result.download.url) {
+                return reply("❌ Audio Not Generated");
+            }
+
+            const dlUrl = res.data.result.download.url;
+            const meta = res.data.result.metadata;
+            const quality = res.data.result.download.quality || "128kbps";
+
+            // Send song info with thumbnail
+            await conn.sendMessage(
+                m.chat,
+                {
+                    image: { url: video.thumbnail },
+                    caption: `🎵 *${meta.title || video.title}*\n` +
+                             `🎚️ Quality: ${quality}\n\n` +
+                             `⬇️ Downloading audio...`
+                },
+                { quoted: m }
+            );
+
+            // Send audio
+            await conn.sendMessage(
+                m.chat,
+                {
+                    audio: { url: dlUrl },
+                    mimetype: "audio/mpeg",
+                    ptt: false,
+                    fileName: `${meta.title || video.title}.mp3`.replace(/[<>:"/\\|?*]/g, '_'),
+                    caption: `> ${global.wm || ''}`,
+                    contextInfo: {
+                        externalAdReply: {
+                            title: meta.title ? meta.title.substring(0, 40) : "YouTube Song",
+                            body: "YouTube MP3",
+                            thumbnailUrl: video.thumbnail,
+                            sourceUrl: video.url,
+                            mediaType: 1,
+                            renderLargerThumbnail: true
+                        }
+                    }
+                },
+                { quoted: m }
+            );
+
+            await conn.sendMessage(m.chat, { 
+                react: { text: "✅", key: m.key } 
+            });
+
+        } catch (err) {
+            console.error("PLAY ERROR:", err);
+            reply("❌ Error Found Please Try Later");
+            await conn.sendMessage(m.chat, { 
+                react: { text: "❌", key: m.key } 
+            });
+        }
+}
 break
 case "audio":
 case "music": {
@@ -5315,61 +5392,63 @@ conn.sendMessage(m.chat, { audio: { url: json.music }, mimetype: 'audio/mpeg' },
 break       
 case 'fb':
 case 'facebook': {
-    if (!text) return reply(`Please provide a Facebook video URL\n\nExample: ${prefix}fb https://www.facebook.com/share/r/19zyz6X8KJ/`);
-
-    const url = text.trim();
-    
-    // Validate URL
-    if (!url.includes('facebook.com') && !url.includes('fb.watch')) {
-        return reply('Please provide a valid Facebook URL');
-    }
-
-    // Send processing message
-    await reply('⏳ Downloading Facebook video... Please wait...');
-    await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
-
-    try {
-        // Fetch video from API
-        const apiUrl = `https://apiskeith.top/download/fbdown?url=${encodeURIComponent(url)}`;
-        const response = await axios.get(apiUrl, { timeout: 30000 });
+    if (!text) return reply('Usage: .fb <facebook_url>');
         
-        // Check response
-        if (!response.data?.status) {
-            throw new Error('Invalid API response');
+        try {
+            await reply('📥 Downloading...');
+            
+            // Using Arslan API
+            const apiUrl = `https://arslan-apis.vercel.app/download/fbdown?url=${encodeURIComponent(text)}`;
+            const res = await fetch(apiUrl);
+            const data = await res.json();
+            
+            if (data.status && data.result?.download) {
+                const download = data.result.download;
+                const metadata = data.result.metadata || {};
+                
+                // Try HD first, fallback to SD
+                const videoUrl = download.hd || download.sd;
+                
+                if (!videoUrl) {
+                    return reply('❌ No download link found');
+                }
+                
+                const caption = `*Facebook Video*\n\n` +
+                               `*Title:* ${metadata.title || 'N/A'}\n` +
+                               `*Duration:* ${metadata.duration || 'N/A'}\n` +
+                               `\n> ${global.wm || ''}`;
+                
+                await conn.sendMessage(m.chat, {
+                    video: { url: videoUrl },
+                    caption: caption,
+                    contextInfo: {
+                        externalAdReply: {
+                            title: "Facebook Video",
+                            body: metadata.title || "Downloaded",
+                            thumbnailUrl: metadata.thumbnail,
+                            mediaType: 1,
+                            sourceUrl: text
+                        }
+                    }
+                }, { quoted: m });
+                
+                await conn.sendMessage(m.chat, { 
+                    react: { text: "✅", key: m.key } 
+                });
+                
+            } else {
+                reply('Download failed: Invalid response');
+            }
+            
+        } catch (error) {
+            console.error('Facebook error:', error);
+            reply(`❌ Error: ${error.message}`);
+            await conn.sendMessage(m.chat, { 
+                react: { text: "❌", key: m.key } 
+            });
         }
-
-        const videoUrl = response.data.result;
-        
-        if (!videoUrl) {
-            throw new Error('No video URL found');
-        }
-
-        // Send the video with global.wm caption
-        await conn.sendMessage(m.chat, {
-            video: { url: videoUrl },
-            caption: global.wm || '© Jexploit Bot',
-            mimetype: 'video/mp4'
-        }, { quoted: m });
-
-        // Success reaction
-        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
-
-    } catch (error) {
-        console.error('Facebook download error:', error);
-        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-        
-        let errorMsg = '❌ Failed to download video. ';
-        if (error.message.includes('timeout')) {
-            errorMsg += 'Request timed out.';
-        } else if (error.message.includes('No video URL')) {
-            errorMsg += 'Could not retrieve video URL.';
-        } else {
-            errorMsg += 'Please try again later.';
-        }
-        reply(errorMsg);
-    }
-    break;
 }
+break
 case 'twitter':
 case 'x': {
     if (!text) return reply(`*Please provide Twitter link or url!*`);
