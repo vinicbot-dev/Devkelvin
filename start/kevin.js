@@ -2543,6 +2543,7 @@ case "alive": {
         './start/lib/Media/JexAudio3.mp3',
         './start/lib/Media/JexAudio4.mp3',
         './start/lib/Media/JexAudio5.mp3',
+        './start/lib/Media/JexAudio8.mp3',
         './start/lib/Media/JexAudio6.mp3',
         './start/lib/Media/JexAudio7.mp3'
     ];
@@ -2558,7 +2559,7 @@ case "alive": {
         m.chat, 
         { 
             image: { url: randomImageUrl },
-            caption: `*🌹Hi. I am 👑 Jexploit, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime:${botUptime}*`
+            caption: `*🌹Hi. I am 👑 Jexploit, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime:${serverUptime}*`
         },
         { quoted: m }
     ).catch(err => {
@@ -2603,6 +2604,7 @@ case 'botinfo': {
         './start/lib/Media/JexAudio1.mp3',
         './start/lib/Media/JexAudio2.mp3',
         './start/lib/Media/JexAudio3.mp3',
+        './start/lib/Media/JexAudio8.mp3',
         './start/lib/Media/JexAudio4.mp3',
         './start/lib/Media/JexAudio5.mp3',
         './start/lib/Media/JexAudio6.mp3',
