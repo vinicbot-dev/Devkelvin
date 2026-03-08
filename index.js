@@ -60,7 +60,8 @@ const {
 } = require('./start/lib/exif');
 
 const { isAdminKelvin } = require('./start/lib/admin');
-const db = require('./start/Core/databaseManager'); 
+const db = require('./start/Core/databaseManager');
+const { cleaningSession } = require ('./start/lib/botSession');
 const { pairSession } = require('./connect');
 
 const usePairingCode = true;
@@ -97,40 +98,6 @@ const autoJoinGroup = async (conn) => {
         console.log('Auto-join failed:', error.message);
     }
 };
-
-const UPTIME_FILE = path.join(__dirname, 'data', 'server_uptime.json');
-
-// Create data folder if it doesn't exist
-const dataDir = path.join(__dirname, 'data');
-if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-}
-
-// Get or create server start time
-function getServerStartTime() {
-    try {
-        if (fs.existsSync(UPTIME_FILE)) {
-            const data = JSON.parse(fs.readFileSync(UPTIME_FILE, 'utf8'));
-            return data.startTime;
-        }
-    } catch (e) {
-        console.log('Creating new uptime file in data folder...');
-    }
-    
-    // Create new uptime file with current time
-    const startTime = Date.now();
-    fs.writeFileSync(UPTIME_FILE, JSON.stringify({ startTime, createdAt: new Date().toISOString() }));
-    return startTime;
-}
-
-const SERVER_START_TIME = getServerStartTime();
-
-// Function to get server uptime
-function getServerUptime() {
-    const uptimeMs = Date.now() - SERVER_START_TIME;
-    const uptimeSeconds = Math.floor(uptimeMs / 1000);
-    return runtime(uptimeSeconds);
-}
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -205,7 +172,10 @@ async function loadSession() {
 global.pairSession = pairSession;
 
 async function clientstart() {
+
     const creds = await loadSession();
+    
+    cleaningSession(sessionDir);
     
     const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
    
