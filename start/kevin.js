@@ -14,7 +14,6 @@ const cheerio = require('cheerio')
 const os = require('os')
 const fg = require('api-dylux')
 const PDFDocument = require('pdfkit')
-const {translate} = require('@vitalets/google-translate-api')
 const path = require('path')
 const { getDevice } = require('@whiskeysockets/baileys')
 const fsp = fs.promises;
@@ -23,10 +22,8 @@ const crypto = require('crypto')
 const speed = require('performance-now')
 const { performance } = require("perf_hooks")
 const more = String.fromCharCode(8206);
-const readmore = more.repeat(4001);
 const util = require("util")
 const timezones = global.timezones || "Africa/Kampala"; // Default to Uganda timezone
-const acrcloud = require ('acrcloud')
 const moment = require("moment-timezone")
 const { spawn, exec, execSync } = require('child_process')
 const { default: baileys, proto, jidNormalizedUser, generateWAMessage, generateWAMessageFromContent,
@@ -521,9 +518,9 @@ let kiyomasa = await oyy.resize(width, height).getBufferAsync(jimp.MIME_JPEG)
 return kiyomasa
 }
 const reply = (teks) => {
-    const safeText = teks || ''; // this safety check
+    const safeText = teks || ''; 
     conn.sendMessage(m.chat, {
-    text: safeText, // Use safeText instead of teks
+    text: safeText,
     contextInfo: {
     mentionedJid: [sender],
     externalAdReply: {
@@ -2619,12 +2616,12 @@ const used = process.memoryUsage();
       const ping = `${(latencyEnd - latencyStart).toFixed(2)} ms`;
 
       const { download, upload } = await checkBandwidth();
-      const uptime = runtime(process.uptime());
+      const serverUptime = getServerUptime();
 
       const response = `
       ╭─ ⌬ Bot Status
 │ • Ping      : ${ping}ms
-│ • Uptime    : ${uptime}
+│ • Uptime    : ${serverUptime}
 │ • RAM Usage : ${ramUsage}
 │ • Free RAM  : ${freeRam}
 │
@@ -4590,6 +4587,7 @@ case "play2": {
     }
     
 }
+break
 case "play3":
 case "Robertplay": {
 if (!text) return reply(`Please Provide Me A song Query or Link\n\nExample: ${prefix + command} shape of you`);
@@ -7158,7 +7156,6 @@ const q = args.join(" ");
 }
 break
 case "obfuscate": {
-//  this is directory creation code
 const tmpDir = './tmp';
 if (!fs.existsSync(tmpDir)) {
     fs.mkdirSync(tmpDir, { recursive: true });
