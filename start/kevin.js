@@ -764,150 +764,103 @@ break
 case 'antiedit': {
     if (!Access) return reply(mess.owner);
     
-    const subcommand = args[0]?.toLowerCase();
+    const mode = args[0]?.toLowerCase();
     
-    if (!subcommand) {
+    // Show help if no arguments
+    if (!mode) {
         const currentMode = await db.get(botNumber, 'antiedit', 'off');
         return reply(`*ANTI-EDIT SETTINGS*
 
 Current Mode: ${currentMode}
 
 📌 *Commands:*
-• ${prefix}antiedit on - Enable anti-edit (default: chat mode)
-• ${prefix}antiedit off - Disable anti-edit
-• ${prefix}antiedit chat - Send alerts to same chat
-• ${prefix}antiedit private - Send alerts to bot owner's inbox
-• ${prefix}antiedit status - Show current settings
-
-*Modes:*
-• chat - Alerts sent to same chat where editing happened
-• private - Alerts sent to bot owner's private inbox
-• off - Anti-edit disabled`);
+• ${prefix}antiedit on - Enable (chat mode)
+• ${prefix}antiedit off - Disable
+• ${prefix}antiedit chat - Set to chat mode
+• ${prefix}antiedit private - Set to private mode`);
     }
     
-    switch(subcommand) {
-        case 'on': {
-            // Default to chat mode when turning on
-            await db.set(botNumber, 'antiedit', 'chat');
-            reply(`✅ Anti-edit enabled (chat mode)`);
-            break;
-        }
-        
-        case 'off': {
-            await db.set(botNumber, 'antiedit', 'off');
-            reply(`✅ Anti-edit disabled`);
-            break;
-        }
-        
-        case 'chat': {
-            await db.set(botNumber, 'antiedit', 'chat');
-            reply(`✅.*Successfully enabled antiedit chat mode*`);
-            break;
-        }
-        
-        case 'private': {
-            await db.set(botNumber, 'antiedit', 'private');
-            reply(`✅ *Successfully enabled antiedit private mode*`);
-            break;
-        }
-        
-        case 'status': {
-            const currentMode = await db.get(botNumber, 'antiedit', 'off');
-            let statusMsg = `*📊 ANTI-EDIT STATUS*\n\n`;
-            statusMsg += `Mode: *${currentMode}*\n`;
-            statusMsg += `Status: ${currentMode !== 'off' ? '✅ ENABLED' : '❌ DISABLED'}\n\n`;
-            
-            if (currentMode === 'chat') {
-                statusMsg += `📍 Alerts will be sent to the same chat where editing occurred.`;
-            } else if (currentMode === 'private') {
-                statusMsg += `📍 Alerts will be sent to bot owner's private inbox.`;
-            } else {
-                statusMsg += `📍 Anti-edit is currently disabled.`;
-            }
-            
-            reply(statusMsg);
-            break;
-        }
-        
-        default: {
-            reply(`❌ Invalid option! Use: on, off, chat, private, status`);
-        }
+    // Handle on/off
+    if (mode === 'on') {
+        await db.set(botNumber, 'antiedit', 'chat');
+        return reply(`✅*Successfully enabled antiedit chat mode*`);
     }
+    
+    if (mode === 'off') {
+        await db.set(botNumber, 'antiedit', 'off');
+        return reply(`✅*Successfully disabled antiedit*`);
+    }
+    
+    // Handle mode settings
+    if (mode === 'chat') {
+        await db.set(botNumber, 'antiedit', 'chat');
+        return reply(`✅*Successfully enabled antiedit chat mode*`);
+    }
+    
+    if (mode === 'private') {
+        await db.set(botNumber, 'antiedit', 'private');
+        return reply(`✅*Successfully enabled antiedit private mode*`);
+    }
+    
+    reply('❌ Invalid option! Use: on, off, chat, private');
     break;
 }
 case 'antidelete': {
     if (!Access) return reply(mess.owner);
     
-    const subcommand = args[0]?.toLowerCase();
-    const value = args[1]?.toLowerCase();
+    const mode = args[0]?.toLowerCase();
     
-    if (!subcommand) {
+    if (!mode) {
         const currentMode = await db.get(botNumber, 'antidelete', 'off');
         
-        return reply(`*Anti-Delete System*
-        
-Usage:
-• ${prefix}antidelete on - Enable anti-delete (default: chat mode)
-• ${prefix}antidelete off - Disable anti-delete
-• ${prefix}antidelete chat - Send alerts to same chat
-• ${prefix}antidelete private - Send alerts to bot owner's inbox
-• ${prefix}antidelete status - Show current settings
+        return reply(`*ANTI-DELETE SETTINGS*
 
 Current Mode: ${currentMode}
-Enabled: ${currentMode !== 'off' ? '✅' : '❌'}
 
-📌 *Modes:*
-• chat - Alerts sent to same chat where deletion happened
-• private - Alerts sent to bot owner's private inbox
-• off - Anti-delete disabled`);
+📌 *Commands:*
+• ${prefix}antidelete on - Enable (chat mode)
+• ${prefix}antidelete off - Disable
+• ${prefix}antidelete chat - Set to chat mode
+• ${prefix}antidelete private - Set to private mode
+• ${prefix}antidelete status - Show settings`);
     }
     
-    switch(subcommand) {
-        case 'on': {
-            // ✅ Default to chat mode when turning on
-            await db.set(botNumber, 'antidelete', 'chat');
-            reply(`*Successfully enabled antidelete chat mode*`);
-            break;
-        }
-        
-        case 'off': {
-            // ✅ Save to SQLite
-            await db.set(botNumber, 'antidelete', 'off');
-            reply(`*Successfully disabled antidelete*`);
-            break;
-        }
-        
-        case 'chat': {
-            // ✅ Save to SQLite
-            await db.set(botNumber, 'antidelete', 'chat');
-            reply(`*Successfully enabled antidelete chat mode*`);
-            break;
-        }
-        
-        case 'private': {
-            // ✅ Save to SQLite
-            await db.set(botNumber, 'antidelete', 'private');
-            reply(`*Successfully enabled antidelete private mode*`);
-            break;
-        }
-        
-        case 'status': {
-            // ✅ Get current status from SQLite
-            const currentMode = await db.get(botNumber, 'antidelete', 'off');
-            reply(`*Anti-Delete Status*
-            
-Mode: ${currentMode}
-Enabled: ${currentMode !== 'off' ? '✅' : '❌'}
-
-Chat Mode: Sends alerts to the same chat
-Private Mode: Sends alerts to bot owner's inbox`);
-            break;
-        }
-        
-        default: {
-            reply(`❌ Invalid subcommand. Use: on, off, chat, private, status`);
-        }
+    // Handle on/off
+    if (mode === 'on') {
+        await db.set(botNumber, 'antidelete', 'chat');
+        return reply(`✅*Successfully enabled antidelete chat mode*`);
     }
+    
+    if (mode === 'off') {
+        await db.set(botNumber, 'antidelete', 'off');
+        return reply(`✅*Successfully disabled antidelete*`);
+    }
+    
+    // Handle mode settings
+    if (mode === 'chat') {
+        await db.set(botNumber, 'antidelete', 'chat');
+        return reply(`✅*Successfully enabled antidelete chat mode*`);
+    }
+    
+    if (mode === 'private') {
+        await db.set(botNumber, 'antidelete', 'private');
+        return reply(`✅*Successfully enabled antidelete private mode*`);
+    }
+    
+    // Handle status
+    if (mode === 'status') {
+        const currentMode = await db.get(botNumber, 'antidelete', 'off');
+        return reply(`*ANTI-DELETE STATUS*
+
+Mode: ${currentMode}
+Status: ${currentMode !== 'off' ? '✅ Enabled' : '❌ Disabled'}
+
+📌 *Modes:*
+• chat - Alerts sent to same chat
+• private - Alerts sent to bot owner's inbox`);
+    }
+    
+    reply('❌ Invalid option! Use: on, off, chat, private, status');
     break;
 }
 // ========== PREFIX COMMAND ==========
@@ -9036,29 +8989,30 @@ case 'inactiveusers': {
     if (!m.isGroup) return reply(mess.group);
     
     try {
-            const metadata = await conn.groupMetadata(from);
-            const allParticipants = metadata.participants.map(p => p.id);
-            
-            const inactiveUsers = await GroupDB.getInactiveUsers(from, allParticipants);
-            
-            if (!inactiveUsers.length) {
-                return reply('*✅ No inactive users found in this group!*\n\nAll participants have sent messages.');
-            }
-            
-            let message = `⚠️ *INACTIVE USERS - ${groupName || 'This Group'}*\n\n`;
-            message += `_Users who haven't sent any messages:_\n\n`;
-            message += inactiveUsers.map((user, i) => `🔹 ${i + 1}. @${user.split('@')[0]}`).join('\n');
-            message += `\n\n📊 *Total inactive:* ${inactiveUsers.length}`;
-
-            await conn.sendMessage(m.chat, { 
-                text: message, 
-                mentions: inactiveUsers 
-            }, { quoted: m });
-            
-        } catch (error) {
-            console.error('Error in listinactive command:', error);
-            reply('*Error fetching group data!*');
+        const metadata = await conn.groupMetadata(from);
+        const allParticipants = metadata.participants.map(p => p.id);
+        
+        const inactiveUsers = await GroupDB.getInactiveUsers(from, allParticipants);
+        
+        if (!inactiveUsers.length) {
+            return reply('*✅ No inactive users found!*\n\nAll members have sent messages.');
         }
+        
+        let message = `⚠️ *INACTIVE USERS - ${groupName || 'This Group'}*\n\n`;
+        message += `_Users who haven't sent any messages:_\n\n`;
+        message += inactiveUsers.map((user, i) => `🔹 ${i + 1}. @${user.split('@')[0]}`).join('\n');
+        message += `\n\n📊 *Total inactive:* ${inactiveUsers.length}`;
+
+        await conn.sendMessage(m.chat, { 
+            text: message, 
+            mentions: inactiveUsers 
+        }, { quoted: m });
+        
+    } catch (error) {
+        console.error('Error in listinactive command:', error);
+        reply('*Error fetching group data!*');
+    }
+    break;
 }
 break
 case 'groupactivity':
@@ -9904,14 +9858,16 @@ case 'antilink': {
     if (!m.isBotAdmin) return reply(mess.botadmin);
     
     const mode = args[0]?.toLowerCase();
+    const action = args[1]?.toLowerCase(); // Get second argument (on/off)
     
+    // Show help if no arguments
     if (!mode) {
         const status = await db.getGroupSetting(botNumber, m.chat, 'antilink', false);
         const currentMode = await db.getGroupSetting(botNumber, m.chat, 'antilinkmode', 'delete');
-        return reply(`*ANTILINK SETTINGS*\n\nStatus: ${status ? '✅ ON' : '❌ OFF'}\nMode: ${currentMode}\n\nOptions:\n• ${prefix}antilink on\n• ${prefix}antilink off\n• ${prefix}antilink delete\n• ${prefix}antilink warn\n• ${prefix}antilink kick`);
+        return reply(`*ANTILINK SETTINGS*\n\nStatus: ${status ? '✅ ON' : '❌ OFF'}\nMode: ${currentMode}\n\nOptions:\n• ${prefix}antilink on\n• ${prefix}antilink off\n• ${prefix}antilink delete\n• ${prefix}antilink warn\n• ${prefix}antilink kick\n• ${prefix}antilink delete off\n• ${prefix}antilink warn off\n• ${prefix}antilink kick off`);
     }
     
-    // Handle on/off
+    // Handle on/off (global toggle)
     if (mode === 'on') {
         await db.setGroupSetting(botNumber, m.chat, 'antilink', true);
         return reply('✅ Antilink has been enabled');
@@ -9922,26 +9878,41 @@ case 'antilink': {
         return reply('✅ Antilink has been disabled');
     }
     
-    // Handle mode settings
-    if (mode === 'delete') {
-        await db.setGroupSetting(botNumber, m.chat, 'antilinkmode', 'delete');
-        await db.setGroupSetting(botNumber, m.chat, 'antilink', true); // Auto-enable
-        return reply('✅ *Successfully enabled antilink delete mode*');
+    // Handle mode settings with on/off action
+    if (mode === 'delete' || mode === 'warn' || mode === 'kick') {
+        
+        // If user wants to turn this specific mode ON
+        if (action === 'on') {
+            await db.setGroupSetting(botNumber, m.chat, 'antilinkmode', mode);
+            await db.setGroupSetting(botNumber, m.chat, 'antilink', true);
+            return reply(`✅ *Successfully enabled antilink ${mode} mode*`);
+        }
+        
+        // If user wants to turn this specific mode OFF
+        if (action === 'off') {
+            // Check what the current mode is
+            const currentMode = await db.getGroupSetting(botNumber, m.chat, 'antilinkmode', 'delete');
+            
+            // If the current mode matches what they're trying to turn off
+            if (currentMode === mode) {
+                // Disable antilink completely
+                await db.setGroupSetting(botNumber, m.chat, 'antilink', false);
+                return reply(`✅ *Antilink has been disabled*`);
+            } else {
+                // They're trying to turn off a mode that's not active
+                return reply(`⚠️ *Antilink is currently in ${currentMode} mode, not ${mode} mode*\n\nUse .antilink off to disable completely.`);
+            }
+        }
+        
+        // If no action specified (just ".antilink delete" without on/off)
+        if (!action) {
+            await db.setGroupSetting(botNumber, m.chat, 'antilinkmode', mode);
+            await db.setGroupSetting(botNumber, m.chat, 'antilink', true);
+            return reply(`✅ *Successfully enabled antilink ${mode} mode*`);
+        }
     }
     
-    if (mode === 'warn') {
-        await db.setGroupSetting(botNumber, m.chat, 'antilinkmode', 'warn');
-        await db.setGroupSetting(botNumber, m.chat, 'antilink', true); // Auto-enable
-        return reply('✅ *Successfully enabled antilink warn mode*');
-    }
-    
-    if (mode === 'kick') {
-        await db.setGroupSetting(botNumber, m.chat, 'antilinkmode', 'kick');
-        await db.setGroupSetting(botNumber, m.chat, 'antilink', true); // Auto-enable
-        return reply('✅.*Successfully enabled antilink kick mode*');
-    }
-    
-    reply(`❌ Invalid option! Use: on, off, delete, warn, kick`);
+    reply(`Invalid option! Use: on, off, delete, warn, kick, or [mode] on/off`);
     break;
 }
 case 'allowlink': {
