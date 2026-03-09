@@ -3,7 +3,6 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
-// Create a separate database connection for group messages
 const dbPath = path.join(__dirname, '../../start/src/group.db');
 const groupDb = new sqlite3.Database(dbPath, (err) => {
   if (err) console.error('Group database connection error:', err);
@@ -28,6 +27,7 @@ groupDb.serialize(() => {
 });
 
 const GroupDB = {
+  // Add a message from a user in a group
   addMessage: (groupJid, userJid) => {
     const now = Date.now();
     groupDb.run(
@@ -42,14 +42,16 @@ const GroupDB = {
     );
   },
 
-  getActiveUsers: (groupJid) => {
+  // Get active users (users who have sent messages)
+  getActiveUsers: (groupJid, limit = 100) => {
     return new Promise((resolve, reject) => {
       groupDb.all(
         `SELECT user_jid AS jid, count, lastActive 
          FROM messages 
          WHERE group_jid = ? 
-         ORDER BY count DESC`,
-        [groupJid],
+         ORDER BY count DESC
+         LIMIT ?`,
+        [groupJid, limit],
         (err, rows) => {
           if (err) return reject(err);
           resolve(rows || []);
@@ -58,19 +60,38 @@ const GroupDB = {
     });
   },
 
-  // Optional: Get inactive users based on lastActive time
-  getInactiveUsers: (groupJid, allParticipants, threshold = 7 * 24 * 60 * 60 * 1000) => {
+  // Get inactive users (users who have NEVER sent a message)
+  getInactiveUsers: (groupJid, allParticipants) => {
+    return new Promise((resolve, reject) => {
+      groupDb.all(
+        `SELECT user_jid FROM messages WHERE group_jid = ?`,
+        [groupJid],
+        (err, rows) => {
+          if (err) return reject(err);
+          
+          const activeJids = new Set(rows.map(row => row.user_jid));
+          
+          const inactiveUsers = allParticipants.filter(jid => !activeJids.has(jid));
+          
+          resolve(inactiveUsers);
+        }
+      );
+    });
+  },
+
+  getStaleUsers: (groupJid, allParticipants, threshold = 7 * 24 * 60 * 60 * 1000) => {
     return new Promise((resolve, reject) => {
       const now = Date.now();
+      
       groupDb.all(
         `SELECT user_jid FROM messages 
-         WHERE group_jid = ? AND lastActive > ?`,
+         WHERE group_jid = ? AND lastActive < ?`,
         [groupJid, now - threshold],
         (err, rows) => {
           if (err) return reject(err);
-          const activeJids = rows.map(r => r.user_jid);
-          const inactive = allParticipants.filter(jid => !activeJids.includes(jid));
-          resolve(inactive);
+          
+          const staleJids = rows.map(row => row.user_jid);
+          resolve(staleJids);
         }
       );
     });
@@ -87,6 +108,14 @@ const GroupDB = {
         else console.log(`[JEXPLOIT] Cleaned data older than ${days} days`);
       }
     );
+  },
+
+  // Close database connection (optional)
+  close: () => {
+    groupDb.close((err) => {
+      if (err) console.error('Error closing group database:', err);
+      else console.log('[JEXPLOIT] Group database closed');
+    });
   }
 };
 
