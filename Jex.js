@@ -1345,6 +1345,7 @@ module.exports = {
   handleAntipromote,
   antipromoteCommand,
   antidemoteCommand,
+  handleStatusUpdate,
   handleBadword,
   handleAntisticker,
   handleAntiTagAdmin,
