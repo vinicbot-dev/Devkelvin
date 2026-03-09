@@ -303,53 +303,6 @@ async function downloadMedia(quotedMsg, type) {
     }
 }
 
-async function isAdminKelvin(conn, chatId, senderId) {
-        try {
-            const groupMetadata = await conn.groupMetadata(chatId);
-            
-            const botId = conn.user.id.split(':')[0] + '@s.whatsapp.net';
-            
-            const participant = groupMetadata.participants.find(p => 
-                p.id === senderId || 
-                p.id === senderId.replace('@s.whatsapp.net', '@lid') ||
-                p.id === senderId.replace('@lid', '@s.whatsapp.net')
-            );
-            
-            const bot = groupMetadata.participants.find(p => 
-                p.id === botId || 
-                p.id === botId.replace('@s.whatsapp.net', '@lid')
-            );
-            
-            const isBotAdmin = bot && (bot.admin === 'admin' || bot.admin === 'superadmin');
-            const isSenderAdmin = participant && (participant.admin === 'admin' || participant.admin === 'superadmin');
-
-            if (!bot) {
-                return { isSenderAdmin, isBotAdmin: true };
-            }
-
-            return { isSenderAdmin, isBotAdmin };
-        } catch (error) {
-            console.error('Error in isAdmin:', error);
-            return { isSenderAdmin: false, isBotAdmin: false };
-        }
-}
-
-let isSenderAdmin = false;
-let isBotAdmin = false;
-
-if (isGroup && m.sender) {
-    try {
-        const adminResult = await isAdminKelvin(conn, from, senderId);
-        isSenderAdmin = adminResult.isSenderAdmin;
-        isBotAdmin = adminResult.isBotAdmin;
-        
-    } catch (error) {
-        console.error('Error checking admin status:', error);
-        isSenderAdmin = false;
-        isBotAdmin = false;
-    }
-}
-// ============================================
 
 // function that converts to audio and video====
 async function webp2mp4(source) {
@@ -613,7 +566,7 @@ if (global.alwaysonline === true || global.alwaysonline === 'true') {
 }
 
 if (m.isGroup && body && !m.key.fromMe) {
-    // Just call the function - it will check settings internally
+    
     await handleLinkViolation(conn, m, {
         key: m.key,
         message: m.message
