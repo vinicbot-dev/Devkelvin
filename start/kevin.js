@@ -9337,7 +9337,8 @@ case 'removeall': {
 }
 case "tagall": {
     if (!m.isGroup) return reply(mess.group);
-    if (!isAdmin) return reply(mess.notadmin);
+   if (!m.isAdmin) return reply(mess.notadmin);
+   if (!m.isBotAdmin) return reply(mess.botadmin);
 
     let me = m.sender;
     let q = m.text.split(' ').slice(1).join(' ').trim(); // Extract the message after the command
