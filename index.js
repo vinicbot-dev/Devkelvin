@@ -49,6 +49,7 @@ const {
 const {
 detectUrls,
 handleAntidemote,
+handleStatusUpdate,
 handleAntipromote
  } = require('./Jex');
 
@@ -102,6 +103,73 @@ const autoJoinGroup = async (conn) => {
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+async function loadSession() {
+    try {
+        if (!settings.SESSION_ID) {
+            console.log(chalk.yellow('[ ⏳ ] No SESSION_ID provided - Using QR/Pairing code'));
+            return null;
+        }
+
+        console.log(chalk.blue(`[ 🔍 ] Processing session ID: ${settings.SESSION_ID.substring(0, 20)}...`));
+
+        let sessionData;
+
+        // Check for MEGA format (jexploit~ or kevin~)
+        if (settings.SESSION_ID.startsWith("JEXPLOIT-BOT~") || settings.SESSION_ID.startsWith("kevin~")) {
+            console.log(chalk.bold.yellow('[ 📥 ] Downloading MEGA.nz session'));
+            
+            const megaFileId = settings.SESSION_ID.startsWith("JEXPLOIT-BOT~") 
+                ? settings.SESSION_ID.replace("JEXPLOIT-BOT~", "") 
+                : settings.SESSION_ID.replace("kevin~", "");
+                
+            const filer = File.fromURL(`https://mega.nz/file/${megaFileId}`);
+            
+            const data = await new Promise((resolve, reject) => {
+                filer.download((err, data) => {
+                    if (err) reject(err);
+                    else resolve(data);
+                });
+            });
+            
+            await fs.promises.writeFile(credsPath, data);
+            sessionData = JSON.parse(data.toString());
+            console.log(chalk.green('[ ✅ ] MEGA session downloaded successfully'));
+            
+        // Check for Base64 format (VESPER-BOT~)
+        } else if (settings.SESSION_ID.startsWith("VESPER-BOT~")) {
+            console.log(chalk.green('[ ⏳ ] Decoding base64 session'));
+            
+            const base64Data = settings.SESSION_ID.replace("VESPER-BOT~", "");
+            
+            if (!/^[A-Za-z0-9+/=]+$/.test(base64Data)) {
+                throw new Error("Invalid base64 format in SESSION_ID");
+            }
+            
+            const decodedData = Buffer.from(base64Data, "base64");
+            
+            try {
+                sessionData = JSON.parse(decodedData.toString("utf-8"));
+            } catch (error) {
+                throw new Error("Failed to parse decoded base64 session data: " + error.message);
+            }
+            
+            await fs.promises.writeFile(credsPath, decodedData);
+            console.log(chalk.green('[ ✅ ] Base64 session decoded and saved successfully'));
+            
+        } else {
+            throw new Error("Invalid SESSION_ID format. Use 'VISPER-BOT~' for base64 or 'jexploit~/malvin~' for MEGA.nz");
+        }
+
+        return sessionData;
+
+    } catch (error) {
+        console.error(chalk.red('[ ❌ ] Error loading session:', error.message));
+        console.log(chalk.yellow('[ 🟢 ] Will attempt QR code or pairing code login'));
+        return null;
+    }
+}
+
 
 const storeFile = "./start/lib/database/store.json";
 const maxMessageAge = 24 * 60 * 60; //24 hours
@@ -184,71 +252,6 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function loadSession() {
-    try {
-        if (!settings.SESSION_ID) {
-            console.log(chalk.yellow('[ ⏳ ] No SESSION_ID provided - Using QR/Pairing code'));
-            return null;
-        }
-
-        console.log(chalk.blue(`[ 🔍 ] Processing session ID: ${settings.SESSION_ID.substring(0, 20)}...`));
-
-        let sessionData;
-
-        // Check for MEGA format (jexploit~ or kevin~)
-        if (settings.SESSION_ID.startsWith("JEXPLOIT-BOT~") || settings.SESSION_ID.startsWith("kevin~")) {
-            console.log(chalk.bold.yellow('[ 📥 ] Downloading MEGA.nz session'));
-            
-            const megaFileId = settings.SESSION_ID.startsWith("JEXPLOIT-BOT~") 
-                ? settings.SESSION_ID.replace("JEXPLOIT-BOT~", "") 
-                : settings.SESSION_ID.replace("kevin~", "");
-                
-            const filer = File.fromURL(`https://mega.nz/file/${megaFileId}`);
-            
-            const data = await new Promise((resolve, reject) => {
-                filer.download((err, data) => {
-                    if (err) reject(err);
-                    else resolve(data);
-                });
-            });
-            
-            await fs.promises.writeFile(credsPath, data);
-            sessionData = JSON.parse(data.toString());
-            console.log(chalk.green('[ ✅ ] MEGA session downloaded successfully'));
-            
-        // Check for Base64 format (VESPER-BOT~)
-        } else if (settings.SESSION_ID.startsWith("VESPER-BOT~")) {
-            console.log(chalk.green('[ ⏳ ] Decoding base64 session'));
-            
-            const base64Data = settings.SESSION_ID.replace("VESPER-BOT~", "");
-            
-            if (!/^[A-Za-z0-9+/=]+$/.test(base64Data)) {
-                throw new Error("Invalid base64 format in SESSION_ID");
-            }
-            
-            const decodedData = Buffer.from(base64Data, "base64");
-            
-            try {
-                sessionData = JSON.parse(decodedData.toString("utf-8"));
-            } catch (error) {
-                throw new Error("Failed to parse decoded base64 session data: " + error.message);
-            }
-            
-            await fs.promises.writeFile(credsPath, decodedData);
-            console.log(chalk.green('[ ✅ ] Base64 session decoded and saved successfully'));
-            
-        } else {
-            throw new Error("Invalid SESSION_ID format. Use 'VISPER-BOT~' for base64 or 'jexploit~/malvin~' for MEGA.nz");
-        }
-
-        return sessionData;
-
-    } catch (error) {
-        console.error(chalk.red('[ ❌ ] Error loading session:', error.message));
-        console.log(chalk.yellow('[ 🟢 ] Will attempt QR code or pairing code login'));
-        return null;
-    }
-}
 
 
 async function clientstart() {
@@ -257,34 +260,74 @@ async function clientstart() {
     const creds = await loadSession();
     await cleanupOldMessages();
     
+    // Use multi-file auth state
     const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
    
+    
+    // Fetch latest WhatsApp Web version with fallback
     let waVersion;
     try {
         const { version } = await fetchLatestBaileysVersion();
         waVersion = version;
-        console.log("[ JEXPLOIT] Connecting...");
+        console.log("[ JEXPLOIT] Connecting to WhatsApp ⏳️...");
+        
     } catch (error) {
-        waVersion = [2, 3000, 1017546695]; 
+        console.log(chalk.yellow(`[⚠️] Using stable fallback version`));
+        waVersion = [2, 3000, 1017546695];
     }
 
-    const conn = makeWASocket({
-        printQRInTerminal: !usePairingCode,
-        syncFullHistory: false,
-        markOnlineOnConnect: true,
-        connectTimeoutMs: 30000, // Reduced timeout
-        defaultQueryTimeoutMs: 20000,
-        keepAliveIntervalMs: 30000,
-        maxRetries: 3,
+      const conn = makeWASocket({
+    printQRInTerminal: !usePairingCode,
+    syncFullHistory: false,
+    markOnlineOnConnect: true,
+    connectTimeoutMs: 60000, 
+    defaultQueryTimeoutMs: 30000,
+    keepAliveIntervalMs: 25000,
+    maxRetries: 5,
+    generateHighQualityLinkPreview: false,
+    linkPreviewImageThumbnailWidth: 64,
+
+        
         version: waVersion,
+        
         browser: ["Ubuntu", "Chrome", "120.0.0.0"],
-        logger: pino({ level: 'error' }),
+        
+        logger: pino({ level: 'silent' }),
+        
         auth: {
             creds: state.creds,
-            keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'error' })),
+            keys: makeCacheableSignalKeyStore(state.keys, pino().child({
+                level: 'silent',
+                stream: 'store'
+            })),
         },
+        
+        fireInitQueries: false, 
+        emitOwnEvents: true,
+        defaultCongestionControl: 1,
     });
 
+
+    conn.decodeJid = (jid) => {
+        if (!jid) return jid;
+        if (/:\d+@/gi.test(jid)) {
+            let decode = jidDecode(jid) || {};
+            return decode.user && decode.server && decode.user + '@' + decode.server || jid;
+        } else return jid;
+    };
+
+const botNumber = conn.decodeJid(conn.user?.id) || 'default';
+
+
+
+    
+    if (!creds && !conn.authState.creds.registered) {
+    const phoneNumber = await question(chalk.greenBright(`Enter number (e.g 256xxx):\n`));
+    const code = await conn.requestPairingCode(phoneNumber.trim());
+    console.log(chalk.cyan(`Code: ${code}`));
+    console.log(chalk.cyan(`Jexploit: Please use this code to connect your WhatsApp account.`));
+  }
+          
     const { makeInMemoryStore } = require("./start/lib/store/");
     const store = makeInMemoryStore({
         logger: pino().child({
@@ -295,166 +338,60 @@ async function clientstart() {
     
     store.bind(conn.ev);
 
-    conn.decodeJid = (jid) => {
-        if (!jid) return jid;
-        if (/:\d+@/gi.test(jid)) {
-            let decode = jidDecode(jid) || {};
-            return decode.user && decode.server ? decode.user + '@' + decode.server : jid;
-        }
-        return jid;
-    };
-
-    const botNumber = conn.decodeJid(conn.user?.id) || 'default';
-
-    if (!creds && !conn.authState.creds.registered) {
-        const phoneNumber = await question(chalk.greenBright(`Enter number (e.g 256xxx):\n`));
-        const code = await conn.requestPairingCode(phoneNumber.trim());
-        console.log(chalk.cyan(`Code: ${code}`));
-    }
-
-    // In your messages.upsert handler, replace this section:
-
-conn.ev.on('messages.upsert', async chatUpdate => {
+  
+    conn.ev.on('messages.upsert', async chatUpdate => {
     try {
         let mek = chatUpdate.messages[0];
         if (!mek.message) return;
-        
-        mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') 
-            ? mek.message.ephemeralMessage.message 
-            : mek.message;
+        mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message;
     
-        let msgKey = null;
-        let isStatus = false;
+        await handleStatusUpdate(conn, chatUpdate);
         
         if (mek.key && mek.key.remoteJid === 'status@broadcast') {
-         
-            if (mek.key.fromMe) {
-                return; // Don't process bot's own status reactions
-            }
-            msgKey = mek.key;
-            isStatus = true;
+            return;
         }
-        
-        if (isStatus && msgKey) {
-            
-            const autoviewstatus = await db.get(botNumber, 'autoviewstatus', false);
-            const autoreactstatus = await db.get(botNumber, 'autoreactstatus', false);
-            const statusemoji = await db.get(botNumber, 'statusemoji', '💚');
-            
-            // If both are disabled, return
-            if (!autoviewstatus && !autoreactstatus) return;
-            
-            await sleep(2000);
-            
-            // View the status first
-            if (autoviewstatus || autoreactstatus) {
-                try {
-                    await conn.readMessages([msgKey]);
-                    console.log('✅ Status viewed');
-                } catch (viewError) {
-                    console.log('⚠️ Error viewing status:', viewError.message);
-                }
-            }
-            
-            // React to status if enabled
-            if (autoreactstatus) {
-                try {
-                    await sleep(1500);
-                    
-                    // Determine emoji to use
-                    let emoji = statusemoji;
-                    
-                    // If emoji is default or not set, use random
-                    if (emoji === '💚' || !emoji) {
-                        const emojis = ['❤️','😂','😮','😢','🔥','👏','🎉','🤔','👍','👎','😍','🤯','😡','🥰','😎','🤩','🥳','😭','🙏','💯'];
-                        emoji = emojis[Math.floor(Math.random() * emojis.length)];
-                    }
-                    
-                    await conn.sendMessage(msgKey.remoteJid, { 
-                        react: { 
-                            text: emoji, 
-                            key: msgKey 
-                        } 
-                    });
-                    console.log(`✅ Status reacted with ${emoji}`);
-                    
-                } catch (reactError) {
-                    if (reactError.message?.includes('rate-overlimit')) {
-                        console.log('⚠️ Rate limited, waiting before retry...');
-                        await sleep(5000);
-                        try {
-                            let emoji = statusemoji;
-                            if (emoji === '💚' || !emoji) {
-                                const emojis = ['❤️','😂','😮','😢','🔥','👏','🎉','🤔','👍','👎','😍','🤯','😡','🥰','😎','🤩','🥳','😭','🙏','💯'];
-                                emoji = emojis[Math.floor(Math.random() * emojis.length)];
-                            }
-                            await conn.sendMessage(msgKey.remoteJid, { 
-                                react: { text: emoji, key: msgKey } 
-                            });
-                            console.log('✅ Status reacted on retry');
-                        } catch (retryError) {
-                            console.log('❌ Still rate limited, skipping this status');
-                        }
-                    } else {
-                        console.log('❌ Error reacting to status:', reactError.message);
-                    }
-                }
-            }
-            
-            return; 
-        }
-    
+
         if (!conn.public && !mek.key.fromMe && chatUpdate.type === 'notify') return;
-            
-            let m = smsg(conn, mek, store);
-           
-            m.isGroup = m.chat.endsWith('@g.us')
-            m.sender = await conn.decodeJid(m.fromMe && conn.user.id || m.participant || m.key.participant || m.chat || '')
-            
-            if (m.isGroup) {
-                m.metadata = await conn.groupMetadata(m.chat).catch(_ => ({})) || {}
-                const admins = []
-                if (m.metadata?.participants) {
-                    for (let p of m.metadata.participants) {
-                        if (p.admin !== null) {
-                            if (p.jid) admins.push(p.jid);
-                            if (p.id) admins.push(p.id);
-                            if (p.lid) admins.push(p.lid);
-                        }
-                    }
-                }
-                m.admins = [...new Set(admins)];
-           
-                try {
-                    const adminStatus = await isAdminKelvin(conn, m.chat, m.sender);
-                    m.isAdmin = adminStatus.isSenderAdmin;
-                    m.isBotAdmin = adminStatus.isBotAdmin;
-                    if (adminStatus.admins && adminStatus.admins.length > 0) {
-                        m.admins = [...new Set([...m.admins, ...adminStatus.admins])];
-                    }
-                } catch (error) {
-                    const checkAdmin = (jid, list) => {
-                        if (!jid || !list || !list.length) return false;
-                        const senderNumber = jid.split('@')[0];
-                        return list.some(admin => admin.split('@')[0] === senderNumber);
-                    };
-                    m.isAdmin = checkAdmin(m.sender, m.admins);
-                    m.isBotAdmin = checkAdmin(botNumber, m.admins);
-                }
-                m.participant = m.key.participant || ""
-            } else {
-                m.isAdmin = false;
-                m.isBotAdmin = false;
-            }
-     
-            // handle cases using Kevin.js
-            require("./start/kevin")(conn, m, chatUpdate, mek, store);
-            
-        } catch (err) {
-            console.log(chalk.yellow.bold("[ ERROR ]") + err.message);
-        }
-    });
+        let m = smsg(conn, mek, store);
+       
+        m.isGroup = m.chat.endsWith('@g.us')
+        m.sender = await conn.decodeJid(m.fromMe && conn.user.id || m.participant || m.key.participant || m.chat || '')
         
+        if (m.isGroup) {
+            m.metadata = await conn.groupMetadata(m.chat).catch(_ => ({})) || {}
+            const admins = []
+            if (m.metadata?.participants) {
+                for (let p of m.metadata.participants) {
+                    if (p.admin !== null) {
+                        if (p.jid) admins.push(p.jid)
+                        if (p.id) admins.push(p.id)
+                        if (p.lid) admins.push(p.lid)
+                    }
+                }
+            }
+            m.admins = admins
+            
+            const checkAdmin = (jid, list) =>
+                list.some(x =>
+                    x === jid ||
+                    (jid.endsWith('@s.whatsapp.net') && x === jid.replace('@s.whatsapp.net', '@lid')) ||
+                    (jid.endsWith('@lid') && x === jid.replace('@lid', '@s.whatsapp.net'))
+                )
+            
+            m.isAdmin = checkAdmin(m.sender, m.admins)
+            m.isBotAdmin = checkAdmin(botNumber, m.admins)
+            m.participant = m.key.participant || ""
+        } else {
+            m.isAdmin = false
+            m.isBotAdmin = false
+        }
+  
+        
+        require("./start/kevin")(conn, m, chatUpdate, mek, store);
+    } catch (err) {
+        console.log(chalk.yellow.bold("[ ERROR ] kevin.js :\n") + chalk.redBright(util.format(err)));
+    }
+});
     
     conn.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect } = update;
