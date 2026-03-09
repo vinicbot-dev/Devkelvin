@@ -6,7 +6,6 @@ const {
   downloadMedaiMesaage
 } = require("@whiskeysockets/baileys");
 const { exec, spawn, execSync } = require("child_process")
-const util = require('util')
 const fetch = require('node-fetch')
 const path = require('path')
 const fs = require('fs');
@@ -14,16 +13,12 @@ const axios = require('axios')
 const acrcloud = require ('acrcloud');
 const FormData = require('form-data');
 const cheerio = require('cheerio')
-const { performance } = require("perf_hooks");
 const moment = require("moment-timezone")
 const os = require('os');
-const speed = require('performance-now')
 const timezones = global.timezones || "Africa/Kampala";
 const yts = require("yt-search")
 const more = String.fromCharCode(8206);
 const readmore = more.repeat(4001);
-const timestampp = speed();
-const latensi = speed() - timestampp
 
 const { smsg, sendGmail, formatSize, isUrl, generateMessageTag, CheckBandwidth, getBuffer, getSizeMedia, runtime, fetchJson, sleep, getRandom } = require('./start/lib/myfunction')
 
