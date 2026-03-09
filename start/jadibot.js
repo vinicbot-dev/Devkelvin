@@ -1,10 +1,4 @@
-/*
-
-  -! Credits By Voyage tech 
-  Thanks to caltech 
-  https://wa.me/256760672406
-
-*/
+/* Kelvin Tech */
 
 
 console.clear();
@@ -36,7 +30,6 @@ const pino = require('pino');
 const readline = require("readline");
 const fs = require('fs');
 const chalk = require('chalk')
-const _ = require('lodash')
 const util = require('util')
 const fetch = require('node-fetch')
 const FileType = require('file-type');
