@@ -65,7 +65,7 @@ global.AI_CHAT = "false"; // Set to "true" to enable AI chatbot by default
 
 // ========= Add modeStatus and versions ========= //
 global.modeStatus = "Public";
-global.versions = "1.4.6";
+global.versions = "1.4.7";
 
 // ========= Setting WM ========= //
 global.packname = 'Jexploit';
@@ -73,7 +73,7 @@ global.author = 'Bot';
 global.wm = '©Jexploit is awesome 🔥';
 
 // === For only developer ============
-global.api = "https://xploaderapi-f5e63b.platform.cypherx.space";
+global.api = "https://apiskeith.top";
 global.wwe = "https://www.wwe.com/api/news";
 global.wwe1 = "https://www.thesportsdb.com/api/v1/json/3/searchfilename.php?e=wwe";
 global.wwe2 = "https://www.thesportsdb.com/api/v1/json/3/searchevents.php?e=wrestling";
