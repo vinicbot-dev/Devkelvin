@@ -244,29 +244,28 @@ async function generateMenu(conn, m, prefix, global) {
         sports: {
             title: ' *SPORTS MENU* ',
             commands: [
-                'eplstandings', 'plstandings', 'premierleaguestandings', 'clstandings', 'championsleague',
-                'laligastandings', 'laliga', 'bundesligastandings', 'bundesliga', 'serieastandings', 'seriea',
-                'ligue1standings', 'ligue1', 'elstandings', 'europaleague', 'eflstandings', 'championship',
-                'wcstandings', 'worldcup', 'eplmatches', 'plmatches', 'clmatches', 'championsleaguematches',
-                'laligamatches', 'pdmatches', 'bundesligamatches', 'bl1matches', 'serieamatches', 'samatches',
-                'ligue1matches', 'fl1matches', 'elmatches', 'europaleaguematches', 'eflmatches', 'elcmatches',
-                'wcmatches', 'worldcupmatches', 'eplscorers', 'plscorers', 'clscorers', 'championsleaguescorers',
-                'laligascorers', 'pdscorers', 'bundesligascorers', 'bl1scorers', 'serieascorers', 'sascorers',
-                'ligue1scorers', 'fl1scorers', 'elscorers', 'europaleaguescorers', 'eflscorers', 'elcscorers',
-                'wcscorers', 'worldcupscorers', 'eplupcoming', 'plupcoming', 'clupcoming', 'championsleagueupcoming',
-                'laligaupcoming', 'pdupcoming', 'bundesligaupcoming', 'bl1upcoming', 'serieaupcoming', 'saupcoming',
-                'ligue1upcoming', 'fl1upcoming', 'elupcoming', 'europaleagueupcoming', 'eflupcoming', 'elcupcoming',
-                'wcupcoming', 'worldcupupcoming', 'wweevents', 'wrestlingevents', 'wwenews', 'wwe', 'wweschedule', 'wweevents'
-            ],
-        },
-        education: {
-            title: ' *EDUCATION MENU* ',
-            commands: [
-                'math', 
-                'dictionary', 'poem',  'fruitinfo', 'booksearch'
-            ],
-        },
-    };
+        'eplstandings', 'clstandings', 'laligastandings', 
+        'bundesligastandings', 'serieastandings', 'ligue1standings',
+        'elstandings', 'eflstandings', 'wcstandings',
+        'eurosstandings', 'fifastandings',
+        'eplmatches', 'clmatches', 'laligamatches',
+        'bundesligamatches', 'serieamatches', 'ligue1matches',
+        'elmatches', 'eflmatches', 'wcmatches',
+        'euromatches', 'fifamatches',
+        'eplscorers', 'clscorers', 'laligascorers',
+        'bundesligascorers', 'serieascorers', 'ligue1scorers',
+        'elscorers', 'eflscorers', 'wcscorers',
+        'euroscorers', 'fifascorers',
+        'eplupcoming', 'clupcoming', 'laligaupcoming',
+        'bundesligaupcoming', 'serieaupcoming', 'ligue1upcoming',
+        'elupcoming', 'eflupcoming', 'wcupcoming',
+        'eurosupcoming', 'fifaupcoming',
+        'teamsearch', 'playersearch', 'venuesearch',
+        'livescores', 'footballnews',
+        'wweevents', 'wwenews', 'wweschedule'
+    ],
+  },
+};
 
     // Function to format the menu using current preset and style
     const formatMenu = () => {
