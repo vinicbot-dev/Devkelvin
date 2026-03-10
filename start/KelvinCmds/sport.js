@@ -1,18 +1,47 @@
+/* Kelvin Tech - COMPLETE WORKING SPORTS PLUGIN */
+/* Using correct API endpoints from https://apiskeith.top */
+
 const fetch = require('node-fetch');
 const axios = require('axios');
 
-// Standings function
+function getLeaguePath(leagueCode) {
+  const leagueMap = {
+    'PL': 'epl',
+    'CL': 'ucl',
+    'PD': 'laliga',
+    'BL1': 'bundesliga',
+    'SA': 'seriea',
+    'FL1': 'ligue1',
+    'EL': 'el',
+    'ELC': 'efl',
+    'WC': 'wc',
+    'EUROS': 'euros',
+    'FIFA': 'fifa'
+  };
+  return leagueMap[leagueCode] || leagueCode.toLowerCase();
+}
+
 async function formatStandings(leagueCode, leagueName, { m, reply }) {
   try {
-    const apiUrl = `${global.api}/football?code=${leagueCode}&query=standings`;
+    const leaguePath = getLeaguePath(leagueCode);
+    const apiUrl = `${global.api}/${leaguePath}/standings`;
+    
+    console.log(`Fetching standings: ${apiUrl}`);
+    
     const response = await fetch(apiUrl);
     const data = await response.json();
 
-    if (!data.result || !data.result.standings) {
-      return reply(`❌ Failed to fetch ${leagueName} standings. Please try again later.`);
+    if (!data.status || !data.result) {
+      return reply(`❌ Failed to fetch ${leagueName} standings.`);
     }
 
-    const standings = data.result.standings;
+    // Standings are in result.standings
+    const standings = data.result.standings || data.result;
+    
+    if (!standings || standings.length === 0) {
+      return reply(`❌ No standings data found for ${leagueName}.`);
+    }
+
     let message = `*⚽ ${leagueName} Standings ⚽*\n\n`;
     
     standings.forEach((team) => {
@@ -44,18 +73,27 @@ async function formatStandings(leagueCode, leagueName, { m, reply }) {
   }
 }
 
-// Matches function
 async function formatMatches(leagueCode, leagueName, { m, reply }) {
   try {
-    const apiUrl = `${global.api}/football?code=${leagueCode}&query=matches`;
+    const leaguePath = getLeaguePath(leagueCode);
+    const apiUrl = `${global.api}/${leaguePath}/matches`;
+    
+    console.log(`Fetching matches: ${apiUrl}`);
+    
     const response = await fetch(apiUrl);
     const data = await response.json();
 
-    if (!data.result?.matches?.length) {
-      return reply(`❌ No ${leagueName} matches found or failed to fetch data.`);
+    if (!data.status || !data.result) {
+      return reply(`❌ Failed to fetch ${leagueName} matches.`);
     }
 
-    const { liveMatches, finishedMatches, otherMatches } = categorizeMatches(data.result.matches);
+    const matches = data.result.matches || data.result;
+    
+    if (!matches || matches.length === 0) {
+      return reply(`❌ No ${leagueName} matches found.`);
+    }
+
+    const { liveMatches, finishedMatches, otherMatches } = categorizeMatches(matches);
 
     const messageSections = [
       buildLiveMatchesSection(liveMatches),
@@ -75,6 +113,276 @@ async function formatMatches(leagueCode, leagueName, { m, reply }) {
   }
 }
 
+async function formatTopScorers(leagueCode, leagueName, { m, reply }) {
+  try {
+    const leaguePath = getLeaguePath(leagueCode);
+    const apiUrl = `${global.api}/${leaguePath}/scorers`;
+    
+    console.log(`Fetching top scorers: ${apiUrl}`);
+    
+    const response = await fetch(apiUrl);
+    const data = await response.json();
+
+    if (!data.status || !data.result) {
+      return reply(`❌ Failed to fetch ${leagueName} top scorers.`);
+    }
+
+    const scorers = data.result.topScorers || data.result;
+    
+    if (!scorers || scorers.length === 0) {
+      return reply(`❌ No top scorers data found for ${leagueName}.`);
+    }
+
+    let message = `*⚽ ${leagueName} Top Scorers ⚽*\n\n`;
+    message += '🏆 *Golden Boot Race*\n\n';
+
+    scorers.forEach(player => {
+      message += `*${player.rank}.* ${player.player} (${player.team})\n`;
+      message += `   ⚽ Goals: *${player.goals}*`;
+      message += ` | 🎯 Assists: ${player.assists || 0}`;
+      message += ` | ⏏️ Penalties: ${player.penalties || 0}\n\n`;
+    });
+
+    reply(message);
+  } catch (error) {
+    console.error(`Error fetching ${leagueName} top scorers:`, error);
+    reply(`❌ Error fetching ${leagueName} top scorers. Please try again later.`);
+  }
+}
+
+async function formatUpcomingMatches(leagueCode, leagueName, { m, reply }) {
+  try {
+    const leaguePath = getLeaguePath(leagueCode);
+    const apiUrl = `${global.api}/${leaguePath}/upcomingmatches`;
+    
+    console.log(`Fetching upcoming matches: ${apiUrl}`);
+    
+    const response = await fetch(apiUrl);
+    const data = await response.json();
+
+    if (!data.status || !data.result) {
+      return reply(`❌ Failed to fetch upcoming ${leagueName} matches.`);
+    }
+
+    const matches = data.result.upcomingMatches || data.result;
+    
+    if (!matches || matches.length === 0) {
+      return reply(`❌ No upcoming ${leagueName} matches found.`);
+    }
+
+    let message = `*📅 Upcoming ${leagueName} Matches ⚽*\n\n`;
+
+    // Group by matchday
+    const matchesByMatchday = {};
+    matches.forEach(match => {
+      const matchday = match.matchday || 1;
+      if (!matchesByMatchday[matchday]) {
+        matchesByMatchday[matchday] = [];
+      }
+      matchesByMatchday[matchday].push(match);
+    });
+
+    const sortedMatchdays = Object.keys(matchesByMatchday).sort((a, b) => a - b);
+
+    sortedMatchdays.forEach(matchday => {
+      message += `*🗓️ Matchday ${matchday}:*\n`;
+      
+      matchesByMatchday[matchday].forEach(match => {
+        // Parse date from format like "3/14/2026, 3:00:00 PM"
+        const dateStr = match.date;
+        const matchDate = new Date(dateStr);
+        
+        const formattedDate = matchDate.toLocaleString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        
+        message += `\n⏰ ${formattedDate}\n`;
+        message += `   🏠 ${match.homeTeam} vs ${match.awayTeam} 🚌\n\n`;
+      });
+      
+      message += '\n';
+    });
+
+    reply(message);
+  } catch (error) {
+    console.error(`Error fetching upcoming ${leagueName} matches:`, error);
+    reply(`❌ Error fetching upcoming ${leagueName} matches. Please try again later.`);
+  }
+}
+
+// Team Search
+async function searchTeam(query, { reply }) {
+  try {
+    if (!query) return reply("❌ Please provide a team name. Example: `.teamsearch arsenal`");
+    
+    const response = await fetch(`${global.api}/sport/teamsearch?q=${encodeURIComponent(query)}`);
+    const data = await response.json();
+    
+    if (!data.status || !data.result || data.result.length === 0) {
+      return reply(`❌ No team found for "${query}"`);
+    }
+    
+    const team = data.result[0];
+    let message = `*⚽ Team Information: ${team.name} ⚽*\n\n`;
+    message += `*🏷️ Full Name:* ${team.alternateName || team.name}\n`;
+    message += `*📅 Formed:* ${team.formedYear || 'N/A'}\n`;
+    message += `*🏟️ Stadium:* ${team.stadium || 'N/A'} (Capacity: ${team.stadiumCapacity?.toLocaleString() || 'N/A'})\n`;
+    message += `*📍 Location:* ${team.location || team.country || 'N/A'}\n`;
+    message += `*🏆 League:* ${team.league || 'N/A'}\n\n`;
+    
+    if (team.description) {
+      const shortDesc = team.description.substring(0, 300) + '...';
+      message += `*📝 Description:*\n${shortDesc}\n\n`;
+    }
+    
+    if (team.badges?.large) {
+      message += `*🖼️ Logo:* ${team.badges.large}\n`;
+    }
+    
+    reply(message);
+  } catch (error) {
+    console.error('Error searching team:', error);
+    reply("❌ Error searching for team.");
+  }
+}
+
+// Player Search
+async function searchPlayer(query, { reply }) {
+  try {
+    if (!query) return reply("❌ Please provide a player name. Example: `.playersearch Bukayo Saka`");
+    
+    const response = await fetch(`${global.api}/sport/playersearch?q=${encodeURIComponent(query)}`);
+    const data = await response.json();
+    
+    if (!data.status || !data.result || data.result.length === 0) {
+      return reply(`❌ No player found for "${query}"`);
+    }
+    
+    const player = data.result[0];
+    let message = `*⚽ Player Information ⚽*\n\n`;
+    message += `*👤 Name:* ${player.name}\n`;
+    message += `*🏠 Team:* ${player.team || 'N/A'}\n`;
+    message += `*🌍 Nationality:* ${player.nationality || 'N/A'}\n`;
+    message += `*🎂 Born:* ${player.birthDate || 'N/A'}\n`;
+    message += `*⚽ Position:* ${player.position || 'N/A'}\n`;
+    message += `*📊 Status:* ${player.status || 'N/A'}\n\n`;
+    
+    if (player.thumbnail) {
+      message += `*🖼️ Photo:* ${player.thumbnail}\n`;
+    }
+    
+    reply(message);
+  } catch (error) {
+    console.error('Error searching player:', error);
+    reply("❌ Error searching for player.");
+  }
+}
+
+// Venue Search
+async function searchVenue(query, { reply }) {
+  try {
+    if (!query) return reply("❌ Please provide a venue name. Example: `.venuesearch Emirates`");
+    
+    const response = await fetch(`${global.api}/sport/venuesearch?q=${encodeURIComponent(query)}`);
+    const data = await response.json();
+    
+    if (!data.status || !data.result || data.result.length === 0) {
+      return reply(`❌ No venue found for "${query}"`);
+    }
+    
+    const venue = data.result[0];
+    let message = `*🏟️ Venue Information: ${venue.name} 🏟️*\n\n`;
+    message += `*📍 Location:* ${venue.location || venue.country || 'N/A'}\n`;
+    message += `*👥 Capacity:* ${venue.capacity?.toLocaleString() || 'N/A'}\n`;
+    message += `*🏅 Sport:* ${venue.sport || 'N/A'}\n`;
+    message += `*📅 Built:* ${venue.yearBuilt || 'N/A'}\n\n`;
+    
+    if (venue.description) {
+      const shortDesc = venue.description.substring(0, 300) + '...';
+      message += `*📝 Description:*\n${shortDesc}\n\n`;
+    }
+    
+    if (venue.media?.thumb) {
+      message += `*🖼️ Image:* ${venue.media.thumb}\n`;
+    }
+    
+    reply(message);
+  } catch (error) {
+    console.error('Error searching venue:', error);
+    reply("❌ Error searching for venue.");
+  }
+}
+
+// Live Scores
+async function getLiveScores({ reply }) {
+  try {
+    const response = await fetch(`${global.api}/livescore2`);
+    const data = await response.json();
+    
+    if (!data.status || !data.result?.data?.list) {
+      return reply("❌ No live scores available.");
+    }
+    
+    const matches = data.result.data.list;
+    if (matches.length === 0) {
+      return reply("📊 No live matches at the moment.");
+    }
+    
+    let message = `*🔴 LIVE SCORES ⚽*\n\n`;
+    message += `*📊 Currently Live: ${matches.length} matches*\n\n`;
+    
+    matches.forEach((match, index) => {
+      const statusEmoji = match.statusLive === 3 ? '✅' : '🔴';
+      message += `*${index + 1}. ${match.team1?.name} vs ${match.team2?.name}*\n`;
+      message += `   📊 Score: ${match.team1?.score || 0} - ${match.team2?.score || 0}\n`;
+      message += `   🏆 League: ${match.league || 'N/A'}\n`;
+      message += `   ${statusEmoji} Status: ${match.timeDesc || match.status || 'Live'}\n\n`;
+    });
+    
+    reply(message);
+  } catch (error) {
+    console.error('Error fetching live scores:', error);
+    reply("❌ Error fetching live scores.");
+  }
+}
+
+// Football News
+async function getFootballNews({ reply }) {
+  try {
+    const response = await fetch(`${global.api}/football/news`);
+    const data = await response.json();
+    
+    if (!data.status || !data.result) {
+      return reply("❌ No football news available.");
+    }
+    
+    const news = data.result.news || data.result;
+    if (!news || news.length === 0) {
+      return reply("📰 No news articles found.");
+    }
+    
+    let message = `*📰 Latest Football News ⚽*\n\n`;
+    
+    news.slice(0, 5).forEach((item, index) => {
+      message += `*${index + 1}. ${item.title}*\n`;
+      if (item.description) message += `📝 ${item.description.substring(0, 100)}...\n`;
+      if (item.source) message += `📰 Source: ${item.source}\n`;
+      if (item.url) message += `🔗 [Read More](${item.url})\n`;
+      message += `\n`;
+    });
+    
+    reply(message);
+  } catch (error) {
+    console.error('Error fetching football news:', error);
+    reply("❌ Error fetching football news.");
+  }
+}
+
+// ==================== CATEGORIZE MATCHES HELPER FUNCTIONS ====================
 function categorizeMatches(matches) {
   const categories = {
     liveMatches: [],
@@ -156,87 +464,7 @@ function buildOtherMatchesSection(otherMatches, liveMatches, finishedMatches) {
   return section;
 }
 
-// Top Scorers function
-async function formatTopScorers(leagueCode, leagueName, { m, reply }) {
-  try {
-    const apiUrl = `${global.api}/football?code=${leagueCode}&query=scorers`;
-    const response = await fetch(apiUrl);
-    const data = await response.json();
-
-    if (!data.result || !data.result.topScorers) {
-      return reply(`❌ No ${leagueName} top scorers data found.`);
-    }
-
-    const scorers = data.result.topScorers;
-    let message = `*⚽ ${leagueName} Top Scorers ⚽*\n\n`;
-    message += '🏆 *Golden Boot Race*\n\n';
-
-    scorers.forEach(player => {
-      message += `*${player.rank}.* ${player.player} (${player.team})\n`;
-      message += `   ⚽ Goals: *${player.goals}*`;
-      message += ` | 🎯 Assists: ${player.assists}`;
-      message += ` | ⏏️ Penalties: ${player.penalties}\n\n`;
-    });
-
-    reply(message);
-  } catch (error) {
-    console.error(`Error fetching ${leagueName} top scorers:`, error);
-    reply(`❌ Error fetching ${leagueName} top scorers. Please try again later.`);
-  }
-}
-
-// Upcoming Matches function
-async function formatUpcomingMatches(leagueCode, leagueName, { m, reply }) {
-  try {
-    const apiUrl = `${global.api}/football?code=${leagueCode}&query=upcoming`;
-    const response = await fetch(apiUrl);
-    const data = await response.json();
-
-    if (!data.result || !data.result.upcomingMatches || data.result.upcomingMatches.length === 0) {
-      return reply(`❌ No upcoming ${leagueName} matches found.`);
-    }
-
-    const matches = data.result.upcomingMatches;
-    let message = `*📅 Upcoming ${leagueName} Matches ⚽*\n\n`;
-
-    const matchesByMatchday = {};
-    matches.forEach(match => {
-      if (!matchesByMatchday[match.matchday]) {
-        matchesByMatchday[match.matchday] = [];
-      }
-      matchesByMatchday[match.matchday].push(match);
-    });
-
-    const sortedMatchdays = Object.keys(matchesByMatchday).sort((a, b) => a - b);
-
-    sortedMatchdays.forEach(matchday => {
-      message += `*🗓️ Matchday ${matchday}:*\n`;
-      
-      matchesByMatchday[matchday].forEach(match => {
-        const matchDate = new Date(match.date);
-        const formattedDate = matchDate.toLocaleString('en-US', {
-          weekday: 'short',
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        });
-        
-        message += `\n⏰ ${formattedDate}\n`;
-        message += `   🏠 ${match.homeTeam} vs ${match.awayTeam} 🚌\n\n`;
-      });
-      
-      message += '\n';
-    });
-
-    reply(message);
-  } catch (error) {
-    console.error(`Error fetching upcoming ${leagueName} matches:`, error);
-    reply(`❌ Error fetching upcoming ${leagueName} matches. Please try again later.`);
-  }
-}
-
-// Wrestling functions
+// ==================== WRESTLING FUNCTIONS ====================
 async function getWrestlingEvents({ reply }) {
   try {
     const { data } = await axios.get(`${global.wwe2}`);
@@ -334,12 +562,16 @@ async function getWWESchedule({ reply }) {
   }
 }
 
-// Export all functions
 module.exports = {
   formatStandings,
   formatMatches,
   formatTopScorers,
   formatUpcomingMatches,
+  searchTeam,
+  searchPlayer,
+  searchVenue,
+  getLiveScores,
+  getFootballNews,
   getWrestlingEvents,
   getWWENews,
   getWWESchedule
