@@ -2306,18 +2306,10 @@ case "uptime": {
         const endTime = performance.now();
         const ping = `${(endTime - startTime).toFixed(2)}`;
         
-        // Get SERVER uptime from myfunction.js
+        // Get SERVER uptime
         const serverUptime = getServerUptime();
         
-        const botname = `${global.botname || 'Jexploit'}`;
-        const version = global.versions || '1.0.0';
-        
-        const botInfo = `
-╭──❍ 💫 ${botname} ❍─
-┊ 🚀 ᴘɪɴɢ    : ${ping} ms
-┊ ⏱  ᴜᴘᴛɪᴍᴇ  : ${serverUptime}
-┊ 🔖 ᴠᴇʀsɪᴏɴ  : ${version}
-╰━━━━━━━━━`;
+        const botInfo = `🔸 *Uptime* : *${serverUptime}*`;
         
         await conn.sendMessage(m.chat, {
             text: botInfo,
@@ -3209,39 +3201,45 @@ case 'getbisnis': case 'getbusiness': {
   }
 }
 break
-case "botstatus": {
-  const used = process.memoryUsage();
-  const ramUsage = `${formatSize(used.heapUsed)} / ${formatSize(os.totalmem())}`;
-  const freeRam = formatSize(os.freemem());
-  
-  // Properly await checkDiskSpace
-  const disk = await checkDiskSpace(process.cwd()); 
-  
-  const latencyStart = performance.now();
-  await reply("⏳ *Calculating ping...*");
-  const latencyEnd = performance.now();
-  const ping = `${(latencyEnd - latencyStart).toFixed(2)} ms`;
+case "botstatus":
+case "stats": {
+    const used = process.memoryUsage();
+    const totalRam = os.totalmem();
+    const freeRam = os.freemem();
+    const usedRam = totalRam - freeRam;
+    const ramPercent = ((usedRam / totalRam) * 100).toFixed(1);
+    
+    const disk = await checkDiskSpace(process.cwd());
+    const diskUsed = disk.size - disk.free;
+    const diskPercent = ((diskUsed / disk.size) * 100).toFixed(1);
+    
+    const latencyStart = performance.now();
+    await reply("⏳ *Calculating System Info...*");
+    const latencyEnd = performance.now();
+    const ping = `${(latencyEnd - latencyStart).toFixed(2)} ms`;
+    
+    const uptime = runtime(process.uptime());
+    
+    const response = `
+╭──❖ 「 BOT STATUS 」 ❖──
+│
+🔸 *Ping*       : ${ping}
+🔸 *Uptime*     : ${uptime}
+│
+🔹 *RAM*        : ${formatSize(usedRam)} / ${formatSize(totalRam)} (${ramPercent}%)
+🔹 *Heap*       : ${formatSize(used.heapUsed)} / ${formatSize(used.heapTotal)}
+│
+🔸 *Disk*       : ${formatSize(diskUsed)} / ${formatSize(disk.size)} (${diskPercent}%)
+🔸 *Free Disk*  : ${formatSize(disk.free)}
+│
+🔹 *Platform*   : ${os.platform()}
+🔹 *Node*       : ${process.version}
+🔹 *CPU*        : ${os.cpus()[0].model.substring(0, 25)}...
+│
+╰────────────────────❖`;
 
-  const { download, upload } = await checkBandwidth();
-  const uptime = runtime(process.uptime());
-
-      const response = `
-      * BOT STATUS *
-
- *Ping:* ${ping}
- *Uptime:* ${uptime}
- *RAM Usage:* ${ramUsage}
- *Free RAM:* ${freeRam}
- *Disk Usage:* ${formatSize(disk.size - disk.free)} / ${formatSize(disk.size)}
- *Free Disk:* ${formatSize(disk.free)}
- *Platform:* ${os.platform()}
- *NodeJS Version:* ${process.version}
- *CPU Model:* ${os.cpus()[0].model}
- *Downloaded:* ${download}
- *Uploaded:* ${upload}
-`;
-  await conn.sendMessage(m.chat, { text: response.trim() }, { quoted: m });
-  
+    await conn.sendMessage(m.chat, { text: response.trim() }, { quoted: m });
+    break;
 }
 break
 case "getabout": {
