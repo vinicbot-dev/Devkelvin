@@ -91,14 +91,6 @@ const {
   shouldLogError } = require('../Jex')
   
 
-const { generateSettingsText, 
-getProfilePictureDescription,
-getOnlineDescription,
-getReadReceiptDescription,
-getGroupAddDescription,
-getLastSeenDescription
-} = require('./KelvinCmds/owner');
-
 const {  takeCommand, musicCommand, ytplayCommand, handleMediafireDownload,  InstagramCommand, telestickerCommand, playCommand } = require('./KelvinCmds/commands')
 
 const {
@@ -112,8 +104,6 @@ claudeAICommand
 } = require('./KelvinCmds/ai');
 const { KelvinVideo } = require('./KelvinCmds/video');
 const { dareCommand, truthCommand } = require('./KelvinCmds/fun');
-const { tiktokSearch } = require('./KelvinCmds/TikTok');
-const { playstoreSearch } = require('./KelvinCmds/playstore');
 const sports = require('./KelvinCmds/sport');
 const { handleAutoReact } = require('./KelvinCmds/autoreact');
 const { handleAutoRead } = require('./KelvinCmds/autoread');
@@ -5539,16 +5529,37 @@ if (!args[0]) return reply('*Please provide a TikTok video url!*');
 break 
 case 'tiktoksearch':
 case 'tts': {
-    const query = body.slice(command.length + 1).trim();
-    if (!query) return reply("*Provide TikTok username or search query*.");
+        if (!query) return reply("*Please provide a search term. Example: `.tiktoksearch keizzah4189*`");
     
-    await conn.sendMessage(m.chat, { 
-        text: `🔍 Searching TikTok for "${query}"...` 
-    }, { quoted: m });
-    
-    const result = await tiktokSearch(query);
-    await conn.sendMessage(m.chat, { text: result }, { quoted: m });
-    
+    try {
+      const response = await fetch(`${global.api}/search/tiktoksearch?query=${encodeURIComponent(query)}`);
+      const data = await response.json();
+      
+      if (!data.status || !data.result?.length) {
+        return reply(`❌ No TikTok videos found for "${query}"`);
+      }
+      
+      let message = `*TikTok Search Results for "${query}"*\n\n`;
+      message += `*📊 Found:* ${data.result.length} videos\n\n`;
+      
+      data.result.slice(0, 5).forEach((video, i) => {
+        message += `*${i + 1}. Video*\n`;
+        message += `👤 *Author:* ${video.author?.nickname || 'Unknown'}\n`;
+        message += `🌍 *Region:* ${video.region || 'N/A'}\n`;
+        message += `⏱️ *Duration:* ${video.duration || 0} seconds\n`;
+        if (video.title) message += `📝 *Title:* ${video.title.substring(0, 50)}${video.title.length > 50 ? '...' : ''}\n`;
+        message += `🎬 *Watch:* ${video.play}\n`;
+        if (video.music) message += `🎵 *Audio:* ${video.music}\n`;
+        message += `\n`;
+      });
+      
+      message += `\n_Showing top 5 results. Use .ttdl [video_url] to download._`;
+      
+      reply(message);
+    } catch (error) {
+      console.error('TikTok Search Error:', error);
+      reply("❌ Error searching TikTok. Try again later.");
+    }
 }
 break
 case "TikTokaudio": {
