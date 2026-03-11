@@ -125,15 +125,17 @@ async function generateMenu(conn, m, prefix, global) {
         header: {
             title: '🔥JEXPLOIT 🔮',
             content: [
-                `👤 ᴜsᴇʀ: ${await db.get(botNumber, 'ownername', 'Not set')}`,
-                `🤖 ʙᴏᴛɴᴀᴍᴇ:  ${global.botname}`,
-                `🌍 ᴍᴏᴅᴇ: ${conn.public ? 'ᴘᴜʟʙɪᴄ' : 'ᴘʀɪᴠᴀᴛᴇ'}`,
-                `🛠️ ᴘʀᴇғɪx: [ ${prefix} ]`,
-                `📈 ᴄᴍᴅs: 100+`,
-                `🧪 ᴠᴇʀsɪᴏɴ: ${global.versions}`,
-                `💾 𝚁𝙰𝙼: ${progressBar(systemUsedMemory, totalMemory)}\n`,
-                `👤 ᴅᴇᴠ: ☘ ᴋᴇʟᴠɪɴ ᴛᴇᴄʜ ☘`,
-            ],
+    `*ᴜsᴇʀ*: ${await db.get(botNumber, 'ownername', 'Not set')}`,
+    `*ʙᴏᴛ ɴᴀᴍᴇ*: ${global.botname}`,
+    `*ᴍᴏᴅᴇ*: ${conn.public ? 'ᴘᴜʙʟɪᴄ' : 'ᴘʀɪᴠᴀᴛᴇ'}`,
+    `*ʜᴏsᴛ*: ${os.platform()}`,
+    `*ᴘʀᴇғɪx*: [ ${prefix} ]`,
+    `*ᴄᴏᴍᴍᴀɴᴅs*: 100+`,
+    `*ᴠᴇʀsɪᴏɴ*: ${global.versions}`,
+    `*ʀᴀᴍ*: ${progressBar(systemUsedMemory, totalMemory)}`,
+    ``,
+    `*ᴅᴇᴠ*: ☘ ᴋᴇʟᴠɪɴ ᴛᴇᴄʜ ☘`,
+],
         },
         ai: {
             title: ' *AI MENU*',
@@ -278,18 +280,20 @@ async function generateMenu(conn, m, prefix, global) {
 
     // Original/default menu format
     const formatDefaultMenu = () => {
-        let menu = `╭──────⬡ 🤖 JEXPLOIT  ⬡────⭓\n`;
-        menu += menuSections.header.content.map(line => `├▢⬡  ${line}`).join('\n') + '\n';
-        menu += `╰────────────────────────⭓\n\n`;
+        let menu = `┏▦ *JEXPLOIT* ▦\n`;
+menu += menuSections.header.content.map(line => `┃ ${line}`).join('\n') + '\n';
+menu += `┗▦\n\n`;
 
-        // Use the current preset order
-        let sectionCount = 0;
-        for (const sectionKey of currentOrder) {
-            if (sectionKey !== 'header' && menuSections[sectionKey]) {
-                const section = menuSections[sectionKey];
-                menu += `┏▣◈ ${section.title.toUpperCase()} ◈ ▣\n`;
-menu += section.commands.map(cmd => `┃${cmd}`).join('\n') + '\n';
-menu += `┗━▣\n\n`;
+// Use the current preset order
+let sectionCount = 0;
+for (const sectionKey of currentOrder) {
+    if (sectionKey !== 'header' && menuSections[sectionKey]) {
+        const section = menuSections[sectionKey];
+        menu += `┏▣◈ ${section.title.toUpperCase()} ◈▣\n`;
+        menu += section.commands.map(cmd => `┃━⬣ ${cmd}`).join('\n') + '\n';
+        menu += `┗━▣\n\n`;
+    }
+}
 
                 sectionCount++;
                 if (sectionCount === 3) { 
