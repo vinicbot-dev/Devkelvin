@@ -155,7 +155,7 @@ async function generateMenu(conn, m, prefix, global) {
         },
         download: {
             title: ' *DOWNLOAD MENU* ',
-            commands: ['play', 'play2', 'song', 'song2', 'music', 'ytplay', 'gitclone', 'ringtone', 
+            commands: ['play', 'play2', 'play3', 'song', 'song2', 'music', 'ytplay', 'gitclone', 'ringtone', 
                       'download', 'pinterest', 'mediafire', 'itunes', 'ytmp4', 'ytstalk', 
                       'apk', 'gdrive', 'playdoc', 'tiktok', 'tiktok2', 'instagram', 
                       'video', 'tiktokaudio', 'savestatus', 'facebook'],
@@ -213,12 +213,12 @@ async function generateMenu(conn, m, prefix, global) {
             title: ' *OWNER MENU*',
             commands: [
                 'addowner', '𝙸𝚍𝚌𝚑', '𝙲𝚛𝚎𝚊𝚝𝚎𝚌𝚑', 'creategroup', 'del', 'setpp', 'delpp', 'private', 'public',
-                'lastseen', 'setprefix', 'togroupstatus', 'groupid', 'readreceipts', 'reportbug',
+                'lastseen', 'setprefix', 'groupid', 'readreceipts', 'reportbug',
                'groupjids', 'broadcast', 
                 'react', 'restart', 'currentmenu', 'addignorelist', 'delignorelist', 'deljunk', 'cleansession', 'settings', 'update',
                 'listblocked', 'listsudo', 'setprofilename', 'listignored', 'online', 'join', 
-                'leave', 'setbio', 'resetsettings', 'backup', 'reqeust', 'block',  'toviewonce', 
-                'setownername', 'setawesomemenu', 'resetawesomemenu', 'setbotname', 'unblock', 'unblockall', 'gcaddprivacy', 
+                'leave', 'setbio', 'resetsettings', 'reqeust', 'block',  'toviewonce', 
+                'setownername', 'setawesomemenu', 'resetawesomemenu', 'unblock', 'unblockall', 'gcaddprivacy', 
                 'ppprivancy', 'vv', 'vv2', 'idch', 'getpp', 'setmenu1', 'setmenu2', 'setmenu3', 'setmenu4', 'setmenu5', 'setmenu6'
             ],
         },
