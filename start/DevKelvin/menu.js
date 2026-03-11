@@ -278,37 +278,34 @@ async function generateMenu(conn, m, prefix, global) {
         }
     };
 
-    // Original/default menu format
-    const formatDefaultMenu = () => {
-        let menu = `┏▦ *JEXPLOIT* ▦\n`;
-menu += menuSections.header.content.map(line => `┃ ${line}`).join('\n') + '\n';
-menu += `┗▦\n\n`;
+   // Original/default menu format
+const formatDefaultMenu = () => {
+    let menu = `┏▦ *JEXPLOIT* ▦\n`;
+    menu += menuSections.header.content.map(line => `┃ ${line}`).join('\n') + '\n';
+    menu += `┗▦\n\n`;
 
-// Use the current preset order
-let sectionCount = 0;
-for (const sectionKey of currentOrder) {
-    if (sectionKey !== 'header' && menuSections[sectionKey]) {
-        const section = menuSections[sectionKey];
-        menu += `┏▣◈ ${section.title.toUpperCase()} ◈▣\n`;
-        menu += section.commands.map(cmd => `┃━⬣ ${cmd}`).join('\n') + '\n';
-        menu += `┗━▣\n\n`;
-    }
-}
-
-                sectionCount++;
-                if (sectionCount === 3) { 
-                    menu += `${readmore}\n\n`;
-                }
-                if (sectionCount === 8) { // After 8 sections  
-                    menu += `${readmore}\n\n`;
-                }
+    // Use the current preset order
+    let sectionCount = 0;
+    for (const sectionKey of currentOrder) {
+        if (sectionKey !== 'header' && menuSections[sectionKey]) {
+            const section = menuSections[sectionKey];
+            menu += `┏▣◈ ${section.title.toUpperCase()} ◈▣\n`;
+            menu += section.commands.map(cmd => `┃━⬣ ${cmd}`).join('\n') + '\n';
+            menu += `┗━▣\n\n`;
+            
+            sectionCount++;
+            if (sectionCount === 3) { 
+                menu += `${readmore}\n\n`;
+            }
+            if (sectionCount === 8) {
+                menu += `${readmore}\n\n`;
             }
         }
+    }
 
-        menu += `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴋᴇʟᴠɪɴ ᴛᴇᴄʜ `;
-        return menu;
-    };
-
+    menu += `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴋᴇʟᴠɪɴ ᴛᴇᴄʜ `;
+    return menu;
+};
     // Awesome menu format (new style)
     const formatAwesomeMenu = () => {
         let menu = `┌──✰ JEXPLOIT ✰──┐\n`;
