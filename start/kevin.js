@@ -4250,14 +4250,14 @@ case 'eplstandings':
   case 'playerinfo':
   case 'player':
     const playerQuery = args.join(' ');
-    await sports.searchPlayer(playerQuery, { reply });
+    await sports.searchPlayer(playerQuery, { reply, conn });
     break;
     
   case 'venuesearch':
   case 'stadium':
   case 'venue':
     const venueQuery = args.join(' ');
-    await sports.searchVenue(venueQuery, { reply });
+    await sports.searchVenue(venueQuery, { reply, conn });
     break;
 
   // ===== LIVE SCORES =====
