@@ -4247,20 +4247,16 @@ case 'eplstandings':
     break;
     
   case 'playersearch':
-  case 'playerinfo':
-  case 'player':
-    const playerQuery = args.join(' ');
-    await sports.searchPlayer(playerQuery, { reply, conn });
-    break;
-    
-  case 'venuesearch':
-  case 'stadium':
-  case 'venue':
-    const venueQuery = args.join(' ');
-    await sports.searchVenue(venueQuery, { reply, conn });
+case 'player':
+    const query = args.join(' ');
+    await sports.searchPlayer(query, { reply, conn, m }); 
     break;
 
-  // ===== LIVE SCORES =====
+case 'venuesearch':
+case 'venue':
+    const venueQuery = args.join(' ');
+    await sports.searchVenue(venueQuery, { reply, conn, m }); 
+    break;
   case 'livescores':
   case 'livescore':
   case 'live':
