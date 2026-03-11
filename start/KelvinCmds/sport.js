@@ -251,11 +251,11 @@ async function searchTeam(query, { reply }) {
 }
 
 // Player Search
-async function searchPlayer(query, { reply }) {
+async function searchPlayer(query, { reply, conn, m }) {
   try {
-    if (!query) return reply("❌ Please provide a player name. Example: `.playersearch Bukayo Saka`");
+    if (!query) return reply("*Please provide a player name. Example: `.playersearch Bukayo Saka*`");
     
-    const response = await fetch(`${global.api}/sport/playersearch?q=${encodeURIComponent(query)}`);
+    const response = await fetch(`${BASE_API}/sport/playersearch?q=${encodeURIComponent(query)}`);
     const data = await response.json();
     
     if (!data.status || !data.result || data.result.length === 0) {
@@ -271,23 +271,28 @@ async function searchPlayer(query, { reply }) {
     message += `*⚽ Position:* ${player.position || 'N/A'}\n`;
     message += `*📊 Status:* ${player.status || 'N/A'}\n\n`;
     
+    // Send message first
+    await reply(message);
+    
+    // Send photo if available
     if (player.thumbnail) {
-      message += `*🖼️ Photo:* ${player.thumbnail}\n`;
+      await conn.sendMessage(m.chat, {
+        image: { url: player.thumbnail },
+        caption: `🖼️ ${player.name}`
+      }, { quoted: m });
     }
     
-    reply(message);
   } catch (error) {
     console.error('Error searching player:', error);
     reply("❌ Error searching for player.");
   }
 }
 
-// Venue Search
-async function searchVenue(query, { reply }) {
+async function searchVenue(query, { reply, conn, m }) {
   try {
     if (!query) return reply("❌ Please provide a venue name. Example: `.venuesearch Emirates`");
     
-    const response = await fetch(`${global.api}/sport/venuesearch?q=${encodeURIComponent(query)}`);
+    const response = await fetch(`${BASE_API}/sport/venuesearch?q=${encodeURIComponent(query)}`);
     const data = await response.json();
     
     if (!data.status || !data.result || data.result.length === 0) {
@@ -306,11 +311,17 @@ async function searchVenue(query, { reply }) {
       message += `*📝 Description:*\n${shortDesc}\n\n`;
     }
     
+    // Send message first
+    await reply(message);
+    
+    // Send image if available
     if (venue.media?.thumb) {
-      message += `*🖼️ Image:* ${venue.media.thumb}\n`;
+      await conn.sendMessage(m.chat, {
+        image: { url: venue.media.thumb },
+        caption: `🏟️ ${venue.name}`
+      }, { quoted: m });
     }
     
-    reply(message);
   } catch (error) {
     console.error('Error searching venue:', error);
     reply("❌ Error searching for venue.");
