@@ -255,7 +255,7 @@ async function searchPlayer(query, { reply, conn, m }) {
   try {
     if (!query) return reply("*Please provide a player name. Example: `.playersearch Bukayo Saka*`");
     
-    const response = await fetch(`${BASE_API}/sport/playersearch?q=${encodeURIComponent(query)}`);
+    const response = await fetch(`${global.api}/sport/playersearch?q=${encodeURIComponent(query)}`);
     const data = await response.json();
     
     if (!data.status || !data.result || data.result.length === 0) {
@@ -292,7 +292,7 @@ async function searchVenue(query, { reply, conn, m }) {
   try {
     if (!query) return reply("❌ Please provide a venue name. Example: `.venuesearch Emirates`");
     
-    const response = await fetch(`${BASE_API}/sport/venuesearch?q=${encodeURIComponent(query)}`);
+    const response = await fetch(`${global.api}/sport/venuesearch?q=${encodeURIComponent(query)}`);
     const data = await response.json();
     
     if (!data.status || !data.result || data.result.length === 0) {
