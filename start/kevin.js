@@ -3283,6 +3283,63 @@ case "gsmarena": {
     }
 }
 break
+case "countryinfo": {
+const country = args.join(' ');
+    
+    if (!country) return reply("*Please provide a country name. Example: `.countryinfo Uganda*`");
+    
+    try {
+      const response = await fetch(`${global.mess.siputzx}/api/tools/countryInfo?name=${encodeURIComponent(country)}`);
+      const data = await response.json();
+      
+      if (!data.status || !data.data) {
+        return reply(`No information found for "${country}"`);
+      }
+      
+      const info = data.data;
+      
+      let message = `*Country Information: ${info.name}*\n\n`;
+      message += `Capital: ${info.capital || 'N/A'}\n`;
+      message += `Phone Code: ${info.phoneCode || 'N/A'}\n`;
+      message += `Continent: ${info.continent?.name || 'N/A'}\n`;
+      message += `Coordinates: ${info.coordinates?.latitude || 'N/A'}, ${info.coordinates?.longitude || 'N/A'}\n`;
+      message += `Area: ${info.area?.squareKilometers?.toLocaleString() || 'N/A'} km²\n`;
+      message += `Landlocked: ${info.landlocked ? 'Yes' : 'No'}\n`;
+      message += `Famous For: ${info.famousFor || 'N/A'}\n`;
+      message += `Government: ${info.constitutionalForm || 'N/A'}\n`;
+      message += `Currency: ${info.currency || 'N/A'}\n`;
+      message += `Driving Side: ${info.drivingSide || 'N/A'}\n`;
+      message += `Internet TLD: ${info.internetTLD || 'N/A'}\n`;
+      message += `ISO Code: ${info.isoCode?.alpha2?.toUpperCase() || 'N/A'}\n\n`;
+      
+      if (info.languages) {
+        message += `Languages:\n`;
+        if (info.languages.native?.length) message += `  Native: ${info.languages.native.join(', ')}\n`;
+        if (info.languages.codes?.length) message += `  Codes: ${info.languages.codes.join(', ')}\n`;
+      }
+      
+      if (info.neighbors?.length) {
+        message += `\nNeighboring Countries:\n`;
+        info.neighbors.slice(0, 3).forEach(neighbor => {
+          message += `  • ${neighbor.name}\n`;
+        });
+      }
+      
+      if (info.flag) {
+        await conn.sendMessage(m.chat, {
+          image: { url: info.flag },
+          caption: message
+        }, { quoted: m });
+      } else {
+        reply(message);
+      }
+      
+    } catch (error) {
+      console.error('Country info error:', error);
+      reply("Error fetching country information.");
+    }
+}
+break
 case "time": {
     try {
         let countryName = text.trim();
@@ -3694,27 +3751,6 @@ case "summerbeach": {
       );
     } catch (error) {
       console.error("Error in summerbeach command:", error);
-      reply("*An error occurred while generating the effect.*");
-    }
-}
-break
-case "topography": {
-    let q = args.join(" ");
-    if (!q) {
-      return reply(`*Example: ${prefix}topography Tylor*`);
-    }
-
-    const link = "https://en.ephoto360.com/create-typography-text-effect-on-pavement-online-774.html";
-
-    try {
-      let result = await ephoto(link, q);
-      await conn.sendMessage(
-        m.chat,
-        { image: { url: result }, caption: `> ${global.wm}` },
-        { quoted: m }
-      );
-    } catch (error) {
-      console.error("Error in topography command:", error);
       reply("*An error occurred while generating the effect.*");
     }
 }
@@ -6426,12 +6462,6 @@ case 'llama': {
     const response = await fetch(`https://api.privatezia.biz.id/api/ai/deepai?query=${encodeURIComponent(q)}`);
     const data = await response.json();
     
-    // Based on your example response structure:
-    // {
-    //   "status": true,
-    //   "creator": "@ZiaUlhaq",
-    //   "data": "**Introduction to JavaScript**\n\nJavaScript is a high-level..."
-    // }
     
     if (data.status) {
       // Check if data.data exists and is not empty
@@ -6459,13 +6489,6 @@ case 'blackbox': {
     const response = await fetch(`https://api.privatezia.biz.id/api/ai/blackbox?query=${encodeURIComponent(q)}`);
     const data = await response.json();
     
-    // Based on your example response structure:
-    // {
-    //   "status": true,
-    //   "creator": "@ZiaUlhaq",
-    //   "data": "**Introduction to JavaScript**\n\nJavaScript is a high-level..."
-    // }
-    
     if (data.status) {
       // Check if data.data exists and is not empty
       if (data.data) {
@@ -6490,13 +6513,6 @@ case 'dalle': {
   try {
     const response = await fetch(`https://api.privatezia.biz.id/api/ai/luminai?query=${encodeURIComponent(q)}`);
     const data = await response.json();
-    
-    // Based on your example response structure:
-    // {
-    //   "status": true,
-    //   "creator": "@ZiaUlhaq",
-    //   "data": "**Introduction to JavaScript**\n\nJavaScript is a high-level..."
-    // }
     
     if (data.status) {
       // Check if data.data exists and is not empty
@@ -6523,13 +6539,6 @@ case 'summarize': {
     const response = await fetch(`https://api.privatezia.biz.id/api/ai/ai4chat?query=${encodeURIComponent(q)}`);
     const data = await response.json();
     
-    // Based on your example response structure:
-    // {
-    //   "status": true,
-    //   "creator": "@ZiaUlhaq",
-    //   "data": "**Introduction to JavaScript**\n\nJavaScript is a high-level..."
-    // }
-    
     if (data.status) {
       // Check if data.data exists and is not empty
       if (data.data) {
@@ -6547,6 +6556,73 @@ case 'summarize': {
   }
   
 }
+break
+case 'gemini':
+case 'geminai':
+case 'gem':
+    if (!text) return reply("*Please provide a question. Example: `.gemini Explain quantum physics*`");
+    
+    try {
+        await reply("🤔 Thinking...");
+        
+        const response = await fetch(`${global.mess.siputzx}/api/ai/gemini?text=${encodeURIComponent(text)}&promptSystem=Act+as+a+helpful+assistant`);
+        const data = await response.json();
+        
+        if (!data.status || !data.data?.response) {
+            return reply("❌ Failed to get response from Gemini.");
+        }
+        
+        reply(data.data.response);
+        
+    } catch (error) {
+        console.error('Gemini error:', error);
+        reply("❌ Error communicating with Gemini AI.");
+    }
+    break;
+case 'glm':
+case 'glm47':
+case 'glmflash':
+    if (!text) return reply("*Please provide a question. Example: `.glm Introduction to JavaScript*`");
+    
+    try {
+        await reply("🤔 Thinking...");
+        
+        const response = await fetch(`${global.mess.siputzx}/api/ai/glm47flash?prompt=${encodeURIComponent(text)}&system=You+are+a+helpful+assistant&temperature=0.7`);
+        const data = await response.json();
+        
+        if (!data.status || !data.data?.response) {
+            return reply("*Failed to get response from GLM.*");
+        }
+        
+        reply(data.data.response);
+        
+    } catch (error) {
+        console.error('GLM error:', error);
+        reply("*Error communicating with GLM AI*.");
+    }
+    break;
+case 'phi2':
+case 'phiai':
+case 'phi':
+    if (!text) return reply("*Please provide a question. Example: `.phi2 How are you*`");
+    
+    try {
+        await reply("🤔 Thinking...");
+        
+        const response = await fetch(`${global.mess.siputzx}/api/ai/phi2?prompt=${encodeURIComponent(text)}&system=You+are+a+helpful+assistant&temperature=0.7`);
+        const data = await response.json();
+        
+        if (!data.status || !data.data?.response) {
+            return reply("*Failed to get response from PHI2*.");
+        }
+        
+        reply(data.data.response);
+        
+    } catch (error) {
+        console.error('PHI2 error:', error);
+        reply("*Error communicating with PHI2 AI*.");
+    }
+ 
 break
 case 'venice':
 case 'vai': {
@@ -8141,6 +8217,53 @@ if (!text) {
                 reply('❌ Translation failed. Try again.');
             }
         }
+}
+break
+case "tr2":
+case "tl2": 
+case "translate2": {
+const text = args.join(' ');
+    
+    if (!text) return reply("*Please provide text to translate. Example: `.translate2 en:id I love you*`");
+    
+    try {
+      // Parse format: source:target text
+      let sourceLang = 'en';
+      let targetLang = 'id';
+      let translateText = text;
+      
+      const match = text.match(/^([a-z]{2}):([a-z]{2})\s+(.+)/i);
+      if (match) {
+        sourceLang = match[1].toLowerCase();
+        targetLang = match[2].toLowerCase();
+        translateText = match[3];
+      }
+      
+      const url = `${global.mess.siputzx}/api/tools/translate?text=${encodeURIComponent(translateText)}&source=${sourceLang}&target=${targetLang}`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (!data.status || !data.data?.translatedText) {
+        return reply(`Translation failed.`);
+      }
+      
+      const result = `
+ *Translation*
+
+ *Original:* ${translateText}
+ *Translated:* ${data.data.translatedText}
+ *${sourceLang} → ${targetLang}*
+
+> ${global.wm || ''}
+      `;
+      
+      reply(result);
+      
+    } catch (error) {
+      console.error('Translate error:', error);
+      reply("❌ Error translating text.");
+    }
 }
 break
 case 'tovideo': {
