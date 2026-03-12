@@ -440,6 +440,67 @@ function buildLiveMatchesSection(liveMatches) {
   return section;
 }
 
+// Head to Head Function
+async function getHeadToHead(team1, team2, { reply }) {
+  try {
+    const query = `${team1} vs ${team2}`;
+    const response = await fetch(`${global.api}/sport/gameevents?q=${encodeURIComponent(query)}`);
+    const data = await response.json();
+    
+    if (!data.status || !data.result || data.result.length === 0) {
+      return reply(`❌ No head-to-head matches found between ${team1} and ${team2}`);
+    }
+    
+    const matches = data.result;
+    let message = `*⚽ Head-to-Head: ${team1} vs ${team2} ⚽*\n\n`;
+    message += `*📊 Total Meetings:* ${matches.length}\n\n`;
+
+    // Calculate statistics
+    let team1Wins = 0, team2Wins = 0, draws = 0;
+    let team1Goals = 0, team2Goals = 0;
+
+    matches.forEach(match => {
+      const homeScore = match.teams?.home?.score || 0;
+      const awayScore = match.teams?.away?.score || 0;
+      
+      const homeTeam = match.teams?.home?.name?.toLowerCase() || '';
+      const awayTeam = match.teams?.away?.name?.toLowerCase() || '';
+      
+      if (homeTeam.includes(team1.toLowerCase()) || awayTeam.includes(team2.toLowerCase())) {
+        if (homeScore > awayScore) team1Wins++;
+        else if (awayScore > homeScore) team2Wins++;
+        else draws++;
+        team1Goals += homeScore;
+        team2Goals += awayScore;
+      } else {
+        if (awayScore > homeScore) team1Wins++;
+        else if (homeScore > awayScore) team2Wins++;
+        else draws++;
+        team1Goals += awayScore;
+        team2Goals += homeScore;
+      }
+    });
+
+    message += `*📈 Statistics:*\n`;
+    message += `   🏠 ${team1}: ${team1Wins} wins\n`;
+    message += `   🚌 ${team2}: ${team2Wins} wins\n`;
+    message += `   ⚖️ Draws: ${draws}\n`;
+    message += `   ⚽ Goals: ${team1Goals} - ${team2Goals}\n\n`;
+    
+    // Recent matches
+    message += `*📅 Recent Encounters:*\n\n`;
+    matches.slice(0, 5).forEach((match, index) => {
+      message += `${index + 1}. ${match.match}\n`;
+      message += `   📊 ${match.teams?.home?.score || 0} - ${match.teams?.away?.score || 0}\n`;
+    });
+
+    reply(message);
+  } catch (error) {
+    console.error('Error fetching head-to-head:', error);
+    reply("❌ Error fetching head-to-head data.");
+  }
+}
+
 function buildFinishedMatchesSection(finishedMatches) {
   if (!finishedMatches.length) return null;
 
