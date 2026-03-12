@@ -27,7 +27,6 @@ const chalk = require('chalk');
 const NodeCache = require("node-cache");
 const util = require('util');
 const axios = require('axios');
-const moment = require('moment-timezone');
 const FileType = require('file-type');
 const { Boom } = require('@hapi/boom');
 const { File } = require('megajs');
@@ -35,6 +34,8 @@ const port = process.env.PORT || 3000;
 const express = require('express')
 const app = express();
 const { color } = require('./start/lib/color');
+const timezones = global.timezones || "Africa/Kampala";
+const moment = require('moment-timezone');
 
 const {
   smsg,
