@@ -5442,6 +5442,41 @@ case 'facebook': {
         }
 }
 break
+case 'capcut':
+case 'cc':
+case 'capcutdl':
+    if (!text) return reply("*Please provide a CapCut template URL.*`");
+    
+    try {
+        await reply("📥 Downloading CapCut template...");
+        
+        const response = await fetch(`${global.mess.siputzx}/api/d/capcut?url=${encodeURIComponent(text)}`);
+        const data = await response.json();
+        
+        if (!data.status || !data.data || !data.data.originalVideoUrl) {
+            return reply("*Failed to download CapCut template. Check the URL*.");
+        }
+        
+        const { title, originalVideoUrl, authorName } = data.data;
+        
+        await conn.sendMessage(m.chat, {
+            video: { url: originalVideoUrl },
+            caption: `📹 *CapCut Template*\n📝 ${title || 'No title'}\n👤 By: ${authorName || 'Unknown'}\n\n> ${global.wm || ''}`
+        }, { quoted: m });
+        
+        await conn.sendMessage(m.chat, { 
+            react: { text: "✅", key: m.key } 
+        });
+        
+    } catch (error) {
+        console.error('CapCut download error:', error);
+        reply("*Error downloading CapCut template. Try again later.*");
+        await conn.sendMessage(m.chat, { 
+            react: { text: "❌", key: m.key } 
+        });
+  }
+  
+break
 case 'twitter':
 case 'x': {
     if (!text) return reply(`*Please provide Twitter link or url!*`);
@@ -8742,6 +8777,30 @@ const truths = [
      );
         
 }
+break
+case 'guesscartoon':
+case 'cartoonquiz':
+case 'guesscharacter':
+    try {
+        await m.reply("🎮 Fetching a cartoon character...");
+        
+        const response = await fetch(`${global.siputzx}/api/games/tebakkartun`);
+        const data = await response.json();
+        
+        if (!data.status || !data.data) {
+            return m.reply("*Failed to fetch cartoon character.*");
+        }
+        
+        await conn.sendMessage(m.chat, {
+            image: { url: data.data.img },
+            caption: `🎪 *GUESS THE CARTOON CHARACTER!*\n\nCan you name this character?\n\nReply with your answer!`
+        }, { quoted: m });
+        
+    } catch (error) {
+        console.error('Game error:', error);
+        m.reply("❌ Error fetching cartoon game.");
+    }
+  
 break
 case "compatibility":
 case "comp": {
