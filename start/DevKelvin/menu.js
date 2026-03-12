@@ -189,7 +189,7 @@ async function generateMenu(conn, m, prefix, global) {
                 '𝖧𝗂𝖽𝖾𝗍𝖺𝗀', '𝖪𝗂𝖼𝗄', 'r𝖾𝗌𝖾𝗍𝗅𝗂𝗇𝗄', 'linkgc', 'checkchan', 'antilink', 'antitag', 'antitagadmin', 'antibadword', 'antisticker',  'allowlink', 'antipromote', 'antidemote',
                 'listonline', 'add',  'listactive', 'listinactive', 'close', 'open', 'kick', 'kickinactive', 
                  'cancelkick', 'kickall', 'closetime', 'disp24hours', 'disp90days', 'dispoff', 'setgrouppp',
-                 'opentime', 'poll', 'antidemote', 'antipromote', 'totalmembers', 
+                 'opentime', 'poll', 'totalmembers', 
                 'mediatag', 'getgrouppp',  'tagall', 'tagall2', 'groupinfo', 'userjid', 'unlockgcsettings', 'lockgcsettings',
                 'tagadmin', 'setgroupname', 'delgrouppp', 'invite', 'editinfo', 'approve', 'togstatus', 
                 'disapproveall', 'listrequest', 'promote', 'demote', 'userjid', 'setdesc', 'vcf'
