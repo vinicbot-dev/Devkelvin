@@ -782,7 +782,7 @@ async function handleAntiTagAdmin(conn, m) {
         const sender = m.sender;
         const message = m.message;
         
-        // Get antitag admin settings - NO ALLOWLIST
+        // Get antitag admin settings
         const isEnabled = await db.getGroupSetting(botNumber, chatId, 'antitagadmin', false);
         const action = await db.getGroupSetting(botNumber, chatId, 'antitagadminaction', 'warn');
         
@@ -797,7 +797,7 @@ async function handleAntiTagAdmin(conn, m) {
         const groupMetadata = await conn.groupMetadata(chatId);
         const admins = groupMetadata.participants.filter(p => p.admin).map(p => p.id);
         
-        // Check if message contains @admin or tags admin
+        // Extract message text
         const messageText = extractMessageText(message);
         const mentionedUsers = m.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
         
@@ -821,10 +821,8 @@ async function handleAntiTagAdmin(conn, m) {
             // Handle based on action setting
             switch(action) {
                 case 'warn': {
-                    // Initialize warnings map if not exists
                     if (!global.adminTagWarnings) global.adminTagWarnings = new Map();
                     
-                    // Get or create user warnings for this specific group
                     const warningKey = `${chatId}:${sender}`;
                     const userWarnings = global.adminTagWarnings.get(warningKey) || { count: 0, lastWarning: 0 };
                     
@@ -834,7 +832,6 @@ async function handleAntiTagAdmin(conn, m) {
                     
                     let responseMessage = `⚠️ @${sender.split('@')[0]}, tagging admins is NOT allowed!\nWarning: *${userWarnings.count}/3*`;
                     
-                    // Auto-kick after 3 warnings
                     if (userWarnings.count >= 3) {
                         try {
                             await conn.groupParticipantsUpdate(chatId, [sender], "remove");
@@ -880,7 +877,6 @@ async function handleAntiTagAdmin(conn, m) {
         console.error('Anti-tag admin error:', error);
     }
 }
-
 
 /**
  * ANTIDEMOTE COMMAND
@@ -1289,7 +1285,6 @@ async function handleAntisticker(conn, m, botNumber) {
 
 module.exports = {
   fetchMp3DownloadUrl,
-  fetchVideoDownloadUrl,
   fetchJson,
   acr,
   handleAntiEdit,
