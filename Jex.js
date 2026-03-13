@@ -111,70 +111,77 @@ function getServerUptime() {
 
 // Function to fetch MP3 download URL
 async function fetchMp3DownloadUrl(link) {
-  const fetchDownloadUrl1 = async (videoUrl) => {
-    const apiUrl = `https://veron-apis.zone.id/downloader/youtube?url=${encodeURIComponent(videoUrl)}`;
-    try {
-      const response = await axios.get(apiUrl);
-
-      if (!response.data || !response.data.result) {
-        throw new Error('Failed to fetch from kayiza api');
-      }
-
-      return response.data.result.mp3 
-          || response.data.result.download 
-          || response.data.result.url;
-
-    } catch (error) {
-      console.error('Error with Veron API:', error.message);
-      throw error;
-    }
-  };
-  const fetchDownloadUrl2 = async (videoUrl) => {
-    const apiUrl = `https://meta-api.zone.id/downloader/youtube?url=${encodeURIComponent(videoUrl)}&format=mp3`;
-    try {
-      const response = await axios.get(apiUrl);
-
-      if (!response.data || !response.data.result) {
-        throw new Error('Failed to fetch from kayiza apis');
-      }
-
-      return response.data.result.mp3 
-          || response.data.result.download 
-          || response.data.result.url;
-
-    } catch (error) {
-      console.error('Error with Meta API:', error.message);
-      throw error;
-    }
-  };
-
-  // MAIN HANDLER
-  try {
-    let downloadUrl;
-    try {
-      downloadUrl = await fetchDownloadUrl1(link);
-    } catch (error) {
-      console.log('Falling back to Meta API...');
-      downloadUrl = await fetchDownloadUrl2(link);
-    }
-    return downloadUrl;
-  } catch (error) {
-    throw error;
-  }
-}
-
-async function fetchVideoDownloadUrl(link) {
-  const apiUrl = `https://api.giftedtech.my.id/api/download/dlmp4?apikey=${dlkey}&url=${encodeURIComponent(link)}`;
   
-  try {
-    const response = await axios.get(apiUrl);
-    if (response.status !== 200 || !response.data.success) {
-      throw new Error('Failed to retrieve the video!');
+  // XWOLF API (primary)
+  const fetchFromXWolf = async (videoUrl) => {
+    try {
+      // Extract video ID from URL
+      let videoId = '';
+      const idMatch = videoUrl.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
+      videoId = idMatch ? idMatch[1] : '';
+      
+      if (!videoId) {
+        throw new Error('Could not extract video ID');
+      }
+      
+      // Try XWolf API
+      const wolfUrl = `https://apis.xwolf.space/download/mp3?url=${encodeURIComponent(videoUrl)}`;
+      const response = await axios.get(wolfUrl, { timeout: 15000 });
+      
+      if (response.data && response.data.success) {
+        if (response.data.downloadUrl) {
+          console.log('✅ XWolf API successful (downloadUrl)');
+          return response.data.downloadUrl;
+        } else if (response.data.streamUrl) {
+          console.log('✅ XWolf API successful (streamUrl)');
+          return response.data.streamUrl;
+        }
+      }
+      
+      throw new Error('XWolf API returned invalid response');
+    } catch (error) {
+      console.error('Error with XWolf API:', error.message);
+      throw error;
     }
-    return response.data.result;
-  } catch (error) {
-    console.error('Error fetching video download URL:', error.message);
-    throw error;
+  };
+  
+  // KEITH API (fallback)
+  const fetchFromKeith = async (videoUrl) => {
+    try {
+      const apiUrl = `https://apiskeith.top/download/audio?url=${encodeURIComponent(videoUrl)}`;
+      const response = await axios.get(apiUrl, { timeout: 15000 });
+      
+      if (response.status !== 200 || !response.data?.status) {
+        throw new Error('Failed to fetch from Keith API');
+      }
+      
+      if (response.data.result) {
+        console.log('✅ Keith API successful');
+        return response.data.result;
+      }
+      
+      throw new Error('Keith API returned invalid response');
+    } catch (error) {
+      console.error('Error with Keith API:', error.message);
+      throw error;
+    }
+  };
+ 
+  // Try XWolf first, then Keith as fallback
+  try {
+    console.log('🎵 Trying XWolf API...');
+    const downloadUrl = await fetchFromXWolf(link);
+    return downloadUrl;
+  } catch (xwolfError) {
+    console.log('⚠️ XWolf failed, trying Keith API...');
+    
+    try {
+      const keithDownloadUrl = await fetchFromKeith(link);
+      return keithDownloadUrl;
+    } catch (keithError) {
+      console.error('❌ Both APIs failed');
+      throw new Error('Unable to download audio. Please try again later.');
+    }
   }
 }
 
