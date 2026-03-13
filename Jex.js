@@ -467,116 +467,68 @@ ${readmore}
         console.error("❌ Error processing edited message:", err);
     }
 }
-// Function to handle status updates
-async function handleStatusUpdate(conn, status) {
+async function reactToStatus(conn, mek) {
     try {
-        // Check if this is a status update
-        let msgKey = null;
-        let isStatus = false;
-        
-        // Handle different status update formats
-        if (status.messages && status.messages.length > 0) {
-            const msg = status.messages[0];
-            if (msg.key && msg.key.remoteJid === 'status@broadcast') {
-                // Check if this is from the bot itself - IGNORE!
-                if (msg.key.fromMe) {
-                    return; // Don't process bot's own status reactions
-                }
-                msgKey = msg.key;
-                isStatus = true;
-            }
-        } else if (status.key && status.key.remoteJid === 'status@broadcast') {
-            // Check if this is from the bot itself - IGNORE!
-            if (status.key.fromMe) {
-                return; // Don't process bot's own status reactions
-            }
-            msgKey = status.key;
-            isStatus = true;
-        } else if (status.reaction && status.reaction.key && status.reaction.key.remoteJid === 'status@broadcast') {
-            // Check if this is from the bot itself - IGNORE!
-            if (status.reaction.key.fromMe) {
-                return; // Don't process bot's own status reactions
-            }
-            msgKey = status.reaction.key;
-            isStatus = true;
-        }
-        
-        if (!isStatus || !msgKey) return;
-        
-        // Get bot number
         const botNumber = await conn.decodeJid(conn.user.id);
-        
-        // Get settings from database
-        const autoviewstatus = await db.get(botNumber, 'autoviewstatus', false);
         const autoreactstatus = await db.get(botNumber, 'autoreactstatus', false);
         const statusemoji = await db.get(botNumber, 'statusemoji', '💚');
         
-        // If both are disabled, return
-        if (!autoviewstatus && !autoreactstatus) return;
-        
-        console.log(`📱 Status update detected - View: ${autoviewstatus}, React: ${autoreactstatus}`);
-        
-        // Add small delay to prevent rate limiting
-        await sleep(2000);
-        
-        // View the status first (always view if either is enabled)
-        if (autoviewstatus || autoreactstatus) {
-            try {
-                await conn.readMessages([msgKey]);
-                console.log('✅ Status viewed');
-            } catch (viewError) {
-                console.log('⚠️ Error viewing status:', viewError.message);
+        if (!autoreactstatus) return;
+
+        let realJid = mek.key.participant || mek.key.remoteJid;
+        if (realJid.endsWith('@lid')) {
+            const rawPn = mek.key?.participantPn || mek.key?.senderPn;
+            if (rawPn) {
+                realJid = rawPn.includes('@') ? rawPn : `${rawPn}@s.whatsapp.net`;
+            } else {
+                try {
+                    const resolved = await conn.getJidFromLid(realJid);
+                    if (resolved) realJid = resolved;
+                } catch {}
             }
         }
-        
-        // React to status if enabled
-        if (autoreactstatus) {
-            try {
-                // Add another small delay before reacting
-                await sleep(1500);
-                
-                // Determine emoji to use
-                let emoji = statusemoji;
-                
-                // If emoji is still the default '💚' or not set, use random
-                if (emoji === '💚' || !emoji) {
-                    const emojis = ['❤️','😂','😮','😢','🔥','👏','🎉','🤔','👍','👎','😍','🤯','😡','🥰','😎','🤩','🥳','😭','🙏','💯'];
-                    emoji = emojis[Math.floor(Math.random() * emojis.length)];
-                }
-                
-                await conn.sendMessage(msgKey.remoteJid, { 
-                    react: { 
-                        text: emoji, 
-                        key: msgKey 
-                    } 
-                });
-                console.log(`✅ Status reacted with ${emoji}`);
-                
-            } catch (reactError) {
-                if (reactError.message?.includes('rate-overlimit')) {
-                    console.log('⚠️ Rate limited, waiting before retry...');
-                    await sleep(5000);
-                    try {
-                        let emoji = statusemoji;
-                        if (emoji === '💚' || !emoji) {
-                            const emojis = ['❤️','😂','😮','😢','🔥','👏','🎉','🤔','👍','👎','😍','🤯','😡','🥰','😎','🤩','🥳','😭','🙏','💯'];
-                            emoji = emojis[Math.floor(Math.random() * emojis.length)];
-                        }
-                        await conn.sendMessage(msgKey.remoteJid, { 
-                            react: { text: emoji, key: msgKey } 
-                        });
-                        console.log('✅ Status reacted on retry');
-                    } catch (retryError) {
-                        console.log('❌ Still rate limited, skipping this status');
-                    }
-                } else {
-                    console.log('❌ Error reacting to status:', reactError.message);
-                }
-            }
+
+        // Use custom emoji from DB or fallback to random
+        let emoji = statusemoji;
+        if (emoji === '💚' || !emoji) {
+            const emojis = ['💚', '❤️', '🔥', '✨', '💯', '🙌', '🌟'];
+            emoji = emojis[Math.floor(Math.random() * emojis.length)];
         }
+
+        await conn.sendMessage(
+            'status@broadcast',
+            { react: { key: { ...mek.key, participant: realJid }, text: emoji } },
+            { statusJidList: [realJid, conn.user.id] }
+        );
         
     } catch (error) {
-        console.error('❌ Error in handleStatusUpdate:', error.message);
+        console.error('Status Reaction Error:', error.message);
+    }
+}
+
+async function handleStatusUpdate(conn, chatUpdate) {
+    try {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        const autoviewstatus = await db.get(botNumber, 'autoviewstatus', false);
+        const autoreactstatus = await db.get(botNumber, 'autoreactstatus', false);
+        
+        if (!autoviewstatus && !autoreactstatus) return;
+
+        const mek = chatUpdate.messages ? chatUpdate.messages[0] : chatUpdate;
+        if (!mek.key || mek.key.remoteJid !== 'status@broadcast' || mek.key.fromMe) return;
+
+        await new Promise(res => setTimeout(res, 2000));
+
+        await conn.readMessages([mek.key]);
+        
+        if (autoreactstatus) {
+            await reactToStatus(conn, mek);
+        }
+
+    } catch (error) {
+        if (!error.message.includes('rate-overlimit')) {
+            console.error('Status View Error:', error.message);
+        }
     }
 }
 
