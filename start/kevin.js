@@ -8784,7 +8784,7 @@ case 'guesscharacter':
     try {
         await m.reply("🎮 Fetching a cartoon character...");
         
-        const response = await fetch(`${global.siputzx}/api/games/tebakkartun`);
+        const response = await fetch(`${global.mess.siputzx}/api/games/tebakkartun`);
         const data = await response.json();
         
         if (!data.status || !data.data) {
