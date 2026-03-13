@@ -381,7 +381,7 @@ function buildLiveMatchesSection(liveMatches) {
 async function getHeadToHead(team1, team2, { reply }) {
   try {
     const query = `${team1} vs ${team2}`;
-    const response = await fetch(`${global api}/sport/gameevents?q=${encodeURIComponent(query)}`);
+    const response = await fetch(`${global.api}/sport/gameevents?q=${encodeURIComponent(query)}`);
     const data = await response.json();
     
     if (!data.status || !data.result || data.result.length === 0) {
