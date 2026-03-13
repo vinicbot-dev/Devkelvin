@@ -66,7 +66,6 @@ const {
 const { Remini } =require('./lib/remini')
 const {
  fetchMp3DownloadUrl,
-  fetchVideoDownloadUrl,
   saveStatusMessage,
   acr,
   handleAntiEdit,
