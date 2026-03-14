@@ -175,7 +175,7 @@ async function generateMenu(conn, m, prefix, global) {
             title: ' *SETTING MENU*',
             commands: ['antidelete', 'anticall', 'autorecording', 'autotyping', 'alwaysonline',
                       'welcome', 'chatbot', 'autoread', 'adminevent', 'autoviewstatus', 
-                      'autoreactstatus', 'antiedit'],
+                      'autoreactstatus', 'setstatusemoji', 'antiedit'],
         },
         fun: {
             title: ' *FUN MENU* ',
