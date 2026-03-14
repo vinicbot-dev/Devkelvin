@@ -285,7 +285,7 @@ function extractMessageText(message) {
 
 
 
-// ========== MESSAGE STORAGE FOR ANTI-DELETE ==========
+// message store for antidelete 
 function loadStoredMessages() {
     try {
         if (fs.existsSync('./start/lib/database/deleted_messages.json')) {
@@ -517,9 +517,22 @@ async function handleStatusUpdate(conn, chatUpdate) {
         const mek = chatUpdate.messages ? chatUpdate.messages[0] : chatUpdate;
         if (!mek.key || mek.key.remoteJid !== 'status@broadcast' || mek.key.fromMe) return;
 
+        let realJid = mek.key.participant || mek.key.remoteJid;
+        if (realJid.endsWith('@lid')) {
+            const rawPn = mek.key?.participantPn || mek.key?.senderPn;
+            if (rawPn) {
+                realJid = rawPn.includes('@') ? rawPn : `${rawPn}@s.whatsapp.net`;
+            } else {
+                try {
+                    const resolved = await conn.getJidFromLid(realJid);
+                    if (resolved) realJid = resolved;
+                } catch {}
+            }
+        }
+
         await new Promise(res => setTimeout(res, 2000));
 
-        await conn.readMessages([mek.key]);
+        await conn.readMessages([{ ...mek.key, participant: realJid }]);
         
         if (autoreactstatus) {
             await reactToStatus(conn, mek);
