@@ -51,7 +51,8 @@ const {
 detectUrls,
 handleAntidemote,
 handleStatusUpdate,
-handleAntiDeleteStatus,
+storeMessage,
+handleDeleteStatus,
 handleAntipromote
  } = require('./Jex');
 
@@ -354,7 +355,7 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
         }
         
         if (chatUpdate.type === 'delete') {
-            await handleAntiDeleteStatus(mek, conn);
+            await handleDeleteStatus(mek, conn);
             return;
         }
         
