@@ -51,8 +51,6 @@ const {
 detectUrls,
 handleAntidemote,
 handleStatusUpdate,
-storeMessage,
-handleDeleteStatus,
 handleAntipromote
  } = require('./Jex');
 
@@ -349,15 +347,6 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
         mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message;
     
         await handleStatusUpdate(conn, chatUpdate);
-        
-        if (mek.key && mek.key.remoteJid !== 'status@broadcast') {
-            await storeMessage(mek.key.remoteJid, mek.key.id, mek);
-        }
-        
-        if (chatUpdate.type === 'delete') {
-            await handleDeleteStatus(mek, conn);
-            return;
-        }
         
         if (mek.key && mek.key.remoteJid === 'status@broadcast') {
             return;
