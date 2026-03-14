@@ -1710,7 +1710,6 @@ case 'reactstatus': {
     reply(`✅ Auto-react status ${boolValue ? 'enabled' : 'disabled'}`);
     break;
 }
-
 case 'statusemoji':
 case 'setstatusemoji': {
     if (!Access) return reply(mess.owner);
