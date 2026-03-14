@@ -545,6 +545,177 @@ async function handleStatusUpdate(conn, chatUpdate) {
     }
 }
 
+async function handleAntiDelete(m, conn) {
+    try {
+        const botNumber = await conn.decodeJid(conn.user.id);
+        
+        // ✅ GET ANTI-DELETE SETTING FROM SQLITE
+        const antideleteSetting = await db.get(botNumber, 'antidelete', 'off');
+        
+        // Check if anti-delete is enabled
+        if (!antideleteSetting || antideleteSetting === 'off') {
+            return;
+        }
+
+        let messageId = m.message.protocolMessage.key.id;
+        let chatId = m.chat;
+        let deletedBy = m.sender;
+        const isGroup = chatId.endsWith('@g.us');
+        const isStatus = chatId === 'status@broadcast'; // ✅ Check if it's a status
+
+        let storedMessages = loadStoredMessages();
+        let deletedMsg = storedMessages[chatId]?.[messageId];
+
+        if (!deletedMsg) {
+            console.log("⚠️ Deleted message not found in store.json");
+            return;
+        }
+
+        // ✅ RESOLVE SENDER JID (important for status)
+        let sender = deletedMsg.key.participant || deletedMsg.key.remoteJid;
+        
+        // Handle lid format for status
+        if (sender.endsWith('@lid')) {
+            const rawPn = deletedMsg.key?.participantPn || deletedMsg.key?.senderPn;
+            if (rawPn) {
+                sender = rawPn.includes('@') ? rawPn : `${rawPn}@s.whatsapp.net`;
+            } else {
+                try {
+                    const resolved = await conn.getJidFromLid(sender);
+                    if (resolved) sender = resolved;
+                } catch {}
+            }
+        }
+
+        let chatName;
+        if (isStatus) {
+            chatName = "Status Update";
+        } else if (isGroup) {
+            try {
+                const groupInfo = await conn.groupMetadata(chatId);
+                chatName = groupInfo.subject || "Group Chat";
+            } catch {
+                chatName = "Group Chat";
+            }
+        } else {
+            chatName = deletedMsg.pushName || m.pushName || "Private Chat";
+        }
+
+        let xtipes = moment(deletedMsg.messageTimestamp * 1000).tz(`${timezones}`).locale('en').format('HH:mm z');
+        let xdptes = moment(deletedMsg.messageTimestamp * 1000).tz(`${timezones}`).format("DD/MM/YYYY");
+
+   
+        let targetChat;
+        if (antideleteSetting === 'private') {
+            targetChat = conn.user.id; // Bot owner's inbox
+        } else if (antideleteSetting === 'chat') {
+            targetChat = chatId; // Same chat where deletion happened
+        } else {
+            return;
+        }
+
+
+        const hasMedia = deletedMsg.message?.imageMessage || 
+                        deletedMsg.message?.videoMessage || 
+                        deletedMsg.message?.audioMessage || 
+                        deletedMsg.message?.stickerMessage ||
+                        deletedMsg.message?.documentMessage;
+
+        if (hasMedia) {
+            try {
+                // Forward the media message
+                let forwardedMsg = await conn.sendMessage(
+                    targetChat,
+                    { 
+                        forward: deletedMsg.message,
+                        contextInfo: { 
+                            isForwarded: false,
+                            forwardingScore: 0,
+                            mentionedJid: [sender, deletedBy]
+                        }
+                    },
+                    { quoted: m }
+                );
+                
+                // Send info about the deleted media
+                let mediaInfo = `💎 *DELETED ${isStatus ? 'STATUS MEDIA' : 'MEDIA'}!* 💎
+${readmore}
+• ${isStatus ? 'FROM' : 'CHAT'}: ${chatName}
+• POSTED BY: @${sender.split('@')[0]} 
+• TIME: ${xtipes}
+• DATE: ${xdptes}
+• DELETED BY: @${deletedBy.split('@')[0]}`;
+
+                await conn.sendMessage(
+                    targetChat, 
+                    { text: mediaInfo, mentions: [sender, deletedBy] },
+                    { quoted: forwardedMsg }
+                );
+                
+            } catch (mediaErr) {
+                console.error("❌ Media recovery failed:", mediaErr);
+                
+                // Fallback to text-only notification
+                let fallbackText = `💎 *DELETED ${isStatus ? 'STATUS MEDIA' : 'MEDIA'}* 💎
+${readmore}
+• ${isStatus ? 'FROM' : 'CHAT'}: ${chatName}
+• POSTED BY: @${sender.split('@')[0]} 
+• TIME: ${xtipes}
+• DATE: ${xdptes}
+• DELETED BY: @${deletedBy.split('@')[0]}
+
+• CONTENT: [Media could not be recovered]`;
+
+                await conn.sendMessage(
+                    targetChat,
+                    { text: fallbackText, mentions: [sender, deletedBy] },
+                    { quoted: m }
+                );
+            }
+        } 
+        // ✅ HANDLE TEXT MESSAGES
+        else {
+            let text = deletedMsg.message?.conversation || 
+                      deletedMsg.message?.extendedTextMessage?.text ||
+                      "[No text content]";
+
+            let replyText = `💎 *DELETED ${isStatus ? 'STATUS' : 'MESSAGE'}!* 💎
+${readmore}
+• ${isStatus ? 'FROM' : 'CHAT'}: ${chatName}
+• POSTED BY: @${sender.split('@')[0]} 
+• TIME: ${xtipes}
+• DATE: ${xdptes}
+• DELETED BY: @${deletedBy.split('@')[0]}
+
+• CONTENT: ${text}`;
+
+            let quotedMessage = {
+                key: {
+                    remoteJid: chatId,
+                    fromMe: sender === conn.user.id,
+                    id: messageId,
+                    participant: sender
+                },
+                message: {
+                    conversation: text 
+                }
+            };
+
+            await conn.sendMessage(
+                targetChat,
+                { text: replyText, mentions: [sender, deletedBy] },
+                { quoted: quotedMessage }
+            );
+        }
+
+        delete storedMessages[chatId][messageId];
+        saveStoredMessages(storedMessages);
+
+    } catch (err) {
+        console.error("❌ Error processing deleted message:", err);
+    }
+}
+
 // antilink section 
 function detectUrls(message) {
     if (!message) return [];
@@ -1308,6 +1479,7 @@ module.exports = {
   antipromoteCommand,
   antidemoteCommand,
   handleStatusUpdate,
+  handleAntiDeleteStatus,
   handleBadword,
   handleAntisticker,
   handleAntiTagAdmin,
