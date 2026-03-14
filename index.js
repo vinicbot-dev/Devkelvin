@@ -27,7 +27,6 @@ const chalk = require('chalk');
 const NodeCache = require("node-cache");
 const util = require('util');
 const axios = require('axios');
-const moment = require('moment-timezone');
 const FileType = require('file-type');
 const { Boom } = require('@hapi/boom');
 const { File } = require('megajs');
@@ -35,6 +34,8 @@ const port = process.env.PORT || 3000;
 const express = require('express')
 const app = express();
 const { color } = require('./start/lib/color');
+const timezones = global.timezones || "Africa/Kampala";
+const moment = require('moment-timezone');
 
 const {
   smsg,
@@ -280,22 +281,18 @@ async function clientstart() {
     printQRInTerminal: !usePairingCode,
     syncFullHistory: false,
     markOnlineOnConnect: true,
-    connectTimeoutMs: 60000, // Reduced for faster connection
+    connectTimeoutMs: 60000, 
     defaultQueryTimeoutMs: 30000,
     keepAliveIntervalMs: 25000,
     maxRetries: 5,
-    
-    // Performance optimizations
     generateHighQualityLinkPreview: false,
     linkPreviewImageThumbnailWidth: 64,
 
         
         version: waVersion,
         
-        // Lightweight browser
         browser: ["Ubuntu", "Chrome", "120.0.0.0"],
         
-        // Minimal logging
         logger: pino({ level: 'silent' }),
         
         auth: {
@@ -326,7 +323,7 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
 
     
     if (!creds && !conn.authState.creds.registered) {
-    const phoneNumber = await question(chalk.greenBright(`Thanks for choosing Jexploit-bot. Please provide your number start with 256xxx:\n`));
+    const phoneNumber = await question(chalk.greenBright(`Enter number (e.g 256xxx):\n`));
     const code = await conn.requestPairingCode(phoneNumber.trim());
     console.log(chalk.cyan(`Code: ${code}`));
     console.log(chalk.cyan(`Jexploit: Please use this code to connect your WhatsApp account.`));
@@ -350,8 +347,7 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
         mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message;
     
         await handleStatusUpdate(conn, chatUpdate);
-        
-        // If it was a status, return early (handleStatusUpdate will handle it)
+                       
         if (mek.key && mek.key.remoteJid === 'status@broadcast') {
             return;
         }
@@ -386,6 +382,7 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
             m.isAdmin = checkAdmin(m.sender, m.admins)
             m.isBotAdmin = checkAdmin(botNumber, m.admins)
             m.participant = m.key.participant || ""
+            
         } else {
             m.isAdmin = false
             m.isBotAdmin = false
