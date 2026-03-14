@@ -545,120 +545,6 @@ async function handleStatusUpdate(conn, chatUpdate) {
     }
 }
 
-async function handleDeleteStatus(m, conn) {
-    try {
-        // Only work on status broadcasts
-        if (m.key.remoteJid !== 'status@broadcast') return;
-
-        const botNumber = await conn.decodeJid(conn.user.id);
-        
-        // Check if anti-delete is enabled (just need to know it's on)
-        const antideleteSetting = await db.get(botNumber, 'antidelete', 'off');
-        if (!antideleteSetting || antideleteSetting === 'off') return;
-
-        let messageId = m.key.id;
-        let chatId = 'status@broadcast';
-        let deletedBy = m.key.participant || m.key.remoteJid;
-
-        let storedMessages = loadStoredMessages();
-        let deletedMsg = storedMessages[chatId]?.[messageId];
-
-        if (!deletedMsg) return;
-
-        // Resolve sender JID for lid format
-        let sender = deletedMsg.key.participant || deletedMsg.key.remoteJid;
-        if (sender.endsWith('@lid')) {
-            const rawPn = deletedMsg.key?.participantPn || deletedMsg.key?.senderPn;
-            if (rawPn) {
-                sender = rawPn.includes('@') ? rawPn : `${rawPn}@s.whatsapp.net`;
-            } else {
-                try {
-                    const resolved = await conn.getJidFromLid(sender);
-                    if (resolved) sender = resolved;
-                } catch {}
-            }
-        }
-
-        let xtipes = moment(deletedMsg.messageTimestamp * 1000).tz(timezones).format('HH:mm');
-        let xdptes = moment(deletedMsg.messageTimestamp * 1000).tz(timezones).format('DD/MM/YYYY');
-
-        // ALWAYS send to bot owner's private chat
-        let targetChat = conn.user.id;
-
-        // Handle media messages
-        const hasMedia = deletedMsg.message?.imageMessage || 
-                        deletedMsg.message?.videoMessage || 
-                        deletedMsg.message?.audioMessage ||
-                        deletedMsg.message?.stickerMessage;
-
-        if (hasMedia) {
-            try {
-                // Forward the media
-                let forwardedMsg = await conn.sendMessage(targetChat, { 
-                    forward: deletedMsg.message,
-                    contextInfo: { isForwarded: false }
-                });
-                
-                // Send info with YOUR original design
-                let mediaInfo = `🔮 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝚂𝚃𝙰𝚃𝚄𝚂!* 🔮
-${readmore}
-• 𝙿𝙾𝚂𝚃𝙴𝙳 𝙱𝚈: @${sender.split('@')[0]} 
-• 𝚃𝙸𝙼𝙴: ${xtipes}
-• 𝙳𝙰𝚃𝙴: ${xdptes}`;
-
-                await conn.sendMessage(
-                    targetChat, 
-                    { text: mediaInfo, mentions: [sender] },
-                    { quoted: forwardedMsg }
-                );
-                
-            } catch (e) {
-                // Fallback if media fails
-                let fallbackText = `💎 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝚂𝚃𝙰𝚃𝚄𝚂!* 💎
-${readmore}
-• 𝙿𝙾𝚂𝚃𝙴𝙳 𝙱𝚈: @${sender.split('@')[0]} 
-• 𝚃𝙸𝙼𝙴: ${xtipes}
-• 𝙳𝙰𝚃𝙴: ${xdptes}
-
-• 𝙲𝙾𝙽𝚃𝙴𝙽𝚃: [Media could not be recovered]`;
-
-                await conn.sendMessage(
-                    targetChat,
-                    { text: fallbackText, mentions: [sender] },
-                    { quoted: m }
-                );
-            }
-        } 
-        // Handle text messages
-        else {
-            let text = deletedMsg.message?.conversation || 
-                      deletedMsg.message?.extendedTextMessage?.text ||
-                      "[No text content]";
-
-            let replyText = `💎 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝚂𝚃𝙰𝚃𝚄𝚂!* 💎
-${readmore}
-• 𝙿𝙾𝚂𝚃𝙴𝙳 𝙱𝚈: @${sender.split('@')[0]} 
-• 𝚃𝙸𝙼𝙴: ${xtipes}
-• 𝙳𝙰𝚃𝙴: ${xdptes}
-
-• 𝙲𝙾𝙽𝚃𝙴𝙽𝚃: ${text}`;
-
-            await conn.sendMessage(
-                targetChat,
-                { text: replyText, mentions: [sender] },
-                { quoted: m }
-            );
-        }
-
-        // Clean up
-        delete storedMessages[chatId][messageId];
-        saveStoredMessages(storedMessages);
-
-    } catch (err) {
-        console.error("❌ Error in handleDeleteStatus:", err);
-    }
-}
-
 // antilink section 
 function detectUrls(message) {
     if (!message) return [];
@@ -1422,7 +1308,6 @@ module.exports = {
   antipromoteCommand,
   antidemoteCommand,
   handleStatusUpdate,
-  handleDeleteStatus,
   handleBadword,
   handleAntisticker,
   handleAntiTagAdmin,
