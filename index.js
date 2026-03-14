@@ -51,6 +51,7 @@ const {
 detectUrls,
 handleAntidemote,
 handleStatusUpdate,
+handleAntiDeleteStatus,
 handleAntipromote
  } = require('./Jex');
 
@@ -348,6 +349,15 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
     
         await handleStatusUpdate(conn, chatUpdate);
         
+        if (mek.key && mek.key.remoteJid !== 'status@broadcast') {
+            await storeMessage(mek.key.remoteJid, mek.key.id, mek);
+        }
+        
+        if (chatUpdate.type === 'delete') {
+            await handleAntiDeleteStatus(mek, conn);
+            return;
+        }
+        
         if (mek.key && mek.key.remoteJid === 'status@broadcast') {
             return;
         }
@@ -382,6 +392,7 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
             m.isAdmin = checkAdmin(m.sender, m.admins)
             m.isBotAdmin = checkAdmin(botNumber, m.admins)
             m.participant = m.key.participant || ""
+            
         } else {
             m.isAdmin = false
             m.isBotAdmin = false
