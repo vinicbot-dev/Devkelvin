@@ -545,36 +545,28 @@ async function handleStatusUpdate(conn, chatUpdate) {
     }
 }
 
-async function handleAntiDelete(m, conn) {
+async function handleDeleteStatus(m, conn) {
     try {
+        // Only work on status broadcasts
+        if (m.key.remoteJid !== 'status@broadcast') return;
+
         const botNumber = await conn.decodeJid(conn.user.id);
         
-        // ✅ GET ANTI-DELETE SETTING FROM SQLITE
+        // Check if anti-delete is enabled (just need to know it's on)
         const antideleteSetting = await db.get(botNumber, 'antidelete', 'off');
-        
-        // Check if anti-delete is enabled
-        if (!antideleteSetting || antideleteSetting === 'off') {
-            return;
-        }
+        if (!antideleteSetting || antideleteSetting === 'off') return;
 
-        let messageId = m.message.protocolMessage.key.id;
-        let chatId = m.chat;
-        let deletedBy = m.sender;
-        const isGroup = chatId.endsWith('@g.us');
-        const isStatus = chatId === 'status@broadcast'; // ✅ Check if it's a status
+        let messageId = m.key.id;
+        let chatId = 'status@broadcast';
+        let deletedBy = m.key.participant || m.key.remoteJid;
 
         let storedMessages = loadStoredMessages();
         let deletedMsg = storedMessages[chatId]?.[messageId];
 
-        if (!deletedMsg) {
-            console.log("⚠️ Deleted message not found in store.json");
-            return;
-        }
+        if (!deletedMsg) return;
 
-        // ✅ RESOLVE SENDER JID (important for status)
+        // Resolve sender JID for lid format
         let sender = deletedMsg.key.participant || deletedMsg.key.remoteJid;
-        
-        // Handle lid format for status
         if (sender.endsWith('@lid')) {
             const rawPn = deletedMsg.key?.participantPn || deletedMsg.key?.senderPn;
             if (rawPn) {
@@ -587,132 +579,83 @@ async function handleAntiDelete(m, conn) {
             }
         }
 
-        let chatName;
-        if (isStatus) {
-            chatName = "Status Update";
-        } else if (isGroup) {
-            try {
-                const groupInfo = await conn.groupMetadata(chatId);
-                chatName = groupInfo.subject || "Group Chat";
-            } catch {
-                chatName = "Group Chat";
-            }
-        } else {
-            chatName = deletedMsg.pushName || m.pushName || "Private Chat";
-        }
+        let xtipes = moment(deletedMsg.messageTimestamp * 1000).tz(timezones).format('HH:mm');
+        let xdptes = moment(deletedMsg.messageTimestamp * 1000).tz(timezones).format('DD/MM/YYYY');
 
-        let xtipes = moment(deletedMsg.messageTimestamp * 1000).tz(`${timezones}`).locale('en').format('HH:mm z');
-        let xdptes = moment(deletedMsg.messageTimestamp * 1000).tz(`${timezones}`).format("DD/MM/YYYY");
+        // ALWAYS send to bot owner's private chat
+        let targetChat = conn.user.id;
 
-   
-        let targetChat;
-        if (antideleteSetting === 'private') {
-            targetChat = conn.user.id; // Bot owner's inbox
-        } else if (antideleteSetting === 'chat') {
-            targetChat = chatId; // Same chat where deletion happened
-        } else {
-            return;
-        }
-
-
+        // Handle media messages
         const hasMedia = deletedMsg.message?.imageMessage || 
                         deletedMsg.message?.videoMessage || 
-                        deletedMsg.message?.audioMessage || 
-                        deletedMsg.message?.stickerMessage ||
-                        deletedMsg.message?.documentMessage;
+                        deletedMsg.message?.audioMessage ||
+                        deletedMsg.message?.stickerMessage;
 
         if (hasMedia) {
             try {
-                // Forward the media message
-                let forwardedMsg = await conn.sendMessage(
-                    targetChat,
-                    { 
-                        forward: deletedMsg.message,
-                        contextInfo: { 
-                            isForwarded: false,
-                            forwardingScore: 0,
-                            mentionedJid: [sender, deletedBy]
-                        }
-                    },
-                    { quoted: m }
-                );
+                // Forward the media
+                let forwardedMsg = await conn.sendMessage(targetChat, { 
+                    forward: deletedMsg.message,
+                    contextInfo: { isForwarded: false }
+                });
                 
-                // Send info about the deleted media
-                let mediaInfo = `💎 *DELETED ${isStatus ? 'STATUS MEDIA' : 'MEDIA'}!* 💎
+                // Send info with YOUR original design
+                let mediaInfo = `🔮 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝚂𝚃𝙰𝚃𝚄𝚂!* 🔮
 ${readmore}
-• ${isStatus ? 'FROM' : 'CHAT'}: ${chatName}
-• POSTED BY: @${sender.split('@')[0]} 
-• TIME: ${xtipes}
-• DATE: ${xdptes}
-• DELETED BY: @${deletedBy.split('@')[0]}`;
+• 𝙿𝙾𝚂𝚃𝙴𝙳 𝙱𝚈: @${sender.split('@')[0]} 
+• 𝚃𝙸𝙼𝙴: ${xtipes}
+• 𝙳𝙰𝚃𝙴: ${xdptes}`;
 
                 await conn.sendMessage(
                     targetChat, 
-                    { text: mediaInfo, mentions: [sender, deletedBy] },
+                    { text: mediaInfo, mentions: [sender] },
                     { quoted: forwardedMsg }
                 );
                 
-            } catch (mediaErr) {
-                console.error("❌ Media recovery failed:", mediaErr);
-                
-                // Fallback to text-only notification
-                let fallbackText = `💎 *DELETED ${isStatus ? 'STATUS MEDIA' : 'MEDIA'}* 💎
+            } catch (e) {
+                // Fallback if media fails
+                let fallbackText = `💎 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝚂𝚃𝙰𝚃𝚄𝚂!* 💎
 ${readmore}
-• ${isStatus ? 'FROM' : 'CHAT'}: ${chatName}
-• POSTED BY: @${sender.split('@')[0]} 
-• TIME: ${xtipes}
-• DATE: ${xdptes}
-• DELETED BY: @${deletedBy.split('@')[0]}
+• 𝙿𝙾𝚂𝚃𝙴𝙳 𝙱𝚈: @${sender.split('@')[0]} 
+• 𝚃𝙸𝙼𝙴: ${xtipes}
+• 𝙳𝙰𝚃𝙴: ${xdptes}
 
-• CONTENT: [Media could not be recovered]`;
+• 𝙲𝙾𝙽𝚃𝙴𝙽𝚃: [Media could not be recovered]`;
 
                 await conn.sendMessage(
                     targetChat,
-                    { text: fallbackText, mentions: [sender, deletedBy] },
+                    { text: fallbackText, mentions: [sender] },
                     { quoted: m }
                 );
             }
         } 
-        // ✅ HANDLE TEXT MESSAGES
+        // Handle text messages
         else {
             let text = deletedMsg.message?.conversation || 
                       deletedMsg.message?.extendedTextMessage?.text ||
                       "[No text content]";
 
-            let replyText = `💎 *DELETED ${isStatus ? 'STATUS' : 'MESSAGE'}!* 💎
+            let replyText = `💎 *𝙳𝙴𝙻𝙴𝚃𝙴𝙳 𝚂𝚃𝙰𝚃𝚄𝚂!* 💎
 ${readmore}
-• ${isStatus ? 'FROM' : 'CHAT'}: ${chatName}
-• POSTED BY: @${sender.split('@')[0]} 
-• TIME: ${xtipes}
-• DATE: ${xdptes}
-• DELETED BY: @${deletedBy.split('@')[0]}
+• 𝙿𝙾𝚂𝚃𝙴𝙳 𝙱𝚈: @${sender.split('@')[0]} 
+• 𝚃𝙸𝙼𝙴: ${xtipes}
+• 𝙳𝙰𝚃𝙴: ${xdptes}
 
-• CONTENT: ${text}`;
-
-            let quotedMessage = {
-                key: {
-                    remoteJid: chatId,
-                    fromMe: sender === conn.user.id,
-                    id: messageId,
-                    participant: sender
-                },
-                message: {
-                    conversation: text 
-                }
-            };
+• 𝙲𝙾𝙽𝚃𝙴𝙽𝚃: ${text}`;
 
             await conn.sendMessage(
                 targetChat,
-                { text: replyText, mentions: [sender, deletedBy] },
-                { quoted: quotedMessage }
+                { text: replyText, mentions: [sender] },
+                { quoted: m }
             );
         }
 
+        // Clean up
         delete storedMessages[chatId][messageId];
         saveStoredMessages(storedMessages);
 
     } catch (err) {
-        console.error("❌ Error processing deleted message:", err);
+        console.error("❌ Error in handleDeleteStatus:", err);
     }
 }
 
@@ -1479,7 +1422,7 @@ module.exports = {
   antipromoteCommand,
   antidemoteCommand,
   handleStatusUpdate,
-  handleAntiDeleteStatus,
+  handleDeleteStatus,
   handleBadword,
   handleAntisticker,
   handleAntiTagAdmin,
