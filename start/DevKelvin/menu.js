@@ -90,6 +90,31 @@ function saveMenuConfig(config) {
         return false;
     }
 }
+// Function to detect hosting platform
+function getHostPlatform() {
+    // Check for Heroku
+    if (process.env.DYNO) {
+        return 'Heroku';
+    }
+    // Check for Panel/Pterodactyl
+    if (process.env.PANEL || process.env.PTERODACTYL) {
+        return 'Panel';
+    }
+    // Check for Replit
+    if (process.env.REPL_ID || process.env.REPL_SLUG) {
+        return 'Replit';
+    }
+    // Check for Railway
+    if (process.env.RAILWAY_STATIC_URL) {
+        return 'Railway';
+    }
+    // Check for Koyeb
+    if (process.env.KOYEB) {
+        return 'Koyeb';
+    }
+    // Default to OS platform
+    return os.platform();
+}
 
 // Memory formatting function
 const formatMemory = (memory) => {
@@ -128,7 +153,7 @@ async function generateMenu(conn, m, prefix, global) {
     `*ᴜsᴇʀ*: ${await db.get(botNumber, 'ownername', 'Not set')}`,
     `*ʙᴏᴛ ɴᴀᴍᴇ*: ${global.botname}`,
     `*ᴍᴏᴅᴇ*: ${conn.public ? 'ᴘᴜʙʟɪᴄ' : 'ᴘʀɪᴠᴀᴛᴇ'}`,
-    `*ʜᴏsᴛ*: ${os.platform()}`,
+    `*ʜᴏsᴛ*: ${getHostPlatform()}`,
     `*ᴘʀᴇғɪx*: [ ${prefix} ]`,
     `*ᴄᴏᴍᴍᴀɴᴅs*: 100+`,
     `*ᴠᴇʀsɪᴏɴ*: ${global.versions}`,
