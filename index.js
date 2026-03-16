@@ -137,26 +137,34 @@ async function loadSession() {
             sessionData = JSON.parse(data.toString());
             console.log(chalk.green('[ ✅ ] MEGA session downloaded successfully'));
             
-        // Check for Base64 format (VESPER-BOT~)
-        } else if (settings.SESSION_ID.startsWith("VESPER-BOT~")) {
-            console.log(chalk.green('[ ⏳ ] Decoding base64 session'));
-            
-            const base64Data = settings.SESSION_ID.replace("VESPER-BOT~", "");
-            
-            if (!/^[A-Za-z0-9+/=]+$/.test(base64Data)) {
-                throw new Error("Invalid base64 format in SESSION_ID");
-            }
-            
-            const decodedData = Buffer.from(base64Data, "base64");
-            
-            try {
-                sessionData = JSON.parse(decodedData.toString("utf-8"));
-            } catch (error) {
-                throw new Error("Failed to parse decoded base64 session data: " + error.message);
-            }
-            
-            await fs.promises.writeFile(credsPath, decodedData);
-            console.log(chalk.green('[ ✅ ] Base64 session decoded and saved successfully'));
+        // Check for Base64 format 
+} else if (settings.SESSION_ID.startsWith("VESPER-BOT~") || settings.SESSION_ID.startsWith("VESPER-BOT:~")) {
+    console.log(chalk.green('[ ⏳ ] Decoding base64 session'));
+    
+    let base64Data;
+    if (settings.SESSION_ID.startsWith("VESPER-BOT:~")) {
+        // Handle format with colon
+        base64Data = settings.SESSION_ID.replace("VESPER-BOT:~", "");
+        console.log(chalk.yellow('⚠️ Detected format with colon, still works!'));
+    } else {
+        // Handle normal format
+        base64Data = settings.SESSION_ID.replace("VESPER-BOT~", "");
+    }
+    
+    if (!/^[A-Za-z0-9+/=]+$/.test(base64Data)) {
+        throw new Error("Invalid base64 format in SESSION_ID");
+    }
+    
+    const decodedData = Buffer.from(base64Data, "base64");
+    
+    try {
+        sessionData = JSON.parse(decodedData.toString("utf-8"));
+    } catch (error) {
+        throw new Error("Failed to parse decoded base64 session data: " + error.message);
+    }
+    
+    await fs.promises.writeFile(credsPath, decodedData);
+    console.log(chalk.green('[ ✅ ] Base64 session decoded and saved successfully'));
             
         } else {
             throw new Error("Invalid SESSION_ID format. Use 'VESPER-BOT~' for base64 or 'jexploit~/malvin~' for MEGA.nz");
