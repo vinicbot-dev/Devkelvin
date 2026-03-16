@@ -159,7 +159,7 @@ async function loadSession() {
             console.log(chalk.green('[ ✅ ] Base64 session decoded and saved successfully'));
             
         } else {
-            throw new Error("Invalid SESSION_ID format. Use 'VISPER-BOT~' for base64 or 'jexploit~/malvin~' for MEGA.nz");
+            throw new Error("Invalid SESSION_ID format. Use 'VESPER-BOT~' for base64 or 'jexploit~/malvin~' for MEGA.nz");
         }
 
         return sessionData;
