@@ -473,7 +473,7 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
 ┃✧ Time: ${currentTime}
 ┃
 ┃   Official channel: 
-┃   https://whatsapp.com/channel/0029Vb6eR1r05MUgYul6Pc2W
+┃   https://whatsapp.com/channel/0029Vb725SbIyPtOEG92nA04
 ┗━━━━━━━━━━━━━━━━━━━
 
 > ${global.wm || '© Jexploit is awesome 🔥'}`;
