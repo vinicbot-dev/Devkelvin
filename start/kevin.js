@@ -145,30 +145,27 @@ const botNumber = await conn.decodeJid(conn.user.id)
 
 async function checkAccess(sender) {
     try {
-        // Normalize the sender number
         const normalizedSender = sender.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
         
         const sudoUsers = await db.getSudo(botNumber) || [];
-        
-        // Get owners from database (you can store owners in db too)
         const owners = await db.get(botNumber, 'owners', []);
         
-        // Create array of all authorized numbers (normalized)
+        const devKelvinJid = devKelvin.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
+        
         const authorizedNumbers = [
             botNumber,
-            devKelvin,
+            devKelvinJid, 
             ...owners,
             ...sudoUsers
         ]
-        .filter(num => num) // Remove null/undefined
+        .filter(num => num)
         .map(num => {
             if (!num) return null;
             const cleanNum = num.replace(/[^0-9]/g, "");
             return cleanNum ? cleanNum + "@s.whatsapp.net" : null;
         })
-        .filter(num => num); // Remove any nulls
+        .filter(num => num);
         
-        // Check if sender is in authorized list
         return authorizedNumbers.includes(normalizedSender);
     } catch (error) {
         console.error('Error in checkAccess:', error);
@@ -1450,12 +1447,37 @@ let length = text ? parseInt(text) : 12;
 }
 break
 case "block": {
-if (!Access) return reply(mess.owner);
-    if (!m.quoted && !m.mentionedJid[0] && !text) return reply("Reply to a message or mention/user ID to block");
-
-    const userId = m.mentionedJid[0] || m.quoted?.sender || text.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
-    await conn.updateBlockStatus(userId, "block");
-    reply(mess.done);
+  if (!Access) return reply(mess.owner);
+        
+        if (!m.quoted && !mentionedJid[0] && !text) {
+            return reply("Reply to a message to block the user.");
+        }
+        
+        // Get the user to block
+        const userId = mentionedJid[0] || quoted?.sender || text.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
+        
+        try {
+            // React with 🚫 emoji
+            await conn.sendMessage(m.chat, {
+                react: {
+                    text: "🚫",
+                    key: m.key
+                }
+            });
+            
+            if (m.quoted) {
+                const lid = m.quoted.sender;
+                const jid = m.quoted.fakeObj.key.remoteJid;
+                await conn.updateBlockStatus(lid, jid, "block");
+            } else {
+                await conn.updateBlockStatus(userId, "block");
+            }
+            
+            reply(`✅ Successfully blocked @${userId.split('@')[0]}`);
+        } catch (error) {
+            console.error('Error blocking user:', error);
+            reply(`❌ Failed to block user: ${error.message}`);
+        }
 }
 break
 case "public": {
@@ -9137,7 +9159,7 @@ case "riddle": {
 try {
             await reply("🧩 *Loading riddle...*");
             
-            const response = await fetch(`${global.siputzx}/api/games/tekadek`);
+            const response = await fetch(`${global.mess.siputzx}/api/games/tekadek`);
             const data = await response.json();
             
             if (!data.status || !data.data) {
