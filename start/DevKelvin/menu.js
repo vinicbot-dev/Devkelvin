@@ -193,7 +193,7 @@ async function generateMenu(conn, m, prefix, global) {
                       'arting', 'advancedglow', 'cartoonstyle', 'deadpool', 'deletingtext', 
                       'luxurygold',  '1917style', 'pixelglitch', 'multicoloredneon', 
                       'effectclouds', 'flagtext', 'freecreate', 'galaxystyle', 'papercut', 'holigram', 'royal', 'bear', 'textonwetglass', 'galaxywallpaper', 
-                      'glowingtext', 'makingneon', 'matrix', 'royaltext', 'sand', 'summerbeach', 
+                      'glowingtext', 'corntext', 'makingneon', 'matrix', 'royaltext', 'sand', 'summerbeach', 
                       'topography', 'typography', 'flux', 'dragonball'],
         },
         features: {
@@ -203,9 +203,9 @@ async function generateMenu(conn, m, prefix, global) {
                       'autoreactstatus', 'setstatusemoji', 'antiedit'],
         },
         fun: {
-            title: ' *FUN MENU* ',
+            title: ' *GAMES MENU* ',
             commands: ['dare', 'Quotes', 'truth', 'fact', 'truthdetecter', 'valentines', 
-                      'advice', 'motivate', 'pickupline', '8balls', 'mee',  'trivia', 'cartoonquiz',
+                      'advice', 'motivate', 'pickupline', '8balls', 'mee',  'trivia', 'riddle', 'cartoonquiz',
                       'lovetest', 'character', 'compatibility', 'compliment', 'jokes'],
         },
         group: {
@@ -266,7 +266,7 @@ async function generateMenu(conn, m, prefix, global) {
         search: {
             title: ' *SEARCH MENU* ',
             commands: ['lyrics', 'chord', 'weather', 'movie', 'define', 'gitstalk', 'playstore',
-                      'tiktoksearch', 'ytsearch', 'shazam'],
+                      'tiktoksearch', 'ytsearch', 'instagramuser', 'shazam'],
         },
         sports: {
             title: ' *SPORTS MENU* ',
