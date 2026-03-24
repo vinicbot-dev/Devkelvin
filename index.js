@@ -64,7 +64,6 @@ const {
 const { isAdminKelvin } = require('./start/lib/admin');
 const db = require('./start/Core/databaseManager');
 const { cleaningSession } = require ('./start/lib/botSession');
-const { pairSession } = require('./connect');
 
 const usePairingCode = true;
 
