@@ -4055,6 +4055,24 @@ let q = args.join(" ");
       reply("*An error occurred while generating the effect.*");
     }
 }
+case "corntext": {
+const text = args.join(" ");
+        if (!text) return reply(`*Example: ${prefix}corntext Kelvin*`);
+        
+        try {
+            await reply("🌽 Creating corn kernels text effect... Please wait ⏳");
+            
+            const apiUrl = `https://api.siputzx.my.id/api/m/textpro?url=https://textpro.me/create-artistic-3d-text-effects-from-corn-kernels-1177.html&text=${encodeURIComponent(text)}`;
+            
+            await conn.sendMessage(m.chat, {
+                image: { url: apiUrl },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } catch (error) {
+            console.error("Error in corntext command:", error);
+            reply("Error generating effect. Please try again.");
+        }
+}
 break
 case 'eplstandings':
   case 'plstandings':
@@ -8628,6 +8646,53 @@ try {
       }
 }
 break
+case "instagramuser":
+case "iguser": {
+const username = args[0];
+        
+        if (!username) return reply("*Please provide an Instagram username. Example: `.iguser siputzx_*`");
+        
+        try {
+            await reply(`🔍 Searching for @${username}...`);
+            
+            const response = await fetch(`${global.mess.siputzx}/api/d/igram?url=${encodeURIComponent(username)}`);
+            const data = await response.json();
+            
+            if (!data.status || !data.data?.result?.length) {
+                return reply(`❌ User "@${username}" not found.`);
+            }
+            
+            const user = data.data.result[0].user;
+            
+            let message = `*📸 INSTAGRAM PROFILE*\n\n`;
+            message += `👤 *Username:* @${user.username}\n`;
+            message += `📛 *Name:* ${user.full_name || 'Not set'}\n`;
+            message += `📝 *Bio:* ${user.biography || 'No bio'}\n`;
+            message += `🔗 *Website:* ${user.external_url || 'None'}\n\n`;
+            message += `👥 *Followers:* ${user.follower_count?.toLocaleString() || 0}\n`;
+            message += `👣 *Following:* ${user.following_count?.toLocaleString() || 0}\n`;
+            message += `📹 *Posts:* ${user.media_count?.toLocaleString() || 0}\n`;
+            message += `🔒 *Private:* ${user.is_private ? 'Yes' : 'No'}\n`;
+            message += `✅ *Verified:* ${user.is_verified ? 'Yes' : 'No'}\n\n`;
+            
+            if (user.profile_pic_url) {
+                await conn.sendMessage(m.chat, {
+                    image: { url: user.profile_pic_url },
+                    caption: message
+                }, { quoted: m });
+            } else {
+                reply(message);
+            }
+            
+            await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+            
+        } catch (error) {
+            console.error('Instagram user error:', error);
+            reply("❌ Error fetching Instagram profile. Try again later.");
+            await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+        }
+}
+break
 //=====[FUN MENU CMDS]======
 case 'chord':
 case 'cr': {
@@ -9067,6 +9132,31 @@ try {
       console.error('Error fetching trivia question:', error);
       reply('An error occurred while fetching the trivia question.');
     }
+}
+case "riddle": {
+try {
+            await reply("🧩 *Loading riddle...*");
+            
+            const response = await fetch(`${global.siputzx}/api/games/tekadek`);
+            const data = await response.json();
+            
+            if (!data.status || !data.data) {
+                return reply("Failed to fetch riddle. Try again later.");
+            }
+            
+            const { soal, jawaban } = data.data;
+            
+            let message = `*🧩 TEKA-TEKI / RIDDLE*\n\n`;
+            message += `❓ *Question:*\n${soal}\n\n`;
+            message += `💡 *Answer:* ||${jawaban}||\n\n`;
+            message += `_Reply with .riddle to get another riddle_`;
+            
+            reply(message);
+            
+        } catch (error) {
+            console.error('Riddle error:', error);
+            reply("Error fetching riddle. Try again later.");
+        }
 }
 break
 case "advice": {
