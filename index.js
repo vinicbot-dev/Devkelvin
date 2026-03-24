@@ -464,17 +464,22 @@ const botNumber = conn.decodeJid(conn.user?.id) || 'default';
             const timezones = global.timezones || "Africa/Kampala";
             const currentTime = moment().tz(timezones).format('MM/DD/YYYY, h:mm:ss A');
             
-            const welcomeMessage = `┏━━━━━✧ CONNECTED ✧━━━━━━━
-┃✧ Prefix: [${prefix}]
-┃✧ Mode: ${modeStatus}
-┃✧ Platform: ${require('os').platform()}
-┃✧ Bot: ${conn.user.name || 'Jexploit'}
-┃✧ Status: Active
-┃✧ Time: ${currentTime}
+            const welcomeMessage = `╭━━━━━✧ CONNECTED ✧━━━━━╮
+┃ ✧ Prefix: [ ${prefix} ]
+┃ ✧ Mode: ${modeStatus}
+┃ ✧ Platform: ${require('os').platform()}
+┃ ✧ Bot: ${conn.user.name || 'Jexploit'}
+┃ ✧ Status: Active
+┃ ✧ Time: ${currentTime}
+╰━━━━━━━━━━━━━━━━━━━━━━━━╯
+
+╭━━━━━✧ COMMUNITY ✧━━━━━╮
+┃  *WhatsApp Channel:*
+┃ https://whatsapp.com/channel/0029Vb725SbIyPtOEG92nA04
 ┃
-┃   Official channel: 
-┃   https://whatsapp.com/channel/0029Vb725SbIyPtOEG92nA04
-┗━━━━━━━━━━━━━━━━━━━
+┃  *Telegram Group:*
+┃ https://t.me/VinicSupportDsfCrewDevs
+╰━━━━━━━━━━━━━━━━━━━━━━━━╯
 
 > ${global.wm || '© Jexploit is awesome 🔥'}`;
 
