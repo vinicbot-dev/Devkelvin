@@ -22,6 +22,39 @@ function updateMemory(chatId, message, isUser = true) {
     }
 }
 
+// Function to clean response from introduction text
+function cleanResponse(text) {
+    if (!text) return text;
+    
+    // Remove common introduction patterns
+    const patterns = [
+        /^Hello!.*?I'm Keith AI.*?\./i,
+        /^Hi!.*?I'm Keith AI.*?\./i,
+        /^Hey!.*?I'm Keith AI.*?\./i,
+        /^I'm Keith AI.*?\./i,
+        /^Hello! How can I assist you.*?\./i,
+        /^Hi there!.*?\./i,
+        /^Greetings!.*?\./i,
+        /^I'm an AI assistant.*?\./i,
+        /^I'm here to help.*?\./i,
+        /^I'm Keith AI.*?created by Keithkeizzah.*?\./i,
+        /^Hi, I'm Keith AI.*?\./i,
+        /^I'm your AI assistant.*?\./i
+    ];
+    
+    let cleaned = text;
+    for (const pattern of patterns) {
+        cleaned = cleaned.replace(pattern, '');
+    }
+    
+    // Remove any leftover introductory phrases
+    cleaned = cleaned.replace(/^What can I help you with\?\s*/i, '');
+    cleaned = cleaned.replace(/^How can I assist you today\?\s*/i, '');
+    cleaned = cleaned.replace(/^What's on your mind\?\s*/i, '');
+    
+    return cleaned.trim() || text;
+}
+
 async function handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, prefix) {
     try {
         const AI_CHAT = await db.get(botNumber, 'AI_CHAT', false);
@@ -64,12 +97,16 @@ async function handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, p
 
         let response = null;
         
+        // Try Keith API first
         try {
             const keithUrl = `https://apiskeith.top/ai/gpt?q=${encodeURIComponent(body)}`;
             const { data } = await axios.get(keithUrl, { timeout: 10000 });
-            if (data.status && data.result) response = data.result;
+            if (data.status && data.result) {
+                response = cleanResponse(data.result);
+            }
         } catch (keithError) {}
         
+        // Fallback to Malvin API if Keith fails
         if (!response) {
             try {
                 const context = messageMemory.has(from) 
@@ -81,7 +118,7 @@ ${context}
 
 Current message: ${body}
 
-Respond as a helpful assistant:`;
+Respond briefly and directly as a helpful assistant:`;
 
                 const apiUrl = `https://malvin-api.vercel.app/ai/venice?text=${encodeURIComponent(prompt)}`;
                 const { data } = await axios.get(apiUrl, { timeout: 15000 });
@@ -91,7 +128,7 @@ Respond as a helpful assistant:`;
         }
         
         if (!response) {
-            response = "I'm sorry, I'm having trouble responding right now. Please try again later.";
+            response = "I'm having trouble responding right now. Please try again later.";
         }
 
         updateMemory(from, response, false);
