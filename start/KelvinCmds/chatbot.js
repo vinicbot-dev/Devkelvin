@@ -26,7 +26,6 @@ function updateMemory(chatId, message, isUser = true) {
 function cleanResponse(text) {
     if (!text) return text;
     
-    // Remove common introduction patterns
     const patterns = [
         /^Hello!.*?I'm Keith AI.*?\./i,
         /^Hi!.*?I'm Keith AI.*?\./i,
@@ -47,7 +46,6 @@ function cleanResponse(text) {
         cleaned = cleaned.replace(pattern, '');
     }
     
-    // Remove any leftover introductory phrases
     cleaned = cleaned.replace(/^What can I help you with\?\s*/i, '');
     cleaned = cleaned.replace(/^How can I assist you today\?\s*/i, '');
     cleaned = cleaned.replace(/^What's on your mind\?\s*/i, '');
@@ -62,7 +60,6 @@ async function handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, p
 
         if (!body || m.key.fromMe || body.startsWith(prefix)) return false;
         
-        // Check ignored numbers - handle all formats
         const senderJid = m.sender;
         const senderNumber = senderJid.replace(/[^0-9]/g, "");
         
@@ -97,34 +94,54 @@ async function handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, p
 
         let response = null;
         
-        // Try Keith API first
-        try {
-            const keithUrl = `https://apiskeith.top/ai/gpt?q=${encodeURIComponent(body)}`;
-            const { data } = await axios.get(keithUrl, { timeout: 10000 });
-            if (data.status && data.result) {
-                response = cleanResponse(data.result);
-            }
-        } catch (keithError) {}
+        // Check if asking about creator/developer
+        const isAskingAboutCreator = /(who made you|who created you|who is your (creator|developer|owner)|who are you|what are you|your developer|your creator)/i.test(body);
         
-        // Fallback to Malvin API if Keith fails
-        if (!response) {
+        if (isAskingAboutCreator) {
+            response = "I was created by Kelvin Tech, a skilled developer from Uganda with exceptional coding abilities.";
+        } else {
+            // Try Malvin Copilot API first
             try {
-                const context = messageMemory.has(from) 
-                    ? messageMemory.get(from).map(msg => `${msg.role}: ${msg.content}`).join('\n')
-                    : `user: ${body}`;
+                const copilotUrl = `https://api.malvin.gleeze.com/ai/copilot?text=${encodeURIComponent(body)}`;
+                const { data } = await axios.get(copilotUrl, { timeout: 10000 });
+                if (data && data.result) {
+                    response = data.result;
+                } else if (data && data.response) {
+                    response = data.response;
+                }
+            } catch (copilotError) {}
+            
+            // Try Keith API second
+            if (!response) {
+                try {
+                    const keithUrl = `https://apiskeith.top/ai/gpt?q=${encodeURIComponent(body)}`;
+                    const { data } = await axios.get(keithUrl, { timeout: 10000 });
+                    if (data.status && data.result) {
+                        response = cleanResponse(data.result);
+                    }
+                } catch (keithError) {}
+            }
+            
+            // Fallback to Malvin Venice API
+            if (!response) {
+                try {
+                    const context = messageMemory.has(from) 
+                        ? messageMemory.get(from).map(msg => `${msg.role}: ${msg.content}`).join('\n')
+                        : `user: ${body}`;
 
-                const prompt = `Previous conversation context:
+                    const prompt = `Previous conversation context:
 ${context}
 
 Current message: ${body}
 
 Respond briefly and directly as a helpful assistant:`;
 
-                const apiUrl = `https://malvin-api.vercel.app/ai/venice?text=${encodeURIComponent(prompt)}`;
-                const { data } = await axios.get(apiUrl, { timeout: 15000 });
-                if (data && data.result) response = data.result;
-                else if (data && data.message) response = data.message;
-            } catch (malvinError) {}
+                    const apiUrl = `https://malvin-api.vercel.app/ai/venice?text=${encodeURIComponent(prompt)}`;
+                    const { data } = await axios.get(apiUrl, { timeout: 15000 });
+                    if (data && data.result) response = data.result;
+                    else if (data && data.message) response = data.message;
+                } catch (malvinError) {}
+            }
         }
         
         if (!response) {
