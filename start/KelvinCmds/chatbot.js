@@ -3,9 +3,8 @@ const db = require('../../start/Core/databaseManager');
 
 // Message memory for conversation context
 let messageMemory = new Map();
-const MAX_MEMORY = 150; // Maximum messages to remember per chat
+const MAX_MEMORY = 150;
 
-// Function to manage conversation memory
 function updateMemory(chatId, message, isUser = true) {
     if (!messageMemory.has(chatId)) {
         messageMemory.set(chatId, []);
@@ -18,131 +17,89 @@ function updateMemory(chatId, message, isUser = true) {
         timestamp: Date.now()
     });
     
-    // Keep only the last MAX_MEMORY messages
     if (chatMemory.length > MAX_MEMORY) {
         messageMemory.set(chatId, chatMemory.slice(-MAX_MEMORY));
     }
 }
 
-async function handleAIChatbot(m, conn, body, from, isGroup, isCmd, prefix) {
+async function handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, prefix) {
     try {
-        const botNumber = await conn.decodeJid(conn.user.id);
-        
-        // ✅ GET AI CHATBOT SETTING FROM SQLITE
         const AI_CHAT = await db.get(botNumber, 'AI_CHAT', false);
-        
-        // Check if AI chatbot is enabled
-        if (!AI_CHAT) {
-            return false;
-        }
-        
-        console.log("🤖 AI Chatbot: Enabled - processing message");
+        if (!AI_CHAT) return false;
 
-        // Prevent bot responding to its own messages or commands
-        if (!body || m.key.fromMe || body.startsWith(prefix)) {
-            console.log("🤖 AI: Skipping - own message or command");
-            return false;
-        }
+        if (!body || m.key.fromMe || body.startsWith(prefix)) return false;
         
-        // DON'T RESPOND TO THESE SPECIFIC NUMBERS
-        const senderNumber = m.sender.split('@')[0];
+        // Check ignored numbers - handle all formats
+        const senderJid = m.sender;
+        const senderNumber = senderJid.replace(/[^0-9]/g, "");
+        
         const ignoredNumbers = ['256742932677', '256755585369'];
+        const isIgnored = ignoredNumbers.some(num => {
+            const normalizedNum = num.replace(/[^0-9]/g, "");
+            return senderNumber === normalizedNum;
+        });
         
-        if (ignoredNumbers.includes(senderNumber)) {
-            console.log(`🤖 AI Chatbot: Ignoring messages from ${senderNumber}`);
-            return false;
-        }
+        if (isIgnored) return false;
 
-        // Improved mention detection for groups
         let shouldRespond = true;
         
         if (isGroup) {
-            // Check if bot is mentioned
             const mentionedJids = m.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
-            const isMentioned = mentionedJids.includes(botNumber);
+            const isMentioned = mentionedJids.some(jid => {
+                const normalizedJid = jid.replace(/[^0-9]/g, "");
+                const normalizedBot = botNumber.replace(/[^0-9]/g, "");
+                return normalizedJid === normalizedBot;
+            });
             
-            // Check if it's a direct reply to the bot
             const isReplyToBot = m.message?.extendedTextMessage?.contextInfo?.participant === botNumber;
             
-            // Only respond in groups if mentioned or replied to
-            if (!isMentioned && !isReplyToBot) {
-                console.log("🤖 AI: Not mentioned in group, skipping");
-                return false;
-            }
-            
-            shouldRespond = true;
-        } else {
-            // In private chats, respond to all messages
+            if (!isMentioned && !isReplyToBot) return false;
             shouldRespond = true;
         }
 
         if (!shouldRespond) return false;
 
-        console.log("🤖 AI: Processing message:", body);
-
-        // Show "typing..." indicator
         await conn.sendPresenceUpdate('composing', from);
-
-        // Add user message to memory
         updateMemory(from, body, true);
 
-        // Check if user is asking about creator
-        const isAskingAboutCreator = /(who made you|who created you|who is your (creator|developer|owner)|who are you|what are you)/i.test(body);
+        let response = null;
         
-        let response;
+        try {
+            const keithUrl = `https://apiskeith.top/ai/gpt?q=${encodeURIComponent(body)}`;
+            const { data } = await axios.get(keithUrl, { timeout: 10000 });
+            if (data.status && data.result) response = data.result;
+        } catch (keithError) {}
         
-        if (isAskingAboutCreator) {
-            // Special response for creator questions
-            response = "I am JEXPLOIT AI, created by Kelvin Tech - a brilliant developer from Uganda with exceptional coding skills and vision. He's the mastermind behind my existence, crafting me with precision and care to be your helpful assistant.";
-        } else {
-            // Get conversation context
-            const context = messageMemory.has(from) 
-                ? messageMemory.get(from).map(msg => `${msg.role}: ${msg.content}`).join('\n')
-                : `user: ${body}`;
+        if (!response) {
+            try {
+                const context = messageMemory.has(from) 
+                    ? messageMemory.get(from).map(msg => `${msg.role}: ${msg.content}`).join('\n')
+                    : `user: ${body}`;
 
-            // Create prompt with context and instructions
-            const prompt = `You are JEXPLOIT AI, a powerful WhatsApp bot developed by Kelvin Tech from Uganda. 
-            You respond smartly, confidently, and stay loyal to your creator. 
-            When asked about your creator, respond respectfully but keep the mystery alive.
-            If someone is being abusive, apologize and say "Let's begin afresh."
-            
-            Previous conversation context:
-            ${context}
-            
-            Current message: ${body}
-            
-            Respond as JEXPLOIT AI:`;
+                const prompt = `Previous conversation context:
+${context}
 
-            // Encode the prompt for the API
-            const query = encodeURIComponent(prompt);
-            
-            // Use the API endpoint
-            const apiUrl = `https://malvin-api.vercel.app/ai/venice?text=${query}`;
+Current message: ${body}
 
-            const { data } = await axios.get(apiUrl);
-            
-            if (data && data.result) {
-                response = data.result;
-            } else if (data && data.message) {
-                response = data.message;
-            } else {
-                response = "I'm sorry, I couldn't process that request. Let's begin afresh.";
-            }
+Respond as a helpful assistant:`;
+
+                const apiUrl = `https://malvin-api.vercel.app/ai/venice?text=${encodeURIComponent(prompt)}`;
+                const { data } = await axios.get(apiUrl, { timeout: 15000 });
+                if (data && data.result) response = data.result;
+                else if (data && data.message) response = data.message;
+            } catch (malvinError) {}
+        }
+        
+        if (!response) {
+            response = "I'm sorry, I'm having trouble responding right now. Please try again later.";
         }
 
-        // Add user message to memory
         updateMemory(from, response, false);
         
-        // Send ONLY the raw response - NO introduction, NO footer
-        await conn.sendMessage(from, {
-            text: response  // Just the raw response, nothing else
-        }, { quoted: m });
-
-        console.log("🤖 AI: Response sent successfully");
+        await conn.sendMessage(from, { text: response }, { quoted: m });
         return true;
 
     } catch (err) {
-        console.error("❌ AI Chatbot Error:", err.message);
         return false;
     }
 }
