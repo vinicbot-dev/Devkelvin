@@ -27,7 +27,7 @@ const timezones = global.timezones || "Africa/Kampala"; // Default to Uganda tim
 const moment = require("moment-timezone")
 const { spawn, exec, execSync } = require('child_process')
 const { default: baileys, proto, jidNormalizedUser, generateWAMessage, generateWAMessageFromContent,
-generateWAMessageContent, getContentType, downloadContentFromMessage,prepareWAMessageMedia } = import("@whiskeysockets/baileys")
+generateWAMessageContent, getContentType, downloadContentFromMessage,prepareWAMessageMedia } = require("@whiskeysockets/baileys")
 
 const { 
   smsg, 
