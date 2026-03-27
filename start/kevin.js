@@ -15,7 +15,7 @@ const os = require('os')
 const fg = require('api-dylux')
 const PDFDocument = require('pdfkit')
 const path = require('path')
-const { getDevice } = require('@whiskeysockets/baileys')
+const { getDevice } = require('@baileys-md/baileys')
 const fsp = fs.promises;
 const lolcatjs = require('lolcatjs')
 const crypto = require('crypto')
@@ -27,7 +27,7 @@ const timezones = global.timezones || "Africa/Kampala"; // Default to Uganda tim
 const moment = require("moment-timezone")
 const { spawn, exec, execSync } = require('child_process')
 const { default: baileys, proto, jidNormalizedUser, generateWAMessage, generateWAMessageFromContent,
-generateWAMessageContent, getContentType, downloadContentFromMessage,prepareWAMessageMedia } = require("@whiskeysockets/baileys")
+generateWAMessageContent, getContentType, downloadContentFromMessage,prepareWAMessageMedia } = import("@whiskeysockets/baileys")
 
 const { 
   smsg, 
@@ -2443,14 +2443,10 @@ case "alive": {
     
     // Array of audio URLs
     const audioUrls = [
-        './start/lib/Media/JexAudio1.mp3',
         './start/lib/Media/JexAudio2.mp3',
         './start/lib/Media/JexAudio3.mp3',
-        './start/lib/Media/JexAudio4.mp3',
         './start/lib/Media/JexAudio5.mp3',
-        './start/lib/Media/JexAudio8.mp3',
-        './start/lib/Media/JexAudio6.mp3',
-        './start/lib/Media/JexAudio7.mp3'
+        './start/lib/Media/JexAudio6.mp3'
     ];
     
     // Randomly select an image URL
@@ -5423,60 +5419,60 @@ conn.sendMessage(m.chat, { audio: { url: json.music }, mimetype: 'audio/mpeg' },
 break       
 case 'fb':
 case 'facebook': {
-    if (!text) return reply('Usage: .fb <facebook_url>');
+    if (!text) return reply('*Please provide a Facebook URL*');
+        
+        await reply('📥 Downloading...');
         
         try {
-            await reply('📥 Downloading...');
+            // Use siputzx API
+            let res = await fetch(`https://api.siputzx.my.id/api/d/facebook?url=${encodeURIComponent(text)}`);
+            let data = await res.json();
             
-            // Using Arslan API
-            const apiUrl = `https://arslan-apis.vercel.app/download/fbdown?url=${encodeURIComponent(text)}`;
-            const res = await fetch(apiUrl);
-            const data = await res.json();
-            
-            if (data.status && data.result?.download) {
-                const download = data.result.download;
-                const metadata = data.result.metadata || {};
-                
-                // Try HD first, fallback to SD
-                const videoUrl = download.hd || download.sd;
-                
-                if (!videoUrl) {
-                    return reply('❌ No download link found');
-                }
-                
-                const caption = `*Facebook Video*\n\n` +
-                               `*Title:* ${metadata.title || 'N/A'}\n` +
-                               `*Duration:* ${metadata.duration || 'N/A'}\n` +
-                               `\n> ${global.wm || ''}`;
-                
-                await conn.sendMessage(m.chat, {
-                    video: { url: videoUrl },
-                    caption: caption,
-                    contextInfo: {
-                        externalAdReply: {
-                            title: "Facebook Video",
-                            body: metadata.title || "Downloaded",
-                            thumbnailUrl: metadata.thumbnail,
-                            mediaType: 1,
-                            sourceUrl: text
-                        }
-                    }
-                }, { quoted: m });
-                
-                await conn.sendMessage(m.chat, { 
-                    react: { text: "✅", key: m.key } 
-                });
-                
-            } else {
-                reply('Download failed: Invalid response');
+            // Check if API returned success
+            if (!data.status || !data.data) {
+                return reply('Failed to fetch video. Check the URL and try again.');
             }
+            
+            const videoData = data.data;
+            const downloads = videoData.downloads || [];
+            
+            let videoUrl = null;
+            
+            // Try to get HD (720p)
+            const hdVideo = downloads.find(d => d.quality === '720p (HD)' && d.type === 'video');
+            if (hdVideo) {
+                videoUrl = hdVideo.url;
+            } else {
+                // Fallback to SD (360p)
+                const sdVideo = downloads.find(d => d.quality === '360p (SD)' && d.type === 'video');
+                if (sdVideo) {
+                    videoUrl = sdVideo.url;
+                }
+            }
+            
+            if (!videoUrl) return reply('No video download link found');
+            
+            await conn.sendMessage(m.chat, {
+                video: { url: videoUrl },
+                caption: `${global.wm || ''}`,
+                contextInfo: { 
+                    externalAdReply: { 
+                        title: "Facebook Video",
+                        body: "Downloaded",
+                        thumbnailUrl: videoData.thumbnail || '',
+                        sourceUrl: text,
+                        mediaType: 1,
+                        renderLargerThumbnail: true
+                    } 
+                }
+            }, { quoted: m });
+            
+            await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
             
         } catch (error) {
             console.error('Facebook error:', error);
             reply(`❌ Error: ${error.message}`);
-            await conn.sendMessage(m.chat, { 
-                react: { text: "❌", key: m.key } 
-            });
+            await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
         }
 }
 break
