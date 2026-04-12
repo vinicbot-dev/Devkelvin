@@ -90,7 +90,7 @@ const {
   shouldLogError } = require('../Jex')
   
 
-const {  takeCommand, musicCommand, ytplayCommand, handleMediafireDownload,  InstagramCommand, telestickerCommand, playCommand } = require('./KelvinCmds/commands')
+const {  takeCommand, musicCommand, ytplayCommand, InstagramCommand, telestickerCommand, playCommand } = require('./KelvinCmds/commands')
 
 const {
 veniceAICommand,
@@ -137,8 +137,7 @@ const { sender } = m;
 const from = m.key.remoteJid;
 const chatId = m.chat;
 const isGroup = from.endsWith("@g.us");
-const senderId = m.key.participant || from; // This gets the actual sender JID
-// database 
+const senderId = m.key.participant || from;  
 const kontributor = JSON.parse(fs.readFileSync('./start/lib/database/owner.json'))
 const botNumber = await conn.decodeJid(conn.user.id)
 
@@ -1160,7 +1159,6 @@ case "readprivacy": {
 break
 case "setprofilename": {
     try {
-        // Check if user is owner/bot admin
         const botNumber = await conn.decodeJid(conn.user.id);
         const sender = m.sender;
         const isOwner = global.owner.includes(sender.replace(/[^0-9]/g, '') + '@s.whatsapp.net');
@@ -1168,7 +1166,7 @@ case "setprofilename": {
         if (!Access) return reply(mess.owner);
 
         if (!text) {
-            return m.reply(`⚠️ Please provide a name!\n\nUsage: *${prefix}case <new_profile_name>*\nExample: *${prefix}case My Awesome Bot*`);
+            return m.reply(`⚠️ Please provide a name!\n\nUsage: *${prefix}case <new_profile_name>*\nExample: *${prefix}case Kelvin*`);
         }
 
         // Limit name length to prevent errors
@@ -1181,8 +1179,7 @@ case "setprofilename": {
         
         // Send success message
         await m.reply(`✅ Profile name updated successfully!\n\nNew Name: *${text}*`);
-        
-        // Optional: Add reaction to confirm
+     
         await conn.sendMessage(m.chat, { 
             react: { 
                 text: '✅', 
@@ -3753,6 +3750,32 @@ let q = args.join(" ");
     }
 }
 break
+case "glossysilver": {
+const text = args.join(" ");
+        if (!text) return reply(`*Example: ${prefix}glossysilver Kevin*`);
+        
+        try {
+            await reply("✨ Creating glossy silver text effect... Please wait ⏳");
+            
+            const axios = require('axios');
+            const apiUrl = `https://api.princetechn.com/api/ephoto360/glossysilver?apikey=prince&text=${encodeURIComponent(text)}`;
+            
+            const response = await axios.get(apiUrl);
+            
+            if (response.data && response.data.success && response.data.result && response.data.result.image_url) {
+                await conn.sendMessage(m.chat, {
+                    image: { url: response.data.result.image_url },
+                    caption: `> ${global.wm}`
+                }, { quoted: m });
+            } else {
+                reply("Failed to generate glossy silver text. Please try again.");
+            }
+        } catch (error) {
+            console.error("Error in glossysilver command:", error);
+            reply("Error generating glossy silver text. Please try again later.");
+        }
+}
+break
 case 'royal': {
     if (!text) return reply(`*Example: ${prefix}royal Kelvin*`);
     
@@ -4295,7 +4318,39 @@ case 'venue':
   case 'wrestlingschedule':
     await sports.getWWESchedule({ reply });
     break;
-//======[RELIGION MENU CMDS]==
+    
+case "betting":
+case "betodds": {
+try {
+            const apiUrl = 'https://api.malvin.gleeze.com/sports/betting/odds';
+            const response = await axios.get(apiUrl);
+            
+            if (!response.data?.status || !response.data?.result?.tips) {
+                return reply('Failed to fetch betting odds.');
+            }
+            
+            const tips = response.data.result.tips;
+            let message = `*BETTING ODDS*\n\n`;
+            
+            tips.forEach((match, index) => {
+                message += `${index + 1}. ${match.event}\n`;
+                message += `📅 ${new Date(match.commenceTime).toLocaleString()}\n`;
+                message += `📊 Bookmakers: ${match.bookmakers}\n`;
+                message += `\n🎲 Odds:\n`;
+                
+                match.bestOdds.forEach(odd => {
+                    message += `   • ${odd.name}: ${odd.price}\n`;
+                });
+                message += `\n─────────────────\n\n`;
+            });
+            
+            reply(message);
+        } catch (error) {
+            console.error('Betting odds error:', error);
+            reply('Error fetching betting odds.');
+        }
+}
+break
 case 'bible': {
 const BASE_URL = "https://bible-api.com";
 
@@ -5139,7 +5194,7 @@ if (!text) return reply('Enter download URL');
     }
 }
 break
-case "apk": {
+case "apk2": {
 if (!text) return reply("*Which apk do you want to download?*");
     
     try {
@@ -5290,9 +5345,45 @@ await reply(`*Error! Repository Not Found*`)
 break
 case 'mf':
 case 'mediafire': {
-    await handleMediafireDownload(conn, m.chat, m);
-}
-    break;
+    const url = args[0];
+            
+            if (!url) return reply(`*Please provide mediafire url*`);
+            
+            if (!url.includes('mediafire.com')) {
+                return reply('Please provide a valid MediaFire URL.');
+            }
+
+            try {
+                await reply('Fetching file from MediaFire...');
+                const apiUrl = `https://api.princetechn.com/api/download/mediafire?apikey=prince&url=${encodeURIComponent(url)}`;
+                const response = await axios.get(apiUrl);
+                
+                if (response.data?.success && response.data?.result) {
+                    const { fileName, fileSize, fileType, downloadUrl } = response.data.result;
+                    
+                    const fileBuffer = await axios({
+                        method: 'GET',
+                        url: downloadUrl,
+                        responseType: 'arraybuffer'
+                    });
+                    
+                    const mimetype = response.data.result.mimeType || 'application/octet-stream';
+                    
+                    await conn.sendMessage(m.chat, {
+                        document: Buffer.from(fileBuffer.data),
+                        mimetype: mimetype,
+                        fileName: fileName,
+                        caption: `📄 ${fileName}\n📦 Size: ${fileSize}\n📁 Type: ${fileType}`
+                    }, { quoted: m });
+                    
+                } else {
+                    reply('Failed to fetch file from MediaFire.');
+                }
+            } catch (error) {
+                console.error(error);
+                reply('Error downloading file. Please try again.');
+            }
+        }
 break
 case "itunes": {
 if (!text) return reply("*Please provide a song name*");
@@ -5623,57 +5714,46 @@ if (!args[0]) return reply('*Please provide a TikTok audio url!*');
     }
 }
 break
-case "savestatis":
+case "savestatus":
 case  "save": {
 await saveStatusMessage(m);
   }
 break
-case "apk2": {
-try {
-    if (!q) {
-      return reply("❌ Please provide an app name to search.");
-    }
+case "apkdl": {
+const appName = args.join(" ");
+            if (!appName) return reply(`*Example:* ${prefix}apkdl WhatsApp`);
 
-    await conn.sendMessage(from, { react: { text: "⏳", key: m.key } });
+            try {
+                await reply(`Searching for ${appName} APK...`);
 
-    const apiUrl = `http://ws75.aptoide.com/api/7/apps/search/query=${q}/limit=1`;
-    const response = await axios.get(apiUrl);
-    const data = response.data;
-
-    if (!data || !data.datalist || !data.datalist.list.length) {
-      return reply("⚠️ No results found for the given app name.");
-    }
-
-    const app = data.datalist.list[0];
-    const appSize = (app.size / 1048576).toFixed(2); // Convert bytes to MB
-
-    const caption = `╭━━━〔 *APK Downloader* 〕━━━┈⊷
-┃ 📦 *Name:* ${app.name}
-┃ 🏋 *Size:* ${appSize} MB
-┃ 📦 *Package:* ${app.package}
-┃ 📅 *Updated On:* ${app.updated}
-┃ 👨‍💻 *Developer:* ${app.developer.name}
-╰━━━━━━━━━━━━━━━┈⊷
-🔗 *Powered By Jexploit *`;
-
-    await conn.sendMessage(from, { react: { text: "⬆️", key: m.key } });
-
-    await conn.sendMessage(from, {
-      document: { url: app.file.path_alt },
-      fileName: `${app.name}.apk`,
-      mimetype: "application/vnd.android.package-archive",
-      caption: caption
-    }, { quoted: m });
-
-    await conn.sendMessage(from, { react: { text: "✅", key: m.key } });
-
-  } catch (error) {
-    console.error("Error:", error);
-    reply("❌ An error occurred while fetching the APK. Please try again.");
-  }
- }
- 
-//====[AUDIO MENU]==========
+                const axios = require('axios');
+                const apiUrl = `https://api.princetechn.com/api/download/apkdl?apikey=prince&appName=${encodeURIComponent(appName)}`;
+                const response = await axios.get(apiUrl);
+                
+                if (response.data?.success && response.data?.result) {
+                    const { appname, download_url } = response.data.result;
+                    
+                    const apkResponse = await axios({
+                        method: 'GET',
+                        url: download_url,
+                        responseType: 'stream'
+                    });
+                    
+                    await conm.sendMessage(m.chat, {
+                        document: apkResponse.data,
+                        mimetype: 'application/vnd.android.package-archive',
+                        fileName: `${appname.replace(/[^a-zA-Z0-9]/g, '_')}.apk`,
+                        caption: `✅ ${appname}\n> ${global.wm || 'Vesper-Xmd'}`
+                    }, { quoted: m });
+                } else {
+                    reply(`❌ ${appName} not found`);
+                }
+            } catch (error) {
+                console.error(error);
+                reply(`❌ Failed to download ${appName}`);
+            }
+        }
+}
 break
 case 'bass': {
   try {
@@ -7029,7 +7109,7 @@ if (!filtered.length) {
     });
 
     text += `✅ Jexploit Team\n`;
-    text += `📢 For more information and updates? Join our support group:\n👉 https://chat.whatsapp.com/IixDQqcKOuE8eKGHmQqUod?mode=ems_copy_c\n`;
+    text += `📢 For more information and updates? Join our support group:\n👉 https://chat.whatsapp.com/LSbOiemulBC5eyiCrLcYub?mode=gi_t\n`;
     text += `⚠️ Charges may apply depending on the service provided.`;
 
     reply(text);
