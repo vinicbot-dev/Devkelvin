@@ -4507,40 +4507,41 @@ try {
 break
 case "Quran": {
 try {
-        if (!surahNumber || isNaN(surahNumber)) {
-            await conn.sendMessage(chatId, { text: "📖 Usage: .quran <surah_number>\nExample: .quran 1" });
-            return;
+            const surahNumber = parseInt(text.trim());
+            
+            if (!text || isNaN(surahNumber)) {
+                await conn.sendMessage(m.chat, { text: "Usage: .quran <surah_number>\nExample: .quran 1" });
+                return;
+            }
+
+            const url = `https://apis.davidcyril.name.ng/quran?surah=${surahNumber}`;
+            const res = await fetch(url);
+            const data = await res.json();
+
+            if (!data.success) {
+                await conn.sendMessage(m.chat, { text: "Could not fetch Surah. Please try another number." });
+                return;
+            }
+
+            const { number, name, type, ayahCount, tafsir, recitation } = data.surah;
+
+            let replyText = `📖 *${name.english}* (${name.arabic})\n`;
+            replyText += `Number: ${number} | Type: ${type} | Ayahs: ${ayahCount}\n\n`;
+            replyText += `Tafsir: ${tafsir.id}`;
+
+            await conn.sendMessage(m.chat, { text: replyText });
+
+            await conn.sendMessage(m.chat, {
+                audio: { url: recitation },
+                mimetype: "audio/mpeg",
+                mp3: true
+            }, { quoted: m });
+
+        } catch (err) {
+            await conn.sendMessage(m.chat, { text: "Error fetching Surah. Try again later." });
+            console.error("Quran command error:", err.message);
         }
-
-        const url = `https://apis.davidcyriltech.my.id/quran?surah=${surahNumber}`;
-        const res = await axios.get(url);
-
-        if (!res.data.success) {
-            await conn.sendMessage(chatId, { text: "❌ Could not fetch Surah. Please try another number." });
-            return;
-        }
-
-        const { number, name, type, ayahCount, tafsir, recitation } = res.data.surah;
-
-        // 1️⃣ Send surah info as text
-        let reply = `📖 *Surah ${name.english}* (${name.arabic})\n\n`;
-        reply += `Surah Number: ${number}\n📌 Type: ${type}\n📜 Ayahs: ${ayahCount}\n\n`;
-        reply += `Tafsir: ${tafsir.id}`;
-
-        await conn.sendMessage(chatId, { text: reply });
-
-        // 2️⃣ Send audio as PTT (voice note)
-        await conn.sendMessage(chatId, {
-            audio: { url: recitation },
-            mimetype: "audio/mp4",
-            ptt: true
-        }, { quoted: message });
-
-    } catch (err) {
-        await conn.sendMessage(chatId, { text: "⚠️ Error fetching Surah. Try again later." });
-        console.error("Quran command error:", err.message);
-    }
-}
+ }
 break
 case 'song':
 case 'xplay': {
@@ -4732,79 +4733,39 @@ case "play2": {
 break
 case "play3":
 case "Robertplay": {
-if (!text) return reply(`Please Provide Me A song Query or Link\n\nExample: ${prefix + command} shape of you`);
+  const query = args.join(" ");
+        if (!query) return reply(`Example: ${prefix}play3 Faded`);
 
         try {
-            await conn.sendMessage(m.chat, { 
-                react: { text: "⏳", key: m.key } 
-            });
+            await reply(`Searching for "${query}"...`);
 
-            // Search YouTube
-            const search = await yts(text);
+            const axios = require('axios');
+            const apiUrl = `https://apis.davidcyril.name.ng/play?query=${encodeURIComponent(query)}`;
+            const response = await axios.get(apiUrl);
             
-            if (!search.videos || !search.videos.length) {
-                return reply("No result Found");
-            }
-
-            const video = search.videos[0];
-            
-            // MP3 API using Arslan
-            const apiUrl = `https://arslan-apis.vercel.app/download/ytmp3?url=${video.url}`;
-            const res = await axios.get(apiUrl, { timeout: 60000 });
-
-            if (!res.data || !res.data.status || !res.data.result || !res.data.result.download || !res.data.result.download.url) {
-                return reply("❌ Audio Not Generated");
-            }
-
-            const dlUrl = res.data.result.download.url;
-            const meta = res.data.result.metadata;
-            const quality = res.data.result.download.quality || "128kbps";
-
-            // Send song info with thumbnail
-            await conn.sendMessage(
-                m.chat,
-                {
-                    image: { url: video.thumbnail },
-                    caption: `🎵 *${meta.title || video.title}*\n` +
-                             `🎚️ Quality: ${quality}\n\n` +
-                             `⬇️ Downloading audio...`
-                },
-                { quoted: m }
-            );
-
-            // Send audio
-            await conn.sendMessage(
-                m.chat,
-                {
-                    audio: { url: dlUrl },
-                    mimetype: "audio/mpeg",
+            if (response.data?.status && response.data?.result) {
+                const { title, duration, views, published, download_url } = response.data.result;
+                
+                if (!download_url) {
+                    return reply(`No audio found for "${query}"`);
+                }
+                
+                const caption = `*${title}*\n⏱ ${duration} | 👁 ${views?.toLocaleString()} | 📅 ${published}`;
+                
+                await conn.sendMessage(m.chat, {
+                    audio: { url: download_url },
+                    mimetype: 'audio/mpeg',
+                    fileName: `${title.replace(/[^\w\s]/gi, '')}.mp3`,
                     ptt: false,
-                    fileName: `${meta.title || video.title}.mp3`.replace(/[<>:"/\\|?*]/g, '_'),
-                    caption: `> ${global.wm || ''}`,
-                    contextInfo: {
-                        externalAdReply: {
-                            title: meta.title ? meta.title.substring(0, 40) : "YouTube Song",
-                            body: "YouTube MP3",
-                            thumbnailUrl: video.thumbnail,
-                            sourceUrl: video.url,
-                            mediaType: 1,
-                            renderLargerThumbnail: true
-                        }
-                    }
-                },
-                { quoted: m }
-            );
-
-            await conn.sendMessage(m.chat, { 
-                react: { text: "✅", key: m.key } 
-            });
-
-        } catch (err) {
-            console.error("PLAY ERROR:", err);
-            reply("❌ Error Found Please Try Later");
-            await conn.sendMessage(m.chat, { 
-                react: { text: "❌", key: m.key } 
-            });
+                    caption: caption
+                }, { quoted: m });
+                
+            } else {
+                reply(`No results found for "${query}"`);
+            }
+        } catch (error) {
+            console.error('Play3 error:', error.message);
+            reply(`Error: ${error.message}`);
         }
 }
 break
@@ -5082,6 +5043,43 @@ case 'video': {
         reply(mess.error);
     }
 }
+break
+case "video2": {
+const query = args.join(" ");
+        if (!query) return reply(`Example: ${prefix}video3 Gata Only`);
+
+        try {
+            await reply(`Searching for "${query}"...`);
+
+            const axios = require('axios');
+            const apiUrl = `https://apis.davidcyril.name.ng/song?query=${encodeURIComponent(query)}`;
+            const response = await axios.get(apiUrl);
+            
+            if (response.data?.status && response.data?.result) {
+                const { title, duration, views, published, video, thumbnail } = response.data.result;
+                
+                if (!video || !video.download_url) {
+                    return reply(`No video found for "${query}"`);
+                }
+                
+                const caption = `*${title}*\n⏱ ${duration} | 👁 ${views?.toLocaleString()} | 📅 ${published}`;
+                
+                await conn.sendMessage(m.chat, {
+                    video: { url: video.download_url },
+                    mimetype: 'video/mp4',
+                    fileName: `${title.replace(/[^\w\s]/gi, '')}.mp4`,
+                    caption: caption,
+                    thumbnail: { url: thumbnail }
+                }, { quoted: m });
+                
+            } else {
+                reply(`No results found for "${query}"`);
+            }
+        } catch (error) {
+            console.error('Video3 error:', error.message);
+            reply(`Error: ${error.message}`);
+        }
+ }
 break;
 case 'checkapi': {
     if (!text) return reply(`Usage: ${prefix}checkapi <url>`);
