@@ -1957,7 +1957,7 @@ if (!Access) return reply(mess.owner);
 }
 break
 case "groupjids": {
-    if (!Access) return reply("*Your are not my owner* 😜!");
+    if (!Access) return reply(mess.owner);
     const groups = await conn.groupFetchAllParticipating();
     const groupJids = Object.keys(groups).join('\n');
     reply(`📝 *Group JIDs:*\n\n${groupJids}`);
@@ -3394,7 +3394,7 @@ case 'arting': {
     }
 }  
 break   
-case " advancedglow": {
+case "advancedglow": {
 let q = args.join(" ");
     if (!q) {
       return reply(`*Example: ${prefix}advancedglow Kevin*`);
@@ -3773,6 +3773,32 @@ const text = args.join(" ");
         } catch (error) {
             console.error("Error in glossysilver command:", error);
             reply("Error generating glossy silver text. Please try again later.");
+        }
+}
+break
+case "underwater": {
+const text = args.join(" ");
+        if (!text) return reply(`*Example: ${prefix}underwater Kevin*`);
+        
+        try {
+            await reply("Creating underwater text effect... Please wait");
+            
+            const axios = require('axios');
+            const apiUrl = `https://api.princetechn.com/api/ephoto360/underwater?apikey=prince&text=${encodeURIComponent(text)}`;
+            
+            const response = await axios.get(apiUrl);
+            
+            if (response.data && response.data.success && response.data.result && response.data.result.image_url) {
+                await conn.sendMessage(m.chat, {
+                    image: { url: response.data.result.image_url },
+                    caption: `> ${global.wm}`
+                }, { quoted: m });
+            } else {
+                reply("Failed to generate underwater text. Please try again.");
+            }
+        } catch (error) {
+            console.error("Error in underwater command:", error);
+            reply("Error generating underwater text. Please try again later.");
         }
 }
 break
@@ -5752,7 +5778,6 @@ const appName = args.join(" ");
                 console.error(error);
                 reply(`❌ Failed to download ${appName}`);
             }
-        }
 }
 break
 case 'bass': {
