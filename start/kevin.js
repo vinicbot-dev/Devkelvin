@@ -7186,7 +7186,7 @@ if (!text) return reply(`*Usage:* ${command} <prompt>\n\n*Example:* ${command} c
 
     await reply('> *Jexploit ᴘʀᴏᴄᴇssɪɴɢ ɪᴍᴀɢᴇ...*');
 
-    const apiUrl = `https://apis.davidcyriltech.my.id/flux?prompt=${encodeURIComponent(text)}`;
+    const apiUrl = `https://apis.davidcyril.name.ng/flux?prompt=${encodeURIComponent(text)}`;
 
     await conn.sendMessage(m.chat, { image: { url: apiUrl }, caption: `🎨 *FLUX IMAGE GENERATOR*\n\n📄 *PROMPT:* ${text}\n\n> ᴘᴏᴡᴇʀᴇᴅ ʙʏ Jexploit` }, { quoted: m });
   } catch (error) {
