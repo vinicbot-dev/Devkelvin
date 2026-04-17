@@ -224,7 +224,19 @@ const isQuotedViewOnce = type === 'extendedTextMessage' && content.includes('vie
 
 const senderNumber = m.sender.split('@')[0];
 
+let groupMetadata = null;
+let groupName = "";
+let participants = [];
 
+if (isGroup) {
+    try {
+        groupMetadata = await conn.groupMetadata(from);
+        groupName = groupMetadata.subject || "";
+        participants = groupMetadata.participants || [];
+    } catch (err) {
+        console.log('[GROUP METADATA ERROR]', err.message);
+    }
+}
 
 const peler = fs.readFileSync('./start/lib/Media/Jexploit.jpg')
 const cina = fs.readFileSync('./start/lib/Media/Jex.jpg')
@@ -1327,26 +1339,60 @@ if (!Access) return reply(mess.owner);
 }
 break
 case "vv2": {
-if (!Access) return reply(mess.owner);
-    if (!quoted) return reply(`*Reply to an Image or Video*`);
-
-    let msg = m.quoted.fakeObj.message
-    let type = Object.keys(msg)[0]
-    if (!msg[type].viewOnce && m.quoted.mtype !== "viewOnceMessageV2") return m.reply("message not viewonce!")
-    let media = await downloadContentFromMessage(msg[type], type == 'imageMessage' ? 'image' : type == 'videoMessage' ? 'video' : 'audio')
-    let buffer = Buffer.from([])
-    for await (const chunk of media) {
-        buffer = Buffer.concat([buffer, chunk])
+    if (!Access) return reply(mess.owner);
+    if (!m.quoted) return reply(`*Reply to a ViewOnce Image or Video*`);
+    
+    // Check if quoted message is view once
+    if (m.quoted.mtype !== "viewOnceMessageV2" && !m.quoted.message?.viewOnceMessageV2) {
+        return reply(`*This is not a ViewOnce message!*`);
     }
-    if (/video/.test(type)) {
-        return conn.sendMessage(m.chat, { video: buffer, caption: msg[type].caption || "" }, { quoted: m })
-    } else if (/image/.test(type)) {
-        return conn.sendMessage(m.chat, { image: buffer, caption: msg[type].caption || "" }, { quoted: m })
-    } else if (/audio/.test(type)) {
-        return conn.sendMessage(m.chat, { audio: buffer, mimetype: "audio/mpeg", ptt: true }, { quoted: m })
+    
+    try {
+        // Get the actual message content
+        let msg = m.quoted.message || m.quoted;
+        
+        // Handle different view once structures
+        let viewOnceMsg = msg.viewOnceMessageV2?.message || 
+                         msg.viewOnceMessage?.message || 
+                         msg;
+        
+        let type = Object.keys(viewOnceMsg)[0];
+        
+        if (!type || !viewOnceMsg[type]) {
+            return reply(`*Could not extract media from ViewOnce message*`);
+        }
+        
+        let media = await downloadContentFromMessage(viewOnceMsg[type], 
+            type == 'imageMessage' ? 'image' : type == 'videoMessage' ? 'video' : 'audio');
+        
+        let buffer = Buffer.from([]);
+        for await (const chunk of media) {
+            buffer = Buffer.concat([buffer, chunk]);
+        }
+        
+        if (/video/.test(type)) {
+            return conn.sendMessage(m.chat, { 
+                video: buffer, 
+                caption: viewOnceMsg[type].caption || "" 
+            }, { quoted: m });
+        } else if (/image/.test(type)) {
+            return conn.sendMessage(m.chat, { 
+                image: buffer, 
+                caption: viewOnceMsg[type].caption || "" 
+            }, { quoted: m });
+        } else if (/audio/.test(type)) {
+            return conn.sendMessage(m.chat, { 
+                audio: buffer, 
+                mimetype: "audio/mpeg", 
+                ptt: true 
+            }, { quoted: m });
+        }
+    } catch (error) {
+        console.error('VV2 error:', error);
+        reply(`*Failed to process ViewOnce message: ${error.message}*`);
     }
+    break;
 }
-break
 case 'creategc': 
 case 'creategroup': {
 if (!Access) return reply(mess.owner)
@@ -5744,38 +5790,33 @@ await saveStatusMessage(m);
   }
 break
 case "apkdl": {
-const appName = args.join(" ");
-            if (!appName) return reply(`*Example:* ${prefix}apkdl WhatsApp`);
+    const appName = args.join(" ");
+    if (!appName) return reply(`*Example:* ${prefix}apkdl WhatsApp`);
 
-            try {
-                await reply(`Searching for ${appName} APK...`);
+    try {
+        await reply(`Searching for ${appName} APK...`);
 
-                const axios = require('axios');
-                const apiUrl = `https://api.princetechn.com/api/download/apkdl?apikey=prince&appName=${encodeURIComponent(appName)}`;
-                const response = await axios.get(apiUrl);
-                
-                if (response.data?.success && response.data?.result) {
-                    const { appname, download_url } = response.data.result;
-                    
-                    const apkResponse = await axios({
-                        method: 'GET',
-                        url: download_url,
-                        responseType: 'stream'
-                    });
-                    
-                    await conm.sendMessage(m.chat, {
-                        document: apkResponse.data,
-                        mimetype: 'application/vnd.android.package-archive',
-                        fileName: `${appname.replace(/[^a-zA-Z0-9]/g, '_')}.apk`,
-                        caption: `✅ ${appname}\n> ${global.wm || 'Vesper-Xmd'}`
-                    }, { quoted: m });
-                } else {
-                    reply(`❌ ${appName} not found`);
-                }
-            } catch (error) {
-                console.error(error);
-                reply(`❌ Failed to download ${appName}`);
-            }
+        const axios = require('axios');
+        const apiUrl = `https://api.princetechn.com/api/download/apkdl?apikey=prince&appName=${encodeURIComponent(appName)}`;
+        const response = await axios.get(apiUrl);
+        
+        if (response.data?.success && response.data?.result) {
+            const { appname, download_url } = response.data.result;
+            
+            // Send APK directly using URL instead of streaming
+            await conm.sendMessage(m.chat, {
+                document: { url: download_url },
+                mimetype: 'application/vnd.android.package-archive',
+                fileName: `${appname.replace(/[^a-zA-Z0-9]/g, '_')}.apk`,
+                caption: `✅ ${appname}\n> ${global.wm || 'Vesper-Xmd'}`
+            }, { quoted: m });
+        } else {
+            reply(`❌ ${appName} not found`);
+        }
+    } catch (error) {
+        console.error(error);
+        reply(`❌ Failed to download ${appName}`);
+    }
 }
 break
 case 'bass': {
