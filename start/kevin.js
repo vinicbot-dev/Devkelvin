@@ -1207,6 +1207,40 @@ case "setprofilename": {
     }
 }
 break
+case "setabout": {
+    try {
+        const sender = m.sender;
+        
+        if (!Access) return reply(mess.owner);
+
+        if (!text) {
+            return m.reply(`⚠️ Please provide an about text!\n\nUsage: *${prefix}setabout <text>*\nExample: *${prefix}setabout Welcome to my bot!*`);
+        } 
+        if (text.length > 139) {
+            return m.reply(`❌ About text too long! Maximum 139 characters allowed.`);
+        }
+
+        // Set the profile about/status
+        await conn.updateProfileStatus(text);
+        
+        // Send success message
+        await m.reply(`✅ About/Status updated successfully!\n\nNew About: *${text}*`);
+        await conn.sendMessage(m.chat, { 
+            react: { 
+                text: '✅', 
+                key: m.key 
+            } 
+        });
+
+        console.log(`Profile about changed to: ${text} by ${sender}`);
+
+    } catch (error) {
+        console.error('Error in setabout command:', error);
+        m.reply(`❌ Failed to update about: ${error.message}`);
+    }
+  
+}
+break
 case "lastseen": {
     if (!Access) return reply(mess.owner);
     if (!text) return reply(`*Usage:* ${prefix + command} [option]\n\n*Options:* all, contacts, contact_blacklist, none\n*Example:* ${prefix + command} all`);
@@ -3097,13 +3131,14 @@ case "calc": {
 break
 case "owner": {
     try {
-        // Get the owner number from SettingsManager
-        const ownernumber = getSetting(botNumber, 'ownernumber', '256742932677');
-        const ownername = getSetting(botNumber, 'ownername', 'Owner');
+        const botNumber = await conn.decodeJid(conn.user.id);
+        
+        // Get owner info from SQLite
+        const ownernumber = await db.get(botNumber, 'ownernumber', '256742932677');
+        const ownername = await db.get(botNumber, 'ownername', 'Owner');
         
         // Format the number
         const cleanNumber = String(ownernumber).replace(/\D/g, '');
-        const ownerJid = cleanNumber + '@s.whatsapp.net';
         
         // Create contact vcard
         const ownerContact = [{
@@ -3111,7 +3146,7 @@ case "owner": {
             vcard: `BEGIN:VCARD\nVERSION:3.0\nN:${ownername}\nFN:${ownername}\nitem1.TEL;waid=${cleanNumber}:${cleanNumber}\nitem1.X-ABLabel:Mobile\nEND:VCARD`,
         }];
 
-        // Send the contact
+        // Send only the contact
         await conn.sendMessage(
             m.chat,
             { 
@@ -3122,9 +3157,6 @@ case "owner": {
             },
             { quoted: m }
         );
-        
-        // Also send a text message with owner info
-        reply(`👑 *Owner Information*\n\n• *Name:* ${ownername}\n• *Number:* ${cleanNumber}\n• *WhatsApp:* wa.me/${cleanNumber}`);
         
     } catch (error) {
         console.error('Error sending owner contact:', error.message);
@@ -3144,50 +3176,75 @@ teks += `*Name :* ${pushname}\n*User :* @${sender.split('@')[0]}\n*Chat :* https
 reply(teks)
 }
 break
-case 'getbisnis': case 'getbusiness': {
-  let input = m.quoted ? m.quoted.sender : text || m.sender;
-  input = input.replace(/[^+\d]/g, '');
-  let target;
-  if (input.startsWith('+')) {
-    target = input.slice(1).replace(/^0+/, '') + '@s.whatsapp.net';
-  } else if (input.startsWith('0')) {
-    target = '254' + input.slice(1) + '@s.whatsapp.net';
-  } else if (input.startsWith('62')) {
-    target = input + '@s.whatsapp.net';
-  } else if (input.includes('@s.whatsapp.net')) {
-    target = input;
-  } else {
-    target = '256' + input + '@s.whatsapp.net';
-  }
-
-  try {
-    const profile = await bot.getBusinessProfile(target);
-    const name = await bot.getName(target); 
-    const pfp = await bot.profilePictureUrl(target, 'image').catch(() => null);
-    const desc = profile.description || 'invalid.';
-    const category = profile.category ||'invalid';
-    const website = profile.website || 'invalid';
-    const address = profile.address || 'invalid';
-    const email = profile.email || 'invalid';
-    const caption = `*📇Business profile*\n\n` +
-      `*👤 Name:* ${name}\n` +
-      `*🏢 Category:* ${category}\n` +
-      `*🌐 Website:* ${website}\n` +
-      `*📍 Address:* ${address}\n` +
-      `*✉️ Email:* ${email}\n\n` +
-      `*📝 Description:*\n${desc}`;
-    if (pfp) {
-      await bot.sendMessage(m.chat, {
-        image: { url: pfp },
-        caption,
-      }, { quoted: m });
-    } else {
-      m.reply(caption);
+case 'getbisnis':
+case 'getbusiness': {
+    try {
+        let input = m.quoted ? m.quoted.sender : text || m.sender;
+        
+        if (!input) {
+            return reply(`⚠️ Please provide a phone number or reply to a message!\n\nUsage: *${prefix}getbusiness 256742932677*`);
+        }
+        
+        // Clean and format the number
+        input = input.replace(/[^0-9]/g, '');
+        
+        let target;
+        if (input.startsWith('0')) {
+            target = '256' + input.slice(1) + '@s.whatsapp.net';
+        } else if (input.length === 9) {
+            target = '256' + input + '@s.whatsapp.net';
+        } else if (input.length === 12 && input.startsWith('256')) {
+            target = input + '@s.whatsapp.net';
+        } else {
+            target = input + '@s.whatsapp.net';
+        }
+        
+        // Get business profile
+        const profile = await conn.getBusinessProfile(target);
+        
+        // Check if profile exists
+        if (!profile) {
+            return reply(`❌ No business profile found for this number.`);
+        }
+        
+        // Get name and profile picture
+        const name = await conn.getName(target).catch(() => 'Unknown');
+        const pfp = await conn.profilePictureUrl(target, 'image').catch(() => null);
+        
+        // Safely extract profile data
+        const desc = profile?.description || 'No description available';
+        const category = profile?.category || 'Not specified';
+        const website = profile?.website || 'Not provided';
+        const address = profile?.address || 'Not provided';
+        const email = profile?.email || 'Not provided';
+        
+        const caption = `📇 *BUSINESS PROFILE*\n\n` +
+            `👤 *Name:* ${name}\n` +
+            `🏢 *Category:* ${category}\n` +
+            `🌐 *Website:* ${website}\n` +
+            `📍 *Address:* ${address}\n` +
+            `✉️ *Email:* ${email}\n\n` +
+            `📝 *Description:*\n${desc}`;
+        
+        if (pfp) {
+            await conn.sendMessage(m.chat, {
+                image: { url: pfp },
+                caption: caption
+            }, { quoted: m });
+        } else {
+            await reply(caption);
+        }
+        
+    } catch (err) {
+        console.error('GetBusiness error:', err);
+        
+        if (err.message.includes('404')) {
+            reply(`❌ Business profile not found for this number.`);
+        } else {
+            reply(`❌ Failed to fetch business profile: ${err.message}`);
+        }
     }
-  } catch (err) {
-    console.error(err);
-    m.reply(`${global.wm}`);
-  }
+    
 }
 break
 case "botstatus":
@@ -3232,25 +3289,49 @@ case "stats": {
 }
 break
 case "getabout": {
-if (!Access) return reply(mess.owner);
-    if (!m.quoted) {
-      return reply('Reply to a user to get their about/bio.');
+    if (!Access) return reply(mess.owner);
+    
+    let userId;
+    
+    // Check if replying to a message or providing a number
+    if (m.quoted) {
+        userId = m.quoted.sender;
+    } else if (text) {
+        // Format the number if provided
+        let cleanNumber = text.replace(/[^0-9]/g, '');
+        if (cleanNumber.startsWith('0')) {
+            cleanNumber = '256' + cleanNumber.slice(1);
+        }
+        userId = cleanNumber + '@s.whatsapp.net';
+    } else {
+        return reply('⚠️ Reply to a user or provide a phone number!\n\nUsage:\n• Reply to a message: *.getabout*\n• Provide number: *.getabout 256742932677*');
     }
-
-    const userId = m.quoted.sender;
 
     try {
-      const { status, setAt } = await conn.fetchStatus(userId);
-      const formattedDate = moment(setAt).format("MMMM Do YYYY, h:mm:ss A");
+        // Fetch user's status/about
+        const { status, setAt } = await conn.fetchStatus(userId);
+        
+        if (!status) {
+            return reply(`❌ No about/bio found for @${userId.split('@')[0]}`, { mentions: [userId] });
+        }
+        
+        const formattedDate = moment(setAt).format("MMMM Do YYYY, h:mm:ss A");
+        
+        await conn.sendMessage(m.chat, { 
+            text: `📝 *ABOUT/BIO*\n\n👤 *User:* @${userId.split('@')[0]}\n📋 *Status:* "${status}"\n\n🕒 *Set at:* ${formattedDate}`,
+            mentions: [userId] 
+        }, { quoted: m });
 
-      await conn.sendMessage(m.chat, { 
-        text: `💢 *About of:* @${userId.split('@')[0]}\n\n"${status}"\n\n🕒 *Set at:* ${formattedDate}`,
-        mentions: [userId] 
-      }, { quoted: m });
-
-    } catch {
-      reply(mess.error);
+    } catch (error) {
+        console.error('Getabout error:', error);
+        
+        if (error.message.includes('404')) {
+            reply(`❌ No about/bio found for this user.`);
+        } else {
+            reply(`❌ Failed to fetch about: ${error.message}`);
+        }
     }
+    
 }
 break
 case "smartphone":
@@ -7195,7 +7276,6 @@ if (!text) return reply(`*Usage:* ${command} <prompt>\n\n*Example:* ${command} c
       }
 }
 break
-case 'tomp3':
 case "toaudio": {
 const quoted = m.quoted ? m.quoted : null;
   const mime = quoted?.mimetype || "";
@@ -7650,17 +7730,61 @@ const quoted = m.quoted || m.msg?.quoted;
     }
 }
 break
-case 'tomp3':
-case 'toaudio': {
-if (!/video/.test(mime) && !/audio/.test(mime)) return reply(`tag/reply Video/Audio with Caption ${prefix + command}`)
-let media = await conn.downloadMediaMessage(qmsg)
-let audio = await toAudio(media, 'mp4')
-bot.sendMessage(m.chat, {
-audio: audio,
-mimetype: 'audio/mpeg'
-}, {
-quoted: m
-})
+case 'tomp3': {
+    try {
+        // Check if there's a quoted message
+        if (!m.quoted) {
+            return reply(`⚠️ Reply to a video or audio message!\n\nUsage: *${prefix}tomp3* (reply to a video/audio)`);
+        }
+        
+        // Check if quoted message is video or audio
+        if (!/video/.test(mime) && !/audio/.test(mime)) {
+            return reply(`❌ Please reply to a video or audio message!`);
+        }
+        
+        await reply(`⏳ Converting to MP3...`);
+        
+        let media;
+        
+        // Try different download methods
+        if (typeof conn.downloadMediaMessage === 'function') {
+            media = await conn.downloadMediaMessage(qmsg);
+        } else if (typeof conn.downloadAndSaveMediaMessage === 'function') {
+            const filePath = await conn.downloadAndSaveMediaMessage(qmsg, 'temp');
+            media = fs.readFileSync(filePath);
+            fs.unlinkSync(filePath);
+        } else {
+            // Manual download
+            const stream = await downloadContentFromMessage(qmsg, /video/.test(mime) ? 'video' : 'audio');
+            let buffer = Buffer.from([]);
+            for await (const chunk of stream) {
+                buffer = Buffer.concat([buffer, chunk]);
+            }
+            media = buffer;
+        }
+        
+        // Convert to audio
+        let audio;
+        if (typeof toAudio === 'function') {
+            audio = await toAudio(media, 'mp4');
+        } else {
+            // Fallback - send as is
+            audio = media;
+        }
+        
+        await conn.sendMessage(m.chat, {
+            audio: audio,
+            mimetype: 'audio/mpeg',
+            fileName: 'converted.mp3'
+        }, { quoted: m });
+        
+        await reply(`✅ Conversion complete!`);
+        
+    } catch (error) {
+        console.error('Tomp3 error:', error);
+        reply(`❌ Failed to convert: ${error.message}`);
+    }
+    
 }
 break
 case "topdf":
