@@ -617,11 +617,17 @@ if (m.isGroup && body && !m.key.fromMe) {
     }, botNumber);
 }
 
+// ANTI GROUP MENTION
 if ((m.mtype || '').includes("groupStatusMentionMessage") && m.isGroup) {
-    // Don't delete bot's own messages
-    if (m.key.fromMe) return;
-    if (m.isAdmin) return;
-    await conn.deleteMessage(m.chat, m.key).catch(() => {});
+    const antiGroupMention = await db.get(botNumber, 'antigroupmention', false);
+    
+    if (antiGroupMention) {
+        // Don't delete bot's own messages
+        if (m.key.fromMe) return;
+        if (m.isAdmin) return;
+        await conn.deleteMessage(m.chat, m.key).catch(() => {});
+        console.log(`[ANTI GROUP MENTION] Deleted group mention from ${m.sender}`);
+    }
 }
 
 // ========== ANTI-DELETE EXECUTION ==========
@@ -2297,6 +2303,26 @@ case 'autorecording': {
     const boolValue = mode === 'on';
     await db.set(botNumber, 'autorecording', boolValue);
     reply(`✅ Auto-recording ${boolValue ? 'enabled' : 'disabled'}`);
+    break;
+}
+case 'antigroupmention':
+case 'antigpmention':
+case 'agm': {
+    if (!Access) return reply(mess.owner);
+    if (!m.isAdmin) return reply(global.mess.notadmin);
+    if (!m.isBotAdmin) return reply(global.mess.botadmin);
+    
+    const mode = args[0]?.toLowerCase();
+    
+    if (!mode || !['on', 'off'].includes(mode)) {
+        const current = await db.get(botNumber, 'antigroupmention', false);
+        return reply(`❌ *ANTI GROUP MENTION*\n\nCurrent: ${current ? 'ON ✅' : 'OFF ❌'}\n\n📌 *Usage:*\n${prefix}antigroupmention on\n${prefix}antigroupmention off`);
+    }
+    
+    const boolValue = mode === 'on';
+    await db.set(botNumber, 'antigroupmention', boolValue);
+    
+    reply(`✅ Anti Group Mention ${boolValue ? 'enabled' : 'disabled'}`);
     break;
 }
 case 'aichat':
