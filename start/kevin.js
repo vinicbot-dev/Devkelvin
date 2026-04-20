@@ -11143,31 +11143,6 @@ case "kick": {
         reply(mess.done);
 }
 break
-case "kick2": {
-try {
-      
-        if (!m.isGroup) return reply(mess.group);
-       if (!m.isAdmin) return reply(mess.notadmin);
-       if (!m.isBotAdmin) return reply(mess.botadmin);
-    
-        const userId = ?.[0] || m.quoted?.sender;
-        if (!userId) return reply("ℹ️ Please mention or quote the user to kick");
-
-        await conn.groupParticipantsUpdate(from, [userId], "remove");
-        reply(`✅ User @${userId.split('@')[0]} has been removed`, { 
-            mentions: [userId],
-            contextInfo: {
-                forwardingScore: 999,
-                isForwarded: true
-            }
-        });
-
-    } catch (error) {
-        console.error("Kick Error:", error);
-        reply("❌ Failed to remove user from group");
-    }
-}
-break
 case "getgrouppp":
 case "grouppp":
 case "groupicon":
