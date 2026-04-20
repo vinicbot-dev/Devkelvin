@@ -1,26 +1,30 @@
 const fileType = require('file-type');
 const FormData = require('form-data');
 const fetch = require('node-fetch');
+const axios = require('axios');
 const MAX_FILE_SIZE_MB = 200; // Maximum file size
 
 async function uploadMedia(buffer) {
   try {
-    const { ext } = await fileType.fromBuffer(buffer);  
-    const bodyForm = new FormData();
-    bodyForm.append("fileToUpload", buffer, "file." + ext);
-    bodyForm.append("reqtype", "fileupload");
-
-    const res = await fetch("https://catbox.moe/user/api.php", {
-      method: "POST",
-      body: bodyForm,
+    const { ext } = await fileType.fromBuffer(buffer);
+    
+    // Create form data with the buffer
+    const formData = new FormData();
+    formData.append('file', buffer, `file.${ext}`);
+    
+    // Use David Cyril API
+    const response = await axios.post('https://apis.davidcyril.name.ng/uploader/catbox', formData, {
+      headers: {
+        ...formData.getHeaders(),
+      },
+      timeout: 60000
     });
-
-    if (!res.ok) {
-      throw new Error(`Upload failed with status ${res.status}: ${res.statusText}`);
+    
+    if (response.data && response.data.success && response.data.url) {
+      return response.data.url;
+    } else {
+      throw new Error('Upload failed: Invalid response from API');
     }
-
-    const data = await res.text();
-    return data;
   } catch (error) {
     console.error("Error during media upload:", error);
     throw new Error('Failed to upload media');
