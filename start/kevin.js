@@ -925,7 +925,6 @@ Status: ${currentMode !== 'off' ? '✅ Enabled' : '❌ Disabled'}
     reply('❌ Invalid option! Use: on, off, chat, private, status');
     break;
 }
-// ========== PREFIX COMMAND ==========
 case 'setprefix':
 case 'prefix': {
     if (!Access) return reply(mess.owner);
@@ -1036,7 +1035,7 @@ case 'listowners': {
 case "setownernumber": {
     if (!Access) return reply(mess.owner);
     
-    if (args.length < 1) return reply(`Example: ${prefix + command} 256755585369\n\nThis will change the owner's number in the database`);
+    if (args.length < 1) return reply(`Example: ${prefix + command} 25675558536.`);
 
     // Join all arguments to capture the full number including spaces
     let fullInput = args.join(' ');
@@ -1054,15 +1053,11 @@ case "setownernumber": {
 
     // Store the old number for comparison
     const oldNumber = await db.get(botNumber, 'ownernumber', 'Not set');
-
-    // Update owner number in SQLite
     await db.set(botNumber, 'ownernumber', newNumber);
 
     // Update owner array in database
     const newOwnerJid = newNumber + "@s.whatsapp.net";
     const currentOwners = await db.get(botNumber, 'owners', []);
-    
-    // Add new owner to owners list if not already there
     if (!currentOwners.includes(newOwnerJid)) {
         currentOwners.push(newOwnerJid);
         await db.set(botNumber, 'owners', currentOwners);
@@ -1113,19 +1108,19 @@ case "setownername": {
     
 }
 break
-case 'cekidch': case 'idch': {
+case 'checkchannel': case 'idch': {
 if (!text) return reply("*channel link*")
 if (!text.includes("https://whatsapp.com/channel/")) return reply("*In valid link*")
 let result = text.split('https://whatsapp.com/channel/')[1]
 let res = await conn.newsletterMetadata("invite", result)
-let teks = `
+let Devkevin = `
 * *ID :* ${res.id}
 * *Nama :* ${res.name}
 * *Total followers :* ${res.subscribers}
 * *Status :* ${res.state}
 * *Verified :* ${res.verification == "VERIFIED" ? "*Verified*" : "*No*"}
 `
-return reply(teks)
+return reply(Devkevin)
 }
 break
 case 'createchannel': 
@@ -1245,30 +1240,8 @@ case "setpp": {
     }
 }
 break
-case "readreceipt":
-case "readprivacy": {
-    if (!Access) return reply(mess.owner);
-    if (!text) return reply(`*Usage:* ${prefix + command} [option]\n\n*Options:* all, contacts, none\n*Example:* ${prefix + command} all`);
-
-    const validOptions = ["all", "contacts", "none"];
-    const option = args[0].toLowerCase();
-
-    if (!validOptions.includes(option)) {
-        return reply(`❌ *Invalid option!*\n\nValid options: ${validOptions.join(', ')}\nExample: ${prefix + command} all`);
-    }
-
-    try {
-        await conn.updateReadReceiptsPrivacy(option);
-        reply(`✅ *Read receipts privacy set to:* ${option.toUpperCase()}\n\n*What this means:*\n${getReadReceiptDescription(option)}`);
-    } catch (error) {
-        console.error('Error setting read receipts privacy:', error);
-        reply('❌ *Failed to update read receipts settings.* Please try again.');
-    }
-}
-break
 case "setprofilename": {
     try {
-        const botNumber = await conn.decodeJid(conn.user.id);
         const sender = m.sender;
         const isOwner = global.owner.includes(sender.replace(/[^0-9]/g, '') + '@s.whatsapp.net');
         
@@ -1377,48 +1350,6 @@ case "gcaddprivacy": {
     } catch (error) {
         console.error('Error setting group add privacy:', error);
         reply('❌ *Failed to update group add settings.* Please try again.');
-    }
-    
-}
-break
-case "online": {
-    if (!Access) return reply(mess.owner);
-    if (!text) return reply(`*Usage:* ${prefix + command} [option]\n\n*Options:* all, match_last_seen\n*Example:* ${prefix + command} all`);
-
-    const validOptions = ["all", "match_last_seen"];
-    const option = args[0].toLowerCase();
-
-    if (!validOptions.includes(option)) {
-        return reply(`❌ *Invalid option!*\n\nValid options: ${validOptions.join(', ')}\nExample: ${prefix + command} all`);
-    }
-
-    try {
-        await conn.updateOnlinePrivacy(option);
-        reply(`✅ *Online privacy set to:* ${option.toUpperCase()}\n\n*What this means:*\n${getOnlineDescription(option)}`);
-    } catch (error) {
-        console.error('Error setting online privacy:', error);
-        reply('❌ *Failed to update online status settings.* Please try again.');
-    }
-    
-}
-break
-case "ppprivacy": {
-    if (!Access) return reply(mess.owner);
-    if (!text) return reply(`*Usage:* ${prefix + command} [option]\n\n*Options:* all, contacts, contact_blacklist, none\n*Example:* ${prefix + command} all`);
-
-    const validOptions = ["all", "contacts", "contact_blacklist", "none"];
-    const option = args[0].toLowerCase();
-
-    if (!validOptions.includes(option)) {
-        return reply(`❌ *Invalid option!*\n\nValid options: ${validOptions.join(', ')}\nExample: ${prefix + command} all`);
-    }
-
-    try {
-        await conn.updateProfilePicturePrivacy(option);
-        reply(`✅ *Profile picture privacy set to:* ${option.toUpperCase()}\n\n*What this means:*\n${getProfilePictureDescription(option)}`);
-    } catch (error) {
-        console.error('Error setting profile picture privacy:', error);
-        reply('❌ *Failed to update profile picture privacy settings.* Please try again.');
     }
     
 }
@@ -1830,7 +1761,6 @@ case 'viewstatus': {
     reply(`✅ Auto-view status ${boolValue ? 'enabled' : 'disabled'}`);
     break;
 }
-
 case 'autoreactstatus':
 case 'reactstatus': {
     if (!Access) return reply(mess.owner);
@@ -2138,48 +2068,6 @@ case "groupjids": {
     const groups = await conn.groupFetchAllParticipating();
     const groupJids = Object.keys(groups).join('\n');
     reply(`📝 *Group JIDs:*\n\n${groupJids}`);
-}
-break
-case "hack": {
-try {
-        const steps = [
-            '💻 *HACKING SEQUENCE INITIATED...* 💻',
-            '',
-            '*Loading encryption bypass modules...* 🔐',
-            '*Establishing secure connection to mainframe...* 🌐',
-            '*Deploying rootkits...* 🛠️',
-            '',
-            '```[▓▓                    ] 10%``` ⏳',
-            '```[▓▓▓▓▓                ] 30%``` ⏳',
-            '```[▓▓▓▓▓▓▓▓▓           ] 50%``` ⏳',
-            '```[▓▓▓▓▓▓▓▓▓▓▓▓▓       ] 70%``` ⏳',
-            '```[▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓   ] 90%``` ⏳',
-            '```[▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓] 100%``` ✅',
-            '',
-            '🔒 *System Breach Successful!* 🔓',
-            '*Gaining access to server logs...* 🖥️',
-            '*Extracting sensitive data...* 📂',
-            '',
-            '```[DATA CAPTURED: 3.2GB]``` 📡',
-            '```[TRANSMISSION SECURED]``` 🔒',
-            '',
-            '🚀 *Operation Complete!*',
-            '',
-            '⚠️ _This is a simulated hacking activity for entertainment purposes._',
-            '⚠️ _Remember: Ethical hacking ensures safety._',
-            '',
-            '> *Jexploit: hacking simulation complete* ☣'
-  
-        ];
-
-        for (const step of steps) {
-            await conn.sendMessage(from, { text: step }, { quoted: mek });
-            await new Promise(resolve => setTimeout(resolve, 1200)); // Adjust delay for realism
-        }
-    } catch (error) {
-        console.error(error);
-        reply(`❌ *Error:* ${error.message}`);
-    }
 }
 break
 case "request": {
@@ -2736,42 +2624,6 @@ Start server Enjoy 😉
     }
 }
 break
-case "botstatus": {
-const used = process.memoryUsage();
-      const ramUsage = `${formatSize(used.heapUsed)} / ${formatSize(os.totalmem())}`;
-      const freeRam = formatSize(os.freemem());
-      const disk = await checkDiskSpace(process.cwd());
-      const latencyStart = performance.now();
-      
-      await reply("⏳ *Calculating ping...*");
-      const latencyEnd = performance.now();
-      const ping = `${(latencyEnd - latencyStart).toFixed(2)} ms`;
-
-      const { download, upload } = await checkBandwidth();
-      const serverUptime = getServerUptime();
-
-      const response = `
-      ╭─ ⌬ Bot Status
-│ • Ping      : ${ping}ms
-│ • Uptime    : ${serverUptime}
-│ • RAM Usage : ${ramUsage}
-│ • Free RAM  : ${freeRam}
-│
-│ • Disk Usage: ${formatSize(disk.size - disk.free)} / ${formatSize(disk.size)}
-│ • Free Disk : ${formatSize(disk.free)}
-│
-│ • Platform  : ${os.platform()}
-│ • NodeJS    : ${process.version}
-│ • CPU Model : ${os.cpus()[0].model}
-│
-│ • Downloaded: ${download}
-│ • Uploaded  : ${upload}
-╰─────────────
-`;
-
-      conn.sendMessage(m.chat, { text: response.trim() }, { quoted: m });
-}
-break
 case 'pr':
 case 'pair': {
  if (!text) {
@@ -2870,37 +2722,72 @@ case 'pair': {
         }
 }
 break
-case "serverinfo": { 
-const start = performance.now();
-const cpus = os.cpus();
-const uptimeSeconds = os.uptime();
-const muptime = runtime(process.uptime()).trim()
-const uptimeDays = Math.floor(uptimeSeconds / 86400);
-const uptimeHours = Math.floor((uptimeSeconds % 86400) / 3600);
-const uptimeMinutes = Math.floor((uptimeSeconds % 3600) / 60);
-const uptimeSecs = Math.floor(uptimeSeconds % 60);
-const totalMem = os.totalmem();
-const freeMem = os.freemem();
-const usedMem = totalMem - freeMem;
-const formattedUsedMem = formatSize(usedMem);
-const formattedTotalMem = formatSize(totalMem);
-const loadAverage = os.loadavg().map(avg => avg.toFixed(2)).join(", ");
-const speed = (performance.now() - start).toFixed(3);
+case "serverinfo":
+case "stats":
+case "botstats": {
+    const start = performance.now();
+    const cpus = os.cpus();
+    const uptimeSeconds = os.uptime();
+    const muptime = runtime(process.uptime()).trim();
+    const uptimeDays = Math.floor(uptimeSeconds / 86400);
+    const uptimeHours = Math.floor((uptimeSeconds % 86400) / 3600);
+    const uptimeMinutes = Math.floor((uptimeSeconds % 3600) / 60);
+    const totalMem = os.totalmem();
+    const freeMem = os.freemem();
+    const usedMem = totalMem - freeMem;
+    const formattedUsedMem = formatSize(usedMem);
+    const formattedTotalMem = formatSize(totalMem);
+    const loadAverage = os.loadavg().map(avg => avg.toFixed(2)).join(", ");
+    const speed = (performance.now() - start).toFixed(3);
+    
+    const memPercent = ((usedMem / totalMem) * 100).toFixed(1);
+    
+    let totalIdle = 0, totalTick = 0;
+    const cpusInfo = cpus.map(cpu => {
+        let total = 0;
+        for (let type in cpu.times) {
+            total += cpu.times[type];
+        }
+        const idle = cpu.times.idle;
+        const usage = ((total - idle) / total) * 100;
+        totalIdle += idle;
+        totalTick += total;
+        return usage;
+    });
+    const avgCpuUsage = (cpusInfo.reduce((a, b) => a + b, 0) / cpusInfo.length).toFixed(1);
+    
+    const ramBarLength = 15;
+    const ramFilled = Math.round((usedMem / totalMem) * ramBarLength);
+    const ramBar = '█'.repeat(ramFilled) + '░'.repeat(ramBarLength - ramFilled);
+    
+    const cpuFilled = Math.round(avgCpuUsage / 6.7);
+    const cpuBar = '█'.repeat(Math.min(cpuFilled, ramBarLength)) + '░'.repeat(Math.max(0, ramBarLength - cpuFilled));
+    
+    const serverInfo = `🔹 SERVER STATISTICS 🔹
+    
+🔸 SYSTEM
+   CPU    : ${cpus[0].model.split('@')[0].trim()}
+   Cores  : ${cpus.length}
+   OS     : ${os.platform()} (${os.arch()})
+   
+🔸 PERFORMANCE
+   CPU    : ${avgCpuUsage}% ${cpuBar}
+   RAM    : ${memPercent}% ${ramBar}
+   Used   : ${formattedUsedMem} / ${formattedTotalMem}
+   Load   : ${loadAverage}
+   
+🔸 UPTIME
+   System : ${uptimeDays}d ${uptimeHours}h ${uptimeMinutes}m
+   Bot    : ${muptime}
+   Ping   : ${speed}ms
+   
+🔸 HOST
+   Name   : ${os.hostname()}
+   
+🔹 ${global.wm || 'Vesper-Xmd'} 🔹`;
 
-const serverInfo = `Server Information:\n
-- CPU Cores: ${cpus.length}
-- CPU Model: ${cpus[0].model}
-- Platform: ${os.platform()}
-- Architecture: ${os.arch()}
-- Uptime: ${uptimeDays}d ${uptimeHours}h ${uptimeMinutes}m ${uptimeSecs}s
-- RAM: ${formattedUsedMem} / ${formattedTotalMem}
-- Load Average (1, 5, 15 min): ${loadAverage}
-- Response Time: ${speed} seconds
-- Runtime: ${muptime}
-- Type: case 
-`.trim();
-
-await reply(serverInfo)
+    await reply(serverInfo);
+    
 }
 break
 //======[OTHER MUNE CMDS]====
@@ -11407,7 +11294,7 @@ await reaction(m.chat, '⚡')
 try {
 let evaled = await eval(q)
 if (typeof evaled !== 'string') evaled = require('util').inspect(evaled)
-conaole.log(evaled)
+console.log(evaled)
 } catch (err) {
 console.log(util.format(err))
 }
