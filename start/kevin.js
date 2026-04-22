@@ -1465,7 +1465,7 @@ case "block": {
         return reply(`Reply to a user message to block them with ${prefix}block`);
     }
     
-    const userId = mentionedJid[0] || m.quoted?.sender;
+    const userId = m.mentionedJid[0] || m.quoted?.sender;
     
     try {
         await conn.sendMessage(m.chat, {
