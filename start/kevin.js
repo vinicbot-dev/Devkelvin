@@ -5033,102 +5033,48 @@ if (!text) return reply('.ytmp4 <YouTube URL>');
 }
 break
 case 'video': {
+    if (!text) return reply(`Example: ${prefix}video Born to win by fikfamaic`);
+
     try {
-        if (!text) return reply("Provide a YouTube video name or link.");
-
-        let videoUrl = "";
-        let videoTitle = "";
-        let videoThumbnail = "";
-
-        // Detect or Search
-        if (/^https?:\/\//.test(text)) {
-            videoUrl = text;
-        } else {
-            const s = await yts(text);
-            if (!s?.videos?.length) return reply("❌ No results found.");
-            const v = s.videos[0];
-            videoUrl = v.url;
-            videoTitle = v.title;
-            videoThumbnail = v.thumbnail;
+        const { videos } = await yts(text);
+        if (!videos || videos.length === 0) {
+            return reply(`No results found for "${text}"`);
         }
 
-        // Extract ID
-        const videoId =
-            (videoUrl.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/) || [])[1];
+        const video = videos[0];
+        const videoUrl = video.url;
 
-        // Show preview fast
-        if (videoThumbnail || videoId) {
-            const thumb =
-                videoThumbnail ||
-                `https://i.ytimg.com/vi/${videoId}/sddefault.jpg`;
+        await reply(`Downloading: ${video.title}`);
 
-            await conn.sendMessage(
-                m.chat,
-                {
-                    image: { url: thumb },
-                    caption: `🎬 *${videoTitle || text}*\n⌛ Fetching downloaded video...`,
-                },
-                { quoted: m }
-            );
-        }
-
-        // Use yt-dl to get video title
-        if (!videoTitle && videoUrl) {
-            try {
-                const ytdl = require('ytdl-core');
-                const info = await ytdl.getInfo(videoUrl);
-                videoTitle = info.videoDetails.title;
-            } catch (e) {
-                console.log("yt-dl title fetch error:", e);
-            }
-        }
-
-        // Use only the last API
-        const API_URL = `https://media.cypherxbot.space/download/youtube/video?url=${encodeURIComponent(videoUrl)}`;
+        // Use different API that returns direct download
+        const apiUrl = `https://apiskeith.top/download/mp4?url=${encodeURIComponent(videoUrl)}`;
+        const response = await axios.get(apiUrl);
         
-        let result = null;
-
-        // Fetch from the single API
-        try {
-            const response = await axios.get(API_URL, { timeout: 30000 });
-            const data = response.data;
-
-            // Normalize download URL detection
-            const dl =
-                data?.result?.download_url ||
-                data?.result?.mp4 ||
-                data?.result?.url ||
-                data?.download_url ||
-                data?.url ||
-                data?.videoUrl;
-
-            if (dl) {
-                result = {
-                    url: dl,
-                    title: videoTitle || data?.result?.title || "Downloaded Video",
-                };
-            }
-        } catch (error) {
-            console.log("API Error:", error);
+        if (!response.data?.status || !response.data?.result) {
+            return reply(`Failed to fetch video. Try again.`);
         }
 
-        if (!result) return reply("❌ Failed to download video from server.");
+        const videoDownloadUrl = response.data.result;
+        
+        // Download the video to buffer first
+        const videoBuffer = await axios({
+            method: 'GET',
+            url: videoDownloadUrl,
+            responseType: 'arraybuffer',
+            timeout: 60000
+        });
 
-        // SEND THE VIDEO
-        await conn.sendMessage(
-            m.chat,
-            {
-                video: { url: result.url },
-                mimetype: "video/mp4",
-                fileName: `${result.title.replace(/[^\w\s]/gi, '')}.mp4`,
-                caption: `🎥 *${result.title}*\n\n> ${global.wm} ™`
-            },
-            { quoted: m }
-        );
-    } catch (e) {
-        console.log("VIDEO ERROR:", e);
-        reply(mess.error);
+        await conn.sendMessage(m.chat, {
+            video: Buffer.from(videoBuffer.data),
+            mimetype: 'video/mp4',
+            caption: `${video.title}`
+        }, { quoted: m });
+
+    } catch (error) {
+        console.error('Video error:', error);
+        reply(`Error: ${error.message}`);
     }
+   
 }
 break
 case "video2": {
