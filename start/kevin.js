@@ -5177,40 +5177,43 @@ case 'video': {
 break
 case "video2": {
 const query = args.join(" ");
-        if (!query) return reply(`Example: ${prefix}video3 Gata Only`);
+        if (!query) return reply(`Example: ${prefix}video wrong places by Joshua baraka`);
 
         try {
             await reply(`Searching for "${query}"...`);
 
-            const axios = require('axios');
-            const apiUrl = `https://apis.davidcyril.name.ng/song?query=${encodeURIComponent(query)}`;
-            const response = await axios.get(apiUrl);
-            
-            if (response.data?.status && response.data?.result) {
-                const { title, duration, views, published, video, thumbnail } = response.data.result;
-                
-                if (!video || !video.download_url) {
-                    return reply(`No video found for "${query}"`);
-                }
-                
-                const caption = `*${title}*\n⏱ ${duration} | 👁 ${views?.toLocaleString()} | 📅 ${published}`;
-                
-                await conn.sendMessage(m.chat, {
-                    video: { url: video.download_url },
-                    mimetype: 'video/mp4',
-                    fileName: `${title.replace(/[^\w\s]/gi, '')}.mp4`,
-                    caption: caption,
-                    thumbnail: { url: thumbnail }
-                }, { quoted: m });
-                
-            } else {
-                reply(`No results found for "${query}"`);
+            // Search YouTube
+            const { videos } = await yts(query);
+            if (!videos || videos.length === 0) {
+                return reply(`No results found for "${query}"`);
             }
+
+            // Get first video
+            const video = videos[0];
+            const videoUrl = video.url;
+            const videoTitle = video.title;
+
+            await reply(`Downloading: ${videoTitle}`);
+
+            // Download using Keith API
+            const apiUrl = `https://apiskeith.top/download/mp4?url=${encodeURIComponent(videoUrl)}`;
+            const response = await axios.get(apiUrl);
+            const data = response.data;
+
+            if (data.status && data.result) {
+                await conn.sendMessage(m.chat, {
+                    video: { url: data.result },
+                    caption: `🎬 *${videoTitle}*\n⏱ Duration: ${video.timestamp}\n👁 Views: ${video.views.toLocaleString()}`
+                }, { quoted: m });
+            } else {
+                reply('Failed to download video. Please try again.');
+            }
+
         } catch (error) {
-            console.error('Video3 error:', error.message);
-            reply(`Error: ${error.message}`);
+            console.error('Video error:', error);
+            reply('Error downloading video.');
         }
- }
+}
 break;
 case 'checkapi': {
     if (!text) return reply(`Usage: ${prefix}checkapi <url>`);
