@@ -1459,37 +1459,27 @@ let length = text ? parseInt(text) : 12;
 }
 break
 case "block": {
-  if (!Access) return reply(mess.owner);
+    if (!Access) return reply(mess.owner);
+    
+    if (!m.quoted && !mentionedJid[0]) {
+        return reply(`Reply to a user message to block them with ${prefix}block`);
+    }
+    
+    const userId = mentionedJid[0] || m.quoted?.sender;
+    
+    try {
+        await conn.sendMessage(m.chat, {
+            react: { text: "🚫", key: m.key }
+        });
         
-        if (!m.quoted && !mentionedJid[0] && !text) {
-            return reply("Reply to a message to block the user.");
-        }
+        await conn.updateBlockStatus(userId, "block");
         
-        // Get the user to block
-        const userId = mentionedJid[0] || quoted?.sender || text.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
-        
-        try {
-            // React with 🚫 emoji
-            await conn.sendMessage(m.chat, {
-                react: {
-                    text: "🚫",
-                    key: m.key
-                }
-            });
-            
-            if (m.quoted) {
-                const lid = m.quoted.sender;
-                const jid = m.quoted.fakeObj.key.remoteJid;
-                await conn.updateBlockStatus(lid, jid, "block");
-            } else {
-                await conn.updateBlockStatus(userId, "block");
-            }
-            
-            reply(`✅ Successfully blocked @${userId.split('@')[0]}`);
-        } catch (error) {
-            console.error('Error blocking user:', error);
-            reply(`❌ Failed to block user: ${error.message}`);
-        }
+        reply(`✅ Blocked ${userId}`);
+    } catch (error) {
+        console.error('Error blocking user:', error);
+        reply(`Failed to block user: ${error.message}`);
+    }
+    
 }
 break
 case "public": {
