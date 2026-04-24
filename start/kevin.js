@@ -4231,183 +4231,6 @@ const text = args.join(" ");
         }
 }
 break
-case 'royal': {
-    if (!text) return reply(`*Example: ${prefix}royal Kelvin*`);
-    
-    try {
-        await reply('👑 Creating royal logo... Please wait ⏳');
-        
-        const apiUrl = `https://api.nekolabs.my.id/ephoto/royal-text?text=${encodeURIComponent(text)}`;
-        
-        // Send image directly from URL
-        await conn.sendMessage(m.chat, {
-            image: { url: apiUrl },
-            caption: `> ${global.wm}`
-        }, { quoted: m });
-        
-    } catch (error) {
-        console.error('Royal command error:', error);
-        reply('Error generating logo. Please try again later.');
-    }
-}
-break;
-case 'textonwetglass': {
-    if (!text) return reply(`*Example: ${prefix}textonwetglass Kelvin*`);
-    
-    try {
-        await reply('💧 Creating text on wet glass effect... Please wait ⏳');
-        
-        const apiUrl = `https://api.nekolabs.web.id/ephoto/text-on-wet-glass?text=${encodeURIComponent(text)}`;
-        
-        // Send image directly from URL
-        await conn.sendMessage(m.chat, {
-            image: { url: apiUrl },
-            caption: `> ${global.wm}`
-        }, { quoted: m });
-        
-    } catch (error) {
-        console.error('TextOnWetGlass command error:', error);
-        reply('❌ Error generating wet glass effect. Please try again later.');
-    }
-}
-break
-case 'bear': {
-    if (!text) return reply(`*Example: ${prefix}bear Kelvin*`);
-    
-    try {
-        await reply('🐻 Creating bear logo... Please wait ⏳');
-        
-        const apiUrl = `https://api.nekolabs.my.id/ephoto/bear-logo?text=${encodeURIComponent(text)}`;
-        
-        // Send image directly from URL
-        await conn.sendMessage(m.chat, {
-            image: { url: apiUrl },
-            caption: `> ${global.wm}`
-        }, { quoted: m });
-        
-    } catch (error) {
-        console.error('Bear command error:', error);
-        reply('Error generating logo. Please try again later.');
-    }
-}
-break
-case 'papercut':
-case '3dpaper': {
-    if (!text) return reply(`*Example: ${prefix}papercut Kelvin*`);
-    
-    try {
-        await reply('✂️ Creating 3D paper cut style... Please wait ⏳');
-        
-        const apiUrl = `https://api.nekolabs.my.id/ephoto/3d-paper-cut-style?text=${encodeURIComponent(text)}`;
-        
-        // Send image directly from URL
-        await conn.sendMessage(m.chat, {
-            image: { url: apiUrl },
-            caption: `> ${global.wm}`
-        }, { quoted: m });
-        
-    } catch (error) {
-        console.error('Papercut command error:', error);
-        reply('❌ Error generating logo. Please try again later.');
-    }
-}
-break
-case 'hologram':
-case '3dhologram': {
-    if (!text) return reply(`*Example: ${prefix}hologram Kelvin*`);
-    
-    try {
-        await reply('✨ Creating 3D hologram text... Please wait ⏳');
-        
-        const apiUrl = `https://api.nekolabs.my.id/ephoto/3d-hologram-text?text=${encodeURIComponent(text)}`;
-        
-        // Send image directly from URL
-        await conn.sendMessage(m.chat, {
-            image: { url: apiUrl },
-            caption: `> ${global.wm}`
-        }, { quoted: m });
-        
-    } catch (error) {
-        console.error('Hologram command error:', error);
-        reply('❌ Error generating hologram. Please try again later.');
-    }
-}
-break
-case 'balogo': {
-    try {
-        if (!text) {
-            return reply(`🍀 *Enter two texts for the logo! (separate with |)*\n\n✨ *Example: ${prefix}balogo SXZ|Archive*`);
-        }
-
-        let [textL, textR] = text.split('|');
-        if (!textL || !textR) {
-            return reply(`☘️ *Wrong format! Use: ${prefix}balogo LeftText|RightText*`);
-        }
-        
-        await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
-
-        let apiUrl = `https://api.nekolabs.my.id/canvas/ba-logo?textL=${encodeURIComponent(textL)}&textR=${encodeURIComponent(textR)}`;
-        let response = await fetch(apiUrl);
-        if (!response.ok) {
-            console.error('[ba-logo API Error]', response.status);
-            return reply('🍂 *Failed to connect to logo maker API!*');
-        }
-
-        let buffer = Buffer.from(await response.arrayBuffer());
-
-        await conn.sendMessage(
-            m.chat,
-            {
-                image: buffer,
-                caption: `> ${global.wm}`
-            },
-            { quoted: m }
-        );
-
-        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
-
-    } catch (e) {
-        console.error('[ba-logo Handler Error]', e);
-        reply(`🍂 *Oops, failed to create logo!* \nDetail: ${e.message || e}`);
-        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-    }
-    
-}
-break
-case 'tattoo': {
-    try {
-        await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
-
-        // Direct image URL approach
-        let apiUrl = `https://api.nekolabs.my.id/random/nsfwhub/tattoo`;
-        let response = await fetch(apiUrl);
-        
-        if (!response.ok) {
-            console.error('[Tattoo API Error]', response.status);
-            return reply('❌ *Failed to fetch tattoo image from API!*');
-        }
-
-        let buffer = Buffer.from(await response.arrayBuffer());
-
-        await conn.sendMessage(
-            m.chat,
-            {
-                image: buffer,
-                caption: `> ${global.wm}`
-            },
-            { quoted: m }
-        );
-
-        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
-
-    } catch (e) {
-        console.error('[Tattoo Handler Error]', e);
-        reply(`❌ *Oops, failed to generate tattoo!* \nError: ${e.message || e}`);
-        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-    }
-    
-}
-break
 case "1917style": {
 let q = args.join(" ");
     if (!q) {
@@ -6605,6 +6428,46 @@ case "remini": {
    
 }
 break
+case 'editimage':
+case 'imageedit':
+case 'nanobanana': {
+    if (!m.quoted) return reply(`Reply to an image with: ${prefix}editimage make her hair blue`);
+
+    const mime = m.quoted.mimetype || m.quoted.msg?.mimetype;
+    if (!/image/.test(mime)) return reply(`Please reply to an image.`);
+
+    const prompt = args.join(" ");
+    if (!prompt) return reply(`Example: ${prefix}editimage make her hair blue`);
+
+    try {
+        await reply(`Editing image with prompt: "${prompt}"...`);
+
+        // Use handleMediaUpload to upload image
+        const imageUrl = await handleMediaUpload(m.quoted, conn, mime);
+        
+        if (!imageUrl || imageUrl.includes('exceeds the limit')) {
+            return reply(`Failed to upload image. Try again.`);
+        }
+
+        const apiUrl = `https://apis.davidcyril.name.ng/nanobanana?url=${encodeURIComponent(imageUrl)}&prompt=${encodeURIComponent(prompt)}`;
+        const response = await axios.get(apiUrl);
+
+        if (!response.data?.success || !response.data?.result?.image) {
+            return reply(`Failed to edit image.`);
+        }
+
+        await conn.sendMessage(m.chat, {
+            image: { url: response.data.result.image },
+            caption: `✅ Edited: ${prompt}\n> ${global.wm}`
+        }, { quoted: m });
+
+    } catch (error) {
+        console.error('Edit image error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    
+}
+break
 case "currency":
 case "convert":
 case "cur": {
@@ -7671,8 +7534,40 @@ m.reply(`Error: Unable to retrieve data for IP ${text}`);
     return err;
   }
 }
-break;
-  //========================================================\\    
+break
+case 'ttp':
+case 'texttosticker':
+case 'textsticker': {
+    const text = args.join(" ");
+    if (!text) return reply(`Example: ${prefix}ttp Kevin`);
+
+    try {
+        const apiUrl = `https://api.princetechn.com/api/tools/ttp?apikey=prince&query=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (!response.data?.success || !response.data?.image_url) {
+            return reply(`Failed to generate image.`);
+        }
+
+        // Download the image
+        const imageBuffer = await axios({
+            method: 'GET',
+            url: response.data.image_url,
+            responseType: 'arraybuffer'
+        });
+
+        await conn.sendImageAsSticker(m.chat, Buffer.from(imageBuffer.data), m, {
+            packname: global.packname || 'JEXPLOIT-BOT',
+            author: global.author || 'Kelvin Tech'
+        });
+
+    } catch (error) {
+        console.error('TTP error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    
+}
+break; 
 case "xvideos":{
     if (!q) return m.reply(`Example: ${prefix + command} anime`);
     m.reply(mess.wait);
