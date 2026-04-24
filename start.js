@@ -5,10 +5,13 @@ const path = require('path');
 const fs = require('fs');
 const moment = require('moment-timezone');
 
-const MEMORY_LIMIT = 600; // MB
-const RESTART_DELAY = 3000; // ms
+const MEMORY_LIMIT = 800; // Increased MB
+const RESTART_DELAY = 5000; // ms
 const MEMORY_CHECK_INTERVAL = 600000; // 10 minutes
 const TIMEZONE = "Africa/Nairobi";
+
+let lastRestart = 0;
+const MIN_RESTART_INTERVAL = 30000; // 30 seconds between restarts
 
 function getLogFileName() {
   return `${moment().tz(TIMEZONE).format('YYYY-MM-DD')}.log`;
@@ -55,7 +58,6 @@ function start() {
     try {
       if (!p.pid) return;
       
-      // Get memory usage of the current process in MB using Node.js built-in
       const memoryUsage = process.memoryUsage().rss / 1024 / 1024;
       
       logMessage(`Memory check: ${memoryUsage.toFixed(2)}MB / ${MEMORY_LIMIT}MB`);
@@ -73,13 +75,20 @@ function start() {
     clearInterval(memoryCheckInterval);
     logMessage(`Bot process exited with code: ${code}`);
 
-    if (code !== 0) {
+    const now = Date.now();
+    
+    // Only restart on non-zero exit codes with cooldown
+    if (code !== 0 && code !== 1 && (now - lastRestart) > MIN_RESTART_INTERVAL) {
+      lastRestart = now;
       logMessage(`Restarting in ${RESTART_DELAY/1000} seconds...`);
       setTimeout(start, RESTART_DELAY);
-    } else {
+    } else if (code === 0) {
       logMessage('Bot stopped normally. Exiting...');
       errorLogStream.end();
       process.exit(0);
+    } else {
+      logMessage(`Bot exited with code ${code}. Not restarting (cooldown or API error).`);
+      errorLogStream.end();
     }
   });
 
