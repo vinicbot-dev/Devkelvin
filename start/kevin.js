@@ -3863,6 +3863,348 @@ const text = args.join(" ");
         }
 }
 break
+case 'firetext':
+case 'fire':
+case 'firetxt': {
+    const text = args.join(" ");
+    if (!text) return reply(`*Example: ${prefix}firetext Kevin*`);
+
+    try {
+        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/fireText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.success && response.data?.result?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.result.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate fire text.`);
+        }
+    } catch (error) {
+        console.error('Fire text error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    
+}
+break
+case 'neontext':
+case 'neon':
+case 'neontxt': {
+    const text = args.join(" ");
+    if (!text) return reply(`*Example: ${prefix}neontext Kelvin*`);
+
+    try {
+        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/neonText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.success && response.data?.result?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.result.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate neon text.`);
+        }
+    } catch (error) {
+        console.error('Neon text error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    
+}
+break
+case 'metaltext':
+case 'metallic':
+case 'metallictxt': {
+    const text = args.join(" ");
+    if (!text) return reply(`*Example: ${prefix}metaltext Kevin*`);
+
+    try {
+        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/metallicText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.success && response.data?.result?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.result.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate metallic text.`);
+        }
+    } catch (error) {
+        console.error('Metallic text error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    break;
+}
+case 'snowtext':
+case 'snow':
+case 'snowtxt': {
+    const text = args.join(" ");
+    if (!text) return reply(`*Example: ${prefix}snowtext Kevin*`);
+
+    try {
+        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/snowText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.success && response.data?.result?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.result.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate snow text.`);
+        }
+    } catch (error) {
+        console.error('Snow text error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    break;
+}
+
+case 'icetext':
+case 'ice':
+case 'icetxt': {
+    const text = args.join(" ");
+    if (!text) return reply(`*Example: ${prefix}icetext Kevin*`);
+
+    try {
+        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/iceText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.success && response.data?.result?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.result.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate ice text.`);
+        }
+    } catch (error) {
+        console.error('Ice text error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    
+}
+break
+case 'purpletext':
+case 'purple':
+case 'purpletxt': {
+    const text = args.join(" ");
+    if (!text) return reply(`*Example: ${prefix}purpletext Kevin*`);
+
+    try {
+        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/purpleText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.success && response.data?.result?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.result.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate purple text.`);
+        }
+    } catch (error) {
+        console.error('Purple text error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    break;
+}
+case 'lighttext':
+case 'light':
+case 'lighttxt': {
+    const text = args.join(" ");
+    if (!text) return reply(`*Example: ${prefix}lighttext Kelvin*`);
+
+    try {
+        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/lightText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.success && response.data?.result?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.result.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate light text.`);
+        }
+    } catch (error) {
+        console.error('Light text error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    break;
+}
+case 'thundertext':
+case 'thunder':
+case 'thundertxt': {
+    const text = args.join(" ");
+    if (!text) return reply(`*Example: ${prefix}thundertext Kelvin*`);
+
+    try {
+        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/thunderText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.success && response.data?.result?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.result.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate thunder text.`);
+        }
+    } catch (error) {
+        console.error('Thunder text error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    break;
+}
+case 'leavestext':
+case 'leaves':
+case 'leavestxt': {
+    const text = args.join(" ");
+    if (!text) return reply(`*Example: ${prefix}leavestext Kevin*`);
+
+    try {
+        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/leavesText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.success && response.data?.result?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.result.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate leaves text.`);
+        }
+    } catch (error) {
+        console.error('Leaves text error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    
+}
+break
+case 'hackertext':
+case 'hacker':
+case 'hackertxt': {
+    const text = args.join(" ");
+    if (!text) return reply(`*Example: ${prefix}hackertext Kevin*`);
+
+    try {
+        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/hackerText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.success && response.data?.result?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.result.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate hacker text.`);
+        }
+    } catch (error) {
+        console.error('Hacker text error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    break;
+}
+case 'deviltext':
+case 'devil':
+case 'deviltxt': {
+    const text = args.join(" ");
+    if (!text) return reply(`*Example: ${prefix}deviltext Kevin*`);
+
+    try {
+        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/devilText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.success && response.data?.result?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.result.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate devil text.`);
+        }
+    } catch (error) {
+        console.error('Devil text error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    break;
+}
+case 'vintagetext':
+case 'vintage':
+case 'vintagetxt': {
+    const text = args.join(" ");
+    if (!text) return reply(`*Example: ${prefix}vintagetext Kevin*`);
+
+    try {
+        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/vintageText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.success && response.data?.result?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.result.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate vintage text.`);
+        }
+    } catch (error) {
+        console.error('Vintage text error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    break;
+}
+case 'wingslogo':
+case 'wings':
+case 'wingslog': {
+    const text = args.join(" ");
+    if (!text) return reply(`Example: ${prefix}wingslogo Kevin`);
+
+    try {
+        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/wingsLogo?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.success && response.data?.result?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.result.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate wings logo.`);
+        }
+    } catch (error) {
+        console.error('Wings logo error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    break;
+}
+case 'painttext':
+case 'paint':
+case 'painttxt': {
+    const text = args.join(" ");
+    if (!text) return reply(`*Example: ${prefix}painttext Kelvin*`);
+
+    try {
+        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/paintText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.success && response.data?.result?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.result.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate paint text.`);
+        }
+    } catch (error) {
+        console.error('Paint text error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    
+}
+break
 case "underwater": {
 const text = args.join(" ");
         if (!text) return reply(`*Example: ${prefix}underwater Kevin*`);
@@ -4632,76 +4974,43 @@ try {
 break
 case 'song':
 case 'xplay': {
-    if (!text) return reply(`*Example*: ${prefix + command} sekkle down by bunnie Gunter`);
+    if (!text) return reply(`Example: ${prefix}${command} Winnie Nwagi Malaika`);
 
     try {
-        await reply("Searching for your song... (this may take a while)");
+        await reply(`Searching for "${text}"...`);
 
-        // Search on YouTube
         const searchResult = await yts(text);
-        if (!searchResult || !searchResult.videos || searchResult.videos.length === 0) {
-            return reply("Couldn't find that song on YouTube.");
+        if (!searchResult?.videos?.length) {
+            return reply(`No results found for "${text}"`);
         }
-        
+
         const video = searchResult.videos[0];
-        const videoUrl = video.url; 
-        let uploadYear = "N/A";
-        const agoMatch = video.ago?.match(/\d{4}/);
-        if (agoMatch) {
-            uploadYear = agoMatch[0];
-        } else {
-            uploadYear = new Date().getFullYear();
-        }
+        const videoUrl = video.url;
 
-        const searchInfo = 
-            `*SEARCH RESULTS*\n\n` +
-            `*Title:* ${video.title}\n` +
-            `*Artist/Channel:* ${video.author.name}\n` +
-            `*Duration:* ${video.timestamp}\n` +
-            `*Uploaded:* ${video.ago} (${uploadYear})\n` +
-            `*Views:* ${video.views.toLocaleString()}\n\n` +
-            `⬇️ *Downloading audio...*`;
-        
-        // Send search info and save the message
-        const searchMessage = await conn.sendMessage(
-            m.chat,
-            {
-                text: searchInfo
-            },
-            { quoted: m }
-        );
-        
-        const apiUrl = `https://yt-dl.officialhectormanuel.workers.dev/?url=${encodeURIComponent(videoUrl)}`;
+        const apiUrl = `https://api.princetechn.com/api/download/ytmp3?apikey=prince&url=${encodeURIComponent(videoUrl)}`;
         const response = await axios.get(apiUrl, { timeout: 30000 });
-        const data = response.data;
 
-        if (!data?.status) {
-            return reply("Couldn't download the audio from this API.");
+        if (!response.data?.success || !response.data?.result?.download_url) {
+            return reply(`Failed to download audio for "${text}"`);
         }
 
-        const audioUrl = data.audio;
-        if (!audioUrl) {
-            return reply("No audio URL found in API response.");
-        }
+        const { title, download_url, duration, quality } = response.data.result;
 
-        const title = video.title || text;
-        
-        await conn.sendMessage(
-            m.chat,
-            {
-                audio: { url: audioUrl },
-                mimetype: "audio/mpeg",
-                fileName: `${title}.mp3`,
-            },
-            { quoted: searchMessage } 
-        );
-    } catch (err) {
-        console.error("song command error:", err.message);
-        reply(mess.error);
+        await conn.sendMessage(m.chat, {
+            audio: { url: download_url },
+            mimetype: 'audio/mpeg',
+            fileName: `${title.replace(/[^\w\s]/gi, '')}.mp3`,
+            caption: `🎵 ${title}\n⏱ ${duration} | 🎚 ${quality}`
+        }, { quoted: m });
+
+    } catch (error) {
+        console.error('Song error:', error.message);
+        reply(`Error: ${error.message}`);
     }
+    
 }
 break
-case 'play': {
+case 'play2': {
     await playCommand(conn, m.chat, m, args);
     
 }
@@ -4758,7 +5067,7 @@ if (!text) return reply('*Please provide a song name!*');
     }
 }
 break;
-case "play2": {
+case "play": {
     if (!text) return reply("*Please provide a song name!*\nExample: `.play2 despacito`");
 
     try {
@@ -5406,44 +5715,31 @@ break
 case 'mf':
 case 'mediafire': {
     const url = args[0];
-            
-            if (!url) return reply(`*Please provide mediafire url*`);
-            
-            if (!url.includes('mediafire.com')) {
-                return reply('Please provide a valid MediaFire URL.');
-            }
+    if (!url) return reply(`*Please provide mediafire url!*`);
 
-            try {
-                await reply('Fetching file from MediaFire...');
-                const apiUrl = `https://api.princetechn.com/api/download/mediafire?apikey=prince&url=${encodeURIComponent(url)}`;
-                const response = await axios.get(apiUrl);
-                
-                if (response.data?.success && response.data?.result) {
-                    const { fileName, fileSize, fileType, downloadUrl } = response.data.result;
-                    
-                    const fileBuffer = await axios({
-                        method: 'GET',
-                        url: downloadUrl,
-                        responseType: 'arraybuffer'
-                    });
-                    
-                    const mimetype = response.data.result.mimeType || 'application/octet-stream';
-                    
-                    await conn.sendMessage(m.chat, {
-                        document: Buffer.from(fileBuffer.data),
-                        mimetype: mimetype,
-                        fileName: fileName,
-                        caption: `📄 ${fileName}\n📦 Size: ${fileSize}\n📁 Type: ${fileType}`
-                    }, { quoted: m });
-                    
-                } else {
-                    reply('Failed to fetch file from MediaFire.');
-                }
-            } catch (error) {
-                console.error(error);
-                reply('Error downloading file. Please try again.');
-            }
+    try {
+        const apiUrl = `https://apis.davidcyril.name.ng/mediafire?url=${encodeURIComponent(url)}`;
+        const response = await axios.get(apiUrl);
+
+        if (!response.data?.downloadLink) {
+            return reply(`Failed to fetch file.`);
         }
+
+        const { fileName, downloadLink, size } = response.data;
+
+        await conn.sendMessage(m.chat, {
+            document: { url: downloadLink },
+            fileName: fileName,
+            mimetype: 'application/octet-stream',
+            caption: `📁 ${fileName}\n📦 Size: ${size}`
+        }, { quoted: m });
+
+    } catch (error) {
+        console.error('MediaFire error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+   
+}
 break
 case "itunes": {
 if (!text) return reply("*Please provide a song name*");
