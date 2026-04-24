@@ -11,10 +11,9 @@ const fs = require('fs');
 // --- Setting Owner ---?  
  //  
 global.owner = ["256742932677"];  
-global.sudo = ["256742932677", "256755585369"];// Type additional allowed users here
-//NB: They'll be able to use every functions of the bot without restrictions.
+global.sudo = ["256742932677", "256755585369"];
 global.ownername = "Kelvin Tech";  
-global.botname = "Jexploit";  
+global.botname = "JEXPLOIT";  
 
 // ========= Setting Channel ========= //
 global.namachannel = "KEVIN";
@@ -65,7 +64,7 @@ global.AI_CHAT = "false"; // Set to "true" to enable AI chatbot by default
 
 // ========= Add modeStatus and versions ========= //
 global.modeStatus = "Public";
-global.versions = "1.4.9";
+global.versions = "1.5.0";
 
 // ========= Setting WM ========= //
 global.packname = 'Jexploit';
@@ -74,6 +73,7 @@ global.wm = '©Jexploit is awesome 🔥';
 
 // === For only developer ============
 global.api = "https://apiskeith.top";
+global.KevinApi = "mvn_988e8fc44c89ad6e537bb683e681afe6";
 global.wwe = "https://www.wwe.com/api/news";
 global.wwe1 = "https://www.thesportsdb.com/api/v1/json/3/searchfilename.php?e=wwe";
 global.wwe2 = "https://www.thesportsdb.com/api/v1/json/3/searchevents.php?e=wrestling";
