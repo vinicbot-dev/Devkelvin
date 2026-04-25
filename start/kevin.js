@@ -88,7 +88,7 @@ const {
   shouldLogError } = require('../Jex')
   
 
-const {  takeCommand, musicCommand, ytplayCommand, InstagramCommand, telestickerCommand, playCommand } = require('./KelvinCmds/commands')
+const {  takeCommand, ytplayCommand, telestickerCommand, playCommand } = require('./KelvinCmds/commands')
 
 const {
 veniceAICommand,
@@ -5135,10 +5135,6 @@ case "spotify": {
     
 }
 break
-case 'instagram': {
-       await InstagramCommand(conn, m.chat, m);
-}
-break
 case 'ytmp4': {
 if (!text) return reply('.ytmp4 <YouTube URL>');
         
@@ -5490,35 +5486,33 @@ if (!text) return reply("*Please provide a search query*");
 }
 break
 case 'instagram':
-case 'ig': {
-    if (!args[0]) return reply(`❌ Please provide Instagram URL\n\nExample: ${prefix}instagram https://www.instagram.com/reel/...`);
-    
+case 'ig':
+case 'igdl': {
+    const url = args[0];
+    if (!url) return reply(`*Please provide Instagram url!*`);
+
     try {
-        await reply('⬇️ Downloading...');
-        
-        let url = args[0];
-        let apiUrl = `https://api.nekolabs.web.id/downloader/instagram?url=${encodeURIComponent(url)}`;
-        
-        let { data } = await axios.get(apiUrl);
-        
-        if (!data?.data?.video?.[0]?.url) {
-            throw new Error('No video found');
+        await reply(`Fetching video...`);
+
+        const apiUrl = `https://apis.davidcyril.name.ng/instagram?url=${encodeURIComponent(url)}`;
+        const response = await axios.get(apiUrl);
+
+        if (!response.data?.success || !response.data?.result?.video) {
+            return reply(`Failed to fetch Instagram video.`);
         }
-        
-        let videoUrl = data.data.video[0].url;
-        let videoBuffer = await getBuffer(videoUrl);
-        
-        // Send video with global watermark as caption
+
+        const videoUrl = response.data.result.video;
+
         await conn.sendMessage(m.chat, {
-            video: videoBuffer,
-            caption: global.wm || '✨ Powered by Jexploit'
+            video: { url: videoUrl },
+            caption: `> ${global.wm}`
         }, { quoted: m });
-        
+
     } catch (error) {
-        console.error(error);
-        reply(mess.error);
+        console.error('Instagram error:', error.message);
+        reply(`Error: ${error.message}`);
     }
-    
+   
 }
 break
 case 'gitclone': {
@@ -8788,6 +8782,7 @@ case "ytsearch": {
 }
 break
 case 'ytplay':
+case 'ytmp3':
 case 'ytaudio': {
     await ytplayCommand(conn, m.chat, text, m);
    
