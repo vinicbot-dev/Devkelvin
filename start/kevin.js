@@ -50,15 +50,9 @@ const GroupDB = require('./Metadata/group');
 const { handleMediaUpload } = require('./lib/catbox');
 const {styletext, remind, Wikimedia, wallpaper} = require('./lib/scraper')
 const { 
-    setMenu1,
-    setMenu2,
-    sendMenu,
-    setMenu3,
-    setMenu4,
-    setMenu5,
-    setMenu6,
     setAwesomeMenu,
     resetMenu,
+    sendMenu,
     showCurrentMenu, 
     loadMenuConfig 
 } = require('./DevKelvin/menu');
@@ -88,7 +82,7 @@ const {
   shouldLogError } = require('../Jex')
   
 
-const {  takeCommand, ytplayCommand, telestickerCommand, playCommand } = require('./KelvinCmds/commands')
+const {  takeCommand, ytplayCommand, playCommand } = require('./KelvinCmds/commands')
 
 const {
 veniceAICommand,
@@ -699,69 +693,9 @@ case 'jex': {
     }
     break;
 }
-    case 'setmenu1':
-    case 'menu1': {
-        if (!Access) return reply(mess.owner);
-        await setMenu1(conn, m);
-        break;
-    }
-
-    case 'setmenu2':
-    case 'menu2': {
-        if (!Access) return reply(mess.owner);
-        await setMenu2(conn, m);
-        break;
-    }
-
-    case 'setmenu3':
-    case 'menu3': {
-        if (!Access) return reply(mess.owner);
-        await setMenu3(conn, m);
-        break;
-    }
-
-    case 'setmenu4':
-    case 'menu4': {
-        if (!Access) return reply(mess.owner);
-        await setMenu4(conn, m);
-        break;
-    }
-
-    case 'setmenu5':
-    case 'menu5': {
-        if (!Access) return reply(mess.owner);
-        await setMenu5(conn, m);
-        break;
-    }
-
-    case 'setmenu6':
-    case 'menu6': {
-        if (!Access) return reply(mess.owner);
-        await setMenu6(conn, m);
-        break;
-    }    
 case 'showmenu':
 case 'currentmenu': {
     await showCurrentMenu(conn, m);
-    break;
-}
-
-case 'menuconfig':
-case 'menuarrangement': {
-    const menuConfig = loadMenuConfig();
-    const presetNames = {
-        'preset1': 'Default Order',
-        'preset2': 'Download & AI Focus', 
-        'preset3': 'Features & AI Focus'
-    };
-    
-    await reply(`📋 *Menu Configuration*\n\n` +
-        `Current Preset: ${presetNames[menuConfig.preset] || 'Default'}\n\n` +
-        `Available Presets:\n` +
-        `• ${prefix}setmenu1 - Default order\n` +
-        `• ${prefix}setmenu2 - Download & AI focus\n` +
-        `• ${prefix}setmenu3 - Features & AI focus\n` +
-        `• ${prefix}showmenu - Show current arrangement`);
     break;
 }
 case 'setawesomemenu': {
@@ -5245,56 +5179,29 @@ const query = args.join(" ");
         }
 }
 break;
-case 'checkapi': {
-    if (!text) return reply(`Usage: ${prefix}checkapi <url>`);
+case 'checkapikey': {
+    const args = body.trim().split(/\s+/);
+    args.shift();
+    const apiKey = args.join(' ');
+    
+    if (!apiKey) {
+        return reply("Please provide an API key to check.\n\nExample: !checkapikey prince");
+    }
     
     try {
-        await conn.sendMessage(m.chat, { react: { text: "🔍", key: m.key } });
+        const apiUrl = `https://api.princetechn.com/checkapikey?apikey=${encodeURIComponent(apiKey)}`;
+        const { data } = await axios.get(apiUrl, { timeout: 10000 });
         
-        let apiUrl = text.trim();
-        if (!apiUrl.startsWith('http')) {
-            apiUrl = 'https://' + apiUrl;
+        if (data && data.success && data.result) {
+            const result = data.result;
+            const resultText = `API Key Status\n\nKey: ${result.apikey}\nUsername: ${result.username}\nPlan: ${result.plan}\nLimit: ${result.limit}\nUsed: ${result.used}\nRemaining: ${result.remainingLimit}\nRegistered: ${result.registeredDate}\nExpiry: ${result.expiryDate}\n\n${result.customMessage}`;
+            reply(resultText);
+        } else {
+            reply("Failed to check API key status. Please make sure your API key is valid.");
         }
-        
-        const startTime = Date.now();
-        const response = await fetch(apiUrl);
-        const responseTime = Date.now() - startTime;
-        
-        const apiData = await response.json();
-        
-        // Simple status check
-        const statusEmoji = response.status === 200 && apiData.success ? '🟢' : '🔴';
-        const statusText = response.status === 200 && apiData.success ? 'ONLINE' : 'ISSUES';
-        
-        const statusMessage = `
-${statusEmoji} *API STATUS CHECK*
-
-📡 *URL:* ${apiUrl}
-⏱️ *Response Time:* ${responseTime}ms
-🔢 *HTTP Status:* ${response.status}
-✅ *API Success:* ${apiData.success ? 'Yes' : 'No'}
-👤 *Creator:* ${apiData.creator || 'N/A'}
-
-${statusEmoji} *OVERALL STATUS:* ${statusText}
-        `.trim();
-        
-        await reply(statusMessage);
-        await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
-        
     } catch (error) {
-        console.error('CheckAPI Error:', error);
-        
-        const errorMessage = `
-🔴 *API CHECK FAILED*
-
-📡 *URL:* ${text}
-💥 *Error:* ${error.message}
-
-❌ *STATUS:* OFFLINE OR INACCESSIBLE
-        `.trim();
-        
-        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
-        reply(errorMessage);
+        console.error('CheckAPI error:', error.message);
+        reply("Error checking API key. Please try again later!");
     }
     
 }
@@ -8002,49 +7909,9 @@ case "fliptext": {
     reply(`Normal:\n${quere}\nFlip:\n${flipe}`);
 }
 break
-case 'telesticker':
-case 'tsticker': {
-    await telestickerCommand(conn, m.chat, m, args);
-    
-}
-break
 case 'take':
 case 'steal': {
     await takeCommand(conn, m.chat, m, args);    
-}
-break
-case "take2": {
-if (!m.quoted) return reply('Please reply to a sticker to add watermark or metadata.');
-
-    try {
-      let stick = args.join(" ").split("|");
-      let packName = stick[0] && stick[0].trim() !== "" ? stick[0] : pushname || global.packname;
-      let authorName = stick[1] ? stick[1].trim() : "";
-      let mime = m.quoted.mimetype || '';
-      if (!/webp/.test(mime)) return reply('Please reply to a sticker.');
-
-      let stickerBuffer = await m.quoted.download();
-      if (!stickerBuffer) return reply('Failed to download the sticker. Please try again.');
-
-      let stickerWithExif = await addExif(stickerBuffer, packName, authorName);
-
-      if (stickerWithExif) {
-        await conn.sendFile(
-          m.chat,
-          stickerWithExif,
-          'sticker.webp',
-          '',
-          m,
-          null,
-          { mentions: [m.sender] }
-        );
-      } else {
-        throw new Error('Failed to process the sticker with metadata.');
-      }
-    } catch (error) {
-      console.error('Error in watermark/sticker metadata plugin:', error);
-      reply('An error occurred while processing the sticker.');
-    }
 }
 break
 case "qrcode": {
@@ -8182,73 +8049,35 @@ const quoted = m.quoted ? m.quoted : null;
     }
 }
 break
-case 'removebg':
-case 'nobg':
-case 'rmbg': {
-    if (!text && !(m.quoted && (m.quoted.mtype === 'imageMessage' || m.quoted.mtype === 'stickerMessage'))) {
-        return reply(`Usage: ${prefix}removebg <image_url> or reply to an image with ${prefix}removebg`);
+case 'removebg': {
+    const quoted = m.quoted ? m.quoted : null;
+    const mime = quoted?.mimetype || "";
+    
+    if (!quoted || !/image/.test(mime)) {
+        return reply("Please reply to an image to remove its background.");
     }
     
     try {
-        await conn.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
+        await conn.sendPresenceUpdate('composing', from);
         
-        let imageUrl = text ? text.trim() : '';
+        // Upload image and get URL
+        const mediaUrl = await handleMediaUpload(quoted, conn, mime);
         
-        // Handle quoted image
-        if (m.quoted && (m.quoted.mtype === 'imageMessage' || m.quoted.mtype === 'stickerMessage')) {
-            try {
-                const media = await m.quoted.download();
-                // Convert to base64 and upload to Telegra.ph
-                const base64Image = media.toString('base64');
-                const telegraphResponse = await fetch('https://telegra.ph/upload', {
-                    method: 'POST',
-                    body: JSON.stringify({ data: base64Image }),
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                
-                const telegraphData = await telegraphResponse.json();
-                if (telegraphData[0] && telegraphData[0].src) {
-                    imageUrl = 'https://telegra.ph' + telegraphData[0].src;
-                } else {
-                    throw new Error('Telegra.ph upload failed');
-                }
-            } catch (uploadError) {
-                console.error('Upload error:', uploadError);
-                return reply('❌ Failed to upload image. Please provide a direct image URL instead.');
-            }
+        if (!mediaUrl) {
+            return reply("Failed to upload image. Please try again.");
         }
         
-        // Validate URL
-        if (!imageUrl.startsWith('http')) {
-            return reply('❌ Please provide a valid image URL');
+        const apiUrl = `https://api.princetechn.com/api/tools/removebg?apikey=prince&url=${encodeURIComponent(mediaUrl)}`;
+        const { data } = await axios.get(apiUrl, { timeout: 30000 });
+        
+        if (data && data.success && data.result) {
+            await conn.sendMessage(from, { image: { url: data.result }, caption: "Background removed successfully!" }, { quoted: m });
+        } else {
+            reply("Failed to remove background. Please try again with a different image.");
         }
-        
-        const apiUrl = `https://api.giftedtech.co.ke/api/tools/removebg?apikey=gifted&url=${encodeURIComponent(imageUrl)}`;
-        
-        console.log('Processing image:', imageUrl);
-        
-        const response = await fetch(apiUrl);
-        const apiData = await response.json();
-        
-        if (!apiData.success || !apiData.result?.image_url) {
-            return reply('❌ Background removal failed. Make sure the image URL is accessible.');
-        }
-
-        const result = apiData.result;
-        const imageBuffer = await getBuffer(result.image_url);
-        
-        await conn.sendMessage(m.chat, {
-            image: imageBuffer,
-            caption: `✅ *Background Removed*\n\n📁 Size: ${result.size || 'N/A'}\n👤 By: ${pushname}`,
-            mentions: [m.sender]
-        }, { quoted: m });
-
-        await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
-        
     } catch (error) {
-        console.error('RemoveBG Error:', error);
-        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
-        reply(`❌ Error: ${error.message}`);
+        console.error('RemoveBG error:', error.message);
+        reply("Error removing background. Please try again later!");
     }
     
 }
@@ -8330,36 +8159,6 @@ try {
     console.error("Error:", error);
     reply("An error occurred: " + error.message);
   }
-}
-break
-case "kevinfarm": {
-const familyList = `
-         *[ • JEXPLOIT 𝖥𝖠𝖬𝖨𝖫𝖸 • ]*
-
-    [ • KEVIN: KING👸 ]
-       *•────────────•⟢*
-                *𝖥𝖱𝖨𝖤𝖭𝖣’𝖲*
-      *╭┈───────────────•*
-      *│  ◦* *▢➠ Malvin king*
-      *│  ◦* *▢➠ The great lonelysaam*
-      *│  ◦* *▢➠ Dev sung*
-      *│  ◦* *▢➠ Terri*
-      *│  ◦* *▢➠ Trendx*
-      *│  ◦* *▢➠ Lord Voyage*
-      *│  ◦* *▢➠ goodnesstech*
-      *╰┈───────────────•*
-        *•────────────•⟢*
-    `;
-    try {
-        // Envoi de la réponse avec l'image et la liste de la famille
-        await conn.sendMessage(m.chat, {
-            image: { url: "https://files.catbox.moe/9sazwf.jpg" },
-            caption: familyList.trim()
-        }, { quoted: mek });
-    } catch (error) {
-        console.error(error);
-        reply("❌ *An error occurred while fetching the family list. Please try again.*");
-    }
 }
 break
 case "userinfo":
@@ -8523,53 +8322,6 @@ if (!text) {
         }
 }
 break
-case "tr2":
-case "tl2": 
-case "translate2": {
-const text = args.join(' ');
-    
-    if (!text) return reply("*Please provide text to translate. Example: `.translate2 en:id I love you*`");
-    
-    try {
-      // Parse format: source:target text
-      let sourceLang = 'en';
-      let targetLang = 'id';
-      let translateText = text;
-      
-      const match = text.match(/^([a-z]{2}):([a-z]{2})\s+(.+)/i);
-      if (match) {
-        sourceLang = match[1].toLowerCase();
-        targetLang = match[2].toLowerCase();
-        translateText = match[3];
-      }
-      
-      const url = `${global.mess.siputzx}/api/tools/translate?text=${encodeURIComponent(translateText)}&source=${sourceLang}&target=${targetLang}`;
-      
-      const response = await fetch(url);
-      const data = await response.json();
-      
-      if (!data.status || !data.data?.translatedText) {
-        return reply(`Translation failed.`);
-      }
-      
-      const result = `
- *Translation*
-
- *Original:* ${translateText}
- *Translated:* ${data.data.translatedText}
- *${sourceLang} → ${targetLang}*
-
-> ${global.wm || ''}
-      `;
-      
-      reply(result);
-      
-    } catch (error) {
-      console.error('Translate error:', error);
-      reply("❌ Error translating text.");
-    }
-}
-break
 case "tovideo": {
  if (!m.quoted) return reply(`Reply to a sticker with caption *${prefix + command}*`);
     if (!m.quoted.mimetype.includes('webp')) return reply(`Please reply to a webp sticker`);
@@ -8617,46 +8369,7 @@ const quoted = m.quoted || m.msg?.quoted;
       reply('An error occurred while converting the sticker to an image.');
     }
 }
-//=====[SEARCH MENU CMDS]======
 break
-case "lyrics2": {
-    try {
-        if (!q) return reply("Please provide a song title. Example: .lyrics shape of you");
-        
-        const apiUrl = `https://api.giftedtech.co.ke/api/search/lyrics?apikey=gifted&query=${encodeURIComponent(q)}`;
-        
-        // Fetch response from API
-        const response = await fetch(apiUrl);
-        const result = await response.json();
-        
-        // Ensure the response is always a string
-        let lyricsText;
-        if (result.status && result.data) {
-            if (typeof result.data === 'string') {
-                lyricsText = result.data;
-            } else if (result.data.lyrics) {
-                lyricsText = `🎵 *${result.data.title || q}* 🎵\n\n${result.data.lyrics}`;
-            } else {
-                lyricsText = JSON.stringify(result.data);
-            }
-        } else if (result.result) {
-            lyricsText = typeof result.result === 'string' ? result.result : JSON.stringify(result.result);
-        } else {
-            lyricsText = "🚫 No lyrics found for this song.";
-        }
-        
-        // Ensure it's a string and not too long
-        const safeText = String(lyricsText || "🚫 No lyrics found.").substring(0, 4000);
-        
-        reply(safeText);
-        
-    } catch (error) {
-        console.error('Error fetching lyrics:', error);
-        reply("❌ Error fetching lyrics. Please try again later.");
-    }
-}
-break
-// ========== LYRICS COMMAND ==========
 case 'lyrics': {
       if (!text) {
             return reply(`🎵 *Lyrics Finder*\n\nUsage: ${prefix}lyrics <song name>\n\nExamples:\n• ${prefix}lyrics shape of you\n• ${prefix}lyrics Sekkle down by bunnie Gunter\n• ${prefix}lyrics Blinding Lights The Weeknd`);
@@ -8730,31 +8443,31 @@ case 'lyrics': {
         }
 }
 break
-case 'playstore':
-case 'ps': {
- if (!query) return reply("*Please provide an app name. Example: `.apk xender*`");
+case 'playstore': {
+    const args = body.trim().split(/\s+/);
+    args.shift();
+    const query = args.join(' ');
+    
+    if (!query) {
+        return reply("*Please provide an app name to search. Example: !playstore whatsapp*");
+    }
     
     try {
-      const response = await fetch(`${global.api}/search/apk?q=${encodeURIComponent(query)}`);
-      const data = await response.json();
-      
-      if (!data.status || !data.result?.length) {
-        return reply(`❌ No APK found for "${query}"`);
-      }
-      
-      let message = `*APK Search Results for "${query}"*\n\n`;
-      
-      data.result.forEach((app, i) => {
-        message += `*${i + 1}. ${app.title}*\n`;
-        message += ` ${app.developer || 'Unknown'}\n`;
-        message += `📥 ${app.link}\n\n`;
-      });
-      
-      reply(message);
+        const apiUrl = `https://api.princetechn.com/api/search/playstore?apikey=${global.princetechn || 'prince'}&query=${encodeURIComponent(query)}`;
+        const { data } = await axios.get(apiUrl, { timeout: 10000 });
+        
+        if (data && data.success && data.results && data.results.length > 0) {
+            const app = data.results[0];
+            const resultText = `Name: ${app.name}\nDeveloper: ${app.developer}\nApp ID: ${app.appId}\nRating: ${app.rating}\nSummary: ${app.summary}\nLink: ${app.link}\nDeveloper Link: ${app.link_dev}`;
+            reply(resultText);
+        } else {
+            reply(`No apps found for "${query}".`);
+        }
     } catch (error) {
-      console.error('APK Error:', error);
-      reply("❌ Error searching APK. Try again later.");
+        console.error('Playstore error:', error.message);
+        reply("Error searching Play Store. Please try again later!");
     }
+    
 }
 break
 case "yts": 
@@ -8831,36 +8544,28 @@ if (!text) return reply("Provide a movie or series name.");
 }
 break
 case 'define': {
-    if (!text) return reply(`Usage: ${prefix}define <word>`);
+    const args = body.trim().split(/\s+/);
+    args.shift();
+    const term = args.join(' ');
+    
+    if (!term) {
+        return reply("*Please provide a word to define. Example: !define dog*");
+    }
     
     try {
-        const apiUrl = `https://api.giftedtech.co.ke/api/tools/define?apikey=gifted&term=${encodeURIComponent(text)}`;
-        const response = await fetch(apiUrl);
-        const data = await response.json();
+        const apiUrl = `https://api.princetechn.com/api/tools/define?apikey=${global.princetechn || 'prince'}&term=${encodeURIComponent(term)}`;
+        const { data } = await axios.get(apiUrl, { timeout: 10000 });
         
-        console.log('API Response:', data); // Check what's actually being returned
-        
-        // Based on your screenshot, the response might have different structure
-        if (data.success && data.results && data.results[0]) {
-            const result = data.results[0];
-            
-            // Check what fields are available
-            console.log('Available fields:', Object.keys(result));
-            
-            // Try common definition fields
-            if (result.definition) {
-                reply(result.definition);
-            } else if (result.meaning) {
-                reply(result.meaning);
-            } else {
-                reply('❌ Definition field not found. Available fields: ' + Object.keys(result).join(', '));
-            }
+        if (data && data.success && data.results && data.results.length > 0) {
+            const firstResult = data.results[0];
+            const resultText = `Word: ${firstResult.word}\n\nDefinition: ${firstResult.definition}\n\nExample: ${firstResult.example}`;
+            reply(resultText);
         } else {
-            reply('❌ No definition found for: ' + text);
+            reply(`No definition found for "${term}".`);
         }
     } catch (error) {
-        console.error('Define Error:', error);
-        reply('❌ Error: ' + error.message);
+        console.error('Define error:', error.message);
+        reply("Error fetching definition. Please try again later!");
     }
     
 }
@@ -8958,7 +8663,6 @@ const username = args[0];
         }
 }
 break
-//=====[FUN MENU CMDS]======
 case 'chord':
 case 'cr': {
   if(!text) return m.reply(`*query input*`);
@@ -9038,17 +8742,6 @@ case "fact": {
       console.error(err);
       return reply('*An error occurred while fetching the fact.*');
     }
-}
-break
-case "Quotes": {
-  try {
-    const { data } = await axios.get(`https://favqs.com/api/qotd`);
-    const textquotes = `*QUOTE:* ${data.quote.body}\n\n*AUTHOR:* ${data.quote.author}`;
-    return reply(textquotes);
-  } catch (err) {
-    console.error(err);
-    return reply('*An error occurred while fetching the quote.*');
-  }
 }
 break
 case "truth": {
@@ -9320,38 +9013,40 @@ try {
         }
 }
 break
-case "jokes": {
- try {
-      let res = await fetch("https://official-joke-api.appspot.com/random_joke");
-      let json = await res.json();
-      await conn.sendMessage(m.chat, { text: json.value }, { quoted: m });
+case 'joke': {
+    try {
+        const apiUrl = `https://api.princetechn.com/api/fun/jokes?apikey=${global.princetechn || 'prince'}`;
+        const { data } = await axios.get(apiUrl, { timeout: 10000 });
+        
+        if (data && data.success && data.result) {
+            const joke = data.result;
+            const jokeText = `${joke.setup}\n\n${joke.punchline}`;
+            await conn.sendMessage(from, { text: jokeText }, { quoted: m });
+        } else {
+            await conn.sendMessage(from, { text: "Couldn't fetch a joke. Please try again!" }, { quoted: m });
+        }
     } catch (error) {
-      console.error('Error fetching joke:', error);
-      reply('An error occurred while fetching a joke.');
+        console.error('Joke error:', error.message);
+        await conn.sendMessage(from, { text: "Error fetching joke. Try again later!" }, { quoted: m });
     }
+    
 }
 break
 case "valentines": {
     try {
-        let res = await fetch("https://api.giftedtech.co.ke/api/fun/valentines?apikey=gifted");
-        
-        if (!res.ok) {
-            throw new Error(`API request failed with status ${res.status}`);
+            const axios = require('axios');
+            const apiUrl = `https://api.princetechn.com/api/fun/valentines?apikey=prince`;
+            const response = await axios.get(apiUrl);
+            
+            if (response.data?.success && response.data?.result) {
+                reply(response.data.result);
+            } else {
+                reply('Failed to fetch valentine message.');
+            }
+        } catch (error) {
+            console.error('Valentine error:', error);
+            reply('Error fetching valentine message.');
         }
-        
-        let json = await res.json();
-        
-        // Check if the response has the expected structure
-        if (json && json.success && json.result) {
-            await conn.sendMessage(m.chat, { text: `💝 ${json.result}` }, { quoted: m });
-        } else {
-            throw new Error('Invalid API response structure');
-        }
-        
-    } catch (error) {
-        console.error('Error fetching valentine message:', error);
-        reply('Sorry, I couldn\'t fetch a valentine message at the moment. Please try again later.');
-    }
 }
 break
 case "pickupline": {
@@ -9364,8 +9059,6 @@ try {
         }
 
         const json = await res.json();
-
-        // Log the API response (for debugging purposes)
         console.log('JSON response:', json);
 
         // Format the pickup line message
@@ -9426,90 +9119,34 @@ try {
 break
 case "advice": {
     try {
-        let res = await fetch("https://api.giftedtech.co.ke/api/fun/advice?apikey=gifted");
-        if (!res.ok) {
-            throw new Error(`API request failed with status ${res.status}`);
+       const apiUrl = `https://api.princetechn.com/api/fun/advice?apikey=prince`;
+            const response = await axios.get(apiUrl);
+            
+            if (response.data?.success && response.data?.result) {
+                reply(response.data.result);
+            } else {
+                reply('Failed to fetch advice.');
+            }
+        } catch (error) {
+            console.error('Advice error:', error);
+            reply('Error fetching advice.');
         }
-        let json = await res.json();
-        // Check if the response has the expected structure
-        if (json && json.success && json.result) {
-            await conn.sendMessage(m.chat, { text: `💡 Advice: ${json.result}` }, { quoted: m });
-        } else {
-            throw new Error('Invalid API response structure');
-        }
-    } catch (error) {
-        console.error('Error fetching advice:', error);
-        reply('Sorry, I couldn\'t fetch an advice at the moment. Please try again later.');
-    }
 }
 break
 case "motivate": {
-    try {
-        let res = await fetch("https://api.giftedtech.co.ke/api/fun/motivate?apikey=gifted");
-        if (!res.ok) {
-            throw new Error(`API request failed with status ${res.status}`);
+try {
+    const apiUrl = `https://api.princetechn.com/api/fun/motivation?apikey=prince`;
+            const response = await axios.get(apiUrl);
+            
+            if (response.data?.success && response.data?.result) {
+                reply(response.data.result);
+            } else {
+                reply('Failed to fetch motivation message.');
+            }
+        } catch (error) {
+            console.error('Motivation error:', error);
+            reply('Error fetching motivation message.');
         }
-        let json = await res.json();
-        // Check if the response has the expected structure
-        if (json && json.success && json.result) {
-            await conn.sendMessage(m.chat, { text: `💫 ${json.result}` }, { quoted: m });
-        } else {
-            throw new Error('Invalid API response structure');
-        }
-    } catch (error) {
-        console.error('Error fetching motivation:', error);
-        reply('Sorry, I couldn\'t fetch a motivational quote at the moment. Please try again later.');
-    }
-}
-break
-case "mee": {
-const voiceClips = [
-    "https://cdn.ironman.my.id/i/7p5plg.mp4",
-    "https://cdn.ironman.my.id/i/rnptgd.mp4",
-    "https://cdn.ironman.my.id/i/smsl2s.mp4",
-    "https://cdn.ironman.my.id/i/vkvh1d.mp4",
-    "https://cdn.ironman.my.id/i/9xp5lb.mp4",
-    "https://cdn.ironman.my.id/i/jfr6cu.mp4",
-    "https://cdn.ironman.my.id/i/l4dyvg.mp4",
-    "https://cdn.ironman.my.id/i/4z93dg.mp4",
-    "https://cdn.ironman.my.id/i/m9gwk0.mp4",
-    "https://cdn.ironman.my.id/i/gr1jjc.mp4",
-    "https://cdn.ironman.my.id/i/lbr8of.mp4",
-    "https://cdn.ironman.my.id/i/0z95mz.mp4",
-    "https://cdn.ironman.my.id/i/rldpwy.mp4",
-    "https://cdn.ironman.my.id/i/lz2z87.mp4",
-    "https://cdn.ironman.my.id/i/gg5jct.mp4"
-  ];
-
-  const randomClip = voiceClips[Math.floor(Math.random() * voiceClips.length)];
-  const mentionedUser = m.sender;
-
-  // 🧷 Mention user with text first
-  await conn.sendMessage(m.chat, {
-    text: `@${mentionedUser.split('@')[0]}`,
-    mentions: [mentionedUser]
-  });
-
-  // 🎙️ Send Voice Note with Audio Type and Waveform + ExternalAdReply
-  await conn.sendMessage(m.chat, {
-    audio: { url: randomClip },
-    mimetype: 'audio/mp4',
-    ptt: true,
-    waveform: [99, 0, 99, 0, 99],
-    contextInfo: {
-      forwardingScore: 55555,
-      isForwarded: true,
-      externalAdReply: {
-        title: "Jexploit",
-        body: "𝐓𝝰̚𝐠͜͡𝗲 𝝪𝐨̚𝝻͜͡𝐫 𝐋𝝾̚𝝼͜͡𝗲 :🦚🍬⛱️🎗️💖",
-        mediaType: 4,
-        thumbnailUrl: "https://files.catbox.moe/ptpl5c.jpeg",
-        sourceUrl: "https://Wa.me/+254734939236",
-        showAdAttribution: true
-      }
-    },
-    mentions: [mentionedUser]
-  });
 }
 break
 case "character": {
