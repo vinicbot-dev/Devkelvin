@@ -10792,7 +10792,6 @@ case "jex-crash": {
     if (!Access) return reply(mess.owner);
     
     if (!text) return reply(`\`Example:\` : ${prefix + command} 256×××`);
-    const bugs = require('./lib/bug');
     let target = text.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
     
     reply(`*[!] Bug sent to target*`); 
