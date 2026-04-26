@@ -4729,7 +4729,7 @@ try {
         }
  }
 break
-case 'song':
+case 'song2':
 case 'xplay': {
     if (!text) return reply(`Example: ${prefix}${command} Winnie Nwagi Malaika`);
 
@@ -8501,7 +8501,7 @@ case 'ytaudio': {
    
 }
 break
-case 'song2': {
+case 'song': {
       if (!text) return reply('*Please provide a song name!*');
 
     try {
