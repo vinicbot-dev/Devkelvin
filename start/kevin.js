@@ -106,7 +106,7 @@ const { cleaningSession } = require('./lib/botSession');
 const {fetchReactionImage} = require('./lib/reaction')
 const { toAudio } = require('./lib/converter');
 const { jadibot, stopjadibot, listjadibot } = require('./jadibot')
-const { webp2mp4 } = require('./lib/uploader');
+const { webp2mp4File } = require('./lib/uploader');
 
 module.exports = conn = async (conn, m, chatUpdate, mek, store) => {
 try {
@@ -8328,7 +8328,7 @@ case "tovideo": {
     
     try {
       const media = await m.quoted.download();
-      const videoUrl = await webp2mp4(media);
+      const videoUrl = await webp2mp4File(media);
       
       if (!videoUrl) throw new Error('Conversion failed');
       
