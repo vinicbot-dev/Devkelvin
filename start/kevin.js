@@ -5799,34 +5799,39 @@ case  "save": {
 await saveStatusMessage(m);
   }
 break
-case "apkdl": {
-    const appName = args.join(" ");
-    if (!appName) return reply(`*Example:* ${prefix}apkdl WhatsApp`);
-
+case 'apk': {
+    const args = body.trim().split(/\s+/);
+    args.shift();
+    const appName = args.join(' ');
+    
+    if (!appName) {
+        return reply("*Please provide an app name.\n\nExample: .apk whatsapp*");
+    }
+    
     try {
-        await reply(`Searching for ${appName} APK...`);
-
-        const axios = require('axios');
-        const apiUrl = `https://api.princetechn.com/api/download/apkdl?apikey=prince&appName=${encodeURIComponent(appName)}`;
-        const response = await axios.get(apiUrl);
+        await conn.sendPresenceUpdate('composing', from);
         
-        if (response.data?.success && response.data?.result) {
-            const { appname, download_url } = response.data.result;
+        const apiUrl = `https://api.princetechn.com/api/download/apkdl?apikey=prince&appName=${encodeURIComponent(appName)}`;
+        const { data } = await axios.get(apiUrl, { timeout: 15000 });
+        
+        if (data && data.success && data.result) {
+            const result = data.result;
+            const apkUrl = result.download_url;
             
-            // Send APK directly using URL instead of streaming
-            await conm.sendMessage(m.chat, {
-                document: { url: download_url },
+            await conn.sendMessage(from, { 
+                document: { url: apkUrl },
                 mimetype: 'application/vnd.android.package-archive',
-                fileName: `${appname.replace(/[^a-zA-Z0-9]/g, '_')}.apk`,
-                caption: `✅ ${appname}\n> ${global.wm || 'Vesper-Xmd'}`
+                fileName: `${result.appname}.apk`,
+                caption: `📱 *${result.appname}*\n👨‍💻 Developer: ${result.developer}`
             }, { quoted: m });
         } else {
-            reply(`❌ ${appName} not found`);
+            reply(`APK for "${appName}" not found.`);
         }
     } catch (error) {
-        console.error(error);
-        reply(`❌ Failed to download ${appName}`);
+        console.error('APK error:', error.message);
+        reply("Error fetching APK. Please try again later!");
     }
+    
 }
 break
 case 'bass': {
