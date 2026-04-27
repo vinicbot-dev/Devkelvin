@@ -6,6 +6,7 @@ let { fromBuffer } = require('file-type')
 let fetch = require('node-fetch')
 let fs = require('fs')
 let cheerio = require('cheerio')
+const FormData = require('form-data');
 
 
 
@@ -48,42 +49,36 @@ async function UploadFileUgu (input) {
 	})
 }
 
-function webp2mp4File(path) {
-	return new Promise((resolve, reject) => {
-		 const form = new BodyForm()
-		 form.append('new-image-url', '')
-		 form.append('new-image', fs.createReadStream(path))
-		 axios({
-			  method: 'post',
-			  url: 'https://s6.ezgif.com/webp-to-mp4',
-			  data: form,
-			  headers: {
-				   'Content-Type': `multipart/form-data; boundary=${form._boundary}`
-			  }
-		 }).then(({ data }) => {
-			  const bodyFormThen = new BodyForm()
-			  const $ = cheerio.load(data)
-			  const file = $('input[name="file"]').attr('value')
-			  bodyFormThen.append('file', file)
-			  bodyFormThen.append('convert', "Convert WebP to MP4!")
-			  axios({
-				   method: 'post',
-				   url: 'https://ezgif.com/webp-to-mp4/' + file,
-				   data: bodyFormThen,
-				   headers: {
-						'Content-Type': `multipart/form-data; boundary=${bodyFormThen._boundary}`
-				   }
-			  }).then(({ data }) => {
-				   const $ = cheerio.load(data)
-				   const result = 'https:' + $('div#output > p.outfile > video > source').attr('src')
-				   resolve({
-						status: true,
-						message: "Created By MRHRTZ",
-						result: result
-				   })
-			  }).catch(reject)
-		 }).catch(reject)
-	})
+async function webp2mp4(source) {
+  let form = new FormData();
+  let isUrl = typeof source === 'string' && /https?:\/\//.test(source);
+  
+  form.append('new-image-url', isUrl ? source : '');
+  form.append('new-image', isUrl ? '' : source, 'image.webp');
+  
+  let res = await fetch('https://ezgif.com/webp-to-mp4', {
+    method: 'POST',
+    body: form
+  });
+  
+  let html = await res.text();
+  let $ = cheerio.load(html);
+  let form2 = new FormData();
+  let obj = {};
+  
+  $('form input[name]').each((_, el) => {
+    obj[$(el).attr('name')] = $(el).val();
+    form2.append($(el).attr('name'), $(el).val());
+  });
+  
+  let res2 = await fetch('https://ezgif.com/webp-to-mp4/' + obj.file, {
+    method: 'POST',
+    body: form2
+  });
+  
+  let html2 = await res2.text();
+  let $2 = cheerio.load(html2);
+  return new URL($2('div#output > p.outfile > video > source').attr('src'), res2.url).toString();
 }
 
 async function floNime(medianya, options = {}) {
