@@ -3800,14 +3800,13 @@ break
 case 'firetext':
 case 'fire':
 case 'firetxt': {
-    const text = args.join(" ");
     if (!text) return reply(`*Example: ${prefix}firetext Kevin*`);
 
     try {
         const apiUrl = `https://api.malvin.gleeze.com/ephoto360/fireText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
-        if (response.data?.success && response.data?.result?.image_url) {
+        if (response.data?.status && response.data?.result?.image_url) {
             await conn.sendMessage(m.chat, {
                 image: { url: response.data.result.image_url },
                 caption: `> ${global.wm}`
@@ -3832,7 +3831,7 @@ case 'neontxt': {
         const apiUrl = `https://api.malvin.gleeze.com/ephoto360/neonText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
-        if (response.data?.success && response.data?.result?.image_url) {
+        if (response.data?.status && response.data?.result?.image_url) {
             await conn.sendMessage(m.chat, {
                 image: { url: response.data.result.image_url },
                 caption: `> ${global.wm}`
@@ -3857,7 +3856,7 @@ case 'metallictxt': {
         const apiUrl = `https://api.malvin.gleeze.com/ephoto360/metallicText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
-        if (response.data?.success && response.data?.result?.image_url) {
+        if (response.data?.status && response.data?.result?.image_url) {
             await conn.sendMessage(m.chat, {
                 image: { url: response.data.result.image_url },
                 caption: `> ${global.wm}`
@@ -3881,7 +3880,7 @@ case 'snowtxt': {
         const apiUrl = `https://api.malvin.gleeze.com/ephoto360/snowText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
-        if (response.data?.success && response.data?.result?.image_url) {
+        if (response.data?.status && response.data?.result?.image_url) {
             await conn.sendMessage(m.chat, {
                 image: { url: response.data.result.image_url },
                 caption: `> ${global.wm}`
@@ -3906,7 +3905,7 @@ case 'icetxt': {
         const apiUrl = `https://api.malvin.gleeze.com/ephoto360/iceText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
-        if (response.data?.success && response.data?.result?.image_url) {
+        if (response.data?.status && response.data?.result?.image_url) {
             await conn.sendMessage(m.chat, {
                 image: { url: response.data.result.image_url },
                 caption: `> ${global.wm}`
@@ -3931,7 +3930,7 @@ case 'purpletxt': {
         const apiUrl = `https://api.malvin.gleeze.com/ephoto360/purpleText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
-        if (response.data?.success && response.data?.result?.image_url) {
+        if (response.data?.status && response.data?.result?.image_url) {
             await conn.sendMessage(m.chat, {
                 image: { url: response.data.result.image_url },
                 caption: `> ${global.wm}`
@@ -3955,7 +3954,7 @@ case 'lighttxt': {
         const apiUrl = `https://api.malvin.gleeze.com/ephoto360/lightText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
-        if (response.data?.success && response.data?.result?.image_url) {
+        if (response.data?.status && response.data?.result?.image_url) {
             await conn.sendMessage(m.chat, {
                 image: { url: response.data.result.image_url },
                 caption: `> ${global.wm}`
@@ -3979,7 +3978,7 @@ case 'thundertxt': {
         const apiUrl = `https://api.malvin.gleeze.com/ephoto360/thunderText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
-        if (response.data?.success && response.data?.result?.image_url) {
+        if (response.data?.status && response.data?.result?.image_url) {
             await conn.sendMessage(m.chat, {
                 image: { url: response.data.result.image_url },
                 caption: `> ${global.wm}`
@@ -4003,7 +4002,7 @@ case 'leavestxt': {
         const apiUrl = `https://api.malvin.gleeze.com/ephoto360/leavesText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
-        if (response.data?.success && response.data?.result?.image_url) {
+        if (response.data?.status && response.data?.result?.image_url) {
             await conn.sendMessage(m.chat, {
                 image: { url: response.data.result.image_url },
                 caption: `> ${global.wm}`
@@ -4028,7 +4027,7 @@ case 'hackertxt': {
         const apiUrl = `https://api.malvin.gleeze.com/ephoto360/hackerText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
-        if (response.data?.success && response.data?.result?.image_url) {
+        if (response.data?.status && response.data?.result?.image_url) {
             await conn.sendMessage(m.chat, {
                 image: { url: response.data.result.image_url },
                 caption: `> ${global.wm}`
@@ -4052,7 +4051,7 @@ case 'deviltxt': {
         const apiUrl = `https://api.malvin.gleeze.com/ephoto360/devilText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
-        if (response.data?.success && response.data?.result?.image_url) {
+        if (response.data?.status && response.data?.result?.image_url) {
             await conn.sendMessage(m.chat, {
                 image: { url: response.data.result.image_url },
                 caption: `> ${global.wm}`
@@ -4076,7 +4075,7 @@ case 'vintagetxt': {
         const apiUrl = `https://api.malvin.gleeze.com/ephoto360/vintageText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
-        if (response.data?.success && response.data?.result?.image_url) {
+        if (response.data?.status && response.data?.result?.image_url) {
             await conn.sendMessage(m.chat, {
                 image: { url: response.data.result.image_url },
                 caption: `> ${global.wm}`
@@ -4100,7 +4099,7 @@ case 'wingslog': {
         const apiUrl = `https://api.malvin.gleeze.com/ephoto360/wingsLogo?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
-        if (response.data?.success && response.data?.result?.image_url) {
+        if (response.data?.status && response.data?.result?.image_url) {
             await conn.sendMessage(m.chat, {
                 image: { url: response.data.result.image_url },
                 caption: `> ${global.wm}`
@@ -4124,7 +4123,7 @@ case 'painttxt': {
         const apiUrl = `https://api.malvin.gleeze.com/ephoto360/paintText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
-        if (response.data?.success && response.data?.result?.image_url) {
+        if (response.data?.status && response.data?.result?.image_url) {
             await conn.sendMessage(m.chat, {
                 image: { url: response.data.result.image_url },
                 caption: `> ${global.wm}`
@@ -4134,6 +4133,60 @@ case 'painttxt': {
         }
     } catch (error) {
         console.error('Paint text error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    
+}
+case 'naruto': {
+    if (!text) return reply(`*Example: ${prefix}naruto Kevin*`);
+
+    try {
+        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/naruto?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.result?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.result.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate Naruto effect.`);
+        }
+    } catch (error) {
+        console.error('Naruto error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    
+}
+break
+case 'pubg':
+case 'pubglogo': {
+    if (!text) return reply(`*Example: ${prefix}pubglogo Kevin*`);
+
+    try {
+        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/pubgLogo?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.result?.image_url) {
+            const resultUrl = response.data.result.image_url;
+            
+            // Check if it's a video (MP4) or image
+            if (resultUrl.endsWith('.mp4')) {
+                await conn.sendMessage(m.chat, {
+                    video: { url: resultUrl },
+                    caption: `> ${global.wm}`
+                }, { quoted: m });
+            } else {
+                await conn.sendMessage(m.chat, {
+                    image: { url: resultUrl },
+                    caption: `> ${global.wm}`
+                }, { quoted: m });
+            }
+        } else {
+            reply(`Failed to generate PUBG Logo effect.`);
+        }
+    } catch (error) {
+        console.error('PUBG Logo error:', error.message);
         reply(`Error: ${error.message}`);
     }
     
@@ -4563,6 +4616,44 @@ try {
         }
 }
 break
+case "quran": {
+try {
+            const surahNumber = parseInt(text.trim());
+            
+            if (!text || isNaN(surahNumber)) {
+                await conn.sendMessage(m.chat, { text: "Usage: .quran <surah_number>\nExample: .quran 1" });
+                return;
+            }
+
+            const url = `https://apis.davidcyril.name.ng/quran?surah=${surahNumber}`;
+            const res = await fetch(url);
+            const data = await res.json();
+
+            if (!data.success) {
+                await conn.sendMessage(m.chat, { text: "Could not fetch Surah. Please try another number." });
+                return;
+            }
+
+            const { number, name, type, ayahCount, tafsir, recitation } = data.surah;
+
+            let replyText = `📖 *${name.english}* (${name.arabic})\n`;
+            replyText += `Number: ${number} | Type: ${type} | Ayahs: ${ayahCount}\n\n`;
+            replyText += `Tafsir: ${tafsir.id}`;
+
+            await conn.sendMessage(m.chat, { text: replyText });
+
+            await conn.sendMessage(m.chat, {
+                audio: { url: recitation },
+                mimetype: "audio/mpeg",
+                mp3: true
+            }, { quoted: m });
+
+        } catch (err) {
+            await conn.sendMessage(m.chat, { text: "Error fetching Surah. Try again later." });
+            console.error("Quran command error:", err.message);
+        }
+}
+break
 case 'bible': {
 const BASE_URL = "https://bible-api.com";
 
@@ -4690,44 +4781,6 @@ try {
         reply(mess.error);
     }
 }
-break
-case "Quran": {
-try {
-            const surahNumber = parseInt(text.trim());
-            
-            if (!text || isNaN(surahNumber)) {
-                await conn.sendMessage(m.chat, { text: "Usage: .quran <surah_number>\nExample: .quran 1" });
-                return;
-            }
-
-            const url = `https://apis.davidcyril.name.ng/quran?surah=${surahNumber}`;
-            const res = await fetch(url);
-            const data = await res.json();
-
-            if (!data.success) {
-                await conn.sendMessage(m.chat, { text: "Could not fetch Surah. Please try another number." });
-                return;
-            }
-
-            const { number, name, type, ayahCount, tafsir, recitation } = data.surah;
-
-            let replyText = `📖 *${name.english}* (${name.arabic})\n`;
-            replyText += `Number: ${number} | Type: ${type} | Ayahs: ${ayahCount}\n\n`;
-            replyText += `Tafsir: ${tafsir.id}`;
-
-            await conn.sendMessage(m.chat, { text: replyText });
-
-            await conn.sendMessage(m.chat, {
-                audio: { url: recitation },
-                mimetype: "audio/mpeg",
-                mp3: true
-            }, { quoted: m });
-
-        } catch (err) {
-            await conn.sendMessage(m.chat, { text: "Error fetching Surah. Try again later." });
-            console.error("Quran command error:", err.message);
-        }
- }
 break
 case 'song2':
 case 'xplay': {
