@@ -48,7 +48,7 @@ const { obfuscateJS } = require("./lib/encapsulation");
 const db = require('./Core/databaseManager');
 const GroupDB = require('./Metadata/group');
 const { handleMediaUpload } = require('./lib/catbox');
-const {styletext, remind, Wikimedia, wallpaper} = require('./lib/scraper')
+const { styletext } = require('./lib/scraper')
 const { 
     setAwesomeMenu,
     resetMenu,
@@ -5342,38 +5342,6 @@ if (!text) return reply('Enter download URL');
     }
 }
 break
-case "apk2": {
-if (!text) return reply("*Which apk do you want to download?*");
-    
-    try {
-      let apiUrl = await fetchJson(`https://api.bk9.dev/search/apk?q=${text}`);
-      let kelvin = await fetchJson(`https://api.bk9.dev/download/apk?id=${apiUrl.BK9[0].id}`);
-
-      await conn.sendMessage(
-        m.chat,
-        {
-          document: { url: kelvin.BK9.dllink },
-          fileName: kelvin.BK9.name,
-          mimetype: "application/vnd.android.package-archive",
-          contextInfo: {
-            externalAdReply: {
-              title: botname,
-              body: `${kelvin.BK9.name}`,
-              thumbnailUrl: `${kelvin.BK9.icon}`,
-              sourceUrl: `${kelvin.BK9.dllink}`,
-              mediaType: 2,
-              showAdAttribution: true,
-              renderLargerThumbnail: true
-            }
-          }
-        },
-        { quoted: m }
-      );
-    } catch (error) {
-      reply(mess.error);
-    }
-}
-break
 case "gdrive": {
 if (!text) return reply("*Please provide a Google Drive file URL*");
 
@@ -5794,6 +5762,7 @@ if (!args[0]) return reply('*Please provide a TikTok video url!*');
 break 
 case 'tiktoksearch':
 case 'tts': {
+    const query = args.join(" "); 
         if (!query) return reply("*Please provide a search term. Example: `.tiktoksearch keizzah4189*`");
     
     try {
@@ -5827,7 +5796,7 @@ case 'tts': {
     }
 }
 break
-case "TikTokaudio": {
+case "tiktokaudio": {
 if (!args[0]) return reply('*Please provide a TikTok audio url!*');
     
     try {
@@ -5852,9 +5821,8 @@ case  "save": {
 await saveStatusMessage(m);
   }
 break
+case 'apkdl': 
 case 'apk': {
-    const args = body.trim().split(/\s+/);
-    args.shift();
     const appName = args.join(' ');
     
     if (!appName) {
@@ -6306,52 +6274,70 @@ case 'karaoke': {
   }
   break;
 }
-
-//====end of audio menu =====
-
-//=====[IMAGE MENU]======[
-case "wallpaper": {
-if (!text) return reply("📌 *Enter a search query.*");
-
-      try {
-        const results = await wallpaper(text);
-        if (!results.length) return reply("❌ *No wallpapers found.*");
-
-        const randomWallpaper = results[Math.floor(Math.random() * results.length)];
-        await conn.sendMessage(
-          m.chat,
-          {
-            caption: `📌 *Title:* ${randomWallpaper.title}\n📁 *Category:* ${randomWallpaper.type}\n🔗 *Source:* ${randomWallpaper.source}\n🖼️ *Media URL:* ${randomWallpaper.image[2] || randomWallpaper.image[1] || randomWallpaper.image[0]}`,
-            image: { url: randomWallpaper.image[0] }
-          },
-          { quoted: m }
-        );
-      } catch (error) {
-        console.error(error);
-        reply("❌ *An error occurred while fetching the wallpaper.*");
-      }
+case 'wallpaper':
+case 'wall': { 
+const query = args.join(" ");
+    if (!query) {
+        return reply("Please provide a search query.\n\nExample: .wallpaper Sunset Scenes");
+    }
+    
+    try {
+        await conn.sendPresenceUpdate('composing', from);
+        
+        const apiUrl = `https://api.princetechn.com/api/search/wallpaper?apikey=prince&query=${encodeURIComponent(query)}`;
+        const { data } = await axios.get(apiUrl, { timeout: 15000 });
+        
+        if (data && data.success && data.results && data.results.length > 0) {
+            const randomIndex = Math.floor(Math.random() * data.results.length);
+            const wallpaper = data.results[randomIndex];
+            const imageUrl = wallpaper.image[0];
+            
+            const caption = `🖼️ *Wallpaper*\n\n📌 *Type:* ${wallpaper.type}\n🔍 *Search:* ${query}`;
+            
+            await conn.sendMessage(from, {
+                image: { url: imageUrl },
+                caption: caption
+            }, { quoted: m });
+        } else {
+            reply(`❌ No wallpapers found for "${query}".`);
+        }
+    } catch (error) {
+        console.error('Wallpaper error:', error.message);
+        reply("❌ Error fetching wallpaper. Please try again later!");
+    }
+    
 }
 break
-case " Wikipedia": {
-if (!text) return reply("📌 *Enter a search query.*");
+case "wikipedia":
+case "wiki": {    
+    if (!text) return reply("📌 *Enter a search query.*\n\nExample: .wikipedia Elon Musk");
 
-      try {
-        const results = await wikimedia(text);
-        if (!results.length) return reply("❌ *No Wikimedia results found.*");
-
-        const randomWiki = results[Math.floor(Math.random() * results.length)];
-        await conn.sendMessage(
-          m.chat,
-          {
-            caption: `📌 *Title:* ${randomWiki.title}\n🔗 *Source:* ${randomWiki.source}\n🖼️ *Media URL:* ${randomWiki.image}`,
-            image: { url: randomWiki.image }
-          },
-          { quoted: m }
-        );
-      } catch (error) {
-        console.error(error);
-        reply("❌ *An error occurred while fetching Wikimedia results.*");
-      }
+    try {
+        const apiUrl = `https://api.princetechn.com/api/search/wikimedia?apikey=prince&title=${encodeURIComponent(text)}`;
+        const { data } = await axios.get(apiUrl, { timeout: 15000 });
+        
+        if (data && data.success && data.results) {
+            const result = data.results;
+            const imageUrl = result.originalImage?.source || result.thumbnail?.source;
+            
+            const caption = `📌 *Title:* ${result.title}\n\n📝 *Description:* ${result.description || 'No description available'}\n\n📖 *Extract:* ${result.extract || 'No extract available'}\n\n🔗 *Source:* ${result.pageUrl}\n📅 *Last Modified:* ${result.lastModified || 'Unknown'}`;
+            
+            if (imageUrl) {
+                await conn.sendMessage(m.chat, {
+                    image: { url: imageUrl },
+                    caption: caption
+                }, { quoted: m });
+            } else {
+                reply(caption);
+            }
+        } else {
+            reply(`❌ *No Wikipedia results found for "${text}".*`);
+        }
+    } catch (error) {
+        console.error('Wikipedia error:', error.message);
+        reply("❌ *An error occurred while fetching Wikipedia results.*");
+    }
+    
 }
 break
 case "remini": {
@@ -6469,7 +6455,7 @@ case "listcur": {
     if (!Access) return reply(mess.owner);
     
     try {
-        await reply("🔄 *Fetching currency list...*");
+        await reply("*Fetching currency list...*");
         
         const apiUrl = "https://apis.davidcyril.name.ng/tools/currencies";
         const response = await axios.get(apiUrl);
@@ -6690,8 +6676,6 @@ case "celebrate":
 case "celebration":
 await fetchReactionImage({ conn, m, reply, command: 'celebrate' });
 break;
-
-//======[Ai menu]=====[
 case "generate": {
 if (!text) return reply(global.mess.notext);
 
@@ -6702,218 +6686,6 @@ if (!text) return reply(global.mess.notext);
       console.error('Error generating image:', error);
       reply(mess.error);
     }
-}
-break
-case 'copilot':
-case 'ask': {
-    if (!text) return m.reply('❓ *Please ask me something!*\nExample: .copilot How are you?');
-    
-    try {
-        m.reply('🤔 *Thinking...*');
-        
-        const response = await fetch(`https://meta-api.zone.id/ai/copilot?message=${encodeURIComponent(text)}&model=default`);
-        const data = await response.json();
-        
-        await m.reply(`🤖 *Copilot AI*\n\n${data.answer || '❌ No response from AI'}`);
-    } catch (error) {
-        console.error(error);
-        await m.reply(mess.error);
-    }
-    
-}
-break
-case 'gpt':
-case 'chatgpt':
-case 'ai': {
-    if (!text) return m.reply('🤖 *Ask ChatGPT*\nExample: .gpt How are you?');
-    
-    try {
-        m.reply('⚡ *Thinking...*');
-        
-        const response = await fetch(`https://meta-api.zone.id/ai/chatgptfree?prompt=${encodeURIComponent(text)}&model=chatgpt4`);
-        const data = await response.json();
-        
-        await m.reply(`🤖 *ChatGPT*\n\n${data.answer || '❌ No response'}`);
-    } catch (error) {
-        console.error(error);
-        await m.reply(mess.error);
-    }
-    
-}
-break
-case 'gpt2':
-case 'chatgpt': {
-    if (!text) return reply(`Please provide a query/question\n\nExample: ${prefix + command} what is artificial intelligence?`);
-    
-    try {
-        // Send "typing..." indicator
-        await conn.sendPresenceUpdate('composing', m.chat);
-        
-        // Encode the query for the API
-        const query = encodeURIComponent(text);
-        const apiUrl = `https://api.giftedtech.co.ke/api/ai/ai?apikey=gifted&q=${query}`;
-        
-        // Fetch response from API
-        const { data } = await axios.get(apiUrl);
-        
-        let response;
-        
-        if (data && data.result) {
-            response = data.result;
-        } else if (data && data.message) {
-            response = data.message;
-        } else {
-            response = "❌ Sorry, I couldn't process your request at the moment. Please try again later.";
-        }
-        
-        // Format the response
-        const finalResponse = `🤖 *GPT RESPONSE*\n\n${response}\n\n*Powered by Jexploit AI*`;
-        
-        await reply(finalResponse);
-        
-    } catch (error) {
-        console.error('GPT Command Error:', error);
-        reply(mess.error);
-    }
-}
-break
-case 'metaai': {
-    if (!text) return reply(`❌ *Please provide a question!*\n\n📌 *Example:* ${prefix}gpt Hello, how are you?`);
-
-    try {
-        // React while processing
-        await conn.sendMessage(m.chat, { react: { text: "💭", key: m.key } });
-
-        // API URL
-        const apiUrl = `https://api.nekolabs.web.id/text-generation/ai4chat?text=${encodeURIComponent(text)}`;
-        
-        // Fetch response from API
-        const response = await fetch(apiUrl);
-        const data = await response.json();
-
-        if (data.success && data.result) {
-            // Format the response nicely
-            const replyText = `🤖 *AI Response*\n\n${data.result}\n\n⏱️ *Response Time:* ${data.responseTime || 'N/A'}`;
-            
-            await conn.sendMessage(
-                m.chat,
-                { text: replyText },
-                { quoted: m }
-            );
-            
-            // Success reaction
-            await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
-        } else {
-            throw new Error('No response from AI');
-        }
-        
-    } catch (error) {
-        console.error('GPT command error:', error);
-        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
-        reply(mess.error);
-    }
-}
-break
-case 'llama': {
-  if (!q) return reply('*Please ask me something*');
-  
-  try {
-    const response = await fetch(`https://api.privatezia.biz.id/api/ai/deepai?query=${encodeURIComponent(q)}`);
-    const data = await response.json();
-    
-    
-    if (data.status) {
-      // Check if data.data exists and is not empty
-      if (data.data) {
-        reply(`🤖 ${data.data}`);
-      } else {
-        reply('Response received but data field is empty');
-      }
-    } else {
-      reply('API returned false status');
-    }
-    
-  } catch (error) {
-    console.error('deepai error:', error);
-    reply(mess.error);
-  }
-  
-}
-break
-case 'bb':
-case 'blackbox': {
-  if (!q) return reply('*Please ask me something*');
-  
-  try {
-    const response = await fetch(`https://api.privatezia.biz.id/api/ai/blackbox?query=${encodeURIComponent(q)}`);
-    const data = await response.json();
-    
-    if (data.status) {
-      // Check if data.data exists and is not empty
-      if (data.data) {
-        reply(`🤖 ${data.data}`);
-      } else {
-        reply('Response received but data field is empty');
-      }
-    } else {
-      reply('API returned false status');
-    }
-    
-  } catch (error) {
-    console.error('deepai error:', error);
-    reply(mess.error);
-  }
-  
-}
-break
-case 'dalle': {
-  if (!q) return reply('*Please ask me something*');
-  
-  try {
-    const response = await fetch(`https://api.privatezia.biz.id/api/ai/luminai?query=${encodeURIComponent(q)}`);
-    const data = await response.json();
-    
-    if (data.status) {
-      // Check if data.data exists and is not empty
-      if (data.data) {
-        reply(`🤖 ${data.data}`);
-      } else {
-        reply('Response received but data field is empty');
-      }
-    } else {
-      reply('API returned false status');
-    }
-    
-  } catch (error) {
-    console.error('dalle error:', error);
-    reply(mess.error);
-  }
-  
-}
-break
-case 'summarize': {
-  if (!q) return reply('*Please ask me something*');
-  
-  try {
-    const response = await fetch(`https://api.privatezia.biz.id/api/ai/ai4chat?query=${encodeURIComponent(q)}`);
-    const data = await response.json();
-    
-    if (data.status) {
-      // Check if data.data exists and is not empty
-      if (data.data) {
-        reply(`🤖 ${data.data}`);
-      } else {
-        reply('Response received but data field is empty');
-      }
-    } else {
-      reply('API returned false status');
-    }
-    
-  } catch (error) {
-    console.error('summarize error:', error);
-    reply(mess.error);
-  }
-  
 }
 break
 case 'gemini':
@@ -7064,9 +6836,7 @@ case 'simplify': {
     }
     break;
 }
-case 'dictionary':
-case 'dict':
-case 'define': {
+case 'dictionary': {
     if (!text) return reply(`*Dictionary*\n\nPlease provide a word to define.\n\nExample:\n${prefix}dictionary cat\n${prefix}define hello\n${prefix}dict computer`);
 
     const word = text.trim().toLowerCase();
@@ -7474,8 +7244,8 @@ m.reply(`Error: Unable to retrieve data for IP ${text}`);
 }
  break    
   case "tts": {
-  if(!text) return m.reply("`provide a query`");
-  m.reply(`processing your query`);
+  if(!text) return reply("`provide a query`");
+ reply(`processing your query`);
   try {
     let anu = `https://api.siputzx.my.id/api/tools/tts?text=${encodeURIComponent(text)}&voice=jv-ID-DimasNeural&rate=0%&pitch=0Hz&volume=0%`;
     const response = await axios.get(anu, {
@@ -7707,102 +7477,49 @@ const quoted = m.quoted ? m.quoted : null;
 }
 break
 case 'obfuscate2':
-case 'obfus':
 case 'encrypt': {
-    if (!text) return reply(`*Usage:* ${prefix}obfuscate <code>\n*Example:* ${prefix}obfuscate console.log("Hello World")`);
+    let code = '';
+    const quoted = m.quoted;
+    if (quoted && quoted.mimetype === 'application/javascript') {
+        try {
+            const buffer = await quoted.download();
+            code = buffer.toString('utf-8');
+        } catch (err) {
+            return reply("Failed to read the .js file. Please try again.");
+        }
+    } else {
+        args.shift();
+        code = args.join(' ');
+        
+        if (!code) {
+            return reply(`*Please reply to a .js file with ${prefix}obfuscate*`);
+        }
+    }
     
     try {
-        // Send loading reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "⏳",
-                key: m.key
-            }
-        });
-
-        // Encode the code for the URL
-        const encodedCode = encodeURIComponent(text);
+        await conn.sendPresenceUpdate('composing', from);
         
-        // API endpoint
-        const apiUrl = `https://api.giftedtech.co.ke/api/tools/encryptv2?apikey=gifted&code=${encodedCode}`;
+        const apiUrl = `https://api.princetechn.com/api/tools/encrypt?apikey=prince&code=${encodeURIComponent(code)}`;
+        const { data } = await axios.get(apiUrl, { timeout: 30000 });
         
-        console.log("Obfuscate: Making API request to:", apiUrl);
-        
-        // Fetch the obfuscated code
-        const response = await fetch(apiUrl);
-        const data = await response.json();
-        
-        console.log("Obfuscate: API Response:", JSON.stringify(data, null, 2));
-        
-        let obfuscatedCode = '';
-        
-        // FIX: Properly handle different response formats
-        if (data && typeof data === 'object') {
-            if (data.result && typeof data.result === 'string') {
-                obfuscatedCode = data.result;
-            } else if (data.encrypted && typeof data.encrypted === 'string') {
-                obfuscatedCode = data.encrypted;
-            } else if (data.code && typeof data.code === 'string') {
-                obfuscatedCode = data.code;
-            } else if (data.data && typeof data.data === 'string') {
-                obfuscatedCode = data.data;
-            } else if (data.message && typeof data.message === 'string') {
-                obfuscatedCode = data.message;
-            } else {
-                // If we get an object but can't find the string, try to stringify it
-                obfuscatedCode = JSON.stringify(data, null, 2);
-                console.warn("Obfuscate: Unexpected response format, using JSON stringify");
-            }
-        } else if (typeof data === 'string') {
-            obfuscatedCode = data;
+        if (data && data.success && data.encrypted_code) {
+            const obfuscatedCode = data.encrypted_code;
+            const fileName = `obfuscated_${Date.now()}.js`;
+            
+            await conn.sendMessage(from, {
+                document: Buffer.from(obfuscatedCode, 'utf-8'),
+                mimetype: 'application/javascript',
+                fileName: fileName,
+                caption: '*Code encrypted successfully✅.'
+            }, { quoted: m });
         } else {
-            throw new Error('Unexpected response format from API');
+            reply("Failed to obfuscate code. Please check your code and try again.");
         }
-        
-        // Validate that we actually got obfuscated code
-        if (!obfuscatedCode || obfuscatedCode.trim() === '') {
-            throw new Error('API returned empty result');
-        }
-        
-        // Success reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "✅",
-                key: m.key
-            }
-        });
-        
-        // Truncate long code for display
-        const displayOriginal = text.length > 500 ? text.substring(0, 500) + '...' : text;
-        const displayObfuscated = obfuscatedCode.length > 1500 ? obfuscatedCode.substring(0, 1500) + '...' : obfuscatedCode;
-        
-        // Send the obfuscated code
-        await conn.sendMessage(m.chat, {
-            text: `*🔒 OBFUSCATED CODE*\n\n*Original Code:*\n\`\`\`javascript\n${displayOriginal}\n\`\`\`\n\n*Obfuscated Code:*\n\`\`\`javascript\n${displayObfuscated}\n\`\`\`\n\n*📝 Note:* Code has been obfuscated successfully!`,
-            contextInfo: {
-                mentionedJid: [m.sender],
-                externalAdReply: {
-                    title: "🔒 Code Obfuscator",
-                    body: "Powered by GiftedTech API",
-                    thumbnail: peler,
-                    sourceUrl: 'https://api.giftedtech.co.ke'
-                }
-            }
-        }, { quoted: m });
-        
     } catch (error) {
-        console.error('Obfuscate Error:', error);
-        
-        // Error reaction
-        await conn.sendMessage(m.chat, {
-            react: {
-                text: "❌",
-                key: m.key
-            }
-        });
-        
-        reply(`❌ *Failed to obfuscate code!*\nError: ${error.message}\n\nPlease try again with different code or try later.`);
+        console.error('Obfuscate error:', error.message);
+        reply("Error obfuscating code. Please try again later!");
     }
+    break;
 }
 break
 case 'tiktokstalk':
@@ -8501,11 +8218,8 @@ case 'lyrics': {
         }
 }
 break
-case 'playstore': {
-    const args = body.trim().split(/\s+/);
-    args.shift();
-    const query = args.join(' ');
-    
+case 'playstore': { 
+const query = args.join(" ");   
     if (!query) {
         return reply("*Please provide an app name to search. Example: !playstore whatsapp*");
     }
@@ -8602,8 +8316,6 @@ if (!text) return reply("Provide a movie or series name.");
 }
 break
 case 'define': {
-    const args = body.trim().split(/\s+/);
-    args.shift();
     const term = args.join(' ');
     
     if (!term) {
