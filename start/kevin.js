@@ -4782,7 +4782,7 @@ try {
     }
 }
 break
-case 'song2':
+case 'play3':
 case 'xplay': {
     if (!text) return reply(`Example: ${prefix}${command} Winnie Nwagi Malaika`);
 
@@ -4937,15 +4937,12 @@ case "play": {
     
 }
 break
-case "play3":
-case "Robertplay": {
+case "song2": {
   const query = args.join(" ");
         if (!query) return reply(`Example: ${prefix}play3 Faded`);
 
         try {
             await reply(`Searching for "${query}"...`);
-
-            const axios = require('axios');
             const apiUrl = `https://apis.davidcyril.name.ng/play?query=${encodeURIComponent(query)}`;
             const response = await axios.get(apiUrl);
             
@@ -7267,7 +7264,6 @@ break
 case 'ttp':
 case 'texttosticker':
 case 'textsticker': {
-    const text = args.join(" ");
     if (!text) return reply(`Example: ${prefix}ttp Kevin`);
 
     try {
