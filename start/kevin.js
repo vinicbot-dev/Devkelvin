@@ -68,6 +68,9 @@ const {
   getServerUptime,
   getServerStartTime,
   loadBlacklist,
+  disapproveAllRequests,
+  approveAllRequests,
+  listGroupRequests,
   antipromoteCommand,
   antidemoteCommand,
   handleAntiTag,
@@ -4971,101 +4974,6 @@ case "song2": {
             reply(`Error: ${error.message}`);
         }
 }
-break
-case "audio":
-case "music": {
-    if (!text) return reply(global.mess.notext);
-
-    try {
-        const searchQuery = text.split(' ').slice(1).join(' ').trim();
-        
-        if (!searchQuery) {
-            await conn.sendMessage(m.chat, { 
-                text: "Please provide a song name!\nExample: `.song Lilly Alan Walker`"
-            }, { quoted: m });
-
-            // React ❌ when no query
-            await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key }});
-            return;
-        }
-
-        // React 🔎 while searching
-        await conn.sendMessage(m.chat, { react: { text: "🔎", key: m.key }});
-
-        // Search YouTube
-        const { videos } = await yts(searchQuery);
-        if (!videos || videos.length === 0) {
-            await conn.sendMessage(m.chat, { 
-                text: "⚠️ No results found for your query!"
-            }, { quoted: m });
-
-            // React ⚠️ when no results
-            await conn.sendMessage(m.chat, { react: { text: "⚠️", key: m.key }});
-            return;
-        }
-
-        // Use first video
-        const video = videos[0];
-        const videoUrl = video.url;
-
-        // Send video info before download
-        await conn.sendMessage(m.chat, {
-            image: { url: video.thumbnail },
-            caption: `🎵 *${video.title}*\n\n𝘿𝙤𝙬𝙣𝙡𝙤𝙖𝙙𝙞𝙣𝙜... 🎶\n\n> KELVIN DEV`
-        }, { quoted: m });
-
-        // React ⏳ while downloading
-        await conn.sendMessage(m.chat, { react: { text: "⏳", key: m.key }});
-
-        // Call the new API with ?url= style
-        const apiUrl = `https://yt-dl.officialhectormanuel.workers.dev/?url=${encodeURIComponent(videoUrl)}`;
-        const response = await axios.get(apiUrl);
-        const data = response.data;
-
-        if (!data?.status) {
-            await conn.sendMessage(m.chat, {
-                text: "🚫 Failed to fetch from new endpoint. Try again later."
-            }, { quoted: m });
-
-            // React 🚫 if API fails
-            await conn.sendMessage(m.chat, { react: { text: "🚫", key: m.key }});
-            return;
-        }
-
-        const audioUrl = data.audio;
-        const title = data.title || video.title;
-
-        if (!audioUrl) {
-            await conn.sendMessage(m.chat, {
-                text: "🚫 No audio URL in the response. Can't send audio."
-            }, { quoted: m });
-
-            // React ❌ if audio not found
-            await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key }});
-            return;
-        }
-
-        // Send the audio file
-        await conn.sendMessage(m.chat, {
-            audio: { url: audioUrl },
-            mimetype: "audio/mpeg",
-            fileName: `${title}.mp3`
-        }, { quoted: m });
-
-        // React ✅ on success
-        await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key }});
-
-    } catch (error) {
-        console.error('Error in songCommand:', error);
-        await conn.sendMessage(m.chat, {
-            text: `${mess.error}`
-        }, { quoted: m });
-
-        // React ❌ on error
-        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key }});
-    }
-    
-}
 break 
 case "spotify": {
     if (!text) return reply("Example: spotify runtuh");
@@ -9435,34 +9343,39 @@ reply(`*${global.botname} has approved all pending requests✅*`);
 
 }
 break
-case "approveall": {
-if (!m.isGroup) return reply(mess.group);
-    if (!m.isAdmin) return reply(mess.notadmin);
-    if (!m.isBotAdmin) return reply(mess.botadmin);
-    
-     const groupId = m.chat;
- 
-     await approveAllRequests(m, groupId);
-}
-break
-case " disapproveall": {
+case "listrequest":
+case "listreq":
+case "pending": {
     if (!m.isGroup) return reply(mess.group);
     if (!m.isAdmin) return reply(mess.notadmin);
     if (!m.isBotAdmin) return reply(mess.botadmin);
-        
+    
     const groupId = m.chat;
- 
-   await disapproveAllRequests(m, groupId);
+    await listGroupRequests(conn, m, groupId);
 }
 break
-case "listrequest": {
-if (!m.isGroup) return reply(mess.group);
-        if (!m.isAdmin) return reply(mess.notadmin);
-        if (!m.isBotAdmin) return reply(mess.botadmin);
-        
-    const groupId = m.chat; 
+case "approveall":
+case "acceptall":
+case "approve-all": {
+    if (!m.isGroup) return reply(mess.group);
+    if (!m.isAdmin) return reply(mess.notadmin);
+    if (!m.isBotAdmin) return reply(mess.botadmin);
+    
+    const groupId = m.chat;
+    await approveAllRequests(conn, m, groupId);
+}
+break
 
-    await listGroupRequests(m, groupId);
+case "disapproveall":
+case "rejectall":
+case "declineall":
+case "disapprove-all": {
+    if (!m.isGroup) return reply(mess.group);
+    if (!m.isAdmin) return reply(mess.notadmin);
+    if (!m.isBotAdmin) return reply(mess.botadmin);
+    
+    const groupId = m.chat;
+    await disapproveAllRequests(conn, m, groupId);
 }
 break
 case "mediatag": {
