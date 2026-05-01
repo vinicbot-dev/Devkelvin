@@ -58,6 +58,7 @@ const {
 } = require('./DevKelvin/menu');
 const {
  fetchMp3DownloadUrl,
+ fetchVideoDownloadUrl,
   saveStatusMessage,
   acr,
   handleAntiEdit,
@@ -4829,13 +4830,36 @@ case 'play2': {
 }
 break
 case "ringtone": {
-try {
+    try {
         const query = args.join(" ");
         if (!query) {
             return reply("Please provide a search query! Example: .ringtone Suna");
         }
 
-        const { data } = await axios.get(`https://www.dark-yasiya-api.site/download/ringtone?text=${encodeURIComponent(query)}`);
+        await reply(`🔍 *Searching for "${query}" ringtones...*`);
+
+        // First Priority: Discard API
+        const searchUrl = `https://discardapi.dpdns.org/api/dl/ringtone?apikey=guru&title=${encodeURIComponent(query)}`;
+        const response = await axios.get(searchUrl, { timeout: 30000 });
+        
+        if (response.data?.result && response.data.result.length > 0) {
+            const ringtones = response.data.result;
+            const randomRingtone = ringtones[Math.floor(Math.random() * ringtones.length)];
+            
+            await conn.sendMessage(
+                from,
+                {
+                    audio: { url: randomRingtone.url || randomRingtone.dl_link },
+                    mimetype: "audio/mpeg",
+                    fileName: `${randomRingtone.title || query}.mp3`,
+                },
+                { quoted: m }
+            );
+            return;
+        }
+        
+        // Fallback: Dark Yasiya API
+        const { data } = await axios.get(`https://www.dark-yasiya-api.site/download/ringtone?text=${encodeURIComponent(query)}`, { timeout: 15000 });
 
         if (!data.status || !data.result || data.result.length === 0) {
             return reply("No ringtones found for your query. Please try a different keyword.");
@@ -4852,10 +4876,12 @@ try {
             },
             { quoted: m }
         );
+        
     } catch (error) {
         console.error("Error in ringtone command:", error);
-        reply(mess.error);
+        reply("❌ *Error fetching ringtone.*\nPlease try again later.");
     }
+    
 }
 break
 case "playdoc": {
@@ -5052,7 +5078,7 @@ if (!text) return reply('.ytmp4 <YouTube URL>');
         }
 }
 break
-case 'video': {
+case 'video2': {
     if (!text) return reply(`Example: ${prefix}video Born to win by fikfamaic`);
 
     try {
@@ -5097,44 +5123,42 @@ case 'video': {
    
 }
 break
-case "video2": {
-const query = args.join(" ");
-        if (!query) return reply(`Example: ${prefix}video wrong places by Joshua baraka`);
+case "video": {
+    if (!text) return reply('*Please provide a song name or YouTube URL!*');
 
-        try {
-            await reply(`Searching for "${query}"...`);
+    try {
+        let videoUrl = text;
+        let videoData;
 
-            // Search YouTube
-            const { videos } = await yts(query);
-            if (!videos || videos.length === 0) {
-                return reply(`No results found for "${query}"`);
-            }
+        // Check if input is a YouTube URL or search term
+        if (text.includes('youtube.com/watch?v=') || text.includes('youtu.be/')) {
+            // Direct YouTube URL
+            videoData = await fetchVideoDownloadUrl(text);
+        } else {
+            // Search for video
+            const search = await yts(text);
+            if (!search || search.all.length === 0) return reply('*No videos found for your query.*');
 
-            // Get first video
-            const video = videos[0];
-            const videoUrl = video.url;
-            const videoTitle = video.title;
-
-            await reply(`Downloading: ${videoTitle}`);
-
-            // Download using Keith API
-            const apiUrl = `https://apiskeith.top/download/mp4?url=${encodeURIComponent(videoUrl)}`;
-            const response = await axios.get(apiUrl);
-            const data = response.data;
-
-            if (data.status && data.result) {
-                await conn.sendMessage(m.chat, {
-                    video: { url: data.result },
-                    caption: `🎬 *${videoTitle}*\n⏱ Duration: ${video.timestamp}\n👁 Views: ${video.views.toLocaleString()}`
-                }, { quoted: m });
-            } else {
-                reply('Failed to download video. Please try again.');
-            }
-
-        } catch (error) {
-            console.error('Video error:', error);
-            reply('Error downloading video.');
+            const video = search.all[0];
+            videoUrl = video.url;
+            videoData = await fetchVideoDownloadUrl(videoUrl);
         }
+
+        await reply('📥 *Downloading video, please wait...*');
+
+        // Send the video
+        await conn.sendMessage(m.chat, {
+            video: { url: videoData },
+            mimetype: 'video/mp4',
+            fileName: `video_${Date.now()}.mp4`,
+            caption: `✅ *Video ready!*\n\n📹 *Quality:* 720p`
+        }, { quoted: m });
+
+    } catch (error) {
+        console.error('Video command failed:', error);
+        reply(`❌ *Error:* ${error.message}`);
+    }
+   
 }
 break;
 case 'checkapikey': {
