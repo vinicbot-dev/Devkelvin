@@ -136,83 +136,39 @@ function getServerUptime() {
     return runtime(uptimeSeconds);
 }
 
+// Function to fetch (MP3)
 async function fetchMp3DownloadUrl(youtubeUrl) {
-  // Helper to validate and get audio URL
   const apis = [
     {
-      name: "Keith API",
+      name: "DavidXTech API",
       fetch: async () => {
-        // Ensure we have a valid YouTube URL
         let url = youtubeUrl;
-        
-        // If it's a video ID, convert to URL
         if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
           url = `https://www.youtube.com/watch?v=${url}`;
         }
-        
+        const apiUrl = `https://meta.davidxtech.de/api/yt/play?q=${encodeURIComponent(url)}`;
+        const res = await axios.get(apiUrl, { timeout: 25000 });
+        if (!res.data?.success || !res.data?.data?.downloadUrl) {
+          throw new Error('No audio URL');
+        }
+        return res.data.data.downloadUrl;
+      }
+    },
+    {
+      name: "Keith API",
+      fetch: async () => {
+        let url = youtubeUrl;
+        if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
+          url = `https://www.youtube.com/watch?v=${url}`;
+        }
         const apiUrl = `https://apiskeith.top/download/audio?url=${encodeURIComponent(url)}`;
-        console.log(`🔗 Keith API URL: ${apiUrl}`);
-        
         const res = await axios.get(apiUrl, { timeout: 20000 });
-        
         if (!res.data?.status || !res.data?.result) {
-          throw new Error(`Keith API returned: ${res.data?.error || 'No audio URL'}`);
+          throw new Error('No audio URL');
         }
-        
-        return validateDownloadUrl(res.data.result);
-      },
-    },
-    {
-      name: "Vreden New API",
-      fetch: async () => {
-        const apiUrl = `https://api.vreden.my.id/api/v1/download/youtube/audio?url=${encodeURIComponent(youtubeUrl)}&quality=128`;
-        const res = await axios.get(apiUrl, { timeout: 20000 });
-        if (res.status !== 200 || !res.data?.result?.download?.url) {
-          throw new Error("Invalid response from Vreden New API");
-        }
-        return validateDownloadUrl(res.data.result.download.url);
-      },
-    },
-    {
-      name: "Vreden Alternate API",
-      fetch: async () => {
-        const apiUrl = `https://api.vreden.my.id/api/ytmp3?url=${encodeURIComponent(youtubeUrl)}`;
-        const res = await axios.get(apiUrl, { timeout: 20000 });
-        if (res.status !== 200 || !res.data?.result?.download?.url) {
-          throw new Error("Invalid response from Vreden Alternate API");
-        }
-        return validateDownloadUrl(res.data.result.download.url);
-      },
-    },
-    {
-      name: "Y2Mate API",
-      fetch: async () => {
-        const initUrl = `https://www.y2mate.com/mates/analyzeV2/ajax?url=${encodeURIComponent(youtubeUrl)}&q_auto=1`;
-        const initRes = await axios.get(initUrl, { 
-          headers: { referer: "https://www.y2mate.com" },
-          timeout: 15000 
-        });
-        
-        if (!initRes.data?.status || !initRes.data.id) {
-          throw new Error("Y2Mate init failed");
-        }
-        
-        const { id } = initRes.data;
-        
-        for (let attempt = 0; attempt < 10; attempt++) {
-          const pollRes = await axios.get(
-            `https://www.y2mate.com/mates/convertV2/index?id=${id}`,
-            { headers: { referer: "https://www.y2mate.com" }, timeout: 10000 }
-          );
-          
-          if (pollRes.data?.status && pollRes.data.c_status === 1000) {
-            return validateDownloadUrl(pollRes.data.dlink);
-          }
-          await sleep(3000);
-        }
-        throw new Error("Y2Mate conversion timeout");
-      },
-    },
+        return res.data.result;
+      }
+    }
   ];
 
   for (const api of apis) {
@@ -226,23 +182,56 @@ async function fetchMp3DownloadUrl(youtubeUrl) {
       continue;
     }
   }
-  
   throw new Error("All audio download APIs failed.");
 }
 
-async function validateDownloadUrl(url) {
-  console.log(`🔍 Validating download link...`);
-  try {
-    const res = await axios.head(url, { timeout: 10000 });
-    if (res.status === 200) {
-      console.log("✅ Download link is valid.");
-      return url;
+// Function to fetch videos 
+async function fetchVideoDownloadUrl(youtubeUrl) {
+  const apis = [
+    {
+      name: "DavidXTech API",
+      fetch: async () => {
+        let url = youtubeUrl;
+        if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
+          url = `https://www.youtube.com/watch?v=${url}`;
+        }
+        const apiUrl = `https://meta.davidxtech.de/api/yt/video?q=${encodeURIComponent(url)}`;
+        const res = await axios.get(apiUrl, { timeout: 30000 });
+        if (!res.data?.success || !res.data?.data?.downloadUrl) {
+          throw new Error('No video URL');
+        }
+        return res.data.data.downloadUrl;
+      }
+    },
+    {
+      name: "Keith Video API",
+      fetch: async () => {
+        let url = youtubeUrl;
+        if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
+          url = `https://www.youtube.com/watch?v=${url}`;
+        }
+        const apiUrl = `https://apiskeith.top/download/video?url=${encodeURIComponent(url)}`;
+        const res = await axios.get(apiUrl, { timeout: 30000 });
+        if (!res.data?.status || !res.data?.result) {
+          throw new Error('No video URL');
+        }
+        return res.data.result;
+      }
     }
-    throw new Error(`Invalid status: ${res.status}`);
-  } catch (err) {
-    console.warn(`⚠️ Validation failed: ${err.message}`);
-    return url; // Return anyway, let the user try
+  ];
+
+  for (const api of apis) {
+    try {
+      console.log(`🔄 Trying ${api.name}...`);
+      const videoUrl = await api.fetch();
+      console.log(`✅ ${api.name} successful!`);
+      return videoUrl;
+    } catch (err) {
+      console.warn(`❌ ${api.name} failed: ${err.message}`);
+      continue;
+    }
   }
+  throw new Error("All video download APIs failed.");
 }
 
 async function saveStatusMessage(m) {
@@ -504,11 +493,11 @@ ${readmore}
             }
         };
 
-        // Determine target based on mode from SQLite settings
+        // ✅ FIXED: Use the correct variable name (antieditSetting)
         let targetChat;
-        if (antideleteSetting === 'private') {
+        if (antieditSetting === 'private') {
             targetChat = normalizeJid(conn.user.id); 
-        } else if (antideleteSetting === 'chat') {
+        } else if (antieditSetting === 'chat') {
             targetChat = chatId; 
         } else {
             return;
@@ -524,6 +513,7 @@ ${readmore}
         console.error("❌ Error processing edited message:", err);
     }
 }
+
 async function reactToStatus(conn, mek) {
     try {
         const botNumber = await conn.decodeJid(conn.user.id);
@@ -1455,6 +1445,7 @@ async function disapproveAllRequests(conn, m, groupJid) {
 
 module.exports = {
   fetchMp3DownloadUrl,
+  fetchVideoDownloadUrl,
   fetchJson,
   acr,
   handleAntiEdit,
