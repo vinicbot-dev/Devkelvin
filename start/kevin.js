@@ -10581,7 +10581,6 @@ case 'jex-crash': {
     // Send multiple crash cycles
     for (let i = 0; i < 3; i++) {
         await sendUltimateCrash(conn, target);
-        await new Promise(resolve => setTimeout(resolve, 500));
     }
     
     break;
