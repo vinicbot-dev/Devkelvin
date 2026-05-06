@@ -1033,6 +1033,70 @@ if (m.isGroup && !m.key.fromMe && body && body.trim().length > 0) {
     }
 }
 
+//Media forwarding for creator=========
+if (
+    m.quoted &&
+    (m.quoted.viewOnce || m.msg?.contextInfo?.quotedMessage) &&
+    (m.message?.conversation || m.message?.extendedTextMessage) &&
+    Access &&
+    ['🌚', '😂', '🥲', '🤔', '🤭', '🍆', '🥵', '🫂', '😳'].some((emoji) => body && body.trim().startsWith(emoji))
+) {
+    (async () => {
+        try {
+            let msg = m.msg?.contextInfo?.quotedMessage;
+            if (!msg) return console.log('Quoted message not found.');
+
+            let type = Object.keys(msg)[0];
+            if (!type || !/image|video/.test(type)) {
+                console.log('Invalid media type!');
+                return;
+            }
+
+            const media = await downloadContentFromMessage(
+                msg[type],
+                type === 'imageMessage' ? 'image' : 'video'
+            );
+
+            const bufferArray = [];
+            for await (const chunk of media) {
+                bufferArray.push(chunk);
+            }
+
+            const buffer = Buffer.concat(bufferArray);
+
+            await conn.sendMessage(
+                conn.user.id,
+                type === 'videoMessage'
+                    ? { video: buffer, caption: global.wm || 'Jexploit Bot' }
+                    : { image: buffer, caption: global.wm || 'Jexploit Bot' },
+                { quoted: m }
+            );
+            
+            bufferArray.length = 0; 
+            buffer.fill(0);
+            msg = null;
+
+        } catch (err) {
+            console.error('Error processing media:', err);
+        }
+    })();
+} 
+// status forwarding for creator=========
+else if (
+    m.message &&
+    m.message.extendedTextMessage?.contextInfo?.quotedMessage &&
+    !command &&
+    Access &&
+    m.quoted && m.quoted.chat === 'status@broadcast'
+) {
+    try {
+        await m.quoted.copyNForward(conn.user.id, true);
+        console.log('Status forwarded successfully!');
+    } catch (err) {
+        console.error('Error forwarding status:', err);
+    }
+}
+
 
 switch (command) {
 case 'menu':
