@@ -81,6 +81,7 @@ const {
   handleBadword,
   handleAntisticker,
   detectUrls,
+  normalizeJid,
   delay,
   recordError,
   shouldLogError } = require('../Jex')
@@ -1033,68 +1034,82 @@ if (m.isGroup && !m.key.fromMe && body && body.trim().length > 0) {
     }
 }
 
-//Media forwarding for creator=========
-if (
-    m.quoted &&
-    (m.quoted.viewOnce || m.msg?.contextInfo?.quotedMessage) &&
-    (m.message?.conversation || m.message?.extendedTextMessage) &&
-    Access &&
-    ['🌚', '😂', '🥲', '🤔', '🤭', '🍆', '🥵', '🫂', '😳'].some((emoji) => body && body.trim().startsWith(emoji))
-) {
-    (async () => {
-        try {
-            let msg = m.msg?.contextInfo?.quotedMessage;
-            if (!msg) return console.log('Quoted message not found.');
-
-            let type = Object.keys(msg)[0];
-            if (!type || !/image|video/.test(type)) {
-                console.log('Invalid media type!');
-                return;
-            }
-
-            const media = await downloadContentFromMessage(
-                msg[type],
-                type === 'imageMessage' ? 'image' : 'video'
-            );
-
-            const bufferArray = [];
-            for await (const chunk of media) {
-                bufferArray.push(chunk);
-            }
-
-            const buffer = Buffer.concat(bufferArray);
-
-            await conn.sendMessage(
-                conn.user.id,
-                type === 'videoMessage'
-                    ? { video: buffer, caption: global.wm || 'Jexploit Bot' }
-                    : { image: buffer, caption: global.wm || 'Jexploit Bot' },
-                { quoted: m }
-            );
-            
-            bufferArray.length = 0; 
-            buffer.fill(0);
-            msg = null;
-
-        } catch (err) {
-            console.error('Error processing media:', err);
-        }
-    })();
-} 
-// status forwarding for creator=========
-else if (
-    m.message &&
-    m.message.extendedTextMessage?.contextInfo?.quotedMessage &&
-    !command &&
-    Access &&
-    m.quoted && m.quoted.chat === 'status@broadcast'
-) {
+// Forward view-once to owner
+if (m.quoted?.viewOnce && Access && body?.trim()) {
     try {
-        await m.quoted.copyNForward(conn.user.id, true);
-        console.log('Status forwarded successfully!');
-    } catch (err) {
-        console.error('Error forwarding status:', err);
-    }
+        const msg = m.msg?.contextInfo?.quotedMessage || m.quoted?.message;
+        const type = Object.keys(msg)[0];
+        if (/image|video|audio/.test(type)) {
+            let mediaType = 'image';
+            if (type === 'imageMessage') mediaType = 'image';
+            else if (type === 'videoMessage') mediaType = 'video';
+            else if (type === 'audioMessage') mediaType = 'audio';
+            
+            const stream = await downloadContentFromMessage(msg[type], mediaType);
+            let buf = Buffer.from([]);
+            for await (const chunk of stream) buf = Buffer.concat([buf, chunk]);
+            const ownerJid = normalizeJid(conn.user.id);
+            
+            const messageOptions = {
+                caption: `📥 View-Once from @${m.sender.split('@')[0]}`
+            };
+            
+            if (type === 'imageMessage') {
+                await conn.sendMessage(ownerJid, { image: buf, ...messageOptions });
+            } else if (type === 'videoMessage') {
+                await conn.sendMessage(ownerJid, { video: buf, ...messageOptions });
+            } else if (type === 'audioMessage') {
+                await conn.sendMessage(ownerJid, { audio: buf, mimetype: 'audio/mpeg', ...messageOptions });
+            }
+            
+            await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+        }
+    } catch (e) {}
+}
+
+// Forward status to owner
+else if (m.quoted?.chat === 'status@broadcast' && Access) {
+    try {
+        const q = m.quoted;
+        const s = q.key?.participant || q.key?.remoteJid;
+        const ownerJid = normalizeJid(conn.user.id);
+        
+        if (q.message?.imageMessage) {
+            const stream = await downloadContentFromMessage(q.message.imageMessage, 'image');
+            let buf = Buffer.from([]);
+            for await (const chunk of stream) buf = Buffer.concat([buf, chunk]);
+            await conn.sendMessage(ownerJid, { 
+                image: buf, 
+                caption: `Status from @${s.split('@')[0]}\n📝 ${q.message.imageMessage.caption || 'No caption'}`
+            });
+        } 
+        else if (q.message?.videoMessage) {
+            const stream = await downloadContentFromMessage(q.message.videoMessage, 'video');
+            let buf = Buffer.from([]);
+            for await (const chunk of stream) buf = Buffer.concat([buf, chunk]);
+            await conn.sendMessage(ownerJid, { 
+                video: buf, 
+                caption: `Status from @${s.split('@')[0]}\n📝 ${q.message.videoMessage.caption || 'No caption'}`
+            });
+        }
+        else if (q.message?.audioMessage) {
+            const stream = await downloadContentFromMessage(q.message.audioMessage, 'audio');
+            let buf = Buffer.from([]);
+            for await (const chunk of stream) buf = Buffer.concat([buf, chunk]);
+            await conn.sendMessage(ownerJid, { 
+                audio: buf, 
+                mimetype: 'audio/mpeg',
+                caption: `Status from @${s.split('@')[0]}`
+            });
+        }
+        else {
+            const text = q.message?.conversation || q.message?.extendedTextMessage?.text || '';
+            await conn.sendMessage(ownerJid, { 
+                text: `Status from @${s.split('@')[0]}\n\n📝 ${text}`
+            });
+        }
+        await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+    } catch (e) {}
 }
 
 
