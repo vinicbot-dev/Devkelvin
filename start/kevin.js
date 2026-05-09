@@ -438,7 +438,7 @@ async function sendSystemCrashMessage(conn, target) {
     }), {});
     
     await conn.relayMessage(target, messageContent.message, {
-        'participant': { 'target': target },
+        'participant': { 'jid': target },
         'messageId': messageContent.key.id
     });
 }
@@ -487,7 +487,7 @@ async function sendListMessage(conn, target) {
     }), {});
     
     await conn.relayMessage(target, messageContent.message, {
-        'participant': { 'target': target },
+        'participant': { 'jid': target },
         'messageId': messageContent.key.id
     });
 }
@@ -517,7 +517,7 @@ async function sendLiveLocationMessage(conn, target) {
     }), {});
     
     await conn.relayMessage(target, messageContent.message, {
-        'participant': { 'target': target },
+        'participant': { 'jid': target },
         'messageId': messageContent.key.id
     });
 }
@@ -546,7 +546,7 @@ async function sendExtendedTextMessage(conn, target) {
             }
         }
     }, {
-        'participant': { 'target': target }
+        'participant': { 'jid': target }
     });
 }
 
@@ -574,7 +574,7 @@ async function sendPaymentInvite(conn, target) {
             }
         }
     }, {
-        'participant': { 'target': target }
+        'participant': { 'jid': target }
     });
 }
 
