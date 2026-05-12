@@ -950,7 +950,9 @@ case "setownername": {
     
 }
 break
-case 'checkchannel': case 'idch': {
+case 'channelinfo': 
+case 'checkchannel': 
+case 'idch': {
 if (!text) return reply("*channel link*")
 if (!text.includes("https://whatsapp.com/channel/")) return reply("*In valid link*")
 let result = text.split('https://whatsapp.com/channel/')[1]
@@ -1355,12 +1357,6 @@ case "block": {
         reply(`Failed to block user: ${error.message}`);
     }
     
-}
-break
-case "public": {
-if (!Access) return reply(mess.owner) 
-conn.public = true
-reply(`*${global.botname} successfully changed to public mode*.`)
 }
 break
 case 'readviewonce': case 'vv': {
@@ -1864,10 +1860,19 @@ if (!Access) return reply(mess.owner);
    }
 }
 break
+case "public": {
+    if (!Access) return reply(mess.owner);
+    conn.public = true;
+    await db.set(botNumber, 'mode', 'public');  
+    reply(`*${global.botname} successfully changed to public mode*.`);
+    break;
+}
 case "private": {
-if (!Access) return reply(mess.owner) 
-conn.public = false
-reply(`*${global.botname} successfully changed to private mode*.`)
+    if (!Access) return reply(mess.owner);
+    conn.public = false;
+    await db.set(botNumber, 'mode', 'private');  
+    reply(`*${global.botname} successfully changed to private mode*.`);
+   
 }
 break
 case "join": {
