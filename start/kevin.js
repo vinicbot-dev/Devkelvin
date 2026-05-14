@@ -4910,55 +4910,58 @@ case "song2": {
 }
 break 
 case "spotify": {
-    if (!text) return reply("Example: spotify runtuh");
-
-    reply("Searching for the song on Spotify...");
+if (!text) return reply(`*Example:* ${prefix + command} Faded by Alan Walker`);
 
     try {
-        // Step 1: Search song on Spotify
-        const searchRes = await axios.get(`https://apidl.vercel.app/api/spotifysearch?q=${encodeURIComponent(text)}`);
-        const searchData = searchRes.data;
+        await conn.sendMessage(m.chat, { react: { text: `🎶`, key: m.key } });
 
-        if (!searchData.status || searchData.result.length === 0) {
-            return reply("🚫 Song not found on Spotify.");
+        // Search for song on Spotify
+        const searchUrl = `https://apis.davidcyril.name.ng/search/spotify?text=${encodeURIComponent(text)}`;
+        const searchRes = await axios.get(searchUrl);
+
+        if (!searchRes.data.success || !searchRes.data.result || searchRes.data.result.length === 0) {
+            return reply(`*No results found for:* ${text}`);
         }
 
-        const firstResult = searchData.result[0];
-        const songLink = firstResult.link;
+        const song = searchRes.data.result[0]; // First result
+        const { trackName, artistName, albumName, duration, externalUrl } = song;
 
-        // Step 2: Download song from Spotify
-        reply(`🎧 Downloading audio from: ${firstResult.title} (${firstResult.artists})`);
-        const downloadRes = await axios.get(`https://apidl.vercel.app/api/spotifydl?url=${encodeURIComponent(songLink)}`);
-        const downloadData = downloadRes.data;
+        // Send song info with album art
+        const infoMessage = `*JEXPLOIT_MUSIC - PLAYER (Spotify)*\n` +
+                            `> *Title:* ${trackName}\n` +
+                            `> *Artist:* ${artistName}\n` +
+                            `> *Album:* ${albumName}\n` +
+                            `> *Duration:* ${duration}\n` +
+                            `> *Spotify URL:* ${externalUrl}\n` +
+                            `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴋᴇᴠɪɴ ᴛᴇᴄʜ ᴛᴇᴄʜ`;
 
-        if (!downloadData.status) {
-            return reply("🚫 Failed to download audio from Spotify.");
-        }
-
-        const audioUrl = downloadData.result.download;
-        const audioTitle = downloadData.result.title;
-        const artists = downloadData.result.artist;
-
-        // Step 3: Download the audio file
-        const audioPath = path.resolve(__dirname, `../temp/${audioTitle.replace(/[^a-zA-Z0-9]/g, "_")}.mp3`);
-        const audioFile = await axios.get(audioUrl, { responseType: 'arraybuffer' });
-        fs.writeFileSync(audioPath, audioFile.data);
-
-        // Step 4: Send audio to user - FIXED: using m.chat and proper Baileys syntax
-        await client.sendMessage(m.chat, {
-            audio: fs.readFileSync(audioPath),
-            mimetype: 'audio/mpeg',
-            fileName: `${audioTitle}.mp3`,
-            caption: `🎵 Song: *${audioTitle}*\n👤 Artist: *${artists}*`
+        await conn.sendMessage(m.chat, {
+            caption: infoMessage,
+            image: { url: 'https://files.catbox.moe/vcpt4o.jpg' } // Placeholder image if no Spotify thumbnail available
         }, { quoted: m });
 
-        // Clean up
-        fs.unlinkSync(audioPath);
-    } catch (error) {
-        console.error(error);
-        reply(mess.error);
+        // Download from Spotify
+        const dlUrl = `https://apis.davidcyril.name.ng/spotifydl?url=${encodeURIComponent(externalUrl)}`;
+        const dlRes = await axios.get(dlUrl);
+
+        if (dlRes.data.success) {
+            const { DownloadLink, title, thumbnail, duration, channel } = dlRes.data;
+
+            await conn.sendMessage(m.chat, {
+                audio: { url: DownloadLink },
+                mimetype: 'audio/mp4',
+                fileName: `${title}.mp3`,
+                caption: `🎧 *Here's your Spotify song:*\n> *Title:* ${title}\n> *Artist:* ${channel}`
+            }, { quoted: m });
+        } else {
+            reply(`*Failed to fetch the song! Please try again later.*`);
+        }
+
+    } catch (err) {
+        console.error('Error in play2:', err);
+        reply(`*An error occurred while processing your request. Please try again later.*`);
     }
-    
+   
 }
 break
 case 'ytmp4': {
