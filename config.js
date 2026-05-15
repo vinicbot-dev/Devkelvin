@@ -1,5 +1,6 @@
 /* m
   -! Credits By Kevintech 
+  Thanks to great lonelysaam 
   Thanks to Malvin King 
   https://wa.me/256742932677
 */
@@ -63,12 +64,12 @@ global.AI_CHAT = "false"; // Set to "true" to enable AI chatbot by default
 
 // ========= Add modeStatus and versions ========= //
 global.modeStatus = "Public";
-global.versions = "1.5.4";
+global.versions = "1.5.5";
 
 // ========= Setting WM ========= //
-global.packname = 'JEXPLOIT';
+global.packname = '★⃝𝐉𝐄𝐗𝐏𝐋𝐎𝐈𝐓';
 global.author = 'BOT';
-global.wm = '©Jexploit is awesome 🔥';
+global.wm = '©★⃝𝐉𝐄𝐗𝐏𝐋𝐎𝐈𝐓 is awesome 🔥';
 
 // === For only developer ============
 global.api = "https://apiskeith.top";
