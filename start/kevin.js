@@ -3188,7 +3188,7 @@ case "stats": {
 🔸 *Disk*       : ${formatSize(diskUsed)} / ${formatSize(disk.size)} (${diskPercent}%)
 🔸 *Free Disk*  : ${formatSize(disk.free)}
 │
-🔹 *Platform*   : ${detectPlatform}
+🔹 *Platform*   : ${detectPlatform()}
 🔹 *Node*       : ${process.version}
 🔹 *CPU*        : ${os.cpus()[0].model.substring(0, 25)}...
 │
