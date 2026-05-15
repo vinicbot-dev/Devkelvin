@@ -53,6 +53,7 @@ const {
     setAwesomeMenu,
     resetMenu,
     sendMenu,
+    detectPlatform,
     showCurrentMenu, 
     loadMenuConfig 
 } = require('./DevKelvin/menu');
@@ -179,12 +180,31 @@ try {
 }
 
 
-const isCmd = body?.startsWith?.(prefix);
-const trimmedBody = isCmd ? body.slice(prefix.length).trimStart() : "";
-const command = isCmd ? body.slice(prefix.length).trim().split(/ +/).shift().toLowerCase() : "";
-const args = isCmd ? body.slice(prefix.length).trim().split(/ +/).slice(1) : [];
+// Handle no prefix mode (prefix === '' or just emojis)
+const isCmd = prefix === '' ? true : body?.startsWith?.(prefix);
+
+let command = "";
+let args = [];
+
+if (isCmd && body) {
+    if (prefix === '') {
+        // No prefix mode - first word is command
+        const parts = body.trim().split(/ +/);
+        command = parts.shift().toLowerCase();
+        args = parts;
+    } else {
+        // Normal prefix mode (including emojis)
+        if (body.startsWith(prefix)) {
+            const withoutPrefix = body.slice(prefix.length).trim();
+            const parts = withoutPrefix.split(/ +/);
+            command = parts.shift().toLowerCase();
+            args = parts;
+        }
+    }
+}
+
 const pushname = m.pushName || "No Name";
-const text = q = args.join(" ")
+const text = q = args.join(" ");
 const fatkuns = m.quoted || m;
 const quoted = fatkuns.mtype === 'buttonsMessage' ? fatkuns[Object.keys(fatkuns)[1]] : fatkuns.mtype === 'templateMessage' ? fatkuns.hydratedTemplate[Object.keys(fatkuns.hydratedTemplate)[1]] : fatkuns.mtype === 'product' ? fatkuns[Object.keys(fatkuns)[0]] : m.quoted ? m.quoted : m;
 const qmsg = quoted.msg || quoted;
@@ -233,6 +253,7 @@ const reaction = async (jidss, emoji) => {
 conn.sendMessage(jidss, { react: { text: emoji, key: m.key } })
 }
 
+const mentionedJid = m.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
 
 //  functions that help in togstatus
 async function buildPayloadFromQuoted(quotedMessage, conn) {
@@ -677,6 +698,38 @@ case 'resetawesomemenu': {
     }
 }
 break
+case "setmenu":
+case "menustyle": {
+    if (!Access) return reply(mess.owner);
+    
+    const style = args[0]?.toLowerCase();
+    
+    if (!style || !['1', '2'].includes(style)) {
+        return reply(`*🎨 MENU STYLE*\n\n${prefix}setmenu 1 - Button style menu (NO image)\n${prefix}setmenu 2 - Image + Buttons menu\n\nCurrent: ${global.menuStyle === 'image' ? 'Image + Buttons' : 'Button only'}`);
+    }
+    
+    if (style === '1') {
+        await db.set(botNumber, 'menustyle', 'button');
+        global.menuStyle = 'button';
+        reply(`✅ *Menu set to BUTTON ONLY MODE*`);
+    } else if (style === '2') {
+        await db.set(botNumber, 'menustyle', 'image');
+        global.menuStyle = 'image';
+        reply(`✅ *Menu set to IMAGE + BUTTONS MODE*`);
+    }
+    break;
+}
+case "resetmenu":
+case "menudefault": {
+    if (!Access) return reply(mess.owner);
+    
+    await db.set(botNumber, 'menustyle', 'default');
+    global.menuStyle = 'default';
+    
+    reply(`✅ *Menu reset to default*\n\nMenu will now display without images.`);
+    
+}
+break
 case 'antiedit': {
     if (!Access) return reply(mess.owner);
     
@@ -786,11 +839,28 @@ case 'prefix': {
     const newPrefix = args[0];
     if (!newPrefix) {
         const currentPrefix = await db.get(botNumber, 'prefix', '.');
-        return reply(`*📝 PREFIX SETTINGS*\n\nCurrent prefix: *${currentPrefix}*\n\nUsage: ${currentPrefix}setprefix <new prefix>\nExample: ${currentPrefix}setprefix !`);
+        return reply(`*📝 PREFIX SETTINGS*\n\nCurrent prefix: *${currentPrefix === '' ? 'none' : currentPrefix}*\n\nUsage: ${currentPrefix === '' ? '' : currentPrefix}setprefix <new prefix>\nUse *${currentPrefix === '' ? '' : currentPrefix}setprefix none* to remove the prefix.`);
     }
     
-    await db.set(botNumber, 'prefix', newPrefix);
-    reply(`✅ Prefix has been changed to: *${newPrefix}*`);
+    // Handle 'none' to remove prefix
+    let finalPrefix = newPrefix;
+    if (newPrefix.toLowerCase() === 'none') {
+        finalPrefix = '';
+    }
+    
+    // Validate prefix length (only if not empty)
+    if (finalPrefix !== '' && finalPrefix.length > 3) {
+        return reply('❌ Prefix must be 1-3 characters long!');
+    }
+    
+    await db.set(botNumber, 'prefix', finalPrefix);
+    prefix = finalPrefix; // Update local variable
+    
+    if (finalPrefix === '') {
+        reply(`✅ *Prefix removed!*\n\nNow you can use commands without any prefix.\n\nExamples:\nmenu\nping\nalive`);
+    } else {
+        reply(`✅ Prefix has been changed to: *${finalPrefix}*`);
+    }
     break;
 }
 case 'alwaysonline':
@@ -1335,30 +1405,6 @@ let length = text ? parseInt(text) : 12;
     }
 }
 break
-case "block": {
-    if (!Access) return reply(mess.owner);
-    
-    if (!m.quoted && !mentionedJid[0]) {
-        return reply(`Reply to a user message to block them with ${prefix}block`);
-    }
-    
-    const userId = m.mentionedJid[0] || m.quoted?.sender;
-    
-    try {
-        await conn.sendMessage(m.chat, {
-            react: { text: "🚫", key: m.key }
-        });
-        
-        await conn.updateBlockStatus(userId, "block");
-        
-        reply(`✅ Blocked ${userId}`);
-    } catch (error) {
-        console.error('Error blocking user:', error);
-        reply(`Failed to block user: ${error.message}`);
-    }
-    
-}
-break
 case 'readviewonce': case 'vv': {
 if (!Access) return reply(mess.owner) 
     try {
@@ -1387,6 +1433,30 @@ if (!Access) return reply(mess.owner)
     } catch (error) {
         console.error('Error processing vv command:', error);
         reply('❌ An error occurred while processing your request.');
+    }
+    
+}
+break
+case "block": {
+    if (!Access) return reply(mess.owner);
+    
+    if (!m.quoted && !mentionedJid[0]) {
+        return reply(`Reply to a user message to block them with ${prefix}block`);
+    }
+    
+    const userId = m.mentionedJid[0] || m.quoted?.sender;
+    
+    try {
+        await conn.sendMessage(m.chat, {
+            react: { text: "🚫", key: m.key }
+        });
+        
+        await conn.updateBlockStatus(userId, "block");
+        
+        reply(`✅ Blocked ${userId}`);
+    } catch (error) {
+        console.error('Error blocking user:', error);
+        reply(`Failed to block user: ${error.message}`);
     }
     
 }
@@ -1420,6 +1490,23 @@ if (!Access) return reply(mess.owner);
     const userId = m.mentionedJid[0] || m.quoted?.sender || text.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
     await conn.updateBlockStatus(userId, "unblock");
     reply(mess.done);
+}
+break
+case "unblockall": {
+    if (!Access) return reply(mess.owner);
+
+    try {
+      const blockedList = await conn.fetchBlocklist();
+      if (!blockedList.length) return reply("✅ No blocked contacts to unblock.");
+
+      for (const user of blockedList) {
+        await conn.updateBlockStatus(user, "unblock");
+      }
+
+      reply(`✅ Successfully unblocked *${blockedList.length}* contacts.`);
+    } catch (error) {
+      reply("⚠️ Failed to unblock all contacts.");
+    }
 }
 break
 case "restart":
@@ -2098,23 +2185,6 @@ if (!Access) return reply(mess.owner);
 conn.removeProfilePicture(conn.user.id)
 ("*Successfully deleted profile pic*")
 }
-break 
-case "unblockall": {
-    if (!Access) return reply(mess.owner);
-
-    try {
-      const blockedList = await conn.fetchBlocklist();
-      if (!blockedList.length) return reply("✅ No blocked contacts to unblock.");
-
-      for (const user of blockedList) {
-        await conn.updateBlockStatus(user, "unblock");
-      }
-
-      reply(`✅ Successfully unblocked *${blockedList.length}* contacts.`);
-    } catch (error) {
-      reply("⚠️ Failed to unblock all contacts.");
-    }
-}
 break
 break
 case "leave":
@@ -2319,14 +2389,14 @@ case "alive": {
         m.chat, 
         { 
             image: { url: randomImageUrl },
-            caption: `*🌹Hi. I am 👑 Jexploit, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime:${serverUptime}*`
+            caption: `*🌹Hi. I am 👑 Jexploit, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime: ${serverUptime}*`
         },
         { quoted: m }
     ).catch(err => {
         console.error('Image failed:', err.message);
         // Fallback if image fails
         return conn.sendMessage(m.chat, {
-            text: `*🌹Hi. I am 👑 Jexploit, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime:${serverUptime}*`
+            text: `*🌹Hi. I am 👑 Jexploit, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime: ${serverUptime}*`
         }, { quoted: m });
     });
     
@@ -2619,9 +2689,9 @@ case "botstats": {
    Ping   : ${speed}ms
    
 🔸 HOST
-   Name   : ${os.hostname()}
+   Name   : ${detectPlatform}
    
-🔹 ${global.wm || 'Vesper-Xmd'} 🔹`;
+🔹 ${global.wm || '★⃝𝐉𝐄𝐗𝐏𝐋𝐎𝐈𝐓'} 🔹`;
 
     await reply(serverInfo);
     
@@ -3118,7 +3188,7 @@ case "stats": {
 🔸 *Disk*       : ${formatSize(diskUsed)} / ${formatSize(disk.size)} (${diskPercent}%)
 🔸 *Free Disk*  : ${formatSize(disk.free)}
 │
-🔹 *Platform*   : ${os.platform()}
+🔹 *Platform*   : ${detectPlatform}
 🔹 *Node*       : ${process.version}
 🔹 *CPU*        : ${os.cpus()[0].model.substring(0, 25)}...
 │
