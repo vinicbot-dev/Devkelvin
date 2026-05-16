@@ -99,7 +99,7 @@ gpt4NanoAICommand,
 kelvinAICommand,
 claudeAICommand
 } = require('./KelvinCmds/ai');
-const { KelvinVideo } = require('./KelvinCmds/video');
+const { playCommand2 } = require('./KelvinCmds/video');
 const { dareCommand, truthCommand } = require('./KelvinCmds/fun');
 const sports = require('./KelvinCmds/sport');
 const { handleAutoReact } = require('./KelvinCmds/autoreact');
@@ -113,6 +113,7 @@ const {fetchReactionImage} = require('./lib/reaction')
 const { toAudio } = require('./lib/converter');
 const { jadibot, stopjadibot, listjadibot } = require('./jadibot')
 const { webp2mp4 } = require('./lib/uploader');
+const { ButtonHandler } = require('./lib/buttonHandler');
 
 module.exports = conn = async (conn, m, chatUpdate, mek, store) => {
 try {
@@ -130,6 +131,15 @@ if (m.message && m.key && !m.key.fromMe) {
         pushName: m.pushName || "Unknown"
     });
 }
+
+let buttonHandler = null;
+if (!global.buttonHandler) {
+    buttonHandler = new ButtonHandler(conn);
+    global.buttonHandler = buttonHandler;
+} else {
+    buttonHandler = global.buttonHandler;
+}
+
 const botNumber = await conn.decodeJid(conn.user.id);
 const { sender } = m;
 const from = m.key.remoteJid;
@@ -2352,9 +2362,9 @@ break
 case 'github':
 case 'repo': {
     try {
-        // Import and execute github command
-        const githubCommand = require('./KelvinCmds/github')
-        await githubCommand(conn, m.chat, m);
+        const githubCommand = require('./KelvinCmds/github');
+
+        await githubCommand(conn, m.chat, m, buttonHandler);
     } catch (error) {
         console.error('Error in github command:', error);
         reply('❌ Error fetching repository information.');
@@ -4885,63 +4895,8 @@ if (!text) return reply('*Please provide a song name!*');
 }
 break;
 case "play": {
-    if (!text) return reply("*Please provide a song name!*\nExample: `.play2 despacito`");
-
-    try {
-        const searchQuery = text.trim();
-        
-        if (!searchQuery) {
-            return reply("*Please provide a song name!*\nExample: `.play2 despacito`");
-        }
-
-        // Search YouTube
-        const { videos } = await yts(searchQuery);
-        if (!videos || videos.length === 0) {
-            return reply("⚠️ *No results found for your query!*");
-        }
-
-        // Use first video
-        const video = videos[0];
-        const videoUrl = video.url;
-
-        // Send video info before download
-        await reply("⏳ *Searching and downloading audio... Please wait*");
-        
-        await conn.sendMessage(m.chat, {
-            image: { url: video.thumbnail },
-            caption: `*${video.title}*\n⏱ *Duration:* ${video.timestamp}\n *Views:* ${video.views.toLocaleString()}\n\n⏳ *Downloading audio...*`
-        }, { quoted: m });
-
-        // Call the API with ?url= style
-        const apiUrl = `https://yt-dl.officialhectormanuel.workers.dev/?url=${encodeURIComponent(videoUrl)}`;
-        const response = await axios.get(apiUrl);
-        const data = response.data;
-
-        if (!data?.status) {
-            return reply("🚫 *Failed to fetch audio from API. Try again later.*");
-        }
-
-        // The API returns fields: title, thumbnail, audio, videos, etc.
-        const audioUrl = data.audio;
-        const title = data.title || video.title;
-
-        if (!audioUrl) {
-            return reply("🚫 *No audio URL found in the response.*");
-        }
-
-        // Send the audio file
-        await conn.sendMessage(m.chat, {
-            audio: { url: audioUrl },
-            mimetype: "audio/mpeg",
-            fileName: `${title.replace(/[^\w\s]/gi, '')}.mp3`,
-            ptt: false
-        }, { quoted: m });
-
-    } catch (error) {
-        console.error('Error in play2 command:', error);
-        reply(mess.error);
-    }
-    
+    await playCommand2(conn, m.chat, m, args, buttonHandler);
+   
 }
 break
 case "song2": {
@@ -7784,21 +7739,59 @@ if (!text) return reply('*Enter a text!*');
     }
 }
 break
-case "tourl":   case "url": {
-const quoted = m.quoted || m.msg?.quoted;
+case "tourl":
+case "url": {
+    const quoted = m.quoted || m.msg?.quoted;
     const mime = quoted?.mimetype || quoted?.msg?.mimetype;
 
     if (!quoted || !mime) {
-      return reply('*Please reply to a media message!*');
+        return reply('*Please reply to a media message!*');
     }
 
     try {
-      const mediaUrl = await handleMediaUpload(quoted, conn, mime);
-      reply(`*Uploaded successfully:*\n${mediaUrl}`);
+        await conn.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
+        
+        const mediaUrl = await handleMediaUpload(quoted, conn, mime);
+        
+        if (!mediaUrl || mediaUrl.includes('exceeds the limit')) {
+            return reply(`❌ ${mediaUrl || 'Upload failed!'}`);
+        }
+
+        // Try to get short URL
+        let shortUrl = mediaUrl;
+        try {
+            const tinyRes = await axios.get(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(mediaUrl)}`, { timeout: 5000 });
+            if (tinyRes.data) shortUrl = tinyRes.data;
+        } catch (e) {}
+
+        // Use buttonHandler - Copy button (gifted), Open button (gifted)
+        if (buttonHandler) {
+            await buttonHandler.send(m.chat, {
+                title: '📎 MEDIA UPLOADED',
+                text: `✅ *Uploaded successfully!*\n\n🔗 *Link:* ${shortUrl}`,
+                footer: 'Tap a button below',
+                buttons: [
+                    { text: '📋 Copy Link', copy: shortUrl },
+                    { text: '🌐 Open Link', url: mediaUrl }
+                ]
+            }, m, async (msg, selectedId, type) => {
+                // This callback only triggers for reply buttons
+                // Copy and URL buttons don't need callbacks
+                console.log('Button clicked:', selectedId, type);
+            });
+        } else {
+            // Fallback
+            reply(`✅ Uploaded!\n🔗 ${shortUrl}`);
+        }
+
+        await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+
     } catch (error) {
-      console.error(error);
-      reply('*An error occurred while uploading the media.*');
+        console.error('Upload error:', error);
+        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+        reply('*❌ An error occurred while uploading the media.*');
     }
+    
 }
 break
 case "npm": {
@@ -8591,17 +8584,55 @@ let compliments = [
 }
 break
 case "8balls": {
-if (!q) return reply("Ask a yes/no question! Example: .8ball Will I be rich?");
+    if (!q) return reply("🎱 Ask a yes/no question!\nExample: .8ball Will I be rich?");
     
-    let responses = [
-        "Yes!", "No.", "Maybe...", "Definitely!", "Not sure.", 
-        "Ask again later.", "I don't think so.", "Absolutely!", 
-        "No way!", "Looks promising!"
+    const responses = [
+        "Yes, definitely! 🎯",
+        "No way! ❌",
+        "Ask again later. ⏳",
+        "It is certain. ✅",
+        "Very doubtful. 🤔",
+        "Without a doubt. 💯",
+        "My reply is no. 🚫",
+        "Signs point to yes. ✨",
+        "Maybe... 😐",
+        "Absolutely! 🔥"
     ];
     
-    let answer = responses[Math.floor(Math.random() * responses.length)];
+    const answer = responses[Math.floor(Math.random() * responses.length)];
+    const text = `🎱 *Magic 8-Ball*\n\n❓ *Question:* ${q}\n\n💬 *Answer:* ${answer}`;
     
-    reply(`🎱 *Magic 8-Ball says:* ${answer}`);
+    // Use buttonHandler
+    if (buttonHandler && typeof buttonHandler.send === 'function') {
+        await buttonHandler.send(m.chat, {
+            title: '🎱 MAGIC 8-BALL',
+            text: text,
+            footer: 'Tap button to ask again',
+            buttons: [
+                { text: '🔄 Ask Again', id: `8ball_${Date.now()}` }
+            ]
+        }, m, async (msg, selectedId) => {
+            // Ask again button clicked - get new answer
+            const newAnswer = responses[Math.floor(Math.random() * responses.length)];
+            const newText = `🎱 *Magic 8-Ball*\n\n❓ *Question:* ${q}\n\n💬 *Answer:* ${newAnswer}`;
+            
+            await buttonHandler.send(m.chat, {
+                title: '🎱 MAGIC 8-BALL',
+                text: newText,
+                footer: 'Tap button to ask again',
+                buttons: [
+                    { text: '🔄 Ask Again', id: `8ball_${Date.now()}` }
+                ]
+            }, msg, async () => {});
+            
+            await conn.sendMessage(m.chat, { react: { text: '✅', key: msg.key } });
+        });
+    } else {
+        // Fallback if buttonHandler not available
+        reply(text);
+    }
+    
+    
 }
 break
 case "lovetest": {
