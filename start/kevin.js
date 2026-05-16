@@ -2492,7 +2492,7 @@ case "botstats": {
    Ping   : ${speed}ms
    
 🔸 HOST
-   Name   : ${os.hostname()}
+   Name   : ${detectPlatform()}
    
 🔹 ${global.wm || 'Vesper-Xmd'} 🔹`;
 
@@ -2991,7 +2991,7 @@ case "stats": {
 🔸 *Disk*       : ${formatSize(diskUsed)} / ${formatSize(disk.size)} (${diskPercent}%)
 🔸 *Free Disk*  : ${formatSize(disk.free)}
 │
-🔹 *Platform*   : ${os.platform()}
+🔹 *Platform*   : ${detectPlatform()}
 🔹 *Node*       : ${process.version}
 🔹 *CPU*        : ${os.cpus()[0].model.substring(0, 25)}...
 │
