@@ -664,11 +664,28 @@ case 'prefix': {
     const newPrefix = args[0];
     if (!newPrefix) {
         const currentPrefix = await db.get(botNumber, 'prefix', '.');
-        return reply(`*📝 PREFIX SETTINGS*\n\nCurrent prefix: *${currentPrefix}*\n\nUsage: ${currentPrefix}setprefix <new prefix>\nExample: ${currentPrefix}setprefix !`);
+        return reply(`*PREFIX SETTINGS*\n\nCurrent prefix: *${currentPrefix === '' ? 'none' : currentPrefix}*\n\nUsage: ${currentPrefix === '' ? '' : currentPrefix}setprefix <new prefix>\nUse *${currentPrefix === '' ? '' : currentPrefix}setprefix none* to remove the prefix.`);
     }
     
-    await db.set(botNumber, 'prefix', newPrefix);
-    reply(`✅ Prefix has been changed to: *${newPrefix}*`);
+    // Handle 'none' to remove prefix
+    let finalPrefix = newPrefix;
+    if (newPrefix.toLowerCase() === 'none') {
+        finalPrefix = '';
+    }
+    
+    // Validate prefix length (only if not empty)
+    if (finalPrefix !== '' && finalPrefix.length > 3) {
+        return reply('❌ Prefix must be 1-3 characters long!');
+    }
+    
+    await db.set(botNumber, 'prefix', finalPrefix);
+    prefix = finalPrefix; // Update local variable
+    
+    if (finalPrefix === '') {
+        reply(`✅ *Prefix removed!*\n\nNow you can use commands without any prefix.\n\nExamples:\nmenu\nping\nalive`);
+    } else {
+        reply(`✅ Prefix has been changed to: *${finalPrefix}*`);
+    }
     break;
 }
 case 'alwaysonline':
