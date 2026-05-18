@@ -2182,6 +2182,59 @@ case 'repo': {
     
 }
 break
+case "githubsearch":
+case "ghsearch":
+case "searchgithub": {
+    if (!text) {
+        return reply(`*🔍 GITHUB SEARCH*\n\nUsage: ${prefix}githubsearch <query>\nExample: ${prefix}githubsearch Kevintech-hub`);
+    }
+
+    await reply(`🔍 Searching GitHub for: ${text}...`);
+    await conn.sendMessage(m.chat, { react: { text: "🔍", key: m.key } });
+
+    try {
+        const apiUrl = `https://api.nexray.eu.cc/search/github?q=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl, { timeout: 15000 });
+        const data = response.data;
+
+        if (!data.status || !data.result || data.result.length === 0) {
+            return reply(`❌ No results found for: "${text}"`);
+        }
+
+        const results = data.result.slice(0, 10);
+        let message = `🔍 *GITHUB SEARCH RESULTS*\n📌 Query: ${text}\n📊 Found: ${data.result.length} results\n\n`;
+
+        for (let i = 0; i < results.length; i++) {
+            const item = results[i];
+            const repo = item.repository;
+            const file = item.file;
+            const author = item.author;
+            
+            message += `*${i + 1}. ${file.name}*\n`;
+            message += `📦 Repo: ${repo.full_name}\n`;
+            message += `📝 Desc: ${repo.description || 'No description'}\n`;
+            message += `⭐ Stars: ${repo.stars} | 🍴 Forks: ${repo.forks}\n`;
+            message += `💻 Language: ${repo.language || 'N/A'}\n`;
+            message += `👤 Author: ${author.name}\n`;
+            message += `🔗 URL: ${repo.url}\n`;
+            message += `📄 Raw: ${file.raw_url}\n\n`;
+        }
+
+        if (data.result.length > 10) {
+            message += `_...and ${data.result.length - 10} more results_\n`;
+        }
+
+        await conn.sendMessage(m.chat, { text: message }, { quoted: m });
+        await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+
+    } catch (error) {
+        console.error('GitHub search error:', error);
+        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+        reply(`❌ Failed to search GitHub: ${error.message}`);
+    }
+    
+}
+break
 case "alive": {
      const serverUptime = getServerUptime();
     
@@ -8837,6 +8890,103 @@ case "emix": {
         reply(`❌ *Failed to mix emojis.*\n\nPlease try different emojis or try again later.`);
     }
     
+}
+break
+case "emojigif":
+case "egif":
+case "emojitogif": {
+    if (!text) return reply(`🎨 *EMOJI TO GIF*\n\nConvert an emoji to an animated GIF!\n\n*Usage:*\n${prefix}emojigif 😂\n${prefix}egif 🥺\n${prefix}emojitogif 🔥\n\n*Example:*\n${prefix}emojigif 🤣`);
+
+    // Extract emoji from text
+    const emojiRegex = /[\p{Emoji}\uFE0F\u20E3]/gu;
+    const emojis = text.match(emojiRegex);
+    
+    if (!emojis || emojis.length === 0) {
+        return reply(`*Please provide an emoji!*\n\nExample: ${prefix}emojigif 😂`);
+    }
+
+    const emoji = emojis[0];
+
+    await reply(`*Converting ${emoji} to GIF...*`);
+    await conn.sendMessage(m.chat, { react: { text: "🎨", key: m.key } });
+
+    try {
+        const apiUrl = `https://api.nexray.eu.cc/tools/emojigif?emoji=${encodeURIComponent(emoji)}`;
+        const response = await axios.get(apiUrl, {
+            responseType: 'arraybuffer',
+            timeout: 15000
+        });
+
+        const contentType = response.headers['content-type'];
+        if (contentType && contentType.includes('image/gif')) {
+            await conn.sendMessage(m.chat, {
+                video: Buffer.from(response.data), // GIF as video
+                caption: `> ${global.wm}`,
+                gifPlayback: true,
+                mimetype: 'video/mp4'
+            }, { quoted: m });
+            await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+        } else {
+            await conn.sendMessage(m.chat, {
+                image: Buffer.from(response.data),
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+            await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+        }
+
+    } catch (error) {
+        console.error('Emoji GIF error:', error);
+        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+        reply(`❌ *Failed to convert emoji to GIF.*\n\nPlease try a different emoji or try again later.`);
+    }
+    
+}
+break
+case "removebg":
+case "removebackground":
+case "rmbg": {
+    const quoted = m.quoted || m.msg?.quoted;
+    const mime = quoted?.mimetype || quoted?.msg?.mimetype;
+
+    if (!quoted || !/image/.test(mime)) {
+        return reply(`*🖼️ REMOVE BACKGROUND*\n\nReply to an image with this command to remove its background.\n\n*Usage:*\n${prefix}removebg (reply to an image)\n${prefix}rmbg (reply to an image)\n\n*Example:* Reply to an image with .removebg`);
+    }
+
+    await reply(`🖼️ *Processing image...*\n\n⏳ Removing background, please wait...`);
+    await conn.sendMessage(m.chat, { react: { text: "🎨", key: m.key } });
+
+    try {
+        // Upload image to catbox
+        const imageUrl = await handleMediaUpload(quoted, conn, mime);
+        
+        if (!imageUrl || imageUrl.includes('exceeds the limit')) {
+            return reply(`*Failed to upload image!*\n\nPlease try again with a smaller image.`);
+        }
+
+        const apiUrl = `https://api.nexray.eu.cc/tools/removebg?url=${encodeURIComponent(imageUrl)}`;
+        const response = await axios.get(apiUrl, {
+            responseType: 'arraybuffer',
+            timeout: 30000
+        });
+
+        const contentType = response.headers['content-type'];
+        
+        if (contentType && contentType.includes('image')) {
+            await conn.sendMessage(m.chat, {
+                image: Buffer.from(response.data),
+                caption: `✅ *Background removed successfully!*`
+            }, { quoted: m });
+            await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+        } else {
+            throw new Error('Invalid response from API');
+        }
+
+    } catch (error) {
+        console.error('RemoveBG error:', error);
+        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+        reply(`*Failed to remove background!*\n\nPlease try again with a different image.`);
+    }
+   
 }
 break
 case 'joke': {
