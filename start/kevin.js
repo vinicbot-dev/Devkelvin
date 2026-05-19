@@ -7813,25 +7813,18 @@ case "url": {
             return reply(`❌ ${mediaUrl || 'Upload failed!'}`);
         }
 
-        // Try to get short URL
-        let shortUrl = mediaUrl;
-        try {
-            const tinyRes = await axios.get(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(mediaUrl)}`, { timeout: 5000 });
-            if (tinyRes.data) shortUrl = tinyRes.data;
-        } catch (e) {}
-
         const { sendButtons } = require('gifted-btns');
 
         await sendButtons(conn, m.chat, {
             title: '📎 MEDIA UPLOADED',
-            text: `✅ *Uploaded successfully!*\n\n🔗 *Link:* ${shortUrl}`,
+            text: `✅ *Uploaded successfully!*\n\n🔗 *Link:* ${mediaUrl}`,
             footer: 'Tap a button below',
             buttons: [
                 {
                     name: 'cta_copy',
                     buttonParamsJson: JSON.stringify({
                         display_text: '📋 Copy Link',
-                        copy_code: shortUrl
+                        copy_code: mediaUrl
                     })
                 },
                 {
