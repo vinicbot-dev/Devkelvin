@@ -7404,35 +7404,35 @@ const q = args.join(" ");
 }
 break
 case "obfuscate2": {
-const tmpDir = './tmp';
-if (!fs.existsSync(tmpDir)) {
-    fs.mkdirSync(tmpDir, { recursive: true });
-}
-const quoted = m.quoted ? m.quoted : null;
-  const mime = quoted?.mimetype || "";
+    const tmpDir = './tmp';
+    if (!fs.existsSync(tmpDir)) {
+        fs.mkdirSync(tmpDir, { recursive: true });
+    }
+    const quoted = m.quoted ? m.quoted : null;
+    const mime = quoted?.mimetype || "";
 
-  if (!quoted || mime !== "application/javascript") {
-  return conn.sendMessage(m.chat, { text: "❌ *Error:* Reply to a `.js` file with `.obfuscate`!" }, { quoted: m });
-          }
-  try {
-  const media = await quoted.download();
-  const tempFile = `./tmp/original-${Date.now()}.js`;
-  await fs.promises.writeFile(tempFile, media);
+    if (!quoted || mime !== "application/javascript") {
+        return conn.sendMessage(m.chat, { text: "❌ *Error:* Reply to a `.js` file with `.obfuscate`!" }, { quoted: m });
+    }
+    try {
+        const media = await quoted.download();
+        const tempFile = `./tmp/original-${Date.now()}.js`;
+        await fs.promises.writeFile(tempFile, media);
 
-  conn.sendMessage(m.chat, { text: "🔒 Obfuscation started..." }, { quoted: m });
+        conn.sendMessage(m.chat, { text: "🔒 Obfuscation started..." }, { quoted: m });
 
-  const obfuscatedFile = await obfuscateJS(tempFile);
+        const obfuscatedFile = await obfuscateJS(tempFile);
 
-  await conn.sendMessage(m.chat, { text: "✅ Obfuscation complete! Sending file..." }, { quoted: m }); 
+        await conn.sendMessage(m.chat, { text: "✅ Obfuscation complete! Sending file..." }, { quoted: m }); 
  
-  await conn.sendMessage(m.chat, { document: fs.readFileSync(obfuscatedFile), mimetype: "text/javascript", fileName: "obfuscated.js" });
+        await conn.sendMessage(m.chat, { document: fs.readFileSync(obfuscatedFile), mimetype: "text/javascript", fileName: "obfuscated.js" });
 
-  await fs.promises.unlink(tempFile);
-  await fs.promises.unlink(obfuscatedFile);
-   } catch (error) {
-  conn.sendMessage(from, { text: `❌ *Error:* ${error.message}` }, { quoted: m });
-        } 
-
+        await fs.promises.unlink(tempFile);
+        await fs.promises.unlink(obfuscatedFile);
+    } catch (error) {
+        conn.sendMessage(from, { text: `❌ *Error:* ${error.message}` }, { quoted: m });
+    }
+    
 }
 break
 case "enc":
@@ -8907,9 +8907,6 @@ break
 case "removebg":
 case "removebackground":
 case "rmbg": {
-    const quoted = m.quoted || m.msg?.quoted;
-    const mime = quoted?.mimetype || quoted?.msg?.mimetype;
-
     if (!quoted || !/image/.test(mime)) {
         return reply(`*🖼️ REMOVE BACKGROUND*\n\nReply to an image with this command to remove its background.\n\n*Usage:*\n${prefix}removebg (reply to an image)\n${prefix}rmbg (reply to an image)\n\n*Example:* Reply to an image with .removebg`);
     }
