@@ -16,41 +16,40 @@ async function encryptCommand(conn, m, args) {
         const tempDir = path.join(os.tmpdir(), "temp");
         if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
 
-        // Extract quoted message
-        const quotedMsg = m.quoted || m.msg?.contextInfo?.quotedMessage;
-        
-        if (!quotedMsg) {
+        // Check if there's a quoted message
+        if (!m.quoted) {
             return m.reply(
                 "🔐 *ENCRYPT COMMAND*\n\n" +
                 "Reply to a JavaScript (.js) file with `.enc` or `.encrypt`\n\n" +
                 "📌 *Example:*\n" +
                 "1. Send a .js file\n" +
-                "2. Reply to it with `.enc`\n\n" +
-                "✨ *Features:*\n" +
-                "• Hard code obfuscation\n" +
-                "• Variable renaming\n" +
-                "• String encoding\n" +
-                "• Control flow flattening"
+                "2. Reply to it with `.enc`"
             );
         }
 
-        // Get document from quoted message
-        const doc = quotedMsg.documentMessage || quotedMsg.msg?.documentMessage;
-        
-        if (!doc || !doc.fileName || !doc.fileName.endsWith('.js')) {
-            return m.reply("❌ *Invalid File*\nPlease reply to a JavaScript (.js) file to encrypt.");
+        // Check if quoted message is a document
+        if (m.quoted.mtype !== 'documentMessage') {
+            return m.reply(`❌ *Invalid File*\nPlease reply to a JavaScript (.js) file.\n\nDetected type: ${m.quoted.mtype}`);
         }
 
-        // Download the file
+        // Get document from quoted message
+        const doc = m.quoted.msg || m.quoted;
+
+        if (!doc.fileName || !doc.fileName.endsWith('.js')) {
+            return m.reply(`❌ *Invalid File*\nPlease reply to a .js file.\n\nDetected: ${doc.fileName || 'Unknown'}`);
+        }
+
+        // Download the file using the document
         let buffer;
-        if (typeof conn.downloadMediaMessage === 'function') {
-            buffer = await conn.downloadMediaMessage(quotedMsg);
-        } else {
+        try {
             const stream = await downloadContentFromMessage(doc, 'document');
             buffer = Buffer.from([]);
             for await (const chunk of stream) {
                 buffer = Buffer.concat([buffer, chunk]);
             }
+        } catch (downloadErr) {
+            console.error('Download error:', downloadErr);
+            return m.reply("❌ *Download Failed*\nCould not download the file. Please try again.");
         }
 
         if (!buffer || buffer.length === 0) {
@@ -67,6 +66,9 @@ async function encryptCommand(conn, m, args) {
 
         const fileName = doc.fileName;
         const originalCode = buffer.toString('utf8');
+
+        // Send processing message
+        await m.reply(`🔐 *Encrypting ${fileName}...*\n📦 Size: ${fileSizeKB} KB\n⏳ Please wait...`);
 
         // Update reaction to show progress
         await conn.sendMessage(m.chat, { react: { text: "⚙️", key: m.key } });
@@ -113,6 +115,8 @@ async function encryptCommand(conn, m, args) {
             errorMessage = "❌ *Syntax Error!*\nThe JavaScript file contains syntax errors that prevent encryption.";
         } else if (error.message.includes('download')) {
             errorMessage = "❌ *Download Failed!*\nCould not download the file. Please try again.";
+        } else if (error.message.includes('ENOENT')) {
+            errorMessage = "❌ *File Error!\nCould not read the file properly.";
         }
         
         m.reply(errorMessage);
