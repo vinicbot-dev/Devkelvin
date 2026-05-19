@@ -73,8 +73,6 @@ const {
   disapproveAllRequests,
   approveAllRequests,
   listGroupRequests,
-  antipromoteCommand,
-  antidemoteCommand,
   handleAntiTag,
   handleAntiTagAdmin,
   handleLinkViolation,
@@ -115,6 +113,8 @@ const { jadibot, stopjadibot, listjadibot } = require('./jadibot')
 const { webp2mp4 } = require('./lib/uploader');
 const { ButtonHandler } = require('./lib/buttonHandler');
 const { encryptCommand } = require('./utility/encrypt');
+const { handleDemote } = require('./utility/antidemote');
+const { handlePromote } = require('./utility/antipromote');
 
 
 module.exports = conn = async (conn, m, chatUpdate, mek, store) => {
@@ -10196,23 +10196,116 @@ case 'allowlink': {
     reply(`❌ Invalid action! Use: add, remove, list, clear`);
     break;
 }
-case 'antidemote':
-case 'ad': {
+case "antidemote":
+case "antidm": {
     if (!m.isGroup) return reply(mess.group);
-    if (!m.isAdmin && !Access) return reply(mess.admin);
+    if (!m.isAdmin && !Access) return reply(mess.notadmin);
     if (!m.isBotAdmin) return reply(mess.botadmin);
-  
-    await antidemoteCommand(conn, m, args, botNumber);
+
+    const mode = args[0]?.toLowerCase();
     
+    if (!mode) {
+        const enabled = await db.getGroupSetting(botNumber, m.chat, 'antidemote', false);
+        const action = await db.getGroupSetting(botNumber, m.chat, 'antidemoteaction', 'revert');
+        
+        const actionLabels = {
+            'revert': '🔄 Revert — restore demoted admin',
+            'kick': '🚫 Kick — remove both parties',
+            'demote': '⬇️ Demote — demote the demoter'
+        };
+        
+        return reply(`🛡️ *ANTIDEMOTE SETTINGS*\n\n` +
+                     `Status: *${enabled ? '✅ ON' : '❌ OFF'}*\n` +
+                     `Action: *${enabled ? (actionLabels[action] || action) : '—'}*\n\n` +
+                     `*Commands:*\n` +
+                     `• ${prefix}antidemote on — Enable\n` +
+                     `• ${prefix}antidemote off — Disable\n` +
+                     `• ${prefix}antidemote revert — Restore demoted admin\n` +
+                     `• ${prefix}antidemote kick — Kick both parties\n` +
+                     `• ${prefix}antidemote demote — Demote the demoter`);
+    }
+    
+    if (mode === 'on') {
+        await db.setGroupSetting(botNumber, m.chat, 'antidemote', true);
+        const action = await db.getGroupSetting(botNumber, m.chat, 'antidemoteaction', 'revert');
+        const actionLabels = { 'revert': 'revert', 'kick': 'kick', 'demote': 'demote' };
+        return reply(`✅ *AntiDemote enabled* — Action: *${actionLabels[action] || action}*`);
+    }
+    
+    if (mode === 'off') {
+        await db.setGroupSetting(botNumber, m.chat, 'antidemote', false);
+        return reply(`✅ *AntiDemote disabled*`);
+    }
+    
+    if (['revert', 'kick', 'demote'].includes(mode)) {
+        await db.setGroupSetting(botNumber, m.chat, 'antidemoteaction', mode);
+        await db.setGroupSetting(botNumber, m.chat, 'antidemote', true);
+        
+        const labels = {
+            'revert': '🔄 Revert — restore demoted admin',
+            'kick': '🚫 Kick — remove both parties',
+            'demote': '⬇️ Demote — demote the demoter'
+        };
+        return reply(`✅ *AntiDemote action set to:* ${labels[mode]}`);
+    }
+    
+    reply(`❌ Invalid option! Use: on, off, revert, kick, demote`);
     break;
 }
-case 'antipromote':
-case 'ap': {
+case "antipromote":
+case "antipm": {
     if (!m.isGroup) return reply(mess.group);
-    if (!m.isAdmin && !Access) return reply(mess.admin);
+    if (!m.isAdmin && !Access) return reply(mess.notadmin);
     if (!m.isBotAdmin) return reply(mess.botadmin);
+
+    const mode = args[0]?.toLowerCase();
     
-    await antipromoteCommand(conn, m, args, botNumber);
+    if (!mode) {
+        const enabled = await db.getGroupSetting(botNumber, m.chat, 'antipromote', false);
+        const action = await db.getGroupSetting(botNumber, m.chat, 'antipromoteaction', 'revert');
+        
+        const actionLabels = {
+            'revert': '🔄 Revert — demote promoted member',
+            'kick': '🚫 Kick — remove both parties',
+            'demote': '⬇️ Demote — demote both parties'
+        };
+        
+        return reply(`🛡️ *ANTIPROMOTE SETTINGS*\n\n` +
+                     `Status: *${enabled ? '✅ ON' : '❌ OFF'}*\n` +
+                     `Action: *${enabled ? (actionLabels[action] || action) : '—'}*\n\n` +
+                     `*Commands:*\n` +
+                     `• ${prefix}antipromote on — Enable\n` +
+                     `• ${prefix}antipromote off — Disable\n` +
+                     `• ${prefix}antipromote revert — Demote promoted member\n` +
+                     `• ${prefix}antipromote kick — Kick both parties\n` +
+                     `• ${prefix}antipromote demote — Demote both parties`);
+    }
+    
+    if (mode === 'on') {
+        await db.setGroupSetting(botNumber, m.chat, 'antipromote', true);
+        const action = await db.getGroupSetting(botNumber, m.chat, 'antipromoteaction', 'revert');
+        const actionLabels = { 'revert': 'revert', 'kick': 'kick', 'demote': 'demote' };
+        return reply(`✅ *AntiPromote enabled* — Action: *${actionLabels[action] || action}*`);
+    }
+    
+    if (mode === 'off') {
+        await db.setGroupSetting(botNumber, m.chat, 'antipromote', false);
+        return reply(`✅ *AntiPromote disabled*`);
+    }
+    
+    if (['revert', 'kick', 'demote'].includes(mode)) {
+        await db.setGroupSetting(botNumber, m.chat, 'antipromoteaction', mode);
+        await db.setGroupSetting(botNumber, m.chat, 'antipromote', true);
+        
+        const labels = {
+            'revert': '🔄 Revert — demote promoted member back',
+            'kick': '🚫 Kick — remove both parties from group',
+            'demote': '⬇️ Demote — demote both promoter and promoted'
+        };
+        return reply(`✅ *AntiPromote action set to:* ${labels[mode]}`);
+    }
+    
+    reply(`❌ Invalid option! Use: on, off, revert, kick, demote`);
     break;
 }
 case 'antitag': {
