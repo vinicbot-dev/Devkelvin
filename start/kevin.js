@@ -114,6 +114,7 @@ const { toAudio } = require('./lib/converter');
 const { jadibot, stopjadibot, listjadibot } = require('./jadibot')
 const { webp2mp4 } = require('./lib/uploader');
 const { ButtonHandler } = require('./lib/buttonHandler');
+const { encryptCommand } = require('./utility/encrypt');
 
 
 module.exports = conn = async (conn, m, chatUpdate, mek, store) => {
@@ -7402,7 +7403,7 @@ const q = args.join(" ");
     }
 }
 break
-case "obfuscate": {
+case "obfuscate2": {
 const tmpDir = './tmp';
 if (!fs.existsSync(tmpDir)) {
     fs.mkdirSync(tmpDir, { recursive: true });
@@ -7434,50 +7435,11 @@ const quoted = m.quoted ? m.quoted : null;
 
 }
 break
-case 'obfuscate2':
-case 'encrypt': {
-    let code = '';
-    const quoted = m.quoted;
-    if (quoted && quoted.mimetype === 'application/javascript') {
-        try {
-            const buffer = await quoted.download();
-            code = buffer.toString('utf-8');
-        } catch (err) {
-            return reply("Failed to read the .js file. Please try again.");
-        }
-    } else {
-        args.shift();
-        code = args.join(' ');
-        
-        if (!code) {
-            return reply(`*Please reply to a .js file with ${prefix}obfuscate*`);
-        }
-    }
-    
-    try {
-        await conn.sendPresenceUpdate('composing', from);
-        
-        const apiUrl = `https://api.princetechn.com/api/tools/encrypt?apikey=prince&code=${encodeURIComponent(code)}`;
-        const { data } = await axios.get(apiUrl, { timeout: 30000 });
-        
-        if (data && data.success && data.encrypted_code) {
-            const obfuscatedCode = data.encrypted_code;
-            const fileName = `obfuscated_${Date.now()}.js`;
-            
-            await conn.sendMessage(from, {
-                document: Buffer.from(obfuscatedCode, 'utf-8'),
-                mimetype: 'application/javascript',
-                fileName: fileName,
-                caption: '*Code encrypted successfully✅.'
-            }, { quoted: m });
-        } else {
-            reply("Failed to obfuscate code. Please check your code and try again.");
-        }
-    } catch (error) {
-        console.error('Obfuscate error:', error.message);
-        reply("Error obfuscating code. Please try again later!");
-    }
-    break;
+case "enc":
+case "encrypt":
+case "obfuscate": {
+    await encryptCommand(conn, m, args);
+   
 }
 break
 case 'tiktokstalk':
