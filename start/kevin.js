@@ -8247,12 +8247,12 @@ case "ytsearch": {
 }
 break
 case 'ytplay':
-case 'ytmp3':
 case 'ytaudio': {
     await ytplayCommand(conn, m.chat, text, m);
    
 }
 break
+case 'ytmp3':
 case 'song': {
       if (!text) return reply('*Please provide a song name!*');
 
