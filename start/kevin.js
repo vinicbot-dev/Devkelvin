@@ -7438,8 +7438,35 @@ break
 case "enc":
 case "encrypt":
 case "obfuscate": {
-    await encryptCommand(conn, m, args);
-   
+    const tmpDir = './tmp';
+    if (!fs.existsSync(tmpDir)) {
+        fs.mkdirSync(tmpDir, { recursive: true });
+    }
+    const quoted = m.quoted ? m.quoted : null;
+    const mime = quoted?.mimetype || "";
+
+    if (!quoted || mime !== "application/javascript") {
+        return conn.sendMessage(m.chat, { text: "❌ *Error:* Reply to a `.js` file with `.encrypt`!" }, { quoted: m });
+    }
+    try {
+        const media = await quoted.download();
+        const tempFile = `./tmp/original-${Date.now()}.js`;
+        await fs.promises.writeFile(tempFile, media);
+
+        conn.sendMessage(m.chat, { text: "🔒 Obfuscation started..." }, { quoted: m });
+
+        const obfuscatedFile = await encryptCommand(tempFile);
+
+        await conn.sendMessage(m.chat, { text: "✅ Obfuscation complete! Sending file..." }, { quoted: m }); 
+ 
+        await conn.sendMessage(m.chat, { document: fs.readFileSync(obfuscatedFile), mimetype: "text/javascript", fileName: "obfuscated.js" });
+
+        await fs.promises.unlink(tempFile);
+        await fs.promises.unlink(obfuscatedFile);
+    } catch (error) {
+        conn.sendMessage(from, { text: `❌ *Error:* ${error.message}` }, { quoted: m });
+    }
+    
 }
 break
 case 'tiktokstalk':
