@@ -9201,6 +9201,7 @@ try {
       reply('An error occurred while fetching the trivia question.');
     }
 }
+break
 case "riddle": {
 try {
             await reply("🧩 *Loading riddle...*");
