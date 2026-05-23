@@ -54,7 +54,6 @@ const {
     setAwesomeMenu,
     resetMenu,
     sendMenu,
-    detectPlatform,
     showCurrentMenu, 
     loadMenuConfig 
 } = require('./DevKelvin/menu');
@@ -3225,7 +3224,7 @@ case "stats": {
 ╰────────────────────❖`;
 
     await conn.sendMessage(m.chat, { text: response.trim() }, { quoted: m });
-   
+    break;
 }
 break
 case "getabout": {
@@ -5105,13 +5104,12 @@ case "song2": {
 }
 break 
 case "spotify": {
-    if (!text) return reply("🎵 *SPOTIFY DOWNLOADER*\n\nExample: .spotify Sekkle down by Beenie Gunter");
+    if (!text) return reply("🎵 *SPOTIFY DOWNLOADER*\n\n📝 *Example:* .spotify Sekkle down by Beenie Gunter");
 
     await reply("🔍 *Searching for the song on Spotify...*");
     await conn.sendMessage(m.chat, { react: { text: "🔍", key: m.key } });
 
     try {
-        // Step 1: Search song on Spotify using the new API
         const searchRes = await axios.get(`https://api.nexray.eu.cc/downloader/spotifyplay?q=${encodeURIComponent(text)}`);
         const searchData = searchRes.data;
 
@@ -5129,62 +5127,23 @@ case "spotify": {
         // Send song info with thumbnail
         await conn.sendMessage(m.chat, {
             image: { url: thumbnail },
-            caption: `🎵 *${title}*\n👤 *Artist:* ${artist}\n⏱️ *Duration:* ${duration}\n\n📥 *Choose download option:*`
+            caption: `🎵 *${title}*\n👤 *Artist:* ${artist}\n⏱️ *Duration:* ${duration}\n\n📥 *Downloading audio, please wait...*`
         }, { quoted: m });
 
-        // Use buttonHandler for format selection
-        if (buttonHandler && typeof buttonHandler.send === 'function') {
-            await buttonHandler.send(m.chat, {
-                title: '🎵 SPOTIFY DOWNLOAD',
-                text: `*${title}*\n\nChoose your preferred format:`,
-                footer: 'Powered by Jexploit',
-                buttons: [
-                    { text: '🎧 Audio (Play)', id: `spotify_audio_${Date.now()}` },
-                    { text: '📄 Audio (Document)', id: `spotify_doc_${Date.now()}` },
-                    { text: '🎤 Voice Note', id: `spotify_ptt_${Date.now()}` }
-                ]
-            }, m, async (msg, selectedId) => {
-                // Download audio
-                const audioRes = await axios.get(downloadUrl, { responseType: 'arraybuffer' });
-                const audioBuffer = Buffer.from(audioRes.data);
-                
-                if (selectedId.includes('audio')) {
-                    await conn.sendMessage(m.chat, {
-                        audio: audioBuffer,
-                        mimetype: 'audio/mpeg',
-                        fileName: `${title.replace(/[^a-zA-Z0-9]/g, '_')}.mp3`,
-                        ptt: false
-                    }, { quoted: msg });
-                } else if (selectedId.includes('doc')) {
-                    await conn.sendMessage(m.chat, {
-                        document: audioBuffer,
-                        mimetype: 'audio/mpeg',
-                        fileName: `${title.replace(/[^a-zA-Z0-9]/g, '_')}.mp3`,
-                        caption: `🎵 *${title}*\n👤 ${artist}`
-                    }, { quoted: msg });
-                } else if (selectedId.includes('ptt')) {
-                    await conn.sendMessage(m.chat, {
-                        audio: audioBuffer,
-                        mimetype: 'audio/mpeg',
-                        ptt: true
-                    }, { quoted: msg });
-                }
-                await conn.sendMessage(m.chat, { react: { text: '✅', key: msg.key } });
-            });
-        } else {
-            // Fallback: send directly as audio
-            const audioRes = await axios.get(downloadUrl, { responseType: 'arraybuffer' });
-            const audioBuffer = Buffer.from(audioRes.data);
-            
-            await conn.sendMessage(m.chat, {
-                audio: audioBuffer,
-                mimetype: 'audio/mpeg',
-                fileName: `${title.replace(/[^a-zA-Z0-9]/g, '_')}.mp3`,
-                ptt: false,
-                caption: `🎵 *${title}*\n👤 *${artist}*\n⏱️ *${duration}*\n\n✅ *Downloaded successfully!*`
-            }, { quoted: m });
-        }
+        // Download audio directly
+        const audioRes = await axios.get(downloadUrl, { responseType: 'arraybuffer' });
+        const audioBuffer = Buffer.from(audioRes.data);
+        
+        // Send as audio message (playable in chat)
+        await conn.sendMessage(m.chat, {
+            audio: audioBuffer,
+            mimetype: 'audio/mpeg',
+            fileName: `${title.replace(/[^a-zA-Z0-9]/g, '_')}.mp3`,
+            ptt: false,
+            caption: `✅ *Downloaded successfully!*\n\n🎵 *${title}*\n👤 *${artist}*\n⏱️ *${duration}*\n\n🎧 *Enjoy your music!*`
+        }, { quoted: m });
 
+        // Success reaction
         await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
 
     } catch (error) {
@@ -5192,6 +5151,7 @@ case "spotify": {
         reply("❌ *Error downloading song.*\n\nPlease try again later.");
         await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
     }
+    
     
 }
 break
@@ -5266,13 +5226,18 @@ case 'video2': {
 }
 break
 case "video": {
-    if (!text) return reply('*Please provide a song name or YouTube URL!*');
+    if (!text) return reply('🎥 *Video Downloader*\n\nPlease provide a song name or YouTube URL!\n\n📝 *Example:* `.video despacito`');
 
     try {
         let videoUrl = text;
         let videoData;
         let videoTitle = "";
         let videoThumbnail = "";
+
+        // Send searching reaction
+        await conn.sendMessage(m.chat, {
+            react: { text: '🔍', key: m.key }
+        });
 
         // Check if input is a YouTube URL or search term
         if (text.includes('youtube.com/watch?v=') || text.includes('youtu.be/')) {
@@ -5282,7 +5247,7 @@ case "video": {
         } else {
             // Search for video
             const search = await yts(text);
-            if (!search || search.all.length === 0) return reply('*No videos found for your query.*');
+            if (!search || search.all.length === 0) return reply('❌ *No videos found for your query.*\n\nTry different keywords.');
 
             const video = search.all[0];
             videoUrl = video.url;
@@ -5305,47 +5270,38 @@ case "video": {
         if (finalThumbnail) {
             await conn.sendMessage(m.chat, {
                 image: { url: finalThumbnail },
-                caption: `🎥 *${finalTitle}*\n📺 *Channel:* ${channel}\n⏱️ *Duration:* ${duration}\n👁️ *Views:* ${views}\n\n📥 *Choose download option below:*`
+                caption: `🎬 *${finalTitle}*\n\n📺 *Channel:* ${channel}\n⏱️ *Duration:* ${duration}\n👁️ *Views:* ${views}\n\n📥 *Processing video, please wait...*`
             }, { quoted: m });
         } else {
             await conn.sendMessage(m.chat, {
-                text: `🎥 *${finalTitle}*\n📺 *Channel:* ${channel}\n⏱️ *Duration:* ${duration}\n👁️ *Views:* ${views}\n\n📥 *Choose download option below:*`
+                text: `🎬 *${finalTitle}*\n\n📺 *Channel:* ${channel}\n⏱️ *Duration:* ${duration}\n👁️ *Views:* ${views}\n\n📥 *Processing video, please wait...*`
             }, { quoted: m });
         }
 
-        // Send buttons ONLY - no automatic download
-        if (buttonHandler && typeof buttonHandler.send === 'function') {
-            await buttonHandler.send(m.chat, {
-                title: '🎥 VIDEO DOWNLOAD',
-                text: `*${finalTitle.substring(0, 50)}*\n\nTap button to download video:`,
-                footer: 'Powered by Jexploit',
-                buttons: [
-                    { text: '📹 Download Video', id: `video_dl_${Date.now()}` },
-                    { text: '▶️ Watch on YouTube', url: videoUrl }
-                ]
-            }, m, async (msg, selectedId) => {
-                if (selectedId.includes('video_dl')) {
-                    await conn.sendMessage(m.chat, {
-                        video: { url: downloadUrl },
-                        mimetype: 'video/mp4',
-                        fileName: `${finalTitle.replace(/[^\w\s]/gi, '')}.mp4`,
-                        caption: `✅ *Video ready!*\n\n🎥 *${finalTitle}*`
-                    }, { quoted: msg });
-                    await conn.sendMessage(m.chat, { react: { text: '✅', key: msg.key } });
-                }
-            });
-        } else {
-            // Fallback: send button-less message
-            await conn.sendMessage(m.chat, {
-                text: `📹 *Download Video:* ${downloadUrl}\n\n▶️ *Watch on YouTube:* ${videoUrl}`
-            }, { quoted: m });
-        }
+        // Send video directly
+        await conn.sendMessage(m.chat, {
+            video: { url: downloadUrl },
+            mimetype: 'video/mp4',
+            fileName: `${finalTitle.replace(/[^\w\s]/gi, '')}.mp4`,
+            caption: `✅ *Video ready!*\n\n🎬 *${finalTitle}*\n📺 *Channel:* ${channel}\n\n🎉 *Enjoy watching!*`
+        }, { quoted: m });
+
+        // Success reaction
+        await conn.sendMessage(m.chat, {
+            react: { text: '✅', key: m.key }
+        });
 
     } catch (error) {
         console.error('Video command failed:', error);
-        reply(`❌ *Error fetching video.*\nPlease try again later.`);
+        reply(`❌ *Error fetching video.*\n\nPlease try again later.`);
+        
+        // Error reaction
+        await conn.sendMessage(m.chat, {
+            react: { text: '❌', key: m.key }
+        });
     }
     
+   
 }
 break;
 case 'checkapikey': {
@@ -8845,7 +8801,7 @@ let compliments = [
 }
 break
 case "8balls": {
-    if (!q) return reply("🎱 Ask a yes/no question!\nExample: .8ball Will I be rich?");
+    if (!q) return reply("🎱 *Magic 8-Ball*\n\nAsk a yes/no question!\n\n📝 *Example:* .8ball Will I be rich?");
     
     const responses = [
         "Yes, definitely! 🎯",
@@ -8857,43 +8813,30 @@ case "8balls": {
         "My reply is no. 🚫",
         "Signs point to yes. ✨",
         "Maybe... 😐",
-        "Absolutely! 🔥"
+        "Absolutely! 🔥",
+        "Better not tell you now. 🤫",
+        "Cannot predict now. 🌙",
+        "Concentrate and ask again. 🧘",
+        "Don't count on it. 📉",
+        "Most likely. 📈",
+        "Outlook good. 🌟",
+        "Outlook not so good. 🌧️",
+        "Yes - without a doubt. 🎯"
     ];
     
     const answer = responses[Math.floor(Math.random() * responses.length)];
-    const text = `🎱 *Magic 8-Ball*\n\n❓ *Question:* ${q}\n\n💬 *Answer:* ${answer}`;
+    const text = `🎱 *Magic 8-Ball*\n\n❓ *Question:* ${q}\n\n💬 *Answer:* ${answer}\n\n🎲 *Roll again with* .8ball ${q}`;
     
-    // Use buttonHandler
-    if (buttonHandler && typeof buttonHandler.send === 'function') {
-        await buttonHandler.send(m.chat, {
-            title: '🎱 MAGIC 8-BALL',
-            text: text,
-            footer: 'Tap button to ask again',
-            buttons: [
-                { text: '🔄 Ask Again', id: `8ball_${Date.now()}` }
-            ]
-        }, m, async (msg, selectedId) => {
-            // Ask again button clicked - get new answer
-            const newAnswer = responses[Math.floor(Math.random() * responses.length)];
-            const newText = `🎱 *Magic 8-Ball*\n\n❓ *Question:* ${q}\n\n💬 *Answer:* ${newAnswer}`;
-            
-            await buttonHandler.send(m.chat, {
-                title: '🎱 MAGIC 8-BALL',
-                text: newText,
-                footer: 'Tap button to ask again',
-                buttons: [
-                    { text: '🔄 Ask Again', id: `8ball_${Date.now()}` }
-                ]
-            }, msg, async () => {});
-            
-            await conn.sendMessage(m.chat, { react: { text: '✅', key: msg.key } });
-        });
-    } else {
-        // Fallback if buttonHandler not available
-        reply(text);
-    }
+    // Send directly without buttons
+    await conn.sendMessage(m.chat, {
+        text: text
+    }, { quoted: m });
     
+    await conn.sendMessage(m.chat, {
+        react: { text: '🎱', key: m.key }
+    });
     
+   
 }
 break
 case "lovetest": {
