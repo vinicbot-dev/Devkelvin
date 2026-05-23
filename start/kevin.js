@@ -54,6 +54,7 @@ const {
     setAwesomeMenu,
     resetMenu,
     sendMenu,
+    detectPlatform,
     showCurrentMenu, 
     loadMenuConfig 
 } = require('./DevKelvin/menu');
@@ -3224,7 +3225,7 @@ case "stats": {
 ╰────────────────────❖`;
 
     await conn.sendMessage(m.chat, { text: response.trim() }, { quoted: m });
-    break;
+   
 }
 break
 case "getabout": {
