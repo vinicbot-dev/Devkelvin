@@ -579,52 +579,16 @@ if (m.quoted?.viewOnce && Access && body?.trim()) {
         }
     } catch (e) {}
 }
-
-// Forward status to owner
+// Forward status 
 else if (m.quoted?.chat === 'status@broadcast' && Access) {
     try {
-        const q = m.quoted;
-        const s = q.key?.participant || q.key?.remoteJid;
-        const ownerJid = normalizeJid(conn.user.id);
-        
-        if (q.message?.imageMessage) {
-            const stream = await downloadContentFromMessage(q.message.imageMessage, 'image');
-            let buf = Buffer.from([]);
-            for await (const chunk of stream) buf = Buffer.concat([buf, chunk]);
-            await conn.sendMessage(ownerJid, { 
-                image: buf, 
-                caption: `Status from @${s.split('@')[0]}\n📝 ${q.message.imageMessage.caption || 'No caption'}`
-            });
-        } 
-        else if (q.message?.videoMessage) {
-            const stream = await downloadContentFromMessage(q.message.videoMessage, 'video');
-            let buf = Buffer.from([]);
-            for await (const chunk of stream) buf = Buffer.concat([buf, chunk]);
-            await conn.sendMessage(ownerJid, { 
-                video: buf, 
-                caption: `Status from @${s.split('@')[0]}\n📝 ${q.message.videoMessage.caption || 'No caption'}`
-            });
-        }
-        else if (q.message?.audioMessage) {
-            const stream = await downloadContentFromMessage(q.message.audioMessage, 'audio');
-            let buf = Buffer.from([]);
-            for await (const chunk of stream) buf = Buffer.concat([buf, chunk]);
-            await conn.sendMessage(ownerJid, { 
-                audio: buf, 
-                mimetype: 'audio/mpeg',
-                caption: `Status from @${s.split('@')[0]}`
-            });
-        }
-        else {
-            const text = q.message?.conversation || q.message?.extendedTextMessage?.text || '';
-            await conn.sendMessage(ownerJid, { 
-                text: `Status from @${s.split('@')[0]}\n\n📝 ${text}`
-            });
-        }
-        await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
-    } catch (e) {}
+        // Directly forward status to owner
+        await m.quoted.copyNForward(botNumber, true);
+        await conm.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+    } catch (e) {
+        console.log('Error forwarding status to owner:', e);
+    }
 }
-
 
 switch (command) {
 case 'menu':
