@@ -2531,7 +2531,9 @@ case 'pair': {
             `Oops! You forgot the number.\n\nExample:\n${prefix + command} 25674293XXXX`
         );
     }
-
+    
+    const { sendButtons } = require('gifted-btns');
+    
     // Normalize and validate numbers
     const numbers = text.split(",")
         .map(v => v.replace(/[^0-9]/g, "")) // keep only digits
