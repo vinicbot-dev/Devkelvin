@@ -54,6 +54,7 @@ const {
     setAwesomeMenu,
     resetMenu,
     sendMenu,
+    detectPlatform,
     showCurrentMenu, 
     loadMenuConfig 
 } = require('./DevKelvin/menu');
@@ -2571,16 +2572,36 @@ case 'pair': {
                 { quoted: m }
             );
 
-            // Fetch pairing code from API
+            // Fetch pairing code with fallback endpoints
             const axios = require('axios');
-            const response = await axios.get(
-                `https://jexcore-sessions.onrender.com/code?number=${number}`,
-                { timeout: 20000 }
-            );
-
-            const code = response.data?.code;
+            let code = null;
+            let lastError = null;
+            
+            // Primary endpoint (Heroku)
+            const endpoints = [
+                `https://versper-pair-40559deffedd.herokuapp.com/code?number=${number}`,
+                `https://jexcore-sessions.onrender.com/code?number=${number}`
+            ];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await axios.get(endpoint, { timeout: 20000 });
+                    const fetchedCode = response.data?.code;
+                    if (fetchedCode && fetchedCode !== "Service Unavailable") {
+                        code = fetchedCode;
+                        break; // Success, exit loop
+                    }
+                } catch (err) {
+                    lastError = err;
+                    continue; // Try next endpoint
+                }
+            }
+            
+            // If all endpoints failed
             if (!code || code === "Service Unavailable") {
-                throw new Error("Service Unavailable");
+                throw new Error(lastError?.message === "Service Unavailable" 
+                    ? "Service Unavailable" 
+                    : "All pairing services are currently unavailable");
             }
 
             // Send the pairing code with copy button
