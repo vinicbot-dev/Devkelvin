@@ -60,22 +60,7 @@ function detectAudioFormat(buffer) {
     return 'unknown';
 }
 
-// Prince Techn API
-async function getPrinceTechnMp3(youtubeUrl) {
-    const apiUrl = `https://api.princetechn.com/api/download/ytmp3?apikey=prince&url=${encodeURIComponent(youtubeUrl)}`;
-    const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
-    if (res?.data?.success && res?.data?.result?.download_url) {
-        return {
-            download: res.data.result.download_url,
-            title: res.data.result.title,
-            duration: res.data.result.duration,
-            quality: res.data.result.quality
-        };
-    }
-    throw new Error('Prince Techn API returned no download');
-}
-
-// EliteProTech API
+// EliteProTech API - Primary
 async function getEliteProTechMp3(youtubeUrl) {
     const apiUrl = `https://eliteprotech-apis.zone.id/ytdown?url=${encodeURIComponent(youtubeUrl)}&format=mp3`;
     const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
@@ -88,7 +73,7 @@ async function getEliteProTechMp3(youtubeUrl) {
     throw new Error('EliteProTech returned no download');
 }
 
-// Yupra API
+// Yupra API - Fallback 1
 async function getYupraMp3(youtubeUrl) {
     const apiUrl = `https://api.yupra.my.id/api/downloader/ytmp3?url=${encodeURIComponent(youtubeUrl)}`;
     const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
@@ -102,7 +87,7 @@ async function getYupraMp3(youtubeUrl) {
     throw new Error('Yupra returned no download');
 }
 
-// Okatsu API
+// Okatsu API - Fallback 2
 async function getOkatsuMp3(youtubeUrl) {
     const apiUrl = `https://okatsu-rolezapiiz.vercel.app/downloader/ytmp3?url=${encodeURIComponent(youtubeUrl)}`;
     const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
@@ -114,6 +99,21 @@ async function getOkatsuMp3(youtubeUrl) {
         };
     }
     throw new Error('Okatsu returned no download');
+}
+
+// Prince Techn API - Last Fallback
+async function getPrinceTechnMp3(youtubeUrl) {
+    const apiUrl = `https://api.princetechn.com/api/download/ytmp3?apikey=prince&url=${encodeURIComponent(youtubeUrl)}`;
+    const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
+    if (res?.data?.success && res?.data?.result?.download_url) {
+        return {
+            download: res.data.result.download_url,
+            title: res.data.result.title,
+            duration: res.data.result.duration,
+            quality: res.data.result.quality
+        };
+    }
+    throw new Error('Prince Techn API returned no download');
 }
 
 // Download and convert audio to MP3 if needed
@@ -154,10 +154,10 @@ async function downloadAndConvert(audioUrl, title) {
 // Main fetchMp3 function
 async function fetchMp3(youtubeUrl, returnBuffer = false) {
     const apiMethods = [
-        { name: 'Prince Techn', method: () => getPrinceTechnMp3(youtubeUrl) },
         { name: 'EliteProTech', method: () => getEliteProTechMp3(youtubeUrl) },
         { name: 'Yupra', method: () => getYupraMp3(youtubeUrl) },
-        { name: 'Okatsu', method: () => getOkatsuMp3(youtubeUrl) }
+        { name: 'Okatsu', method: () => getOkatsuMp3(youtubeUrl) },
+        { name: 'Prince Techn', method: () => getPrinceTechnMp3(youtubeUrl) }
     ];
 
     for (const apiMethod of apiMethods) {
