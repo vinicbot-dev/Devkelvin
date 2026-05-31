@@ -49,7 +49,7 @@ const { obfuscateJS } = require("./lib/encapsulation");
 const db = require('./Core/databaseManager');
 const GroupDB = require('./Metadata/group');
 const { handleMediaUpload } = require('./lib/catbox');
-const { styletext } = require('./lib/scraper')
+const { styletext, fetchMp3, fetchVideo } = require('./lib/scraper')
 const { 
     setAwesomeMenu,
     resetMenu,
@@ -4955,37 +4955,38 @@ case 'xplay': {
     if (!text) return reply(`Example: ${prefix}${command} Winnie Nwagi Malaika`);
 
     try {
-        await reply(`Searching for "${text}"...`);
+        await reply(`🔍 Searching for "${text}"...`);
 
         const searchResult = await yts(text);
         if (!searchResult?.videos?.length) {
-            return reply(`No results found for "${text}"`);
+            return reply(`❌ No results found for "${text}"`);
         }
 
         const video = searchResult.videos[0];
         const videoUrl = video.url;
 
-        const apiUrl = `https://api.princetechn.com/api/download/ytmp3?apikey=prince&url=${encodeURIComponent(videoUrl)}`;
-        const response = await axios.get(apiUrl, { timeout: 30000 });
+        await conn.sendMessage(m.chat, {
+            react: { text: '⏳', key: m.key }
+        });
 
-        if (!response.data?.success || !response.data?.result?.download_url) {
-            return reply(`Failed to download audio for "${text}"`);
-        }
-
-        const { title, download_url, duration, quality } = response.data.result;
+        // Fetch MP3 with buffer conversion (guarantees MP3 format)
+        const result = await fetchMp3(videoUrl, true);
 
         await conn.sendMessage(m.chat, {
-            audio: { url: download_url },
+            audio: result.buffer,
             mimetype: 'audio/mpeg',
-            fileName: `${title.replace(/[^\w\s]/gi, '')}.mp3`,
-            caption: `🎵 ${title}\n⏱ ${duration} | 🎚 ${quality}`
+            fileName: `${result.title.replace(/[^\w\s]/gi, '')}.mp3`,
+            caption: `🎵 *${result.title}*\n⏱ ${result.duration || 'Unknown'} | 🎚 ${result.quality || '128kbps'}\n\n> Powered by JEXPLOIT`
         }, { quoted: m });
+
+        await conn.sendMessage(m.chat, {
+            react: { text: '✅', key: m.key }
+        });
 
     } catch (error) {
         console.error('Song error:', error.message);
-        reply(`Error: ${error.message}`);
+        reply(`❌ Error: ${error.message}`);
     }
-    
 }
 break
 case 'play2': {
@@ -5187,48 +5188,42 @@ if (!text) return reply('.ytmp4 <YouTube URL>');
 }
 break
 case 'video2': {
-    if (!text) return reply(`Example: ${prefix}video Born to win by fikfamaic`);
+    if (!text) return reply(`Example: ${prefix}${command} Born to win by fikfamaic`);
 
     try {
+        await reply(`🔍 Searching for "${text}"...`);
+
         const { videos } = await yts(text);
         if (!videos || videos.length === 0) {
-            return reply(`No results found for "${text}"`);
+            return reply(`❌ No results found for "${text}"`);
         }
 
         const video = videos[0];
         const videoUrl = video.url;
 
-        await reply(`Downloading: ${video.title}`);
-
-        // Use different API that returns direct download
-        const apiUrl = `https://apiskeith.top/download/mp4?url=${encodeURIComponent(videoUrl)}`;
-        const response = await axios.get(apiUrl);
-        
-        if (!response.data?.status || !response.data?.result) {
-            return reply(`Failed to fetch video. Try again.`);
-        }
-
-        const videoDownloadUrl = response.data.result;
-        
-        // Download the video to buffer first
-        const videoBuffer = await axios({
-            method: 'GET',
-            url: videoDownloadUrl,
-            responseType: 'arraybuffer',
-            timeout: 60000
+        await conn.sendMessage(m.chat, {
+            react: { text: '⏳', key: m.key }
         });
 
+        await reply(`📥 Downloading: ${video.title}`);
+
+        const result = await fetchVideo(videoUrl);
+
         await conn.sendMessage(m.chat, {
-            video: Buffer.from(videoBuffer.data),
+            video: { url: result.download },
             mimetype: 'video/mp4',
-            caption: `${video.title}`
+            fileName: `${result.title.replace(/[^\w\s]/gi, '')}.mp4`,
+            caption: `🎬 *${result.title}*\n\n> Powered by JEXPLOIT`
         }, { quoted: m });
+
+        await conn.sendMessage(m.chat, {
+            react: { text: '✅', key: m.key }
+        });
 
     } catch (error) {
         console.error('Video error:', error);
-        reply(`Error: ${error.message}`);
+        reply(`❌ Error: ${error.message}`);
     }
-   
 }
 break
 case "video": {
