@@ -6,6 +6,274 @@ const fileTypeFromBuffer = require('file-type')
 const randomarray = async (array) => {
 	return array[Math.floor(Math.random() * array.length)]
 }
+const { toAudio } = require('../../start/lib/converter')
+
+const AXIOS_DEFAULTS = {
+    timeout: 60000,
+    headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*'
+    }
+};
+
+async function tryRequest(getter, attempts = 3) {
+    let lastError;
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+        try {
+            return await getter();
+        } catch (err) {
+            lastError = err;
+            if (attempt < attempts) {
+                await new Promise(r => setTimeout(r, 1000 * attempt));
+            }
+        }
+    }
+    throw lastError;
+}
+
+// Detect audio format from buffer
+function detectAudioFormat(buffer) {
+    const firstBytes = buffer.slice(0, 12);
+    const hexSignature = firstBytes.toString('hex');
+    const asciiSignature = firstBytes.toString('ascii', 4, 8);
+
+    // Check for MP4/M4A (ftyp box)
+    if (asciiSignature === 'ftyp' || hexSignature.startsWith('000000')) {
+        const ftypBox = buffer.slice(4, 8).toString('ascii');
+        if (ftypBox === 'ftyp') {
+            return 'm4a';
+        }
+    }
+    // Check for MP3 (ID3 tag or MPEG frame sync)
+    else if (buffer.toString('ascii', 0, 3) === 'ID3' || 
+             (buffer[0] === 0xFF && (buffer[1] & 0xE0) === 0xE0)) {
+        return 'mp3';
+    }
+    // Check for OGG/Opus
+    else if (buffer.toString('ascii', 0, 4) === 'OggS') {
+        return 'ogg';
+    }
+    // Check for WAV
+    else if (buffer.toString('ascii', 0, 4) === 'RIFF') {
+        return 'wav';
+    }
+    return 'unknown';
+}
+
+// Prince Techn API
+async function getPrinceTechnMp3(youtubeUrl) {
+    const apiUrl = `https://api.princetechn.com/api/download/ytmp3?apikey=prince&url=${encodeURIComponent(youtubeUrl)}`;
+    const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
+    if (res?.data?.success && res?.data?.result?.download_url) {
+        return {
+            download: res.data.result.download_url,
+            title: res.data.result.title,
+            duration: res.data.result.duration,
+            quality: res.data.result.quality
+        };
+    }
+    throw new Error('Prince Techn API returned no download');
+}
+
+// EliteProTech API
+async function getEliteProTechMp3(youtubeUrl) {
+    const apiUrl = `https://eliteprotech-apis.zone.id/ytdown?url=${encodeURIComponent(youtubeUrl)}&format=mp3`;
+    const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
+    if (res?.data?.success && res?.data?.downloadURL) {
+        return {
+            download: res.data.downloadURL,
+            title: res.data.title
+        };
+    }
+    throw new Error('EliteProTech returned no download');
+}
+
+// Yupra API
+async function getYupraMp3(youtubeUrl) {
+    const apiUrl = `https://api.yupra.my.id/api/downloader/ytmp3?url=${encodeURIComponent(youtubeUrl)}`;
+    const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
+    if (res?.data?.success && res?.data?.data?.download_url) {
+        return {
+            download: res.data.data.download_url,
+            title: res.data.data.title,
+            thumbnail: res.data.data.thumbnail
+        };
+    }
+    throw new Error('Yupra returned no download');
+}
+
+// Okatsu API
+async function getOkatsuMp3(youtubeUrl) {
+    const apiUrl = `https://okatsu-rolezapiiz.vercel.app/downloader/ytmp3?url=${encodeURIComponent(youtubeUrl)}`;
+    const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
+    if (res?.data?.dl) {
+        return {
+            download: res.data.dl,
+            title: res.data.title,
+            thumbnail: res.data.thumb
+        };
+    }
+    throw new Error('Okatsu returned no download');
+}
+
+// Download and convert audio to MP3 if needed
+async function downloadAndConvert(audioUrl, title) {
+    // Download the audio file
+    const audioResponse = await axios.get(audioUrl, {
+        responseType: 'arraybuffer',
+        timeout: 90000,
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity
+    });
+    
+    let audioBuffer = Buffer.from(audioResponse.data);
+    
+    if (!audioBuffer || audioBuffer.length === 0) {
+        throw new Error('Downloaded audio buffer is empty');
+    }
+    
+    // Detect format
+    const detectedFormat = detectAudioFormat(audioBuffer);
+    
+    // Convert to MP3 if not already MP3
+    if (detectedFormat !== 'mp3') {
+        console.log(`Converting ${detectedFormat} to MP3...`);
+        audioBuffer = await toAudio(audioBuffer, detectedFormat);
+        if (!audioBuffer || audioBuffer.length === 0) {
+            throw new Error('Conversion returned empty buffer');
+        }
+    }
+    
+    return {
+        buffer: audioBuffer,
+        title: title,
+        format: 'mp3'
+    };
+}
+
+// Main fetchMp3 function
+async function fetchMp3(youtubeUrl, returnBuffer = false) {
+    const apiMethods = [
+        { name: 'Prince Techn', method: () => getPrinceTechnMp3(youtubeUrl) },
+        { name: 'EliteProTech', method: () => getEliteProTechMp3(youtubeUrl) },
+        { name: 'Yupra', method: () => getYupraMp3(youtubeUrl) },
+        { name: 'Okatsu', method: () => getOkatsuMp3(youtubeUrl) }
+    ];
+
+    for (const apiMethod of apiMethods) {
+        try {
+            console.log(`🔄 Trying ${apiMethod.name} for MP3...`);
+            const result = await apiMethod.method();
+            if (result && result.download) {
+                console.log(`✅ ${apiMethod.name} successful!`);
+                
+                if (returnBuffer) {
+                    // Download and convert to MP3 buffer
+                    const converted = await downloadAndConvert(result.download, result.title);
+                    return {
+                        buffer: converted.buffer,
+                        title: converted.title,
+                        duration: result.duration,
+                        quality: result.quality
+                    };
+                }
+                
+                return result;
+            }
+        } catch (err) {
+            console.warn(`❌ ${apiMethod.name} failed: ${err.message}`);
+            continue;
+        }
+    }
+    throw new Error("All MP3 download APIs failed.");
+}
+
+const AXIOS_DEFAULTS = {
+    timeout: 60000,
+    headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*'
+    }
+};
+
+async function tryRequest(getter, attempts = 3) {
+    let lastError;
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+        try {
+            return await getter();
+        } catch (err) {
+            lastError = err;
+            if (attempt < attempts) {
+                await new Promise(r => setTimeout(r, 1000 * attempt));
+            }
+        }
+    }
+    throw lastError;
+}
+
+// EliteProTech API
+async function getEliteProTechVideo(youtubeUrl) {
+    const apiUrl = `https://eliteprotech-apis.zone.id/ytdown?url=${encodeURIComponent(youtubeUrl)}&format=mp4`;
+    const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
+    if (res?.data?.success && res?.data?.downloadURL) {
+        return {
+            download: res.data.downloadURL,
+            title: res.data.title
+        };
+    }
+    throw new Error('EliteProTech returned no download');
+}
+
+// Yupra API
+async function getYupraVideo(youtubeUrl) {
+    const apiUrl = `https://api.yupra.my.id/api/downloader/ytmp4?url=${encodeURIComponent(youtubeUrl)}`;
+    const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
+    if (res?.data?.success && res?.data?.data?.download_url) {
+        return {
+            download: res.data.data.download_url,
+            title: res.data.data.title,
+            thumbnail: res.data.data.thumbnail
+        };
+    }
+    throw new Error('Yupra returned no download');
+}
+
+// Okatsu API
+async function getOkatsuVideo(youtubeUrl) {
+    const apiUrl = `https://okatsu-rolezapiiz.vercel.app/downloader/ytmp4?url=${encodeURIComponent(youtubeUrl)}`;
+    const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
+    if (res?.data?.result?.mp4) {
+        return {
+            download: res.data.result.mp4,
+            title: res.data.result.title
+        };
+    }
+    throw new Error('Okatsu returned no download');
+}
+
+// Main fetchVideo function
+async function fetchVideo(youtubeUrl) {
+    const apiMethods = [
+        { name: 'EliteProTech', method: () => getEliteProTechVideo(youtubeUrl) },
+        { name: 'Yupra', method: () => getYupraVideo(youtubeUrl) },
+        { name: 'Okatsu', method: () => getOkatsuVideo(youtubeUrl) }
+    ];
+
+    for (const apiMethod of apiMethods) {
+        try {
+            console.log(`🔄 Trying ${apiMethod.name} for Video...`);
+            const result = await apiMethod.method();
+            if (result && result.download) {
+                console.log(`✅ ${apiMethod.name} successful!`);
+                return result;
+            }
+        } catch (err) {
+            console.warn(`❌ ${apiMethod.name} failed: ${err.message}`);
+            continue;
+        }
+    }
+    throw new Error("All Video download APIs failed.");
+}
 
 function wallpaper(title, page = '1') {
     return new Promise((resolve, reject) => {
@@ -72,4 +340,4 @@ function styletext(teks) {
     })
 }
 
-module.exports = { wallpaper, wikimedia, ringtone, styletext }
+module.exports = { wallpaper, fetchMp3, fetchVideo, wikimedia, ringtone, styletext }
