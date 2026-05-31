@@ -188,14 +188,6 @@ async function fetchMp3(youtubeUrl, returnBuffer = false) {
     throw new Error("All MP3 download APIs failed.");
 }
 
-const AXIOS_DEFAULTS = {
-    timeout: 60000,
-    headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'application/json, text/plain, */*'
-    }
-};
-
 async function tryRequest(getter, attempts = 3) {
     let lastError;
     for (let attempt = 1; attempt <= attempts; attempt++) {
