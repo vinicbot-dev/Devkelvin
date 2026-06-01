@@ -5139,7 +5139,7 @@ if (!text) return reply('.ytmp4 <YouTube URL>');
         try {
             await reply('⏳ Downloading video...');
             
-            const apiUrl = `https://apiskeith.top/download/mp4?url=${encodeURIComponent(text)}`;
+            const apiUrl = `${global.api}/download/mp4?url=${encodeURIComponent(text)}`;
             const res = await axios.get(apiUrl);
             const data = res.data;
             
@@ -6847,7 +6847,7 @@ case 'simplify': {
 
     try {
       
-        const apiUrl = `https://apiskeith.top/math/simplify?expr=${encodeURIComponent(expression)}`;
+        const apiUrl = `${global.api}/math/simplify?expr=${encodeURIComponent(expression)}`;
         const response = await axios.get(apiUrl, { timeout: 10000 });
         
         // Check response
@@ -6891,7 +6891,7 @@ case 'dictionary': {
 
     try {
         // Call the dictionary API
-        const apiUrl = `https://apiskeith.top/education/dictionary?q=${encodeURIComponent(word)}`;
+        const apiUrl = `${global.api}/education/dictionary?q=${encodeURIComponent(word)}`;
         const response = await axios.get(apiUrl, { timeout: 15000 });
         
         // Check response
@@ -6985,7 +6985,7 @@ case 'randompoem': {
 
     try {
         // the random poem API
-        const apiUrl = 'https://apiskeith.top/education/randompoem';
+        const apiUrl = `${global.api}/education/randompoem`;
         const response = await axios.get(apiUrl, { timeout: 15000 });
         
         // Check response
@@ -7040,7 +7040,7 @@ case 'fruitinfo': {
 
     try {
         // Call the fruit API
-        const apiUrl = `https://apiskeith.top/education/fruit?q=${encodeURIComponent(fruitName)}`;
+        const apiUrl = `${global.api}/education/fruit?q=${encodeURIComponent(fruitName)}`;
         const response = await axios.get(apiUrl, { timeout: 10000 });
         
         // Check response
@@ -7098,7 +7098,7 @@ case 'booksearch': {
 
     try {
         // Call the book search API
-        const apiUrl = `https://apiskeith.top/education/booksearch?q=${encodeURIComponent(query)}`;
+        const apiUrl = `${global.api}/education/booksearch?q=${encodeURIComponent(query)}`;
         const response = await axios.get(apiUrl, { timeout: 15000 });
         
         // Check response
