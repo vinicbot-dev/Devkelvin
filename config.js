@@ -64,7 +64,7 @@ global.AI_CHAT = "false"; // Set to "true" to enable AI chatbot by default
 
 // ========= Add modeStatus and versions ========= //
 global.modeStatus = "Public";
-global.versions = "1.5.5";
+global.versions = "1.5.6";
 
 // ========= Setting WM ========= //
 global.packname = '★⃝𝐉𝐄𝐗𝐏𝐋𝐎𝐈𝐓';
