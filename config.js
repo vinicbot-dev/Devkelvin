@@ -72,7 +72,7 @@ global.author = 'BOT';
 global.wm = '©★⃝𝐉𝐄𝐗𝐏𝐋𝐎𝐈𝐓 is awesome 🔥';
 
 // === For only developer ============
-global.api = "https://apiskeith.top";
+global.api = "https://ravenn.site";
 global.KevinApi = "mvn_988e8fc44c89ad6e537bb683e681afe6";
 global.wwe = "https://www.wwe.com/api/news";
 global.wwe1 = "https://www.thesportsdb.com/api/v1/json/3/searchfilename.php?e=wwe";
