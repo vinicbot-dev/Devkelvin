@@ -116,6 +116,7 @@ const { ButtonHandler } = require('./lib/buttonHandler');
 const { encryptCommand } = require('./utility/encrypt');
 const { handleDemote } = require('./utility/antidemote');
 const { handlePromote } = require('./utility/antipromote');
+const { sendPTT } = require('./utility/kevptt');
 
 
 module.exports = conn = async (conn, m, chatUpdate, mek, store) => {
