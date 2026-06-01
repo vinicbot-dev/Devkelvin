@@ -383,15 +383,6 @@ Usage:
       upload: 'N/A'    // You can implement actual measurement here
     };
   }
-//*---------------------------------------------------------------*//
-
-
-
-
-
-//<================================================>//
-
-
 
 // Validate connection object
 function isValidConn(conn) {
@@ -401,6 +392,30 @@ function isValidConn(conn) {
            typeof conn.decodeJid === 'function' &&
            conn.user && 
            conn.user.id;
+}
+
+// Helper for PTV command
+function getTempDir() {
+    const tempDir = path.join(__dirname, '../temp');
+    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+    return tempDir;
+}
+
+function deleteTempFile(filePath) {
+    try {
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    } catch (e) {}
+}
+
+function probeDuration(filePath) {
+    return new Promise((resolve) => {
+        exec(`${ffmpegPath} -i ${filePath} 2>&1`, (err, stdout, stderr) => {
+            const output = stderr || stdout || '';
+            const m = output.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/);
+            if (!m) return resolve(0);
+            resolve((+m[1]) * 3600 + (+m[2]) * 60 + parseFloat(m[3]));
+        });
+    });
 }
 
 
@@ -2357,14 +2372,13 @@ case "searchgithub": {
 }
 break
 case "alive": {
-     const serverUptime = getServerUptime();
+    const serverUptime = getServerUptime();
     
     const imageUrls = [
         "./start/lib/Media/Jexploit1.jpg",
         "./start/lib/Media/Jexploit2.jpg"   
     ];
     
-    // Array of audio URLs
     const audioUrls = [
         './start/lib/Media/JexAudio2.mp3',
         './start/lib/Media/JexAudio3.mp3',
@@ -2372,13 +2386,10 @@ case "alive": {
         './start/lib/Media/JexAudio6.mp3'
     ];
     
-    // Randomly select an image URL
     const randomImageUrl = imageUrls[Math.floor(Math.random() * imageUrls.length)];
-    
-    // Randomly select an audio URL
     const randomAudioUrl = audioUrls[Math.floor(Math.random() * audioUrls.length)];
     
-    // Send the randomly selected image with caption
+    // Send image with caption
     await conn.sendMessage(
         m.chat, 
         { 
@@ -2388,30 +2399,21 @@ case "alive": {
         { quoted: m }
     ).catch(err => {
         console.error('Image failed:', err.message);
-        // Fallback if image fails
         return conn.sendMessage(m.chat, {
             text: `*🌹Hi. I am 👑 Jexploit, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime:${serverUptime}*`
         }, { quoted: m });
     });
     
-    // Send the randomly selected audio as audio (not PTT)
-    await conn.sendMessage(
-        m.chat,
-        {
-            audio: { url: randomAudioUrl },
-            mimetype: 'audio/mpeg'  
-        },
-        { quoted: m }
-    ).catch(err => console.error('Audio failed:', err.message)); 
+    // Send audio as PTT
+    await sendPTT(conn, m.chat, randomAudioUrl, m);
     
     break;
 }
-
 case 'botinfo': {
     const botInfo = `
 ╭─ ⌬ Bot Info
-│ • Name     : ${botname}
-│ • Owner    : ${ownername}
+│ • Name     : ${global.botname}
+│ • Owner    : ${global.ownername}
 │ • Version  : ${global.versions}
 │ • ᴄᴍᴅs    : 100+
 │ • Developer: Kelvin tech
@@ -2423,7 +2425,6 @@ case 'botinfo': {
         "./start/lib/Media/Jexploit2.jpg"
     ];
     
-    // Array of audio URLs
     const audioUrls = [
         './start/lib/Media/JexAudio1.mp3',
         './start/lib/Media/JexAudio2.mp3',
@@ -2436,11 +2437,9 @@ case 'botinfo': {
     ];
     
     const randomImageUrl = imageUrls[Math.floor(Math.random() * imageUrls.length)];
-    
-    // Randomly select an audio URL
     const randomAudioUrl = audioUrls[Math.floor(Math.random() * audioUrls.length)];
     
-    // Send the image with caption
+    // Send image with caption
     await conn.sendMessage(
         m.chat, 
         { 
@@ -2450,23 +2449,15 @@ case 'botinfo': {
         { quoted: m }
     ).catch(err => {
         console.error('Image failed:', err.message);
-        // Fallback if image fails
         return conn.sendMessage(m.chat, {
             text: `*🌹Hi. I am 👑 Jexploit, a friendly WhatsApp bot.*${botInfo}`
         }, { quoted: m });
     });
     
-    // Send the randomly selected audio as audio
-    await conn.sendMessage(
-        m.chat,
-        {
-            audio: { url: randomAudioUrl },
-            mimetype: 'audio/mpeg'  // Fixed mimetype
-        },
-        { quoted: m }
-    ).catch(err => console.error('Audio failed:', err.message));
+    // Send audio as PTT
+    await sendPTT(conn, m.chat, randomAudioUrl, m);
     
-    break;
+   
 }
 break
 case "bothosting": {
@@ -4950,41 +4941,19 @@ try {
     }
 }
 break
-case 'play3':
-case 'xplay': {
-    if (!text) return reply(`Example: ${prefix}${command} Winnie Nwagi Malaika`);
+case 'play3': {
+    if (!text) return reply(`Example: ${prefix}play3 kunsi by vyroota`);
 
     try {
-        await reply(`🔍 Searching for "${text}"...`);
-
-        const searchResult = await yts(text);
-        if (!searchResult?.videos?.length) {
-            return reply(`❌ No results found for "${text}"`);
-        }
-
-        const video = searchResult.videos[0];
-        const videoUrl = video.url;
-
         await conn.sendMessage(m.chat, {
-            react: { text: '⏳', key: m.key }
+            react: { text: '🔍', key: m.key }
         });
 
-        // Fetch MP3 with buffer conversion (guarantees MP3 format)
-        const result = await fetchMp3(videoUrl, true);
-
-        await conn.sendMessage(m.chat, {
-            audio: result.buffer,
-            mimetype: 'audio/mpeg',
-            fileName: `${result.title.replace(/[^\w\s]/gi, '')}.mp3`,
-            caption: `🎵 *${result.title}*\n⏱ ${result.duration || 'Unknown'} | 🎚 ${result.quality || '128kbps'}\n\n> Powered by JEXPLOIT`
-        }, { quoted: m });
-
-        await conn.sendMessage(m.chat, {
-            react: { text: '✅', key: m.key }
-        });
+        // Call the songCommand function
+        await fetchMp3(conn, m.chat, m);
 
     } catch (error) {
-        console.error('Song error:', error.message);
+        console.error('Song command error:', error);
         reply(`❌ Error: ${error.message}`);
     }
 }
@@ -5213,7 +5182,7 @@ case 'video2': {
             video: { url: result.download },
             mimetype: 'video/mp4',
             fileName: `${result.title.replace(/[^\w\s]/gi, '')}.mp4`,
-            caption: `🎬 *${result.title}*\n\n> Powered by JEXPLOIT`
+            caption: `🎬 *${result.title}*\n\n> ${global.wm}`
         }, { quoted: m });
 
         await conn.sendMessage(m.chat, {
@@ -8209,7 +8178,115 @@ case "tovideo": {
       reply('❌ Failed to convert sticker to video. Please try again later.');
     }
 }
+break
+case "videonote":
+case "tovideonote":
+case "ptv":
+case "tovn": {
+const MAX_DURATION = 60;
+        const SIZE = 480;
+        const ts = Date.now();
+        const inputFile = path.join(getTempDir(), `ptv_in_${ts}.tmp`);
+        const outputFile = path.join(getTempDir(), `ptv_out_${ts}.mp4`);
 
+        try {
+            await conn.sendMessage(m.chat, { react: { text: '🎥', key: m.key } });
+
+            // FIXED: Better detection for quoted video
+            let sourceMsg = null;
+            
+            // Check if replying to a message
+            if (m.quoted) {
+                // Check if quoted message is a video
+                if (m.quoted.mtype === 'videoMessage') {
+                    sourceMsg = m.quoted;
+                }
+                // Check if quoted message has video message
+                else if (m.quoted.msg?.videoMessage) {
+                    sourceMsg = m.quoted;
+                }
+                // Check if quoted message is a document (might be video)
+                else if (m.quoted.mtype === 'documentMessage' && m.quoted.mimetype?.includes('video')) {
+                    sourceMsg = m.quoted;
+                }
+            }
+            
+            // If no quoted message, check if the current message is a video
+            if (!sourceMsg && m.mtype === 'videoMessage') {
+                sourceMsg = m;
+            }
+
+            if (!sourceMsg) {
+                await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+                return reply(`❌ Reply to a *video* (or gif) with *${prefix + command}* to convert it to a video note.`);
+            }
+
+            const buf = await sourceMsg.download();
+            if (!buf || buf.length === 0) throw new Error('Failed to download the video.');
+
+            fs.writeFileSync(inputFile, buf);
+
+            // Check duration; cap to 60s if longer
+            const duration = await probeDuration(inputFile);
+            const trimArgs = duration > MAX_DURATION ? ['-t', String(MAX_DURATION)] : [];
+
+            // ffmpeg: scale-then-crop to square, H.264, AAC, faststart
+            const vfilter = `scale=${SIZE}:${SIZE}:force_original_aspect_ratio=increase,crop=${SIZE}:${SIZE}`;
+
+            const ffArgs = [
+                '-y',
+                '-i', inputFile,
+                ...trimArgs,
+                '-vf', vfilter,
+                '-c:v', 'libx264',
+                '-preset', 'veryfast',
+                '-crf', '28',
+                '-pix_fmt', 'yuv420p',
+                '-r', '30',
+                '-c:a', 'aac',
+                '-b:a', '96k',
+                '-ac', '2',
+                '-ar', '44100',
+                '-movflags', '+faststart',
+                '-f', 'mp4',
+                outputFile,
+            ];
+
+            await new Promise((resolve, reject) => {
+                exec('ffmpeg ' + ffArgs.join(' '), (error, stdout, stderr) => {
+                    if (error) {
+                        const tail = (stderr || '').split('\n').slice(-4).join(' ').trim();
+                        return reject(new Error(`FFmpeg failed: ${tail || error.message}`));
+                    }
+                    resolve();
+                });
+            });
+
+            if (!fs.existsSync(outputFile) || fs.statSync(outputFile).size === 0) {
+                throw new Error('Conversion produced an empty file.');
+            }
+
+            const outBuf = fs.readFileSync(outputFile);
+
+            // Send as WhatsApp PTV (video note)
+            await conn.sendMessage(m.chat, {
+                video: outBuf,
+                ptv: true,
+                mimetype: 'video/mp4',
+            }, { quoted: m });
+
+            await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+        } catch (error) {
+            console.error('[PTV] Error:', error);
+            await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+            reply(`🚫 PTV error: ${error.message}`);
+        } finally {
+            [inputFile, outputFile].forEach(f => {
+                try { if (fs.existsSync(f)) fs.unlinkSync(f); } catch (_) {}
+            });
+        }
+}
 break
 case "toimage": {
 const quoted = m.quoted || m.msg?.quoted;
