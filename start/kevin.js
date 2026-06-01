@@ -14,6 +14,7 @@ const os = require('os')
 const fg = require('api-dylux')
 const PDFDocument = require('pdfkit')
 const path = require('path')
+const ffmpegPath = require('ffmpeg-static');
 const { getDevice } = require('@whiskeysockets/baileys')
 const fsp = fs.promises;
 const lolcatjs = require('lolcatjs')
