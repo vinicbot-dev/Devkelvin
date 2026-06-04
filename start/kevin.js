@@ -410,12 +410,10 @@ function deleteTempFile(filePath) {
 }
 
 function probeDuration(filePath) {
-    return new Promise((resolve) => {
-        exec(`${ffmpegPath} -i ${filePath} 2>&1`, (err, stdout, stderr) => {
-            const output = stderr || stdout || '';
-            const m = output.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/);
-            if (!m) return resolve(0);
-            resolve((+m[1]) * 3600 + (+m[2]) * 60 + parseFloat(m[3]));
+    return new Promise((resolve, reject) => {
+        ffmpeg.ffprobe(filePath, (err, metadata) => {
+            if (err) return reject(err);
+            resolve(metadata.format.duration || 0);
         });
     });
 }
@@ -8228,41 +8226,8 @@ const MAX_DURATION = 60;
 
             fs.writeFileSync(inputFile, buf);
 
-            // Check duration; cap to 60s if longer
-            const duration = await probeDuration(inputFile);
-            const trimArgs = duration > MAX_DURATION ? ['-t', String(MAX_DURATION)] : [];
-
-            // ffmpeg: scale-then-crop to square, H.264, AAC, faststart
-            const vfilter = `scale=${SIZE}:${SIZE}:force_original_aspect_ratio=increase,crop=${SIZE}:${SIZE}`;
-
-            const ffArgs = [
-                '-y',
-                '-i', inputFile,
-                ...trimArgs,
-                '-vf', vfilter,
-                '-c:v', 'libx264',
-                '-preset', 'veryfast',
-                '-crf', '28',
-                '-pix_fmt', 'yuv420p',
-                '-r', '30',
-                '-c:a', 'aac',
-                '-b:a', '96k',
-                '-ac', '2',
-                '-ar', '44100',
-                '-movflags', '+faststart',
-                '-f', 'mp4',
-                outputFile,
-            ];
-
-            await new Promise((resolve, reject) => {
-                exec('ffmpeg ' + ffArgs.join(' '), (error, stdout, stderr) => {
-                    if (error) {
-                        const tail = (stderr || '').split('\n').slice(-4).join(' ').trim();
-                        return reject(new Error(`FFmpeg failed: ${tail || error.message}`));
-                    }
-                    resolve();
-                });
-            });
+            // Convert using fluent-ffmpeg
+            await convertToVideoNote(inputFile, outputFile, MAX_DURATION, SIZE);
 
             if (!fs.existsSync(outputFile) || fs.statSync(outputFile).size === 0) {
                 throw new Error('Conversion produced an empty file.');
