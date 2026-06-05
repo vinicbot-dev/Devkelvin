@@ -1756,7 +1756,11 @@ case "status": {
         statusemoji,
         welcome,
         adminevent,
-        menuStyleDb
+        menuStyleDb,
+        ownername,
+        ownernumber,
+        botname,
+        botversion
     ] = await Promise.all([
         db.get(botNumber, 'prefix', '.'),
         db.get(botNumber, 'mode', 'public'),
@@ -1780,13 +1784,21 @@ case "status": {
         db.get(botNumber, 'statusemoji', '💚'),
         db.get(botNumber, 'welcome', false),
         db.get(botNumber, 'adminevent', false),
-        db.get(botNumber, 'menustyle', 'button')
+        db.get(botNumber, 'menustyle', 'button'),
+        db.get(botNumber, 'ownername', 'Not set'),
+        db.get(botNumber, 'ownernumber', 'Not set'),
+        db.get(botNumber, 'botname', global.botname || 'JEXPLOIT'),
+        db.get(botNumber, 'botversion', global.versions || '1.5.6')
     ]);
 
     const getStatus = (value, trueText = 'ON', falseText = 'OFF') => value ? trueText : falseText;
     const getModeStatus = (value, offText = 'OFF') => value !== 'off' ? `ON (${value})` : offText;
 
     let settingsMsg = `⚙️ *Current Bot Settings:*\n\n`;
+    settingsMsg += `🔸 *bot name*: ${botname}\n`;
+    settingsMsg += `🔸 *version*: ${botversion}\n`;
+    settingsMsg += `🔸 *owner name*: ${ownername}\n`;
+    settingsMsg += `🔸 *owner number*: ${ownernumber}\n`;
     settingsMsg += `🔸 *prefix*: ${prefix}\n`;
     settingsMsg += `🔸 *mode*: ${mode}\n`;
     settingsMsg += `🔸 *menu style*: ${menuStyleDb}\n`;
