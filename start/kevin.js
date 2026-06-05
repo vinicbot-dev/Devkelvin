@@ -1735,6 +1735,7 @@ case "status": {
     // Fetch all settings from SQLite
     const [
         prefix,
+        mode,
         alwaysonline,
         antidelete,
         antiedit,
@@ -1754,9 +1755,11 @@ case "status": {
         autoreactstatus,
         statusemoji,
         welcome,
-        adminevent
+        adminevent,
+        menuStyleDb
     ] = await Promise.all([
         db.get(botNumber, 'prefix', '.'),
+        db.get(botNumber, 'mode', 'public'),
         db.get(botNumber, 'alwaysonline', false),
         db.get(botNumber, 'antidelete', 'off'),
         db.get(botNumber, 'antiedit', 'off'),
@@ -1776,27 +1779,33 @@ case "status": {
         db.get(botNumber, 'autoreactstatus', false),
         db.get(botNumber, 'statusemoji', '💚'),
         db.get(botNumber, 'welcome', false),
-        db.get(botNumber, 'adminevent', false)
+        db.get(botNumber, 'adminevent', false),
+        db.get(botNumber, 'menustyle', 'button')
     ]);
 
-    let settingsMsg = `*📊 BOT SETTINGS STATUS*\n\n`;
-    settingsMsg += `🔸 Prefix: ${prefix}\n`;
-    settingsMsg += `🔸 Always Online: ${alwaysonline ? 'True' : 'False'}\n`;
-    settingsMsg += `🔸 Anti-Delete: ${antidelete !== 'off' ? 'True (' + antidelete + ')' : 'False'}\n`;
-    settingsMsg += `🔸 Anti-Edit: ${antiedit !== 'off' ? 'True (' + antiedit + ')' : 'False'}\n`;
-    settingsMsg += `🔸 Anti-Call: ${anticall !== 'off' ? 'True (' + anticall + ')' : 'False'}\n`;
-    settingsMsg += `🔸 Anti-Link: ${antilinkdelete ? 'True (' + antilinkaction + ')' : 'False'}\n`;
-    settingsMsg += `🔸 Anti-Badword: ${antibadword ? 'True (' + antibadwordaction + ')' : 'False'}\n`;
-    settingsMsg += `🔸 Anti-Tag: ${antitag ? 'True (' + antitagaction + ')' : 'False'}\n`;
-    settingsMsg += `🔸 Auto-Recording: ${autorecording ? 'True' : 'False'}\n`;
-    settingsMsg += `🔸 Auto-Typing: ${autoTyping ? 'True' : 'False'}\n`;
-    settingsMsg += `🔸 Auto-Read: ${autoread ? 'True' : 'False'}\n`;
-    settingsMsg += `🔸 Auto-React: ${autoreact ? 'True' : 'False'}\n`;
-    settingsMsg += `🔸 AI Chatbot: ${AI_CHAT ? 'True' : 'False'}\n`;
-    settingsMsg += `🔸 Auto-View Status: ${autoviewstatus ? 'True' : 'False'}\n`;
-    settingsMsg += `🔸 Auto-React Status: ${autoreactstatus ? 'True (' + statusemoji + ')' : 'False'}\n`;
-    settingsMsg += `🔸 Welcome Message: ${welcome ? 'True' : 'False'}\n`;
-    settingsMsg += `🔸 Admin Events: ${adminevent ? 'True' : 'False'}`;
+    const getStatus = (value, trueText = 'ON', falseText = 'OFF') => value ? trueText : falseText;
+    const getModeStatus = (value, offText = 'OFF') => value !== 'off' ? `ON (${value})` : offText;
+
+    let settingsMsg = `⚙️ *Current Bot Settings:*\n\n`;
+    settingsMsg += `🔸 *prefix*: ${prefix}\n`;
+    settingsMsg += `🔸 *mode*: ${mode}\n`;
+    settingsMsg += `🔸 *menu style*: ${menuStyleDb}\n`;
+    settingsMsg += `🔸 *alwaysonline*: ${getStatus(alwaysonline)}\n`;
+    settingsMsg += `🔸 *antidelete*: ${getModeStatus(antidelete)}\n`;
+    settingsMsg += `🔸 *antiedit*: ${getModeStatus(antiedit)}\n`;
+    settingsMsg += `🔸 *anticall*: ${getModeStatus(anticall)}\n`;
+    settingsMsg += `🔸 *antilink*: ${getStatus(antilinkdelete)} ${antilinkdelete ? `(${antilinkaction})` : ''}\n`;
+    settingsMsg += `🔸 *antibadword*: ${getStatus(antibadword)} ${antibadword ? `(${antibadwordaction})` : ''}\n`;
+    settingsMsg += `🔸 *antitag*: ${getStatus(antitag)} ${antitag ? `(${antitagaction})` : ''}\n`;
+    settingsMsg += `🔸 *autorecording*: ${getStatus(autorecording)}\n`;
+    settingsMsg += `🔸 *autotyping*: ${getStatus(autoTyping)}\n`;
+    settingsMsg += `🔸 *autoread*: ${getStatus(autoread)}\n`;
+    settingsMsg += `🔸 *autoreact*: ${getStatus(autoreact)}\n`;
+    settingsMsg += `🔸 *chatbot*: ${getStatus(AI_CHAT)}\n`;
+    settingsMsg += `🔸 *autoviewstatus*: ${getStatus(autoviewstatus)}\n`;
+    settingsMsg += `🔸 *autoreactstatus*: ${getStatus(autoreactstatus)} ${autoreactstatus ? `(${statusemoji})` : ''}\n`;
+    settingsMsg += `🔸 *welcome*: ${getStatus(welcome)}\n`;
+    settingsMsg += `🔸 *adminevent*: ${getStatus(adminevent)}`;
     
     reply(settingsMsg);
     break;
