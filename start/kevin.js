@@ -7358,6 +7358,65 @@ case 'textsticker': {
     }
     
 }
+break
+case "texttovideo":
+case "text2video":
+case "aivideo": {
+if (!args.length) {
+            return reply(`🎬 *AI Video Generator*\n\nUsage: *${prefix + command} <prompt>*\n\nExample:\n${prefix + command} A cat surfing on a rainbow`);
+        }
+
+        // Get the full prompt from args
+        const prompt = args.join(' ');
+        
+        // Optional: Check for aspect ratio in args (e.g., --16:9)
+        let aspect = '9:16'; // default
+        let cleanPrompt = prompt;
+        
+        if (prompt.includes('--')) {
+            const parts = prompt.split('--');
+            cleanPrompt = parts[0].trim();
+            const aspectArg = parts[1]?.trim();
+            if (['16:9', '9:16', '1:1'].includes(aspectArg)) {
+                aspect = aspectArg;
+            }
+        }
+
+        // Send initial processing message
+        await conn.sendMessage(m.chat, { 
+            text: `🎥 *Generating AI Video...*\n\n📝 *Prompt:* ${cleanPrompt}\n📐 *Aspect:* ${aspect}\n⏳ *Please wait (5-30 seconds)...*`,
+            react: { text: '🎬', key: m.key }
+        });
+
+        try {
+            // Call the API
+            const apiUrl = `https://text2video.officialhectormanuel.workers.dev/generate?prompt=${encodeURIComponent(cleanPrompt)}&aspect=${aspect}`;
+            
+            const response = await fetch(apiUrl);
+            const data = await response.json();
+
+            if (!data.status || !data.download_url) {
+                throw new Error('API returned error');
+            }
+
+            // Download the generated video
+            const videoBuffer = await getBuffer(data.download_url);
+            
+            // Send the video
+            await conn.sendMessage(m.chat, {
+                video: videoBuffer,
+                caption: `🎬 *Ai video generated successfully*`,
+                mimetype: 'video/mp4'
+            }, { quoted: m });
+
+            // React with success
+            await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+        } catch (error) {
+            console.error('AI Video Error:', error);
+            reply(`❌ *Failed to generate video*\n\nPlease try again later or use a different prompt.\n\n*Tip:* Keep prompts short and descriptive.`);
+        }
+} 
 break; 
 case "xvideos":{
     if (!q) return m.reply(`Example: ${prefix + command} anime`);
