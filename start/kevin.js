@@ -1150,6 +1150,39 @@ case "setprofilename": {
     }
 }
 break
+case 'forward': {
+    if (!Access) return reply(mess.owner);
+
+    if (!m.quoted) return reply("❌ Please reply to a message, image, or video you want to forward.");
+
+    if (!text) return reply(`❌ Please provide a phone number.\n\n*Usage:* ${prefix}forward 2567xxxxxxx\n*Note:* You can also tag a user.`);
+
+    let targetJid;
+    if (m.mentionedJid[0]) {
+        targetJid = m.mentionedJid[0];
+    } else {
+        let number = text.replace(/[^0-9]/g, '');
+        if (number.length < 7) return reply("❌ The number provided is too short.");
+        targetJid = number + '@s.whatsapp.net';
+    }
+
+    try {
+        await conn.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
+
+        let fullMsg = m.quoted.vM || m.quoted.fakeObj || m.quoted;
+
+        await conn.copyNForward(targetJid, fullMsg, true);
+
+        reply(`✅ Successfully forwarded to @${targetJid.split('@')[0]}`);
+        await conn.sendMessage(m.chat, { react: { text: "🚀", key: m.key } });
+
+    } catch (error) {
+        console.error('Forward Error:', error);
+        reply("Failed to forward. The number might be incorrect or not registered on WhatsApp.");
+        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+    }
+}
+break
 case "setabout": {
     try {
         const sender = m.sender;
@@ -1364,30 +1397,6 @@ let length = text ? parseInt(text) : 12;
     }
 }
 break
-case "block": {
-    if (!Access) return reply(mess.owner);
-    
-    if (!m.quoted && !mentionedJid[0]) {
-        return reply(`Reply to a user message to block them with ${prefix}block`);
-    }
-    
-    const userId = m.mentionedJid[0] || m.quoted?.sender;
-    
-    try {
-        await conn.sendMessage(m.chat, {
-            react: { text: "🚫", key: m.key }
-        });
-        
-        await conn.updateBlockStatus(userId, "block");
-        
-        reply(`✅ Blocked ${userId}`);
-    } catch (error) {
-        console.error('Error blocking user:', error);
-        reply(`Failed to block user: ${error.message}`);
-    }
-    
-}
-break
 case "public": {
 if (!Access) return reply(mess.owner) 
 conn.public = true
@@ -1448,13 +1457,99 @@ if (!Access) return reply(mess.owner);
   }
 }
 break
-case "unblock": {
-if (!Access) return reply(mess.owner);
-    if (!m.quoted && !m.mentionedJid[0] && !text) return reply("Reply to a message or mention/user ID to unblock");
+case "block": {
+    if (!Access) return reply(mess.owner);
 
-    const userId = m.mentionedJid[0] || m.quoted?.sender || text.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
-    await conn.updateBlockStatus(userId, "unblock");
-    reply(mess.done);
+    const targets = new Set();
+
+    // 1. Handle Mentions (e.g. .block @user1 @user2)
+    if (m.mentionedJid && m.mentionedJid.length > 0) {
+        m.mentionedJid.forEach(jid => targets.add(jid));
+    }
+
+    // 2. Handle Quoted Message (Replying to someone)
+    if (m.quoted) {
+        targets.add(m.quoted.sender);
+    }
+
+    // 3. Handle Phone Numbers in text (e.g. .block 2567xxx 2567yyy)
+    if (text) {
+        const words = text.split(/[\s,]+/);
+        words.forEach(word => {
+            let digits = word.replace(/[^0-9]/g, '');
+            if (digits.length >= 7) {
+                targets.add(digits + '@s.whatsapp.net');
+            }
+        });
+    }
+
+    if (targets.size === 0) {
+        return reply("❌ Please tag someone, reply to a message, or type a phone number to block.");
+    }
+
+    const success = [];
+    const failed = [];
+
+    // Processing the block list
+    for (let jid of targets) {
+        // Remove device suffixes (e.g. 1234@s.whatsapp.net:1 -> 1234@s.whatsapp.net)
+        // This is crucial for LID and standard JIDs to work
+        let cleanJid = jid.split(':')[0].includes('@') ? jid.split(':')[0] : jid;
+
+        if (cleanJid === botNumber) continue; // Don't block yourself
+
+        try {
+            await conn.updateBlockStatus(cleanJid, "block");
+            success.push(cleanJid);
+        } catch (err) {
+            console.error(`Block failed for ${cleanJid}:`, err);
+            failed.push(cleanJid);
+        }
+    }
+
+    // Prepare response
+    let responseText = "";
+    if (success.length > 0) {
+        responseText += `✅ *Blocked (${success.length}):*\n` + 
+                        success.map(j => `• @${j.split('@')[0]}`).join('\n');
+    }
+    if (failed.length > 0) {
+        if (responseText) responseText += "\n\n";
+        responseText += `❌ *Failed (${failed.length}):*\n` + 
+                        failed.map(j => `• @${j.split('@')[0]}`).join('\n');
+    }
+
+    await conn.sendMessage(m.chat, {
+        text: responseText.trim(),
+        mentions: [...success, ...failed]
+    }, { quoted: m });
+}
+break;
+case 'unblock': {
+    if (!Access) return reply(mess.owner);
+    const targets = new Set();
+
+    if (m.mentionedJid && m.mentionedJid.length > 0) {
+        m.mentionedJid.forEach(jid => targets.add(jid));
+    }
+    if (m.quoted) targets.add(m.quoted.sender);
+    if (text) {
+        const words = text.split(/[\s,]+/);
+        words.forEach(word => {
+            let digits = word.replace(/[^0-9]/g, '');
+            if (digits.length >= 7) targets.add(digits + '@s.whatsapp.net');
+        });
+    }
+
+    if (targets.size === 0) return reply("❌ Who should I unblock?");
+
+    for (let jid of targets) {
+        let cleanJid = jid.split(':')[0];
+        try {
+            await conn.updateBlockStatus(cleanJid, "unblock");
+        } catch (e) {}
+    }
+    reply(`✅ Unblock process finished.`);
 }
 break
 case "restart":
@@ -9428,12 +9523,14 @@ case 'inactiveusers': {
         
         const inactiveUsers = await GroupDB.getInactiveUsers(from, allParticipants);
         
-        if (!inactiveUsers.length) {
-            return reply('*✅ No inactive users found!*\n\nAll members have sent messages.');
+        if (!inactiveUsers || inactiveUsers.length === 0) {
+            return reply('*✅ No inactive users found!*\n\nAll members have sent at least one message since I joined.');
         }
         
-        let message = `⚠️ *INACTIVE USERS - ${groupName || 'This Group'}*\n\n`;
-        message += `_Users who haven't sent any messages:_\n\n`;
+        let message = `⚠️ *INACTIVE USERS - ${groupName}*\n\n`;
+        message += `_Users who haven't sent any messages since tracking began:_\n\n`;
+        
+        // Format the list with mentions
         message += inactiveUsers.map((user, i) => `🔹 ${i + 1}. @${user.split('@')[0]}`).join('\n');
         message += `\n\n📊 *Total inactive:* ${inactiveUsers.length}`;
 
@@ -9444,9 +9541,9 @@ case 'inactiveusers': {
         
     } catch (error) {
         console.error('Error in listinactive command:', error);
-        reply('*Error fetching group data!*');
+        reply('*Error fetching group data from database!*');
     }
-    break;
+    
 }
 break
 case 'groupactivity':
