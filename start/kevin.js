@@ -127,7 +127,6 @@ const budy = (typeof m.text === 'string' ? m.text : '')
 var textmessage = (m.mtype == 'listResponseMessage') ? m.message.listResponseMessage.singleSelectReply.selectedRowId : (m.mtype == 'messageContextInfo') ? (m.message.buttonsResponseMessage?.selectedButtonId || m.message.listResponseMessage?.singleSelectReply.selectedRowId || budy) : ""
 const content = JSON.stringify(mek.message)
 const type = Object.keys(mek.message)[0]
-if (m && type == "protocolMessage") conn.ev.emit("message.delete", m.message.protocolMessage.key)
 if (m.message && m.key && !m.key.fromMe) {
     storeMessage(m.chat, m.key.id, {
         key: m.key,
@@ -418,7 +417,37 @@ function probeDuration(filePath) {
     });
 }
 
+const worldcupAudios = [
+    './start/lib/Media/sports/worldcup.mp3',
+    './start/lib/Media/sports/worldcup2.mp3',
+    './start/lib/Media/sports/worldcup3.mp3',
+    './start/lib/Media/sports/worldcup4.mp3',
+    './start/lib/Media/sports/worldcup5.mp3'
+];
 
+// Cache to store last selected index
+let lastIndex = -1;
+
+function getRandomAudio() {
+    // Get random index different from last one
+    let newIndex;
+    do {
+        newIndex = Math.floor(Math.random() * worldcupAudios.length);
+    } while (newIndex === lastIndex && worldcupAudios.length > 1);
+    
+    lastIndex = newIndex;
+    const selected = worldcupAudios[newIndex];
+    
+    // Verify file exists before returning
+    if (!fs.existsSync(selected)) {
+        console.warn(`⚠️ Audio file missing: ${selected}`);
+        // Return first available as fallback
+        return worldcupAudios[0];
+    }
+    
+    console.log(`🎵 Playing: ${selected.split('/').pop()}`);
+    return selected;
+}
 
 //================== [ CONSOLE LOG] ==================//
 const dayz = moment(Date.now()).tz(`${timezones}`).locale('en').format('dddd');
@@ -4597,299 +4626,359 @@ const text = args.join(" ");
 }
 break
 case 'eplstandings':
-  case 'plstandings':
-  case 'premierleaguestandings':
+case 'plstandings':
+case 'premierleaguestandings':
     await sports.formatStandings('PL', 'Premier League', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'clstandings':
-  case 'championsleague':
+case 'clstandings':
+case 'championsleague':
     await sports.formatStandings('CL', 'UEFA Champions League', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'laligastandings':
-  case 'laliga':
+case 'laligastandings':
+case 'laliga':
     await sports.formatStandings('PD', 'La Liga', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'bundesligastandings':
-  case 'bundesliga':
+case 'bundesligastandings':
+case 'bundesliga':
     await sports.formatStandings('BL1', 'Bundesliga', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'serieastandings':
-  case 'seriea':
+case 'serieastandings':
+case 'seriea':
     await sports.formatStandings('SA', 'Serie A', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'ligue1standings':
-  case 'ligue1':
+case 'ligue1standings':
+case 'ligue1':
     await sports.formatStandings('FL1', 'Ligue 1', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'elstandings':
-  case 'europaleague':
+case 'elstandings':
+case 'europaleague':
     await sports.formatStandings('EL', 'Europa League', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'eflstandings':
-  case 'championship':
+case 'eflstandings':
+case 'championship':
     await sports.formatStandings('ELC', 'EFL Championship', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'wcstandings':
-  case 'worldcup':
+case 'wcstandings':
+case 'worldcup':
     await sports.formatStandings('WC', 'World Cup', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'eurosstandings':
+case 'eurosstandings':
     await sports.formatStandings('EUROS', 'Euros', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'fifastandings':
+case 'fifastandings':
     await sports.formatStandings('FIFA', 'FIFA World Cup', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
 
-  // ===== MATCHES COMMANDS =====
-  case 'eplmatches':
-  case 'plmatches':
+// ===== MATCHES COMMANDS =====
+case 'eplmatches':
+case 'plmatches':
     await sports.formatMatches('PL', 'Premier League', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'clmatches':
-  case 'championsleaguematches':
+case 'clmatches':
+case 'championsleaguematches':
     await sports.formatMatches('CL', 'UEFA Champions League', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'laligamatches':
-  case 'pdmatches':
+case 'laligamatches':
+case 'pdmatches':
     await sports.formatMatches('PD', 'La Liga', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'bundesligamatches':
-  case 'bl1matches':
+case 'bundesligamatches':
+case 'bl1matches':
     await sports.formatMatches('BL1', 'Bundesliga', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'serieamatches':
-  case 'samatches':
+case 'serieamatches':
+case 'samatches':
     await sports.formatMatches('SA', 'Serie A', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'ligue1matches':
-  case 'fl1matches':
+case 'ligue1matches':
+case 'fl1matches':
     await sports.formatMatches('FL1', 'Ligue 1', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'elmatches':
-  case 'europaleaguematches':
+case 'elmatches':
+case 'europaleaguematches':
     await sports.formatMatches('EL', 'Europa League', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'eflmatches':
-  case 'elcmatches':
+case 'eflmatches':
+case 'elcmatches':
     await sports.formatMatches('ELC', 'EFL Championship', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'wcmatches':
-  case 'worldcupmatches':
+case 'wcmatches':
+case 'worldcupmatches':
     await sports.formatMatches('WC', 'World Cup', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'euromatches':
+case 'euromatches':
     await sports.formatMatches('EUROS', 'Euros', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'fifamatches':
+case 'fifamatches':
     await sports.formatMatches('FIFA', 'FIFA World Cup', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
 
-  // ===== TOP SCORERS COMMANDS =====
-  case 'eplscorers':
-  case 'plscorers':
+// ===== TOP SCORERS COMMANDS =====
+case 'eplscorers':
+case 'plscorers':
     await sports.formatTopScorers('PL', 'Premier League', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'clscorers':
-  case 'championsleaguescorers':
+case 'clscorers':
+case 'championsleaguescorers':
     await sports.formatTopScorers('CL', 'UEFA Champions League', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'laligascorers':
-  case 'pdscorers':
+case 'laligascorers':
+case 'pdscorers':
     await sports.formatTopScorers('PD', 'La Liga', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'bundesligascorers':
-  case 'bl1scorers':
+case 'bundesligascorers':
+case 'bl1scorers':
     await sports.formatTopScorers('BL1', 'Bundesliga', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'serieascorers':
-  case 'sascorers':
+case 'serieascorers':
+case 'sascorers':
     await sports.formatTopScorers('SA', 'Serie A', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'ligue1scorers':
-  case 'fl1scorers':
+case 'ligue1scorers':
+case 'fl1scorers':
     await sports.formatTopScorers('FL1', 'Ligue 1', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'elscorers':
-  case 'europaleaguescorers':
+case 'elscorers':
+case 'europaleaguescorers':
     await sports.formatTopScorers('EL', 'Europa League', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'eflscorers':
-  case 'elcscorers':
+case 'eflscorers':
+case 'elcscorers':
     await sports.formatTopScorers('ELC', 'EFL Championship', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'wcscorers':
-  case 'worldcupscorers':
+case 'wcscorers':
+case 'worldcupscorers':
     await sports.formatTopScorers('WC', 'World Cup', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'euroscorers':
+case 'euroscorers':
     await sports.formatTopScorers('EUROS', 'Euros', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'fifascorers':
+case 'fifascorers':
     await sports.formatTopScorers('FIFA', 'FIFA World Cup', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
 
-  // ===== UPCOMING MATCHES COMMANDS =====
-  case 'eplupcoming':
-  case 'plupcoming':
+// ===== UPCOMING MATCHES COMMANDS =====
+case 'eplupcoming':
+case 'plupcoming':
     await sports.formatUpcomingMatches('PL', 'Premier League', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'clupcoming':
-  case 'championsleagueupcoming':
+case 'clupcoming':
+case 'championsleagueupcoming':
     await sports.formatUpcomingMatches('CL', 'UEFA Champions League', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'laligaupcoming':
-  case 'pdupcoming':
+case 'laligaupcoming':
+case 'pdupcoming':
     await sports.formatUpcomingMatches('PD', 'La Liga', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'bundesligaupcoming':
-  case 'bl1upcoming':
+case 'bundesligaupcoming':
+case 'bl1upcoming':
     await sports.formatUpcomingMatches('BL1', 'Bundesliga', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'serieaupcoming':
-  case 'saupcoming':
+case 'serieaupcoming':
+case 'saupcoming':
     await sports.formatUpcomingMatches('SA', 'Serie A', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'ligue1upcoming':
-  case 'fl1upcoming':
+case 'ligue1upcoming':
+case 'fl1upcoming':
     await sports.formatUpcomingMatches('FL1', 'Ligue 1', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'elupcoming':
-  case 'europaleagueupcoming':
+case 'elupcoming':
+case 'europaleagueupcoming':
     await sports.formatUpcomingMatches('EL', 'Europa League', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'eflupcoming':
-  case 'elcupcoming':
+case 'eflupcoming':
+case 'elcupcoming':
     await sports.formatUpcomingMatches('ELC', 'EFL Championship', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'wcupcoming':
-  case 'worldcupupcoming':
+case 'wcupcoming':
+case 'worldcupupcoming':
     await sports.formatUpcomingMatches('WC', 'World Cup', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'eurosupcoming':
+case 'eurosupcoming':
     await sports.formatUpcomingMatches('EUROS', 'Euros', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'fifaupcoming':
+case 'fifaupcoming':
     await sports.formatUpcomingMatches('FIFA', 'FIFA World Cup', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
 
-  // ===== SEARCH COMMANDS =====
-  case 'teamsearch':
-  case 'teaminfo':
-  case 'clubinfo':
+// ===== SEARCH COMMANDS =====
+case 'teamsearch':
+case 'teaminfo':
+case 'clubinfo':
     const teamQuery = args.join(' ');
-    await sports.searchTeam(teamQuery, { reply });
+    await sports.searchTeam(teamQuery, { reply, conn, m });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'playersearch':
+case 'playersearch':
 case 'player':
     const query = args.join(' ');
-    await sports.searchPlayer(query, { reply, conn, m }); 
+    await sports.searchPlayer(query, { reply, conn, m });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
 
 case 'venuesearch':
 case 'venue':
     const venueQuery = args.join(' ');
-    await sports.searchVenue(venueQuery, { reply, conn, m }); 
-    break;
-  case 'livescores':
-  case 'livescore':
-  case 'live':
-    await sports.getLiveScores({ reply });
+    await sports.searchVenue(venueQuery, { reply, conn, m });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
 
-  // ===== FOOTBALL NEWS =====
-  case 'footballnews':
-  case 'soccernews':
-  case 'fnews':
-    await sports.getFootballNews({ reply });
+// ===== LIVE SCORES =====
+case 'livescores':
+case 'livescore':
+case 'live':
+    await sports.getLiveScores({ reply, conn, m });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
 
-  // ===== WRESTLING COMMANDS =====
-  case 'wweevents':
-  case 'wrestlingevents':
-    await sports.getWrestlingEvents({ reply });
+// ===== FOOTBALL NEWS =====
+case 'footballnews':
+case 'soccernews':
+case 'fnews':
+    await sports.getFootballNews({ reply, conn, m });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+
+// ===== WRESTLING COMMANDS =====
+case 'wweevents':
+case 'wrestlingevents':
+    await sports.getWrestlingEvents({ reply, conn, m });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'wwenews':
-  case 'wrestlingnews':
-    await sports.getWWENews({ reply });
+case 'wwenews':
+case 'wrestlingnews':
+    await sports.getWWENews({ reply, conn, m });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
-  case 'wweschedule':
-  case 'wrestlingschedule':
-    await sports.getWWESchedule({ reply });
+case 'wweschedule':
+case 'wrestlingschedule':
+    await sports.getWWESchedule({ reply, conn, m });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
     
+// ===== BETTING COMMANDS =====
 case "betting":
 case "betodds": {
-try {
-            const apiUrl = 'https://api.malvin.gleeze.com/sports/betting/odds';
-            const response = await axios.get(apiUrl);
-            
-            if (!response.data?.status || !response.data?.result?.tips) {
-                return reply('Failed to fetch betting odds.');
-            }
-            
-            const tips = response.data.result.tips;
-            let message = `*BETTING ODDS*\n\n`;
-            
-            tips.forEach((match, index) => {
-                message += `${index + 1}. ${match.event}\n`;
-                message += `📅 ${new Date(match.commenceTime).toLocaleString()}\n`;
-                message += `📊 Bookmakers: ${match.bookmakers}\n`;
-                message += `\n🎲 Odds:\n`;
-                
-                match.bestOdds.forEach(odd => {
-                    message += `   • ${odd.name}: ${odd.price}\n`;
-                });
-                message += `\n─────────────────\n\n`;
-            });
-            
-            reply(message);
-        } catch (error) {
-            console.error('Betting odds error:', error);
-            reply('Error fetching betting odds.');
+    try {
+        const apiUrl = 'https://api.malvin.gleeze.com/sports/betting/odds';
+        const response = await axios.get(apiUrl);
+        
+        if (!response.data?.status || !response.data?.result?.tips) {
+            await reply('Failed to fetch betting odds.');
+            await sendPTT(conn, m.chat, getRandomAudio(), m);
+            return;
         }
+        
+        const tips = response.data.result.tips;
+        let message = `*🎲 BETTING ODDS 🎲*\n\n`;
+        
+        tips.forEach((match, index) => {
+            message += `${index + 1}. ${match.event}\n`;
+            message += `📅 ${new Date(match.commenceTime).toLocaleString()}\n`;
+            message += `📊 Bookmakers: ${match.bookmakers}\n`;
+            message += `\n📈 Odds:\n`;
+            
+            match.bestOdds.forEach(odd => {
+                message += `   • ${odd.name}: ${odd.price}\n`;
+            });
+            message += `\n─────────────────\n\n`;
+        });
+        
+        await reply(message);
+        await sendPTT(conn, m.chat, getRandomAudio(), m);
+    } catch (error) {
+        console.error('Betting odds error:', error);
+        await reply('❌ Error fetching betting odds. Please try again later.');
+        await sendPTT(conn, m.chat, getRandomAudio(), m);
+    }
+    
 }
 break
 case "quran": {
