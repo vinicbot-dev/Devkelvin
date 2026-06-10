@@ -3316,13 +3316,15 @@ case "stats": {
     const latencyEnd = performance.now();
     const ping = `${(latencyEnd - latencyStart).toFixed(2)} ms`;
     
-    const uptime = runtime(process.uptime());
+    const botUptime = runtime(process.uptime());
+    const serverUptime = getServerUptime();
     
     const response = `
 ╭──❖ 「 BOT STATUS 」 ❖──
 │
 🔸 *Ping*       : ${ping}
-🔸 *Uptime*     : ${uptime}
+🔸 *Bot Uptime* : ${botUptime}
+🔸 *Server Uptime* : ${serverUptime}
 │
 🔹 *RAM*        : ${formatSize(usedRam)} / ${formatSize(totalRam)} (${ramPercent}%)
 🔹 *Heap*       : ${formatSize(used.heapUsed)} / ${formatSize(used.heapTotal)}
@@ -3339,7 +3341,6 @@ case "stats": {
     await conn.sendMessage(m.chat, { text: response.trim() }, { quoted: m });
     break;
 }
-break
 case "getabout": {
     if (!Access) return reply(mess.owner);
     
