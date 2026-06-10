@@ -14,8 +14,8 @@ async function convertToPTT(audioPath) {
     const outputPath = path.join(tempDir, `ptt_${Date.now()}.ogg`);
     
     try {
-        // Convert to OPUS format for WhatsApp PTT
-        await execPromise(`ffmpeg -i "${audioPath}" -c:a libopus -b:a 24k -ar 16000 -ac 1 "${outputPath}"`);
+        // Convert to OPUS format for WhatsApp PTT with optimal settings
+        await execPromise(`ffmpeg -i "${audioPath}" -c:a libopus -b:a 24k -ar 16000 -ac 1 -application voip "${outputPath}"`);
         
         if (fs.existsSync(outputPath)) {
             const buffer = fs.readFileSync(outputPath);
@@ -31,6 +31,11 @@ async function convertToPTT(audioPath) {
 
 async function sendPTT(conn, chatId, audioPath, quoted) {
     try {
+        if (!audioPath || !fs.existsSync(audioPath)) {
+            console.error('Audio file not found:', audioPath);
+            return false;
+        }
+        
         const pttBuffer = await convertToPTT(audioPath);
         
         if (pttBuffer) {
@@ -42,7 +47,7 @@ async function sendPTT(conn, chatId, audioPath, quoted) {
             return true;
         }
         
-        // Fallback: send as normal audio
+        // Fallback: send as normal audio if PTT conversion fails
         const audioBuffer = fs.readFileSync(audioPath);
         await conn.sendMessage(chatId, {
             audio: audioBuffer,
