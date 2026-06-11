@@ -31,161 +31,91 @@ async function tryRequest(getter, attempts = 3) {
     throw lastError;
 }
 
-// Detect audio format from buffer
-function detectAudioFormat(buffer) {
-    const firstBytes = buffer.slice(0, 12);
-    const hexSignature = firstBytes.toString('hex');
-    const asciiSignature = firstBytes.toString('ascii', 4, 8);
-
-    // Check for MP4/M4A (ftyp box)
-    if (asciiSignature === 'ftyp' || hexSignature.startsWith('000000')) {
-        const ftypBox = buffer.slice(4, 8).toString('ascii');
-        if (ftypBox === 'ftyp') {
-            return 'm4a';
+async function fetchMp3(conn, chatId, message) {
+    try {
+        const text = message.message?.conversation || message.message?.extendedTextMessage?.text || '';
+        if (!text) {
+            await conn.sendMessage(chatId, { text: 'Usage: .song <song name or YouTube link>' }, { quoted: message });
+            return;
         }
-    }
-    // Check for MP3 (ID3 tag or MPEG frame sync)
-    else if (buffer.toString('ascii', 0, 3) === 'ID3' || 
-             (buffer[0] === 0xFF && (buffer[1] & 0xE0) === 0xE0)) {
-        return 'mp3';
-    }
-    // Check for OGG/Opus
-    else if (buffer.toString('ascii', 0, 4) === 'OggS') {
-        return 'ogg';
-    }
-    // Check for WAV
-    else if (buffer.toString('ascii', 0, 4) === 'RIFF') {
-        return 'wav';
-    }
-    return 'unknown';
-}
 
-// EliteProTech API - Primary
-async function getEliteProTechMp3(youtubeUrl) {
-    const apiUrl = `https://eliteprotech-apis.zone.id/ytdown?url=${encodeURIComponent(youtubeUrl)}&format=mp3`;
-    const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
-    if (res?.data?.success && res?.data?.downloadURL) {
-        return {
-            download: res.data.downloadURL,
-            title: res.data.title
-        };
-    }
-    throw new Error('EliteProTech returned no download');
-}
+        let videoUrl;
+        let videoTitle;
+        let videoThumbnail;
 
-// Yupra API - Fallback 1
-async function getYupraMp3(youtubeUrl) {
-    const apiUrl = `https://api.yupra.my.id/api/downloader/ytmp3?url=${encodeURIComponent(youtubeUrl)}`;
-    const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
-    if (res?.data?.success && res?.data?.data?.download_url) {
-        return {
-            download: res.data.data.download_url,
-            title: res.data.data.title,
-            thumbnail: res.data.data.thumbnail
-        };
-    }
-    throw new Error('Yupra returned no download');
-}
-
-// Okatsu API - Fallback 2
-async function getOkatsuMp3(youtubeUrl) {
-    const apiUrl = `https://okatsu-rolezapiiz.vercel.app/downloader/ytmp3?url=${encodeURIComponent(youtubeUrl)}`;
-    const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
-    if (res?.data?.dl) {
-        return {
-            download: res.data.dl,
-            title: res.data.title,
-            thumbnail: res.data.thumb
-        };
-    }
-    throw new Error('Okatsu returned no download');
-}
-
-// Prince Techn API - Last Fallback
-async function getPrinceTechnMp3(youtubeUrl) {
-    const apiUrl = `https://api.princetechn.com/api/download/ytmp3?apikey=prince&url=${encodeURIComponent(youtubeUrl)}`;
-    const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
-    if (res?.data?.success && res?.data?.result?.download_url) {
-        return {
-            download: res.data.result.download_url,
-            title: res.data.result.title,
-            duration: res.data.result.duration,
-            quality: res.data.result.quality
-        };
-    }
-    throw new Error('Prince Techn API returned no download');
-}
-
-// Download and convert audio to MP3 if needed
-async function downloadAndConvert(audioUrl, title) {
-    // Download the audio file
-    const audioResponse = await axios.get(audioUrl, {
-        responseType: 'arraybuffer',
-        timeout: 90000,
-        maxContentLength: Infinity,
-        maxBodyLength: Infinity
-    });
-    
-    let audioBuffer = Buffer.from(audioResponse.data);
-    
-    if (!audioBuffer || audioBuffer.length === 0) {
-        throw new Error('Downloaded audio buffer is empty');
-    }
-    
-    // Detect format
-    const detectedFormat = detectAudioFormat(audioBuffer);
-    
-    // Convert to MP3 if not already MP3
-    if (detectedFormat !== 'mp3') {
-        console.log(`Converting ${detectedFormat} to MP3...`);
-        audioBuffer = await toAudio(audioBuffer, detectedFormat);
-        if (!audioBuffer || audioBuffer.length === 0) {
-            throw new Error('Conversion returned empty buffer');
-        }
-    }
-    
-    return {
-        buffer: audioBuffer,
-        title: title,
-        format: 'mp3'
-    };
-}
-
-// Main fetchMp3 function
-async function fetchMp3(youtubeUrl, returnBuffer = false) {
-    const apiMethods = [
-        { name: 'EliteProTech', method: () => getEliteProTechMp3(youtubeUrl) },
-        { name: 'Yupra', method: () => getYupraMp3(youtubeUrl) },
-        { name: 'Okatsu', method: () => getOkatsuMp3(youtubeUrl) },
-        { name: 'Prince Techn', method: () => getPrinceTechnMp3(youtubeUrl) }
-    ];
-
-    for (const apiMethod of apiMethods) {
-        try {
-            console.log(`🔄 Trying ${apiMethod.name} for MP3...`);
-            const result = await apiMethod.method();
-            if (result && result.download) {
-                console.log(`✅ ${apiMethod.name} successful!`);
-                
-                if (returnBuffer) {
-                    // Download and convert to MP3 buffer
-                    const converted = await downloadAndConvert(result.download, result.title);
-                    return {
-                        buffer: converted.buffer,
-                        title: converted.title,
-                        duration: result.duration,
-                        quality: result.quality
-                    };
-                }
-                
-                return result;
+        if (text.includes('youtube.com') || text.includes('youtu.be')) {
+            videoUrl = text;
+            const search = await yts({ videoId: extractVideoId(text) });
+            if (search && search.title) {
+                videoTitle = search.title;
+                videoThumbnail = search.thumbnail;
+            } else {
+                videoTitle = "YouTube Video";
+                videoThumbnail = "";
             }
-        } catch (err) {
-            console.warn(`❌ ${apiMethod.name} failed: ${err.message}`);
-            continue;
+        } else {
+            const search = await yts(text);
+            if (!search || !search.videos.length) {
+                await conn.sendMessage(chatId, { text: 'No results found.' }, { quoted: message });
+                return;
+            }
+            videoUrl = search.videos[0].url;
+            videoTitle = search.videos[0].title;
+            videoThumbnail = search.videos[0].thumbnail;
         }
+
+        await conn.sendMessage(chatId, {
+            image: { url: videoThumbnail },
+            caption: `🎵 *${videoTitle}*\n\n📥 Downloading audio...`
+        }, { quoted: message });
+
+        // API call for MP3 (normal quality)
+        const apiUrl = 'https://ktrenqecceeooyrquooc.supabase.co/functions/v1/api-proxy';
+        const requestBody = {
+            apiKey: "guru_x3jr526k5pqbl91wqubhws3y48qj6zbo",
+            action: "yt-mp3",
+            payload: {
+                url: videoUrl,
+                quality: "normal"
+            }
+        };
+
+        const response = await axios.post(apiUrl, requestBody, {
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 60000
+        });
+
+        const result = response.data;
+
+        if (!result || !result.download || !result.download.url) {
+            throw new Error('No download URL received');
+        }
+
+        const audioUrl = result.download.url;
+        const audioTitle = result.title || videoTitle;
+
+        // Download audio buffer
+        const audioResponse = await axios.get(audioUrl, {
+            responseType: 'arraybuffer',
+            timeout: 90000
+        });
+        
+        const audioBuffer = Buffer.from(audioResponse.data);
+
+        // Send as document
+        await conn.sendMessage(chatId, {
+            document: audioBuffer,
+            mimetype: 'audio/mpeg',
+            fileName: `${audioTitle.replace(/[^\w\s-]/g, '')}.mp3`,
+            caption: `🎵 *${audioTitle}*\n\n> ${global.wm || 'JEXPLOIT'}`
+        }, { quoted: message });
+
+    } catch (err) {
+        console.error('fetchMp3 error:', err);
+        await conn.sendMessage(chatId, { 
+            text: '❌ Failed to download song. Please try again later.' 
+        }, { quoted: message });
     }
-    throw new Error("All MP3 download APIs failed.");
 }
 
 async function tryRequest(getter, attempts = 3) {
