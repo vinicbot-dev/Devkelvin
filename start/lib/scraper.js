@@ -1,6 +1,7 @@
 
 const cheerio = require('cheerio')
 const fetch = require('node-fetch')
+const yts = require('yt-search');
 const axios = require('axios')
 const fs = require('fs');
 const path = require('path');
