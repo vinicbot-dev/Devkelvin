@@ -7041,49 +7041,159 @@ case 'claude': {
 }
 case 'math':
 case 'simplify': {
-    if (!text) return reply(`Please provide a math expression to simplify.\n\nExample:\n${prefix}math 2^8\n${prefix}simplify (5+3)*2`);
+if (!text) return reply(`*Math Simplify*\n\nPlease provide a math expression or question to solve.\n\nExample:\n${prefix}math 2^8\n${prefix}math integral of x^2\n${prefix}simplify (5+3)*2`);
 
-    const expression = text.trim();
-    
-    // Send processing message
-    await reply('Simplifying expression... Please wait...');
-    await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
-
-    try {
-      
-        const apiUrl = `${global.api}/math/simplify?expr=${encodeURIComponent(expression)}`;
-        const response = await axios.get(apiUrl, { timeout: 10000 });
+        const query = text.trim();
         
-        // Check response
-        if (!response.data?.status) {
-            throw new Error('Invalid API response');
+        await reply('🧮 Solving your math problem... Please wait...');
+        await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
+
+        try {
+            // Guru API for maths-ai
+            const apiUrl = 'https://ktrenqecceeooyrquooc.supabase.co/functions/v1/api-proxy';
+            const requestBody = {
+                apiKey: "guru_x3jr526k5pqbl91wqubhws3y48qj6zbo",
+                action: "maths-ai",
+                payload: {
+                    q: query
+                }
+            };
+
+            const response = await axios.post(apiUrl, requestBody, {
+                headers: { 'Content-Type': 'application/json' },
+                timeout: 30000
+            });
+
+            const result = response.data;
+
+            if (!result || !result.answer) {
+                throw new Error('Invalid API response');
+            }
+
+            const answer = result.answer;
+            const subject = result.subject || 'mathematics';
+
+            const replyMsg = `🧮 *Math Problem*\n\n` +
+                            `📝 *Question:* ${query}\n\n` +
+                            `✅ *Solution:*\n${answer}\n\n` +
+                            `> ${global.wm || 'JEXPLOIT'}`;
+
+            await conn.sendMessage(m.chat, { text: replyMsg }, { quoted: m });
+            await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+        } catch (error) {
+            console.error('Math API Error:', error.message);
+            if (error.response) {
+                console.error('Math API Response:', error.response.data);
+            }
+            await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+            reply('❌ Failed to solve your math problem. Please try again later.');
         }
-
-        const result = response.data.result;
-        
-        // Format the response
-        const replyMsg = `🧮 *Math Simplification*\n\n` +
-                        `📝 *Expression:* ${response.data.expression}\n` +
-                        `✅ *Result:* ${result}\n\n` +
-                        `> ${global.wm}`;
-
-        await conn.sendMessage(m.chat, { text: replyMsg }, { quoted: m });
-        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
-
-    } catch (error) {
-        console.error('Math API Error:', error.message);
-        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-        
-        let errorMsg = '❌ Failed to simplify expression. ';
-        if (error.message.includes('timeout')) {
-            errorMsg += 'Request timed out.';
-        } else {
-            errorMsg += 'Please check your expression and try again.';
-        }
-        reply(errorMsg);
-    }
-    break;
 }
+break
+case "physics": {
+if (!text) return reply(`🔭 *Physics Helper*\n\nPlease provide a physics question or concept to explain.\n\nExample:\n${prefix}physics F=ma explained\n${prefix}phys Newton's laws\n${prefix}physics quantum mechanics basics`);
+
+        const query = text.trim();
+        
+        await reply('🔬 Solving your physics question... Please wait...');
+        await conn.sendMessage(m.chat, { react: { text: '⚛️', key: m.key } });
+
+        try {
+            // Guru API for physics-ai
+            const apiUrl = 'https://ktrenqecceeooyrquooc.supabase.co/functions/v1/api-proxy';
+            const requestBody = {
+                apiKey: "guru_x3jr526k5pqbl91wqubhws3y48qj6zbo",
+                action: "physics-ai",
+                payload: {
+                    q: query
+                }
+            };
+
+            const response = await axios.post(apiUrl, requestBody, {
+                headers: { 'Content-Type': 'application/json' },
+                timeout: 30000
+            });
+
+            const result = response.data;
+
+            if (!result || !result.answer) {
+                throw new Error('Invalid API response');
+            }
+
+            const answer = result.answer;
+            const subject = result.subject || 'physics';
+
+            const replyMsg = `⚛️ *Physics Question*\n\n` +
+                            `📝 *Question:* ${query}\n\n` +
+                            `✅ *Explanation:*\n${answer}\n\n` +
+                            `> ${global.wm || 'JEXPLOIT'}`;
+
+            await conn.sendMessage(m.chat, { text: replyMsg }, { quoted: m });
+            await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+        } catch (error) {
+            console.error('Physics API Error:', error.message);
+            if (error.response) {
+                console.error('Physics API Response:', error.response.data);
+            }
+            await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+            reply('❌ Failed to answer your physics question. Please try again later.');
+        }
+}
+break
+case "chemistry":
+case "chem": {
+if (!text) return reply(`🧪 *Chemistry Helper*\n\nPlease provide a chemistry question or concept to explain.\n\nExample:\n${prefix}chemistry What is H2O?\n${prefix}chem Periodic table explained\n${prefix}chemistry acid base reaction`);
+
+        const query = text.trim();
+        
+        await reply('🧪 Solving your chemistry question... Please wait...');
+        await conn.sendMessage(m.chat, { react: { text: '🧪', key: m.key } });
+
+        try {
+            // Guru API for chemistry-ai
+            const apiUrl = 'https://ktrenqecceeooyrquooc.supabase.co/functions/v1/api-proxy';
+            const requestBody = {
+                apiKey: "guru_x3jr526k5pqbl91wqubhws3y48qj6zbo",
+                action: "chemistry-ai",
+                payload: {
+                    q: query
+                }
+            };
+
+            const response = await axios.post(apiUrl, requestBody, {
+                headers: { 'Content-Type': 'application/json' },
+                timeout: 30000
+            });
+
+            const result = response.data;
+
+            if (!result || !result.answer) {
+                throw new Error('Invalid API response');
+            }
+
+            const answer = result.answer;
+            const subject = result.subject || 'chemistry';
+
+            const replyMsg = `🧪 *Chemistry Question*\n\n` +
+                            `📝 *Question:* ${query}\n\n` +
+                            `✅ *Explanation:*\n${answer}\n\n` +
+                            `> ${global.wm || 'JEXPLOIT'}`;
+
+            await conn.sendMessage(m.chat, { text: replyMsg }, { quoted: m });
+            await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+        } catch (error) {
+            console.error('Chemistry API Error:', error.message);
+            if (error.response) {
+                console.error('Chemistry API Response:', error.response.data);
+            }
+            await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+            reply('❌ Failed to answer your chemistry question. Please try again later.');
+        }
+}
+break
 case 'dictionary': {
     if (!text) return reply(`*Dictionary*\n\nPlease provide a word to define.\n\nExample:\n${prefix}dictionary cat\n${prefix}define hello\n${prefix}dict computer`);
 
