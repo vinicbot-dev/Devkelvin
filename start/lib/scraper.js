@@ -2,6 +2,8 @@
 const cheerio = require('cheerio')
 const fetch = require('node-fetch')
 const axios = require('axios')
+const fs = require('fs');
+const path = require('path');
 const fileTypeFromBuffer = require('file-type')
 const randomarray = async (array) => {
 	return array[Math.floor(Math.random() * array.length)]
