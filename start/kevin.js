@@ -1874,7 +1874,8 @@ case "status": {
         autoTyping,
         autoread,
         autoreact,
-        AI_CHAT,
+        AI_CHAT_TEXT,
+        AI_CHAT_VOICE,
         autoviewstatus,
         autoreactstatus,
         statusemoji,
@@ -1902,7 +1903,8 @@ case "status": {
         db.get(botNumber, 'autoTyping', false),
         db.get(botNumber, 'autoread', false),
         db.get(botNumber, 'autoreact', false),
-        db.get(botNumber, 'AI_CHAT', false),
+        db.get(botNumber, 'AI_CHAT_TEXT', false),
+        db.get(botNumber, 'AI_CHAT_VOICE', false),
         db.get(botNumber, 'autoviewstatus', false),
         db.get(botNumber, 'autoreactstatus', false),
         db.get(botNumber, 'statusemoji', '💚'),
@@ -1937,7 +1939,8 @@ case "status": {
     settingsMsg += `🔸 *autotyping*: ${getStatus(autoTyping)}\n`;
     settingsMsg += `🔸 *autoread*: ${getStatus(autoread)}\n`;
     settingsMsg += `🔸 *autoreact*: ${getStatus(autoreact)}\n`;
-    settingsMsg += `🔸 *chatbot*: ${getStatus(AI_CHAT)}\n`;
+    settingsMsg += `🔸 *chatbot text*: ${getStatus(AI_CHAT_TEXT)}\n`;
+    settingsMsg += `🔸 *chatbot voice*: ${getStatus(AI_CHAT_VOICE)}\n`;
     settingsMsg += `🔸 *autoviewstatus*: ${getStatus(autoviewstatus)}\n`;
     settingsMsg += `🔸 *autoreactstatus*: ${getStatus(autoreactstatus)} ${autoreactstatus ? `(${statusemoji})` : ''}\n`;
     settingsMsg += `🔸 *welcome*: ${getStatus(welcome)}\n`;
