@@ -2242,24 +2242,94 @@ case 'setai': {
     if (!Access) return reply(mess.owner);
     
     const mode = args[0]?.toLowerCase();
-    if (!mode || !['on', 'off'].includes(mode)) {
-        const current = await db.get(botNumber, 'AI_CHAT', false);
-        return reply(`❌ Usage: ${prefix}aichat <on/off>\n\nCurrent: ${current ? 'ON ✅' : 'OFF ❌'}`);
-    }
-    // Message memory for conversation context
-   let messageMemory = new Map();
-   const MAX_MEMORY = 150; // Maximum messages to remember per chat
-   
-    const boolValue = mode === 'on';
-    await db.set(botNumber, 'AI_CHAT', boolValue);
+    const action = args[1]?.toLowerCase();
     
-    // Clear memory when turning off/on
-    if (boolValue) {
-        // Clear old memory when turning on
-        messageMemory.clear();
+    // Show help menu
+    if (!mode || !['on', 'off', 'status', 'text', 'voice', 'both'].includes(mode)) {
+        const textStatus = await db.get(botNumber, 'AI_CHAT_TEXT', false);
+        const voiceStatus = await db.get(botNumber, 'AI_CHAT_VOICE', false);
+        
+        return reply(`*🤖 AI CHATBOT SETTINGS*\n\n` +
+            `📝 *Text Mode:* ${textStatus ? 'ON ✅' : 'OFF ❌'}\n` +
+            `🎙️ *Voice Mode (PTT):* ${voiceStatus ? 'ON ✅' : 'OFF ❌'}\n\n` +
+            `*Commands:*\n` +
+            `• ${prefix}chatbot text on - Enable text responses\n` +
+            `• ${prefix}chatbot text off - Disable text responses\n` +
+            `• ${prefix}chatbot voice on - Enable voice responses\n` +
+            `• ${prefix}chatbot voice off - Disable voice responses\n` +
+            `• ${prefix}chatbot both on - Enable both text & voice\n` +
+            `• ${prefix}chatbot both off - Disable both\n` +
+            `• ${prefix}chatbot status - Show current settings`);
     }
     
-    reply(`✅ AI Chatbot ${boolValue ? 'enabled' : 'disabled'}`);
+    // Handle status
+    if (mode === 'status') {
+        const textStatus = await db.get(botNumber, 'AI_CHAT_TEXT', false);
+        const voiceStatus = await db.get(botNumber, 'AI_CHAT_VOICE', false);
+        return reply(`*🤖 AI CHATBOT STATUS*\n\n` +
+            `📝 *Text Mode:* ${textStatus ? 'ON ✅' : 'OFF ❌'}\n` +
+            `🎙️ *Voice Mode (PTT):* ${voiceStatus ? 'ON ✅' : 'OFF ❌'}\n\n` +
+            `📌 Use ${prefix}chatbot help for more commands`);
+    }
+    
+    // Handle both mode
+    if (mode === 'both') {
+        if (!action || !['on', 'off'].includes(action)) {
+            return reply(`❌ Usage: ${prefix}chatbot both <on/off>\nExample: ${prefix}chatbot both on`);
+        }
+        
+        const boolValue = action === 'on';
+        await db.set(botNumber, 'AI_CHAT_TEXT', boolValue);
+        await db.set(botNumber, 'AI_CHAT_VOICE', boolValue);
+        
+        if (boolValue) {
+            reply(`✅ AI Chatbot enabled (Text + Voice)\n\nBot will respond with both text and voice messages!`);
+        } else {
+            reply(`✅ AI Chatbot disabled completely`);
+        }
+        break;
+    }
+    
+    // Handle text mode
+    if (mode === 'text') {
+        if (!action || !['on', 'off'].includes(action)) {
+            return reply(`❌ Usage: ${prefix}chatbot text <on/off>\nExample: ${prefix}chatbot text on`);
+        }
+        
+        const boolValue = action === 'on';
+        await db.set(botNumber, 'AI_CHAT_TEXT', boolValue);
+        reply(`✅ Text responses ${boolValue ? 'enabled' : 'disabled'}`);
+        break;
+    }
+    
+    // Handle voice mode
+    if (mode === 'voice') {
+        if (!action || !['on', 'off'].includes(action)) {
+            return reply(`❌ Usage: ${prefix}chatbot voice <on/off>\nExample: ${prefix}chatbot voice on`);
+        }
+        
+        const boolValue = action === 'on';
+        await db.set(botNumber, 'AI_CHAT_VOICE', boolValue);
+        reply(`✅ Voice responses (PTT) ${boolValue ? 'enabled' : 'disabled'}`);
+        break;
+    }
+    
+    // Handle on/off (legacy - turns on both)
+    if (mode === 'on') {
+        await db.set(botNumber, 'AI_CHAT_TEXT', true);
+        await db.set(botNumber, 'AI_CHAT_VOICE', true);
+        reply(`✅ AI Chatbot enabled (Text + Voice)`);
+        break;
+    }
+    
+    if (mode === 'off') {
+        await db.set(botNumber, 'AI_CHAT_TEXT', false);
+        await db.set(botNumber, 'AI_CHAT_VOICE', false);
+        reply(`✅ AI Chatbot disabled`);
+        break;
+    }
+    
+    reply(`❌ Invalid command!\n\n📌 Try:\n• ${prefix}chatbot text on\n• ${prefix}chatbot voice on\n• ${prefix}chatbot both on`);
     
 }
 break
