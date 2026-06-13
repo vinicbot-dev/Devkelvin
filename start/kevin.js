@@ -416,6 +416,62 @@ function probeDuration(filePath) {
         });
     });
 }
+// Convert video to video note using fluent-ffmpeg
+function convertToVideoNote(inputPath, outputPath, maxDuration = 60, size = 480) {
+    return new Promise((resolve, reject) => {
+        // First check if input file exists
+        if (!fs.existsSync(inputPath)) {
+            return reject(new Error('Input file not found'));
+        }
+
+        // Get duration first
+        ffmpeg.ffprobe(inputPath, (err, metadata) => {
+            if (err) {
+                return reject(new Error(`FFprobe failed: ${err.message}`));
+            }
+
+            const duration = metadata.format.duration || 0;
+            
+            // Create ffmpeg command
+            const command = ffmpeg(inputPath);
+            
+            // Trim if duration exceeds maxDuration
+            if (duration > maxDuration) {
+                command.duration(maxDuration);
+            }
+            
+            // Video filter: scale and crop to square
+            const vfilter = `scale=${size}:${size}:force_original_aspect_ratio=increase,crop=${size}:${size}`;
+            
+            command
+                .videoFilter(vfilter)
+                .videoCodec('libx264')
+                .outputOptions([
+                    '-preset', 'veryfast',
+                    '-crf', '28',
+                    '-pix_fmt', 'yuv420p',
+                    '-r', '30'
+                ])
+                .audioCodec('aac')
+                .audioBitrate('96k')
+                .audioChannels(2)
+                .audioFrequency(44100)
+                .outputOptions('-movflags +faststart')
+                .format('mp4')
+                .on('end', () => {
+                    if (fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) {
+                        resolve();
+                    } else {
+                        reject(new Error('Output file is empty or missing'));
+                    }
+                })
+                .on('error', (err) => {
+                    reject(new Error(`FFmpeg error: ${err.message}`));
+                })
+                .save(outputPath);
+        });
+    });
+}
 
 const worldcupAudios = [
     './start/lib/Media/sports/worldcup.mp3',
@@ -8640,26 +8696,21 @@ const MAX_DURATION = 60;
         try {
             await conn.sendMessage(m.chat, { react: { text: '🎥', key: m.key } });
 
-            // FIXED: Better detection for quoted video
+            // Better detection for quoted video
             let sourceMsg = null;
             
-            // Check if replying to a message
             if (m.quoted) {
-                // Check if quoted message is a video
                 if (m.quoted.mtype === 'videoMessage') {
                     sourceMsg = m.quoted;
                 }
-                // Check if quoted message has video message
                 else if (m.quoted.msg?.videoMessage) {
                     sourceMsg = m.quoted;
                 }
-                // Check if quoted message is a document (might be video)
                 else if (m.quoted.mtype === 'documentMessage' && m.quoted.mimetype?.includes('video')) {
                     sourceMsg = m.quoted;
                 }
             }
             
-            // If no quoted message, check if the current message is a video
             if (!sourceMsg && m.mtype === 'videoMessage') {
                 sourceMsg = m;
             }
