@@ -1,4 +1,3 @@
-
 const cheerio = require('cheerio')
 const fetch = require('node-fetch')
 const yts = require('yt-search');
@@ -9,7 +8,6 @@ const fileTypeFromBuffer = require('file-type')
 const randomarray = async (array) => {
 	return array[Math.floor(Math.random() * array.length)]
 }
-const { toAudio } = require('../../start/lib/converter')
 
 const AXIOS_DEFAULTS = {
     timeout: 60000,
@@ -34,6 +32,7 @@ async function tryRequest(getter, attempts = 3) {
     throw lastError;
 }
 
+// fetchMp3 function using Elite API only
 async function fetchMp3(conn, chatId, message) {
     try {
         const text = message.message?.conversation || message.message?.extendedTextMessage?.text || '';
@@ -42,63 +41,65 @@ async function fetchMp3(conn, chatId, message) {
             return;
         }
 
-        let videoUrl;
-        let videoTitle;
-        let videoThumbnail;
+        let query = text;
+        let videoTitle = "YouTube Audio";
+        let videoThumbnail = "";
+        let downloadUrl = "";
 
+        // Check if it's a YouTube URL or search query
         if (text.includes('youtube.com') || text.includes('youtu.be')) {
-            videoUrl = text;
-            const search = await yts({ videoId: extractVideoId(text) });
-            if (search && search.title) {
-                videoTitle = search.title;
-                videoThumbnail = search.thumbnail;
+            // Extract video ID from URL
+            const videoId = extractVideoId(text);
+            if (videoId) {
+                query = `https://www.youtube.com/watch?v=${videoId}`;
+                // Get video info using yt-search
+                const search = await yts({ videoId: videoId });
+                if (search && search.title) {
+                    videoTitle = search.title;
+                    videoThumbnail = search.thumbnail;
+                }
             } else {
-                videoTitle = "YouTube Video";
-                videoThumbnail = "";
+                await conn.sendMessage(chatId, { text: '❌ Invalid YouTube URL.' }, { quoted: message });
+                return;
             }
         } else {
+            // Search for the video first using yt-search to get the URL
             const search = await yts(text);
             if (!search || !search.videos.length) {
                 await conn.sendMessage(chatId, { text: 'No results found.' }, { quoted: message });
                 return;
             }
-            videoUrl = search.videos[0].url;
-            videoTitle = search.videos[0].title;
-            videoThumbnail = search.videos[0].thumbnail;
+            const video = search.videos[0];
+            query = video.url;
+            videoTitle = video.title;
+            videoThumbnail = video.thumbnail;
         }
 
-        await conn.sendMessage(chatId, {
-            image: { url: videoThumbnail },
-            caption: `🎵 *${videoTitle}*\n\n📥 Downloading audio...`
-        }, { quoted: message });
-
-        // API call for MP3 (normal quality)
-        const apiUrl = 'https://ktrenqecceeooyrquooc.supabase.co/functions/v1/api-proxy';
-        const requestBody = {
-            apiKey: "guru_x3jr526k5pqbl91wqubhws3y48qj6zbo",
-            action: "yt-mp3",
-            payload: {
-                url: videoUrl,
-                quality: "normal"
+        // Use Elite API for MP3
+        try {
+            const apiUrl = `https://eliteprotech-apis.zone.id/ytmp3?url=${encodeURIComponent(query)}`;
+            const response = await axios.get(apiUrl, { timeout: 30000 });
+            const result = response.data;
+            
+            if (result && result.status && result.result && result.result.download) {
+                downloadUrl = result.result.download;
+                videoTitle = result.result.title || videoTitle;
+                
+                // Send thumbnail with caption
+                await conn.sendMessage(chatId, {
+                    image: { url: videoThumbnail },
+                    caption: `🎵 *${videoTitle}*\n📥 Downloading audio please wait...`
+                }, { quoted: message });
+            } else {
+                throw new Error('No download URL from Elite API');
             }
-        };
-
-        const response = await axios.post(apiUrl, requestBody, {
-            headers: { 'Content-Type': 'application/json' },
-            timeout: 60000
-        });
-
-        const result = response.data;
-
-        if (!result || !result.download || !result.download.url) {
-            throw new Error('No download URL received');
+        } catch (error) {
+            console.log('Elite API failed:', error.message);
+            throw new Error('Failed to fetch audio from Elite API');
         }
-
-        const audioUrl = result.download.url;
-        const audioTitle = result.title || videoTitle;
 
         // Download audio buffer
-        const audioResponse = await axios.get(audioUrl, {
+        const audioResponse = await axios.get(downloadUrl, {
             responseType: 'arraybuffer',
             timeout: 90000
         });
@@ -109,8 +110,8 @@ async function fetchMp3(conn, chatId, message) {
         await conn.sendMessage(chatId, {
             document: audioBuffer,
             mimetype: 'audio/mpeg',
-            fileName: `${audioTitle.replace(/[^\w\s-]/g, '')}.mp3`,
-            caption: `🎵 *${audioTitle}*\n\n> ${global.wm || 'JEXPLOIT'}`
+            fileName: `${videoTitle.replace(/[^\w\s-]/g, '')}.mp3`,
+            caption: `🎵 *${videoTitle}*\n\n> ${global.wm || 'JEXPLOIT'}`
         }, { quoted: message });
 
     } catch (err) {
@@ -121,22 +122,7 @@ async function fetchMp3(conn, chatId, message) {
     }
 }
 
-async function tryRequest(getter, attempts = 3) {
-    let lastError;
-    for (let attempt = 1; attempt <= attempts; attempt++) {
-        try {
-            return await getter();
-        } catch (err) {
-            lastError = err;
-            if (attempt < attempts) {
-                await new Promise(r => setTimeout(r, 1000 * attempt));
-            }
-        }
-    }
-    throw lastError;
-}
-
-// EliteProTech API
+// EliteProTech Video API (ytdown)
 async function getEliteProTechVideo(youtubeUrl) {
     const apiUrl = `https://eliteprotech-apis.zone.id/ytdown?url=${encodeURIComponent(youtubeUrl)}&format=mp4`;
     const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
@@ -176,7 +162,7 @@ async function getOkatsuVideo(youtubeUrl) {
     throw new Error('Okatsu returned no download');
 }
 
-// Main fetchVideo function
+// Main fetchVideo function (unchanged - uses ytdown, Yupra, Okatsu)
 async function fetchVideo(youtubeUrl) {
     const apiMethods = [
         { name: 'EliteProTech', method: () => getEliteProTechVideo(youtubeUrl) },
@@ -263,6 +249,20 @@ function styletext(teks) {
             resolve(hasil)
         })
     })
+}
+
+// Helper function to extract video ID from URL
+function extractVideoId(url) {
+    const patterns = [
+        /(?:youtube\.com\/watch\?v=)([^&]+)/,
+        /(?:youtu\.be\/)([^?]+)/,
+        /(?:youtube\.com\/embed\/)([^/?]+)/
+    ];
+    for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match) return match[1];
+    }
+    return null;
 }
 
 module.exports = { wallpaper, fetchMp3, fetchVideo, wikimedia, ringtone, styletext }
