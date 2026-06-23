@@ -8,6 +8,7 @@ const fileTypeFromBuffer = require('file-type')
 const randomarray = async (array) => {
 	return array[Math.floor(Math.random() * array.length)]
 }
+const { toAudio } = require('../../start/lib/converter')
 
 const AXIOS_DEFAULTS = {
     timeout: 60000,
