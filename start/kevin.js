@@ -2668,7 +2668,7 @@ case "alive": {
         m.chat, 
         { 
             image: { url: randomImageUrl },
-            caption: `*🌹Hi. I am 👑 Jexploit, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime:${serverUptime}*`
+            caption: `*🌹Hi. I am 👑 Jexploit, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime: ${serverUptime}*`
         },
         { quoted: m }
     ).catch(err => {
@@ -5381,7 +5381,7 @@ case "play": {
 }
 case "song2": {
   const query = args.join(" ");
-        if (!query) return reply(`Example: ${prefix}play3 Faded`);
+        if (!query) return reply(`Example: ${prefix}song2 Faded`);
 
         try {
             await reply(`Searching for "${query}"...`);
