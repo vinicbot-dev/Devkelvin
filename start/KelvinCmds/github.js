@@ -1,17 +1,15 @@
 const moment = require('moment-timezone');
-const fetch = require('node-fetch');
-const fs = require('fs');
-const path = require('path');
+const axios = require('axios');
 const { sendButtons } = require('gifted-btns');
 
 async function githubCommand(conn, chatId, message) {
     try {
         // Fetch GitHub repository data
-        const res = await fetch('https://api.github.com/repos/Kevintech-hub/Jexploit-Bot');
-        const json = await res.json();
+        const response = await axios.get('https://api.github.com/repos/Kevintech-hub/Jexploit-Bot');
+        const json = response.data;
 
         const ownerName = global.ownername || 'Kelvin Tech';
-        
+
         const txt = `
 📁 *${json.name}*
 
@@ -27,13 +25,8 @@ async function githubCommand(conn, chatId, message) {
 > Please ⭐ star and fork the repository!
 `;
 
-        // Get image from Media folder
-        const imagePath = path.join(__dirname, '../../start/lib/Media/Jexploit1.jpg');
-        let imageBuffer = null;
-        
-        if (fs.existsSync(imagePath)) {
-            imageBuffer = fs.readFileSync(imagePath);
-        }
+        // Image URL – always available and reliable
+        const imageUrl = 'https://files.catbox.moe/atfp7w.jpg';
 
         // Buttons configuration
         const buttons = [
@@ -53,19 +46,19 @@ async function githubCommand(conn, chatId, message) {
             }
         ];
 
-        // Send image + caption + buttons all together
+        // Send image + caption + buttons together
         await sendButtons(conn, chatId, {
             title: '📁 JEXPLOIT REPOSITORY',
             text: txt,
             footer: 'Powered by Jexploit',
-            image: imageBuffer,
+            image: { url: imageUrl },  // ✅ use URL object, not Buffer
             buttons: buttons
         }, { quoted: message });
 
     } catch (error) {
         console.error('Error in github command:', error);
-        await conn.sendMessage(chatId, { 
-            text: '❌ Error fetching repository.\n\n🔗 https://github.com/Kevintech-hub/Jexploit-Bot' 
+        await conn.sendMessage(chatId, {
+            text: '❌ Error fetching repository.\n\n🔗 https://github.com/Kevintech-hub/Jexploit-Bot'
         }, { quoted: message });
     }
 }
