@@ -31,13 +31,13 @@ async function uploadMedia(buffer) {
   }
 }
 
-async function handleMediaUpload(quoted, conn, mime) {
+async function handleMediaUpload(quoted, kelvin, mime) {
   if (!quoted || !mime) {
     throw new Error('No valid media to upload!');
   }
 
   try {
-    const media = await conn.downloadAndSaveMediaMessage(quoted);
+    const media = await kelvin.downloadAndSaveMediaMessage(quoted);
 
     const fs = require('fs');
     const buffer = fs.readFileSync(media);
