@@ -45,22 +45,21 @@ exports.getRandom = (ext) => {
 }
 
 exports.getBuffer = async (url, options) => {
-  try {
-    options ? options : {}
-    const res = await axios({
-      method: "get",
-      url,
-      headers: {
-        'DNT': 1,
-        'Upgrade-Insecure-Request': 1
-      },
-      ...options,
-      responseType: 'arraybuffer'
-    })
-    return res.data
-  } catch (err) {
-    return err
-  }
+  // A missing/odd User-Agent is why a lot of these third-party download
+  // links fail when fetched server-side even though they work in a browser -
+  // several CDNs used by these APIs reject requests that don't look like one.
+  const res = await axios({
+    method: "get",
+    url,
+    headers: {
+      'DNT': 1,
+      'Upgrade-Insecure-Request': 1,
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+    },
+    ...options,
+    responseType: 'arraybuffer'
+  })
+  return res.data
 }
 exports.checkBandwidth = async () => {
 let ind = 0;
