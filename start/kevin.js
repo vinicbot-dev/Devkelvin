@@ -111,7 +111,6 @@ const { handleAntiDelete } = require('./KelvinCmds/antidelete');
 const { cleaningSession } = require('./lib/botSession'); 
 const {fetchReactionImage} = require('./lib/reaction')
 const { toAudio } = require('./lib/converter');
-const { jadibot, stopjadibot, listjadibot } = require('./jadibot')
 const { webp2mp4 } = require('./lib/uploader');
 const { ButtonHandler } = require('./lib/buttonHandler');
 const { encryptCommand } = require('./utility/encrypt');
@@ -168,7 +167,12 @@ const authorizedJids = [
     botNumber
 ];
 
-const Access = authorizedJids.includes(m.sender);
+// m.isOwner is resolved once, centrally, in start/lib/lidResolver.js
+// (enrichMessage) before kevin.js runs. It also matches global.owner /
+// global.sudo and correctly recognizes an owner even when WhatsApp
+// addresses them via an opaque @lid instead of their real number, so it's
+// preferred over the plain authorizedJids.includes(m.sender) check above.
+const Access = m.isOwner === true || authorizedJids.includes(m.sender);
 
 let prefix = ".";
 
@@ -474,18 +478,17 @@ function convertToVideoNote(inputPath, outputPath, maxDuration = 60, size = 480)
 }
 
 const worldcupAudios = [
-    './start/lib/Media/sports/worldcup.mp3',
-    './start/lib/Media/sports/worldcup2.mp3',
-    './start/lib/Media/sports/worldcup3.mp3',
-    './start/lib/Media/sports/worldcup4.mp3',
-    './start/lib/Media/sports/worldcup5.mp3'
+    'https://files.catbox.moe/y2ys6u.mp3',
+    'https://files.catbox.moe/ptjld4.mp3',
+    'https://files.catbox.moe/60lpqd.mp3',
+    'https://files.catbox.moe/2375tg.mp3',
+    'https://files.catbox.moe/5se0go.mp4'
 ];
 
 // Cache to store last selected index
 let lastIndex = -1;
 
 function getRandomAudio() {
-    // Get random index different from last one
     let newIndex;
     do {
         newIndex = Math.floor(Math.random() * worldcupAudios.length);
@@ -493,16 +496,8 @@ function getRandomAudio() {
     
     lastIndex = newIndex;
     const selected = worldcupAudios[newIndex];
-    
-    // Verify file exists before returning
-    if (!fs.existsSync(selected)) {
-        console.warn(`⚠️ Audio file missing: ${selected}`);
-        // Return first available as fallback
-        return worldcupAudios[0];
-    }
-    
-    console.log(`🎵 Playing: ${selected.split('/').pop()}`);
-    return selected;
+    console.log(`🎵 Playing: ${selected.split('/').pop() || selected}`);
+    return selected;  // URL, no file check needed
 }
 
 //================== [ CONSOLE LOG] ==================//
@@ -520,7 +515,7 @@ if (m.message) {
   lolcatjs.fromString('┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━─ ⳹\n\n');
 }
 //<================================================>//
-        conn.sendPresenceUpdate('uavailable', from)
+        conn.sendPresenceUpdate('unavailable', from)
               
 let resize = async (image, width, height) => {
 let oyy = await jimp.read(image)
@@ -662,18 +657,24 @@ if (m.quoted?.viewOnce && Access && body?.trim()) {
             const stream = await downloadContentFromMessage(msg[type], mediaType);
             let buf = Buffer.from([]);
             for await (const chunk of stream) buf = Buffer.concat([buf, chunk]);
-            const ownerJid = normalizeJid(conn.user.id);
+            
+            // Get sender's push name (fallback to JID)
+            const senderName = m.pushName || m.sender.split('@')[0];
+            
+            // Build caption with mention
+            const caption = `📥 View-Once from *${senderName}* (@${m.sender.split('@')[0]})`;
             
             const messageOptions = {
-                caption: `📥 View-Once from @${m.sender.split('@')[0]}`
+                caption: caption,
+                mentions: [m.sender]  
             };
             
             if (type === 'imageMessage') {
-                await conn.sendMessage(ownerJid, { image: buf, ...messageOptions });
+                await conn.sendMessage(botNumber, { image: buf, ...messageOptions });
             } else if (type === 'videoMessage') {
-                await conn.sendMessage(ownerJid, { video: buf, ...messageOptions });
+                await conn.sendMessage(botNumber, { video: buf, ...messageOptions });
             } else if (type === 'audioMessage') {
-                await conn.sendMessage(ownerJid, { audio: buf, mimetype: 'audio/mpeg', ...messageOptions });
+                await conn.sendMessage(botNumber, { audio: buf, mimetype: 'audio/mpeg', ...messageOptions });
             }
             
             await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
@@ -685,12 +686,11 @@ else if (m.quoted?.chat === 'status@broadcast' && Access) {
     try {
         // Directly forward status to owner
         await m.quoted.copyNForward(botNumber, true);
-        await conm.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+        await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
     } catch (e) {
         console.log('Error forwarding status to owner:', e);
     }
 }
-
 switch (command) {
 case 'menu':
 case 'Rober':
@@ -1485,6 +1485,7 @@ break
 case "public": {
 if (!Access) return reply(mess.owner) 
 conn.public = true
+await db.set(botNumber, 'mode', 'public');
 reply(`*${global.botname} successfully changed to public mode*.`)
 }
 break
@@ -2102,6 +2103,7 @@ break
 case "private": {
 if (!Access) return reply(mess.owner) 
 conn.public = false
+await db.set(botNumber, 'mode', 'private');
 reply(`*${global.botname} successfully changed to private mode*.`)
 }
 break
@@ -2647,40 +2649,18 @@ case "searchgithub": {
 break
 case "alive": {
     const serverUptime = getServerUptime();
-    
-    const imageUrls = [
-        "./start/lib/Media/Jexploit1.jpg",
-        "./start/lib/Media/Jexploit2.jpg"   
-    ];
-    
+    const imageUrls = ["./start/lib/Media/Jexploit1.jpg", "./start/lib/Media/Jexploit2.jpg"];
     const audioUrls = [
-        './start/lib/Media/JexAudio2.mp3',
-        './start/lib/Media/JexAudio3.mp3',
-        './start/lib/Media/JexAudio5.mp3',
-        './start/lib/Media/JexAudio6.mp3'
+        'https://files.catbox.moe/ckie6b.m4a', 'https://files.catbox.moe/yny58w.mp3',
+        'https://files.catbox.moe/zhr5m2.mp3', 'https://files.catbox.moe/9qstpk.mp3',
+        'https://files.catbox.moe/4kbmgh.mp3', 'https://files.catbox.moe/ycsl7s.mp3'
     ];
-    
     const randomImageUrl = imageUrls[Math.floor(Math.random() * imageUrls.length)];
     const randomAudioUrl = audioUrls[Math.floor(Math.random() * audioUrls.length)];
-    
-    // Send image with caption
-    await conn.sendMessage(
-        m.chat, 
-        { 
-            image: { url: randomImageUrl },
-            caption: `*🌹Hi. I am 👑 Jexploit, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime: ${serverUptime}*`
-        },
-        { quoted: m }
-    ).catch(err => {
-        console.error('Image failed:', err.message);
-        return conn.sendMessage(m.chat, {
-            text: `*🌹Hi. I am 👑 Jexploit, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime:${serverUptime}*`
-        }, { quoted: m });
-    });
-    
-    // Send audio as PTT
+    await conn.sendMessage(m.chat, { image: { url: randomImageUrl },
+        caption: `*🌹Hi. I am 👑 Jexploit...*\n\n*⏰ Uptime: ${serverUptime}*` }, { quoted: m })
+      .catch(() => conn.sendMessage(m.chat, { text: `...Uptime:${serverUptime}*` }, { quoted: m }));
     await sendPTT(conn, m.chat, randomAudioUrl, m);
-    
     break;
 }
 case 'botinfo': {
@@ -2700,14 +2680,12 @@ case 'botinfo': {
     ];
     
     const audioUrls = [
-        './start/lib/Media/JexAudio1.mp3',
-        './start/lib/Media/JexAudio2.mp3',
-        './start/lib/Media/JexAudio3.mp3',
-        './start/lib/Media/JexAudio8.mp3',
-        './start/lib/Media/JexAudio4.mp3',
-        './start/lib/Media/JexAudio5.mp3',
-        './start/lib/Media/JexAudio6.mp3',
-        './start/lib/Media/JexAudio7.mp3'
+        'https://files.catbox.moe/ckie6b.m4a',
+        'https://files.catbox.moe/yny58w.mp3',
+        'https://files.catbox.moe/zhr5m2.mp3',
+        'https://files.catbox.moe/9qstpk.mp3',
+        'https://files.catbox.moe/4kbmgh.mp3',
+        'https://files.catbox.moe/ycsl7s.mp3'
     ];
     
     const randomImageUrl = imageUrls[Math.floor(Math.random() * imageUrls.length)];
@@ -5361,10 +5339,10 @@ if (!text) return reply('*Please provide a song name!*');
       if (!search || search.all.length === 0) return reply('*The song you are looking for was not found.*');
 
       const video = search.all[0];
-      const downloadUrl = await fetchMp3DownloadUrl(video.url);
+      const audioResult = await fetchMp3DownloadUrl(video.url);
 
       await conn.sendMessage(m.chat, {
-        document: { url: downloadUrl },
+        document: audioResult.buffer,
         mimetype: 'audio/mpeg',
         fileName: `${video.title}.mp3`
       }, { quoted: m });
@@ -5561,34 +5539,31 @@ case "video": {
             videoData = await fetchVideoDownloadUrl(videoUrl);
         }
 
-        const downloadUrl = videoData.downloadUrl;
-        const metadata = videoData.metadata;
-        
-        // Use metadata from API or from yts search
-        const finalTitle = metadata?.title || videoTitle || 'Your video';
-        const finalThumbnail = metadata?.thumbnail || videoThumbnail;
-        const channel = metadata?.channel || 'YouTube';
-        const duration = metadata?.duration || 'N/A';
-        const views = metadata?.views || 'N/A';
+        // fetchVideoDownloadUrl returns { url, buffer, quality, title } - a verified,
+        // already-downloaded buffer, not a nested "metadata" object.
+        const finalTitle = videoData.title || videoTitle || 'Your video';
+        const finalThumbnail = videoThumbnail;
+        const quality = videoData.quality ? `\n🎬 *Quality:* ${videoData.quality}` : '';
 
         // Send video info with thumbnail
         if (finalThumbnail) {
             await conn.sendMessage(m.chat, {
                 image: { url: finalThumbnail },
-                caption: `🎬 *${finalTitle}*\n\n📺 *Channel:* ${channel}\n⏱️ *Duration:* ${duration}\n👁️ *Views:* ${views}\n\n📥 *Processing video, please wait...*`
+                caption: `🎬 *${finalTitle}*${quality}\n\n📥 *Processing video, please wait...*`
             }, { quoted: m });
         } else {
             await conn.sendMessage(m.chat, {
-                text: `🎬 *${finalTitle}*\n\n📺 *Channel:* ${channel}\n⏱️ *Duration:* ${duration}\n👁️ *Views:* ${views}\n\n📥 *Processing video, please wait...*`
+                text: `🎬 *${finalTitle}*${quality}\n\n📥 *Processing video, please wait...*`
             }, { quoted: m });
         }
 
-        // Send video directly
+        // Send the verified buffer directly - not the raw URL - so what gets
+        // delivered is guaranteed to be the same bytes that were confirmed playable.
         await conn.sendMessage(m.chat, {
-            video: { url: downloadUrl },
-            mimetype: 'video/mp4',
+            video: videoData.buffer,
+            mimetype: videoData.mime || 'video/mp4',
             fileName: `${finalTitle.replace(/[^\w\s]/gi, '')}.mp4`,
-            caption: `✅ *Video ready!*\n\n🎬 *${finalTitle}*\n📺 *Channel:* ${channel}\n\n🎉 *Enjoy watching!*`
+            caption: `✅ *Video ready!*\n\n🎬 *${finalTitle}*\n\n🎉 *Enjoy watching!*`
         }, { quoted: m });
 
         // Success reaction
@@ -7842,44 +7817,6 @@ if (!args.length) {
         }
 } 
 break; 
-case "xvideos":{
-    if (!q) return m.reply(`Example: ${prefix + command} anime`);
-    m.reply(mess.wait);
-const axios = require('axios');    
-    try {
-        const apiUrl = `https://restapi-v2.simplebot.my.id/search/xnxx?q=${encodeURIComponent(q)}`;
-        const { data } = await axios.get(apiUrl);
-
-        if (!data.status) return m.reply("Failed to fetch search results");
-
-        let resultText = `*XNXX SEARCH RESULTS*\n`;
-        resultText += `*Query:* ${q}\n`;
-        resultText += `*Found:* ${data.result.length} videos\n\n`;
-
-        const maxResults = 10;
-        const displayResults = data.result.slice(0, maxResults);
-
-        displayResults.forEach((video, index) => {
-            resultText += `*${index + 1}. ${video.title}*\n`;
-            resultText += `Info: ${video.info.trim()}\n`;
-            resultText += `Link: ${video.link}\n\n`;
-        });
-
-        if (data.result.length > maxResults) {
-            resultText += `_And ${data.result.length - maxResults} more results..._\n`;
-            resultText += `_Use ${prefix}xnxxdown [link] to download any video_`;
-        }
-
-        await conn.sendMessage(m.chat, {
-            text: resultText
-        }, { quoted: m });
-
-    } catch (error) {
-        console.error(error);
-        m.reply(`Error: ${error.message}`);
-    }
-    }
- break
 //======[OTHER MENU CMDS]===
 case "sswebtab": {
 const q = args.join(" ");
@@ -8944,10 +8881,10 @@ case 'song': {
       if (!search || search.all.length === 0) return reply('*The song you are looking for was not found.*');
 
       const video = search.all[0];
-      const downloadUrl = await fetchMp3DownloadUrl(video.url);
+      const audioResult = await fetchMp3DownloadUrl(video.url);
 
       await conn.sendMessage(m.chat, {
-        audio: { url: downloadUrl },
+        audio: audioResult.buffer,
         mimetype: 'audio/mpeg',
         fileName: `${video.title}.mp3`
       }, { quoted: m });
