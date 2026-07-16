@@ -1,6 +1,9 @@
+const axios = require("axios");
+
 const { getBuffer } = require('../../start/lib/myfunction');
+
 async function dareCommand(conn, from, m) {
-    const dares = [
+    const localDares = [
         "Eat 2 tablespoons of rice without any side dishes.",
         "Spill a secret about yourself.",
         "Call your crush now and send a screenshot.",
@@ -41,7 +44,6 @@ async function dareCommand(conn, from, m) {
         "Make a TikTok dance challenge video.",
         "Break up with your best friend for 5 hours without telling them.",
         "Tell a friend you love them and want to marry them.",
-        // Additional dares
         "Do 20 push-ups right now and send a video.",
         "Speak in a British accent for the next 10 messages.",
         "Text your mom 'I'm pregnant' then quickly say 'JK!'",
@@ -105,7 +107,22 @@ async function dareCommand(conn, from, m) {
         "Try to write your name with your non-dominant hand and send a picture."
     ];
 
-    const dareMessage = dares[Math.floor(Math.random() * dares.length)];
+    let dareMessage;
+    
+    try {
+        // Try to fetch from API first
+        const response = await axios.get(`${global.api}/dare`, { timeout: 10000 });
+        
+        if (response.data?.status && response.data?.result) {
+            dareMessage = response.data.result;
+        } else {
+            throw new Error('API returned no dare');
+        }
+    } catch (error) {
+        console.log('API fetch failed for dare, using local array:', error.message);
+        // Fallback to local array
+        dareMessage = localDares[Math.floor(Math.random() * localDares.length)];
+    }
     
     try {
         const buffer = await getBuffer('https://i.ibb.co/305yt26/bf84f20635dedd5dde31e7e5b6983ae9.jpg');
@@ -131,7 +148,7 @@ async function dareCommand(conn, from, m) {
 }
 
 async function truthCommand(conn, from, m) {
-    const truths = [
+    const localTruths = [
         "What's your biggest fear?",
         "Have you ever lied to your best friend?",
         "What's your deepest secret?",
@@ -169,7 +186,6 @@ async function truthCommand(conn, from, m) {
         "What's the most inspiring story you've heard?",
         "Have you ever helped someone in need?",
         "What's the biggest accomplishment you're proud of?",
-        // Additional truths
         "What's something you've never told anyone about your childhood?",
         "Have you ever stolen something?",
         "What's your most irrational fear?",
@@ -250,7 +266,22 @@ async function truthCommand(conn, from, m) {
         "Have you ever been secretly happy about someone else's misfortune?"
     ];
 
-    const truthMessage = truths[Math.floor(Math.random() * truths.length)];
+    let truthMessage;
+    
+    try {
+        // Try to fetch from API first
+        const response = await axios.get(`${global.api}/truth`, { timeout: 10000 });
+        
+        if (response.data?.status && response.data?.result) {
+            truthMessage = response.data.result;
+        } else {
+            throw new Error('API returned no truth');
+        }
+    } catch (error) {
+        console.log('API fetch failed for truth, using local array:', error.message);
+        // Fallback to local array
+        truthMessage = localTruths[Math.floor(Math.random() * localTruths.length)];
+    }
     
     try {
         const buffer = await getBuffer('https://i.ibb.co/305yt26/bf84f20635dedd5dde31e7e5b6983ae9.jpg');
@@ -276,6 +307,6 @@ async function truthCommand(conn, from, m) {
 }
 
 module.exports = {
-dareCommand,
-truthCommand
+    dareCommand,
+    truthCommand
 };
