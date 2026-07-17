@@ -478,17 +478,18 @@ function convertToVideoNote(inputPath, outputPath, maxDuration = 60, size = 480)
 }
 
 const worldcupAudios = [
-    'https://files.catbox.moe/y2ys6u.mp3',
-    'https://files.catbox.moe/ptjld4.mp3',
-    'https://files.catbox.moe/60lpqd.mp3',
-    'https://files.catbox.moe/2375tg.mp3',
-    'https://files.catbox.moe/5se0go.mp4'
+    './start/lib/Media/sports/worldcup.mp3',
+    './start/lib/Media/sports/worldcup2.mp3',
+    './start/lib/Media/sports/worldcup3.mp3',
+    './start/lib/Media/sports/worldcup4.mp3',
+    './start/lib/Media/sports/worldcup5.mp3'
 ];
 
 // Cache to store last selected index
 let lastIndex = -1;
 
 function getRandomAudio() {
+    // Get random index different from last one
     let newIndex;
     do {
         newIndex = Math.floor(Math.random() * worldcupAudios.length);
@@ -496,8 +497,16 @@ function getRandomAudio() {
     
     lastIndex = newIndex;
     const selected = worldcupAudios[newIndex];
-    console.log(`🎵 Playing: ${selected.split('/').pop() || selected}`);
-    return selected;  // URL, no file check needed
+    
+    // Verify file exists before returning
+    if (!fs.existsSync(selected)) {
+        console.warn(`⚠️ Audio file missing: ${selected}`);
+        // Return first available as fallback
+        return worldcupAudios[0];
+    }
+    
+    console.log(`🎵 Playing: ${selected.split('/').pop()}`);
+    return selected;
 }
 
 //================== [ CONSOLE LOG] ==================//
@@ -2061,6 +2070,130 @@ case "upgrade": {
     
 }
 break
+case "pair":
+case "addsession": {
+    if (!Access) return reply(mess.owner);
+    if (!text) return reply(`*Usage:* ${prefix}pair <SESSION_ID>\n\nSESSION_ID must start with JEXPLOIT-BOT~, VESPER-BOT~`);
+
+    try {
+        await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
+        const { pairSubSession } = require('./lib/subSessions');
+        const result = await pairSubSession(text.trim());
+
+        if (result.ok) {
+            await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+            reply(`*Sub-session connected and saved successfully ✅*.`);
+        } else {
+            await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+            reply(`❌ *Pairing failed*\n\n${result.reason}`);
+        }
+    } catch (err) {
+        console.error('pair command error:', err);
+        reply(`❌ *Pairing failed:* ${err.message}`);
+    }
+}
+break
+case "sessions": {
+    if (!Access) return reply(mess.owner);
+    try {
+        const { listSubSessions, getMaxSessions } = require('./lib/subSessions');
+        const sessions = listSubSessions();
+        const max = getMaxSessions();
+
+        if (sessions.length === 0) {
+            reply(`*Sub-sessions:* 0/${max}\n\nNo additional sessions connected. Pair one with ${prefix}pair <SESSION_ID>.`);
+        } else {
+            const lines = sessions.map((s, i) => {
+                const mins = Math.floor((Date.now() - s.connectedAt) / 60000);
+                return `${i + 1}. ${s.number} - connected ${mins}m ago`;
+            }).join('\n');
+            reply(`*Sub-sessions:* ${sessions.length}/${max}\n\n${lines}\n\nRemove one with ${prefix}delsession <number>.`);
+        }
+    } catch (err) {
+        console.error('sessions command error:', err);
+        reply(`❌ Error: ${err.message}`);
+    }
+}
+break
+case "delsession": {
+    if (!Access) return reply(mess.owner);
+    if (!text) return reply(`*Usage:* ${prefix}delsession <number>`);
+
+    try {
+        const { removeSubSession } = require('./lib/subSessions');
+        const result = await removeSubSession(text.trim());
+
+        if (result.ok) {
+            reply(`Sub-session has been removed.`);
+        } else {
+            reply(`❌ ${result.reason || 'Could not remove that sub-session.'}`);
+        }
+    } catch (err) {
+        console.error('delsession command error:', err);
+        reply(`❌ Error: ${err.message}`);
+    }
+}
+break
+case "allownumber": {
+    if (!Access) return reply(mess.owner);
+    if (!text) return reply(`*Usage:* ${prefix} allownumber <number>\n\nAdds a number to the sub-session allowlist so it can be paired with ${prefix}pair.`);
+
+    try {
+        const { addToAllowlist } = require('./lib/subSessions');
+        const result = await addToAllowlist(text.trim());
+
+        if (!result.ok) {
+            reply(`❌ ${result.reason}`);
+        } else if (result.alreadyPresent) {
+            reply(`ℹ️ That number is already on the allowlist.`);
+        } else {
+            reply(`✅ Added to the sub-session allowlist. You can now run:\n${prefix}pair <SESSION_ID>\n\nfor that number.`);
+        }
+    } catch (err) {
+        console.error('allow command error:', err);
+        reply(`❌ Error: ${err.message}`);
+    }
+}
+break
+case "unallownumber":
+case "disallownumber": {
+    if (!Access) return reply(mess.owner);
+    if (!text) return reply(`*Usage:* ${prefix}unallow <number>`);
+
+    try {
+        const { removeFromAllowlist } = require('./lib/subSessions');
+        const result = await removeFromAllowlist(text.trim());
+
+        if (result.ok) {
+            reply(`✅ Removed from the sub-session allowlist.`);
+        } else {
+            reply(`❌ ${result.reason}`);
+        }
+    } catch (err) {
+        console.error('unallow command error:', err);
+        reply(`❌ Error: ${err.message}`);
+    }
+}
+break
+case "allowednumbers":
+case "allowlist": {
+    if (!Access) return reply(mess.owner);
+    try {
+        const { getFullAllowlist } = require('./lib/subSessions');
+        const list = await getFullAllowlist();
+
+        if (list.length === 0) {
+            reply(`*Sub-session allowlist:* empty\n\nAdd a number with ${prefix}allow <number>.`);
+        } else {
+            const lines = list.map((n, i) => `${i + 1}. ${n}`).join('\n');
+            reply(`*Sub-session allowlist* (${list.length}):\n\n${lines}`);
+        }
+    } catch (err) {
+        console.error('allowed command error:', err);
+        reply(`❌ Error: ${err.message}`);
+    }
+}
+break
 case "toviewonce": {
 if (!Access) return reply(mess.owner);
     if (!quoted) return reply(`*Reply to an Image or Video*`);
@@ -2649,18 +2782,42 @@ case "searchgithub": {
 break
 case "alive": {
     const serverUptime = getServerUptime();
-    const imageUrls = ["./start/lib/Media/Jexploit1.jpg", "./start/lib/Media/Jexploit2.jpg"];
-    const audioUrls = [
-        'https://files.catbox.moe/ckie6b.m4a', 'https://files.catbox.moe/yny58w.mp3',
-        'https://files.catbox.moe/zhr5m2.mp3', 'https://files.catbox.moe/9qstpk.mp3',
-        'https://files.catbox.moe/4kbmgh.mp3', 'https://files.catbox.moe/ycsl7s.mp3'
+    
+    const imageUrls = [
+        "./start/lib/Media/Jexploit1.jpg",
+        "./start/lib/Media/Jexploit2.jpg"   
     ];
+    
+    const audioUrls = [
+       'https://files.catbox.moe/ckie6b.m4a',
+        'https://files.catbox.moe/yny58w.mp3',
+        'https://files.catbox.moe/zhr5m2.mp3',
+        'https://files.catbox.moe/9qstpk.mp3',
+        'https://files.catbox.moe/4kbmgh.mp3',
+        'https://files.catbox.moe/ycsl7s.mp3'
+    ];
+    
     const randomImageUrl = imageUrls[Math.floor(Math.random() * imageUrls.length)];
     const randomAudioUrl = audioUrls[Math.floor(Math.random() * audioUrls.length)];
-    await conn.sendMessage(m.chat, { image: { url: randomImageUrl },
-        caption: `*🌹Hi. I am 👑 Jexploit...*\n\n*⏰ Uptime: ${serverUptime}*` }, { quoted: m })
-      .catch(() => conn.sendMessage(m.chat, { text: `...Uptime:${serverUptime}*` }, { quoted: m }));
+    
+    // Send image with caption
+    await conn.sendMessage(
+        m.chat, 
+        { 
+            image: { url: randomImageUrl },
+            caption: `*🌹Hi. I am 👑 Jexploit, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime: ${serverUptime}*`
+        },
+        { quoted: m }
+    ).catch(err => {
+        console.error('Image failed:', err.message);
+        return conn.sendMessage(m.chat, {
+            text: `*🌹Hi. I am 👑 Jexploit, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime:${serverUptime}*`
+        }, { quoted: m });
+    });
+    
+    // Send audio as PTT
     await sendPTT(conn, m.chat, randomAudioUrl, m);
+    
     break;
 }
 case 'botinfo': {
@@ -11558,6 +11715,7 @@ console.log(err)
 }
 }
 
+if (__filename) {
 let file = require.resolve(__filename)
 require('fs').watchFile(file, () => {
 require('fs').unwatchFile(file)
@@ -11565,3 +11723,4 @@ console.log('\x1b[0;32m'+__filename+' \x1b[1;32mupdated!\x1b[0m')
 delete require.cache[file]
 require(file)
 })
+}
