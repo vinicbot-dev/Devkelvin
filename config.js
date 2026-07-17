@@ -12,6 +12,15 @@ const fs = require('fs');
  //  
 global.owner = ["256742932677"];  
 global.sudo = ["256742932677", "256755585369"];
+
+// Numbers allowed to be paired as additional sessions via the .pair command
+// (owner-only). A number must be listed here - the number the *credentials*
+// actually belong to, not whatever's typed alongside them - or pairing is
+// refused. Add your own numbers here, digits only, no + and no @s.whatsapp.net.
+global.allowedSubSessions = [
+    // "2567xxxxxxxx",
+];
+global.maxSubSessions = 3;
 global.ownername = "Kelvin Tech";  
 global.botname = "JEXPLOIT";  
 
@@ -72,7 +81,7 @@ global.author = 'BOT';
 global.wm = '©★⃝𝐉𝐄𝐗𝐏𝐋𝐎𝐈𝐓 is awesome 🔥';
 
 // === For only developer ============
-global.api = "https://ravenn.site";
+global.api = "https://apiskeith.top";
 global.KevinApi = "mvn_988e8fc44c89ad6e537bb683e681afe6";
 global.wwe = "https://www.wwe.com/api/news";
 global.wwe1 = "https://www.thesportsdb.com/api/v1/json/3/searchfilename.php?e=wwe";
@@ -97,7 +106,7 @@ global.mess = {
   error: "An error occurred while processing the command!",
   limited: "*Limit reached*",
   helpersList: [
-    { name: "Malvin king", number: "+263776388689", country: "Zimbabwe", flag: "🇿🇼" },
+    { name: "JHAI DAVE", number: "+256774782648", country: "Uganda", flag: "🇺🇬" },
     { name: "𝐊𝐚𝐚𝐗𝐇𝐮𝐧𝐭𝐞𝐫𝐳", number: "+91 80751 69545", country: "India", flag: "🇮🇳" },
     { name: "Terri", number: "+256752792178", country: "Uganda", flag: "🇺🇬" },
     { name: "༅᭄𖣐∭•𝐑𝐎𝐌𝐀-𝐓𝐄𝐂𝐇•∭𖣐᭄༅", number: ",256791480644", country: "Uganda", flag: "🇺🇬" },
@@ -107,9 +116,11 @@ global.mess = {
 };
 
 
-let file = require.resolve(__filename);
-fs.watchFile(file, () => {
-  fs.unwatchFile(file);
-  delete require.cache[file];
-  require(file);
-});
+if (__filename) {
+  let file = require.resolve(__filename);
+  fs.watchFile(file, () => {
+    fs.unwatchFile(file);
+    delete require.cache[file];
+    require(file);
+  });
+}
