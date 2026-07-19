@@ -957,7 +957,6 @@ case 'addowner': {
     }
     break;
 }
-
 case 'removeowner': {
     if (!Access) return reply(mess.owner);
     
@@ -1215,7 +1214,7 @@ case "setprofilename": {
         if (!Access) return reply(mess.owner);
 
         if (!text) {
-            return m.reply(`⚠️ Please provide a name!\n\nUsage: *${prefix}case <new_profile_name>*\nExample: *${prefix}case Kelvin*`);
+            return m.reply(`⚠️ Please provide a name!\n\nUsage: *${prefix}case <new_profile_name>*\nExample: *${prefix} Kevin Dev*`);
         }
 
         // Limit name length to prevent errors
@@ -2044,7 +2043,7 @@ case "getpp": {
         await conn.sendMessage(m.chat, 
             { 
                 image: { url: ppUrl }, 
-                caption: `⌘ *Profile Picture of:* @${userId.split('@')[0]}`,
+                caption: `📸 *Profile Picture of:* @${userId.split('@')[0]}`,
                 mentions: [ userId ]
             }, { quoted: m }); 
     } catch {
@@ -2630,88 +2629,85 @@ case "uptime": {
     }
 }
 break
+case "script":
 case "sc": {
-  try {
-    // GitHub repository details
-    const repoOwner = "Kevintech-hub";
-    const repoName = "Jexploit-Bot";
-    const apiUrl = `https://api.github.com/repos/${repoOwner}/${repoName}`;
-    
-    // Fetch repository data with error handling
-    const { data } = await axios.get(apiUrl, {
-      timeout: 5000, // 5 second timeout
-      headers: {
-        'User-Agent': 'Jexploit-Bot' // GitHub requires user-agent
-      }
-    }).catch(err => {
-      console.error('GitHub API Error:', err);
-      throw new Error('Failed to connect to GitHub API');
-    });
+   try {
+            const repoOwner = "Kevintech-hub";
+            const repoName = "Jexploit-Bot";
+            const apiUrl = `https://api.github.com/repos/${repoOwner}/${repoName}`;
+            
+            const { data } = await axios.get(apiUrl, {
+                timeout: 5000,
+                headers: { 'User-Agent': 'Vesper-Xmd Bot' }
+            });
 
-    // Validate response data
-    if (!data || typeof data !== 'object') {
-      throw new Error('Invalid GitHub API response');
-    }
+            const repoInfo = `
+╭──❖ 「 *Vesper-Xmd Repository*」 ❖──
+│
+🔸 *Repository*  : ${data.name || repoName}
+🔸 *Owner*       : ${repoOwner}
+🔸 *Description* : ${data.description || 'No description'}
+│
+🔹 *Stars*       :  ${data.stargazers_count || 0}
+🔹 *Forks*       :  ${data.forks_count || 0}
+🔹 *Issues*      :  ${data.open_issues_count || 0}
+🔹 *Watchers*    : 👀 ${data.watchers_count || 0}
+│
+🔸 *Language*    : ${data.language || 'N/A'}
+🔸 *License*     : ${data.license?.name || 'None'}
+🔸 *Created*     : ${new Date(data.created_at).toLocaleDateString()}
+🔸 *Updated*     :  ${new Date(data.updated_at).toLocaleDateString()}
+│
+🔹 *GitHub Link* :
+🔹 https://github.com/${repoOwner}/${repoName}
+│
+╰─────────────────❖
 
-    // Format repository information
-    const repoInfo = `
-    *BOT REPOSITORY*
-    
- *Name:* ${String(data.name || repoName).padEnd(20)}
- *Stars:* ${String(data.stargazers_count || 0).padEnd(20)}
- *Forks:* ${String(data.forks_count || 0).padEnd(21)}
- *Watchers:* ${String(data.watchers_count || 0).padEnd(18)}
- *Language:* ${String(data.language || 'Not specified').padEnd(16)}
- *License:* ${String(data.license?.name || 'None').padEnd(19)}
- *GitHub Link:* 
-https://github.com/${repoOwner}/${repoName}
+✨ @${m.sender.split("@")[0]} *Don't forget to ⭐ star the repo!* ✨`;
 
-*Session Id:* https://vinic-xmd-pairing-site-dsf-crew-devs.onrender.com/
-────────────────────────────────
-@${m.sender.split("@")[0]}👋, Don't forget to star and fork my repository!`;
-    // Send the response with thumbnail
-    await conn.sendMessage(
-      m.chat,
-      {
-        text: repoInfo.trim(),
-        contextInfo: {
-          mentionedJid: [m.sender],
-          externalAdReply: {
-            title: "Jexploit Repository",
-            body: `⭐ Star the repo to support development!`,
-            thumbnail: await getBuffer('https://files.catbox.moe/uy3kq9.jpg'), // Fallback thumbnail
-            mediaType: 1,
-            sourceUrl: `https://github.com/${repoOwner}/${repoName}`
-          }
+            const thumbnailUrl = 'https://i.ibb.co/rR9TKcBH/f05860da845e.jpg';
+            
+            await kelvin.sendMessage(m.chat, {
+                text: repoInfo,
+                contextInfo: {
+                    mentionedJid: [m.sender],
+                    externalAdReply: {
+                        title: "🌟 JEXPLOIT REPOSITORY",
+                        body: `⭐ ${data.stargazers_count || 0} Stars | 🍴 ${data.forks_count || 0} Forks`,
+                        thumbnailUrl: thumbnailUrl,  
+                        sourceUrl: `https://github.com/${repoOwner}/${repoName}`,
+                        mediaType: 1,
+                        renderLargerThumbnail: true
+                    }
+                }
+            }, { quoted: m });
+
+        } catch (error) {
+            console.error('Repo error:', error);
+            const fallbackInfo = `
+╭──❖ 「 REPOSITORY 」 ❖──
+│
+🔸 *Repository* : Jexploit-Bot
+🔸 *Owner*      : Kevintech-hub
+🔸 *GitHub*     : https://github.com/Kevintech-hub/Jexploit-Bot
+│
+╰─────────────────❖
+
+✨ @${m.sender.split("@")[0]} *Visit the repo to ⭐ star!* ✨`;
+
+            await kelvin.sendMessage(m.chat, { 
+                text: fallbackInfo,
+                contextInfo: { 
+                    mentionedJid: [m.sender],
+                    externalAdReply: {
+                        title: `${global botname}`,
+                        body: "GitHub Repository",
+                        thumbnailUrl: 'https://i.ibb.co/rR9TKcBH/f05860da845e.jpg',
+                        sourceUrl: "https://github.com/Kevintech-hub/Vesper-Xmd"
+                    }
+                }
+            }, { quoted: m });
         }
-      },
-      { quoted: m }
-    );
-
-  } catch (error) {
-    console.error('Repo command error:', error);
-    
-    // Fallback response when GitHub API fails
-    const fallbackInfo = `
-    * BOT REPOSITORY *
-    
- *Name:* Jexploit 
- *GitHub Link:* 
-https://github.com/Kevintech-hub/Vinic-Xmd-
-
-@${m.sender.split("@")[0]}👋, Visit the repository for more info!`;
-
-    await conn.sendMessage(
-      m.chat,
-      { 
-        text: fallbackInfo,
-        contextInfo: {
-          mentionedJid: [m.sender]
-        }
-      },
-      { quoted: m }
-    );
-  }
 }
 break
 case 'github':
@@ -2805,7 +2801,7 @@ case "alive": {
         m.chat, 
         { 
             image: { url: randomImageUrl },
-            caption: `*🌹Hi. I am 👑 Jexploit, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime: ${serverUptime}*`
+            caption: `*🌹Hi. I am 👑 ${global.botname}, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime: ${serverUptime}*`
         },
         { quoted: m }
     ).catch(err => {
@@ -2853,7 +2849,7 @@ case 'botinfo': {
         m.chat, 
         { 
             image: { url: randomImageUrl },  
-            caption: `*🌹Hi. I am 👑 Jexploit, a friendly WhatsApp bot.*${botInfo}`
+            caption: `*🌹Hi. I am 👑 ${global.botname}, a friendly WhatsApp bot.*${botInfo}`
         },
         { quoted: m }
     ).catch(err => {
@@ -2925,145 +2921,6 @@ Start server Enjoy 😉
     }
 }
 break
-case 'pr':
-case 'pair': {
-    if (!text) {
-        return reply(
-            `Oops! You forgot the number.\n\nExample:\n${prefix + command} 25674293XXXX`
-        );
-    }
-    
-    const { sendButtons } = require('gifted-btns');
-    
-    // Normalize and validate numbers
-    const numbers = text.split(",")
-        .map(v => v.replace(/[^0-9]/g, "")) // keep only digits
-        .filter(v => v.length >= 6 && v.length <= 20);
-
-    if (numbers.length === 0) {
-        await conn.sendMessage(
-            m.chat,
-            { text: "Invalid number format. Please use digits only (6–20 digits)." },
-            { quoted: m }
-        );
-        return;
-    }
-
-    for (const number of numbers) {
-        const whatsappID = `${number}@s.whatsapp.net`;
-        
-        try {
-            // Check if number exists on WhatsApp
-            const result = await conn.onWhatsApp(whatsappID);
-
-            if (!result?.[0]?.exists) {
-                await conn.sendMessage(
-                    m.chat,
-                    { text: `Number ${number} is not registered on WhatsApp.` },
-                    { quoted: m }
-                );
-                continue;
-            }
-
-            // Notify processing
-            await conn.sendMessage(
-                m.chat,
-                { text: `Generating code for: ${number}` },
-                { quoted: m }
-            );
-
-            // Fetch pairing code with fallback endpoints
-            const axios = require('axios');
-            let code = null;
-            let lastError = null;
-            
-            // Primary endpoint (Heroku)
-            const endpoints = [
-                `https://versper-pair-40559deffedd.herokuapp.com/code?number=${number}`,
-                `https://jexcore-sessions.onrender.com/code?number=${number}`
-            ];
-            
-            for (const endpoint of endpoints) {
-                try {
-                    const response = await axios.get(endpoint, { timeout: 20000 });
-                    const fetchedCode = response.data?.code;
-                    if (fetchedCode && fetchedCode !== "Service Unavailable") {
-                        code = fetchedCode;
-                        break; // Success, exit loop
-                    }
-                } catch (err) {
-                    lastError = err;
-                    continue; // Try next endpoint
-                }
-            }
-            
-            // If all endpoints failed
-            if (!code || code === "Service Unavailable") {
-                throw new Error(lastError?.message === "Service Unavailable" 
-                    ? "Service Unavailable" 
-                    : "All pairing services are currently unavailable");
-            }
-
-            // Send the pairing code with copy button
-            await sleep(3000);
-            
-            // Check if sendButtons function is available, otherwise use regular message
-            if (typeof sendButtons !== 'undefined') {
-                await sendButtons(conn, m.chat, {
-                    text: `🔐 *Pairing Code for ${number}*\n\n\`\`\`${code}\`\`\``,
-                    footer: `> ${global.wm}`,
-                    buttons: [
-                        {
-                            name: 'cta_copy',
-                            buttonParamsJson: JSON.stringify({
-                                display_text: '📋 Copy Code',
-                                copy_code: code
-                            })
-                        }
-                    ]
-                }, { quoted: m });
-            } else {
-                // Fallback to regular message without copy button
-                await conn.sendMessage(
-                    m.chat,
-                    { text: `${code}` },
-                    { quoted: m }
-                );
-            }
-
-            // Send help instructions
-            await conn.sendMessage(
-                m.chat,
-                { 
-                    text: `How to Link ${number}\n\n` +
-                          `1. Copy the code above\n` +
-                          `2. Open WhatsApp\n` +
-                          `3. Go to Settings > Linked Devices\n` +
-                          `4. Tap Link a Device\n` +
-                          `5. Enter the code\n` +
-                          `6. Wait for it to load\n` +
-                          `7. Done! Your device is now linked.\n\n` +
-                          `Tip: Use the session_id in your DM to deploy.`
-                },
-                { quoted: m }
-            );
-
-        } catch (apiError) {
-            console.error("API Error:", apiError.message);
-            
-            const errorMessage = apiError.message === "Service Unavailable"
-                ? "Service is currently unavailable. Please try again later."
-                : "Failed to generate pairing code. Please try again later.";
-
-            await conn.sendMessage(
-                m.chat,
-                { text: errorMessage },
-                { quoted: m }
-            );
-        }
-    }
-}
-break
 case "serverinfo":
 case "stats":
 case "botstats": {
@@ -3132,7 +2989,6 @@ case "botstats": {
     
 }
 break
-//======[OTHER MUNE CMDS]====
 case 'weather': {
                       try {
 
@@ -3177,13 +3033,9 @@ case 'add2': {
                 if (!m.isBotAdmin) return reply(mess.botadmin);
                 let blockwwww = m.quoted ? m.quoted.sender : text.replace(/[^0-9]/g, '') + '@s.whatsapp.net'
                 await conn.groupParticipantsUpdate(m.chat, [blockwwww], 'add')
-                m.reply(mess.done)
-          }
-                
-
-
-
-//==================================================//   
+         m.reply(mess.done)
+}
+break                 
 case "disp90days": { 
  if (!m.isGroup) return reply (mess.group); 
 
@@ -3193,8 +3045,7 @@ case "disp90days": {
                      await conn.groupToggleEphemeral(m.chat, 90*24*3600); 
  m.reply('Dissapearing messages successfully turned on for 90 days!'); 
  } 
- break; 
-//==================================================//         
+ break;       
 case "dispoff": { 
     if (!m.isGroup) return reply (mess.group); 
 
@@ -3202,10 +3053,8 @@ case "dispoff": {
     if (!m.isBotAdmin) return reply(mess.botadmin);
                      await conn.groupToggleEphemeral(m.chat, 0); 
  m.reply('Dissapearing messages successfully turned off!'); 
- }
-   break;
-
-//==================================================//  
+}
+break;
 case "disp24hours": { 
 if (!m.isGroup) return reply (mess.group); 
 
@@ -3216,7 +3065,6 @@ if (!m.isGroup) return reply (mess.group);
  m.reply('Dissapearing messages successfully turned on for 24hrs!'); 
  } 
 break
-//==================================================//
 case "dev":
 case "developer": {
   try {
@@ -3225,7 +3073,8 @@ case "developer": {
       name: "Kevin Tech",      // Developer name
       number: "256742932677",  // Developer WhatsApp number (without + or @)
       organization: "Jexploit Development Team",
-      note: "Bot Developer"
+      note: `*BOT DEVELOPER AND WEBSITE DESIGNER
+      *Legally wrong, ethically right. Kelvin Tech vs everyone ☠️`
     };
 
     // Create vCard
@@ -3334,7 +3183,7 @@ let text = args.join(" ");
 }
 break
 case "tinylink": {
-    if (!text) return reply(`*Example: ${prefix + command} https://github.com/Kevintech-hub/Vinic-Xmd-*`);
+    if (!text) return reply(`*Example: ${prefix + command} https://github.com/Kevintech-hub/Jexploit-Bot*`);
     
     try {
       const response = await axios.get(`https://tinyurl.com/api-create.php?url=${text}`);
@@ -5419,7 +5268,6 @@ case 'play3': {
             react: { text: '🔍', key: m.key }
         });
 
-        // Call the songCommand function
         await fetchMp3(conn, m.chat, m);
 
     } catch (error) {
@@ -5855,7 +5703,7 @@ case "gdrive": {
 if (!text) return reply("*Please provide a Google Drive file URL*");
 
     try {
-      let response = await fetch(`${global.siputzx}/api/d/gdrive?url=${encodeURIComponent(text)}`);
+      let response = await fetch(`${global.mess.siputzx}/api/d/gdrive?url=${encodeURIComponent(text)}`);
       let data = await response.json();
 
       if (response.status !== 200 || !data.status || !data.data) {
@@ -6027,35 +5875,6 @@ if (!text) return reply("*Please provide a song name*");
       console.error(error);
       reply(mess.error);
     }
-}
-break;
-case 'tiktok': {
-if (!text) return reply(`Use : ${prefix + command} link`)
-// wait message
-reply(mess.wait)
-let data = await fg.tiktok(text)
-let json = data.result
-let caption = `[ TIKTOK - DOWNLOAD ]\n\n`
-caption += `◦ *Id* : ${json.id}\n`
-caption += `◦ *Username* : ${json.author.nickname}\n`
-caption += `◦ *Title* : ${(json.title)}\n`
-caption += `◦ *Like* : ${(json.digg_count)}\n`
-caption += `◦ *Comments* : ${(json.comment_count)}\n`
-caption += `◦ *Share* : ${(json.share_count)}\n`
-caption += `◦ *Play* : ${(json.play_count)}\n`
-caption += `◦ *Created* : ${json.create_time}\n`
-caption += `◦ *Size* : ${json.size}\n`
-caption += `◦ *Duration* : ${json.duration}`
-if (json.images) {
-json.images.forEach(async (k) => {
-await conn.sendMessage(m.chat, { image: { url: k }}, { quoted: m });
-})
-} else {
-conn.sendMessage(m.chat, { video: { url: json.play }, mimetype: 'video/mp4', caption: caption }, { quoted: m })
-setTimeout(() => {
-conn.sendMessage(m.chat, { audio: { url: json.music }, mimetype: 'audio/mpeg' }, { quoted: m })
-}, 3000)
-}
 }
 break       
 case 'fb':
@@ -6548,6 +6367,7 @@ case 'slow': {
   }
   
 }
+break
 case 'reverse': {
   try {
     const quoted = m.quoted ? m.quoted : null;
@@ -6573,7 +6393,6 @@ case 'reverse': {
   }
   break;
 }
-
 case 'echo': {
   try {
     const quoted = m.quoted ? m.quoted : null;
@@ -6625,7 +6444,6 @@ case 'robot': {
   }
   break;
 }
-
 case 'deep': {
   try {
     const quoted = m.quoted ? m.quoted : null;
@@ -6651,7 +6469,6 @@ case 'deep': {
   }
   break;
 }
-
 case 'chipmunk': {
   try {
     const quoted = m.quoted ? m.quoted : null;
@@ -6677,7 +6494,6 @@ case 'chipmunk': {
   }
   break;
 }
-
 case 'nightcore': {
   try {
     const quoted = m.quoted ? m.quoted : null;
@@ -6729,7 +6545,6 @@ case 'instrumental': {
   }
   break;
 }
-
 case 'vocalremove': {
   try {
     const quoted = m.quoted ? m.quoted : null;
@@ -6756,7 +6571,6 @@ case 'vocalremove': {
   }
   break;
 }
-
 case 'karaoke': {
   try {
     const quoted = m.quoted ? m.quoted : null;
@@ -7709,11 +7523,10 @@ case 'booksearch': {
                 bookText += `📝 *Summary:* ${shortSummary}\n`;
             }
             
-            // Add key metadata
+            // key metadata
             bookText += `📊 *Downloads:* ${book.downloadCount?.toLocaleString() || 0}\n`;
             bookText += `🔤 *Language:* ${book.languages?.join(', ') || 'en'}\n`;
             
-            // Add subjects/topics (first 2)
             if (book.subjects && book.subjects.length > 0) {
                 const subjects = book.subjects.slice(0, 2).join(' • ');
                 bookText += `🏷️ *Topics:* ${subjects}`;
@@ -7861,8 +7674,8 @@ m.reply(formatIPInfo(res));
 m.reply(`Error: Unable to retrieve data for IP ${text}`);
 }
 }
- break    
-  case "tts": {
+break    
+case "tts2": {
   if(!text) return reply("`provide a query`");
  reply(`processing your query`);
   try {
@@ -8166,7 +7979,6 @@ let txt = `
 └────────────`
 await conn.sendMessage(m.chat, {image: { url: res.profile}, caption: txt}, {quoted: m })
 }
-//======[CONVERT MENU CMDS]===
 break 
 case 's':
 case "sticker": {
@@ -8210,63 +8022,6 @@ const quoted = m.quoted || m.msg?.quoted;
       console.error('Error processing sticker:', error);
       reply('An error occurred while processing the sticker.');
     }
-}
-break
-case 'tomp3': {
-    try {
-        // Check if there's a quoted message
-        if (!m.quoted) {
-            return reply(`⚠️ Reply to a video or audio message!\n\nUsage: *${prefix}tomp3* (reply to a video/audio)`);
-        }
-        
-        // Check if quoted message is video or audio
-        if (!/video/.test(mime) && !/audio/.test(mime)) {
-            return reply(`❌ Please reply to a video or audio message!`);
-        }
-        
-        await reply(`⏳ Converting to MP3...`);
-        
-        let media;
-        
-        // Try different download methods
-        if (typeof conn.downloadMediaMessage === 'function') {
-            media = await conn.downloadMediaMessage(qmsg);
-        } else if (typeof conn.downloadAndSaveMediaMessage === 'function') {
-            const filePath = await conn.downloadAndSaveMediaMessage(qmsg, 'temp');
-            media = fs.readFileSync(filePath);
-            fs.unlinkSync(filePath);
-        } else {
-            // Manual download
-            const stream = await downloadContentFromMessage(qmsg, /video/.test(mime) ? 'video' : 'audio');
-            let buffer = Buffer.from([]);
-            for await (const chunk of stream) {
-                buffer = Buffer.concat([buffer, chunk]);
-            }
-            media = buffer;
-        }
-        
-        // Convert to audio
-        let audio;
-        if (typeof toAudio === 'function') {
-            audio = await toAudio(media, 'mp4');
-        } else {
-            // Fallback - send as is
-            audio = media;
-        }
-        
-        await conn.sendMessage(m.chat, {
-            audio: audio,
-            mimetype: 'audio/mpeg',
-            fileName: 'converted.mp3'
-        }, { quoted: m });
-        
-        await reply(`✅ Conversion complete!`);
-        
-    } catch (error) {
-        console.error('Tomp3 error:', error);
-        reply(`❌ Failed to convert: ${error.message}`);
-    }
-    
 }
 break
 case "topdf":
@@ -9095,25 +8850,6 @@ case 'define': {
         reply("Error fetching definition. Please try again later!");
     }
     
-}
-break
-case "weather": {
-if (!text) return reply("Provide a location.");
-
-      try {
-        const { data } = await axios.get(`https://api.openweathermap.org/data/2.5/weather?q=${text}&units=metric&appid=060a6bcfa19809c2cd4d97a212b19273`);
-        
-        const weatherInfo = `🌤️ *Weather for ${text}*\n\n`
-          + `🌡️ *Temperature:* ${data.main.temp}°C (Feels like ${data.main.feels_like}°C)\n`
-          + `🌪️ *Weather:* ${data.weather[0].main} - ${data.weather[0].description}\n`
-          + `💨 *Wind Speed:* ${data.wind.speed} m/s\n`
-          + `📍 *Coordinates:* ${data.coord.lat}, ${data.coord.lon}\n`
-          + `🌍 *Country:* ${data.sys.country}`;
-
-        conn.sendMessage(m.chat, { text: weatherInfo }, { quoted: m });
-      } catch (error) {
-        reply("❌ Unable to fetch weather data.");
-      }
 }
 break
 case "shazam": {
