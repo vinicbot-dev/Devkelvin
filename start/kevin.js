@@ -2667,7 +2667,7 @@ case "sc": {
 
             const thumbnailUrl = 'https://i.ibb.co/rR9TKcBH/f05860da845e.jpg';
             
-            await kelvin.sendMessage(m.chat, {
+            await conn.sendMessage(m.chat, {
                 text: repoInfo,
                 contextInfo: {
                     mentionedJid: [m.sender],
@@ -2695,12 +2695,12 @@ case "sc": {
 
 ✨ @${m.sender.split("@")[0]} *Visit the repo to ⭐ star!* ✨`;
 
-            await kelvin.sendMessage(m.chat, { 
+            await conn.sendMessage(m.chat, { 
                 text: fallbackInfo,
                 contextInfo: { 
                     mentionedJid: [m.sender],
                     externalAdReply: {
-                        title: `${global botname}`,
+                        title: `${global.botname}`,
                         body: "GitHub Repository",
                         thumbnailUrl: 'https://i.ibb.co/rR9TKcBH/f05860da845e.jpg',
                         sourceUrl: "https://github.com/Kevintech-hub/Vesper-Xmd"
