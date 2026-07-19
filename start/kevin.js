@@ -2642,7 +2642,7 @@ case "sc": {
             });
 
             const repoInfo = `
-╭──❖ 「 *Vesper-Xmd Repository*」 ❖──
+╭──❖ 「 *Jexploit Repository*」 ❖──
 │
 🔸 *Repository*  : ${data.name || repoName}
 🔸 *Owner*       : ${repoOwner}
