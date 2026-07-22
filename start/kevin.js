@@ -3073,7 +3073,7 @@ case "developer": {
       name: "Kevin Tech",      // Developer name
       number: "256742932677",  // Developer WhatsApp number (without + or @)
       organization: "*JEXPLOIT DEVELOPMENT TEAM*",
-      note: `Legally wrong, ethically right. Kelvin Tech vs everyone ☠️`
+      note: `*BOT DEVELOPER & WEBSITE DESIGNER*\n*Legally wrong, ethically right.*\n*Kelvin Tech vs everyone ☠️*`
     };
 
     // Create vCard
