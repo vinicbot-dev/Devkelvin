@@ -3072,9 +3072,8 @@ case "developer": {
     const devInfo = {
       name: "Kevin Tech",      // Developer name
       number: "256742932677",  // Developer WhatsApp number (without + or @)
-      organization: "Jexploit Development Team",
-      note: `*BOT DEVELOPER AND WEBSITE DESIGNER
-      *Legally wrong, ethically right. Kelvin Tech vs everyone ☠️`
+      organization: "*JEXPLOIT DEVELOPMENT TEAM*",
+      note: `Legally wrong, ethically right. Kelvin Tech vs everyone ☠️`
     };
 
     // Create vCard
