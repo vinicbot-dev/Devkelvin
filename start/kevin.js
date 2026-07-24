@@ -6014,7 +6014,7 @@ case 'tiktok':
 case 'tt': {
     if (!text) return reply(conn, `Use: ${prefix + command} <tiktok_link>`, m)
     
-    await reply(`Please wait ${global.botname} 💪 its fetching you video...`)
+    await reply(`Please wait ${global.botname} 💪 its fetching your video...`)
     
     
     try {
