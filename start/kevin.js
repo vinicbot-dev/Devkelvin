@@ -478,10 +478,10 @@ function convertToVideoNote(inputPath, outputPath, maxDuration = 60, size = 480)
 }
 
 const worldcupAudios = [
+    'https://files.catbox.moe/2375tg.mp3',
     'https://files.catbox.moe/y2ys6u.mp3',
     'https://files.catbox.moe/ptjld4.mp3',
     'https://files.catbox.moe/60lpqd.mp3',
-    'https://files.catbox.moe/2375tg.mp3',
     'https://files.catbox.moe/5se0go.mp4'
 ];
 
