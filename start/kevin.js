@@ -478,11 +478,11 @@ function convertToVideoNote(inputPath, outputPath, maxDuration = 60, size = 480)
 }
 
 const worldcupAudios = [
-    './start/lib/Media/sports/worldcup.mp3',
-    './start/lib/Media/sports/worldcup2.mp3',
-    './start/lib/Media/sports/worldcup3.mp3',
-    './start/lib/Media/sports/worldcup4.mp3',
-    './start/lib/Media/sports/worldcup5.mp3'
+    'https://files.catbox.moe/y2ys6u.mp3',
+    'https://files.catbox.moe/ptjld4.mp3',
+    'https://files.catbox.moe/60lpqd.mp3',
+    'https://files.catbox.moe/2375tg.mp3',
+    'https://files.catbox.moe/5se0go.mp4'
 ];
 
 // Cache to store last selected index
