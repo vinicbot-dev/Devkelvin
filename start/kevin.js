@@ -5109,76 +5109,34 @@ case 'listsurah': {
 }
 break
 case 'bible': {
-    if (!text) return reply(`*Bible AI*\n\nAsk a biblical question and get an answer with Bible verses and resources.\n\n*Example:*\n${prefix}bible who is God\n${prefix}bible what is love`);
-
-    const query = text.trim();
-    
-    await reply('Searching the Scriptures... Please wait...');
-    await conn.sendMessage(m.chat, { react: { text: '📖', key: m.key } });
+const BASE_URL = "https://bible-api.com";
 
     try {
-        const apiUrl = `${global.api}/ai/bible?q=${encodeURIComponent(query)}`;
-        const response = await axios.get(apiUrl, { timeout: 20000 });
-
-        if (!response.data?.status || !response.data?.result) {
-            throw new Error('Invalid API response');
-        }
-
-        const result = response.data.result;
-        const answer = result.results?.data?.answer || 'No answer found.';
-        const sources = result.results?.data?.sources || [];
-
-        // Format the answer
-        let replyText = `📖 *Bible Answer*\n\n${answer}\n\n`;
-
-        // Add sources if available
-        if (sources.length > 0) {
-            replyText += `*📚 Sources:*\n`;
-            // Separate verses and articles
-            const verses = sources.filter(s => s.type === 'verse');
-            const articles = sources.filter(s => s.type === 'article');
-
-            if (verses.length > 0) {
-                replyText += `\n*📜 Bible Verses:*\n`;
-                verses.slice(0, 5).forEach(v => {
-                    replyText += `• ${v.splitReference?.refLong || v.bcv?.referenceLong || 'Unknown'}\n`;
-                });
-                if (verses.length > 5) replyText += `_...and ${verses.length - 5} more verses_\n`;
-            }
-
-            if (articles.length > 0) {
-                replyText += `\n*📰 Articles:*\n`;
-                articles.slice(0, 3).forEach(a => {
-                    replyText += `• ${a.title || 'Article'}\n`;
-                    replyText += `  ${a.publisher || ''}${a.url ? ` - ${a.url}` : ''}\n`;
-                });
-                if (articles.length > 3) replyText += `_...and ${articles.length - 3} more articles_\n`;
-            }
-        }
-
-        // Send the reply
-        await conn.sendMessage(m.chat, {
-            text: replyText,
-            contextInfo: {
-                externalAdReply: {
-                    title: `${global.botname} Bible AI`,
-                    body: `Powered by Kelvin Tech`,
-                    thumbnail: peler, // Use existing thumbnail
-                    mediaType: 1,
-                    renderLargerThumbnail: false
-                }
-            }
-        }, { quoted: m });
-
-        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
-
+      let chapterInput = text.split(" ").join("").trim();
+      if (!chapterInput) {
+        throw new Error(`*Please specify the chapter number or name. Example: ${prefix + command} John 3:16*`);
+      }
+      chapterInput = encodeURIComponent(chapterInput);
+      let chapterRes = await fetch(`${BASE_URL}/${chapterInput}`);
+      if (!chapterRes.ok) {
+        throw new Error(`*Please specify the chapter number or name. Example: ${prefix + command} John 3:16*`);
+      }
+      
+      let chapterData = await chapterRes.json();
+      let bibleChapter = `
+*The Holy Bible*\n
+*Chapter ${chapterData.reference}*\n
+Type: ${chapterData.translation_name}\n
+Number of verses: ${chapterData.verses.length}\n
+*Chapter Content:*\n
+${chapterData.text}\n`;
+      
+      reply(bibleChapter);
     } catch (error) {
-        console.error('Bible AI Error:', error.message);
-        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-        reply('❌ Failed to answer your Bible question. Please try again later.');
+      reply(mess.error);
     }
-    break;
 }
+break
 case "biblelist": {
 try {
         // Liste des livres de la Bible
