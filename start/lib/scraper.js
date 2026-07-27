@@ -139,7 +139,7 @@ async function getEliteProTechVideo(youtubeUrl) {
 // Primary API — domain comes from global.api (set in config), tried
 // first. EliteProTech below is the fallback if this fails.
 async function getPrimaryApiVideo(youtubeUrl) {
-    const base = global.api.replace(/\/$/, '');
+    const base = global.api;
     const apiUrl = `${base}/download/video?url=${encodeURIComponent(youtubeUrl)}`;
     const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
     if (res?.data?.status && res?.data?.result) {
