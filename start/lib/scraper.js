@@ -136,39 +136,27 @@ async function getEliteProTechVideo(youtubeUrl) {
     throw new Error('EliteProTech returned no download');
 }
 
-// Yupra API
-async function getYupraVideo(youtubeUrl) {
-    const apiUrl = `https://api.yupra.my.id/api/downloader/ytmp4?url=${encodeURIComponent(youtubeUrl)}`;
+// Primary API — domain comes from global.api (set in config), tried
+// first. EliteProTech below is the fallback if this fails.
+async function getPrimaryApiVideo(youtubeUrl) {
+    const base = global.api.replace(/\/$/, '');
+    const apiUrl = `${base}/download/video?url=${encodeURIComponent(youtubeUrl)}`;
     const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
-    if (res?.data?.success && res?.data?.data?.download_url) {
+    if (res?.data?.status && res?.data?.result) {
         return {
-            download: res.data.data.download_url,
-            title: res.data.data.title,
-            thumbnail: res.data.data.thumbnail
+            download: res.data.result,
+            title: res.data.title // this API doesn't return a title
         };
     }
-    throw new Error('Yupra returned no download');
+    throw new Error('Primary API returned no download');
 }
 
-// Okatsu API
-async function getOkatsuVideo(youtubeUrl) {
-    const apiUrl = `https://okatsu-rolezapiiz.vercel.app/downloader/ytmp4?url=${encodeURIComponent(youtubeUrl)}`;
-    const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
-    if (res?.data?.result?.mp4) {
-        return {
-            download: res.data.result.mp4,
-            title: res.data.result.title
-        };
-    }
-    throw new Error('Okatsu returned no download');
-}
-
-// Main fetchVideo function (unchanged - uses ytdown, Yupra, Okatsu)
+// Main fetchVideo function — tries the primary (global.api) source first,
+// then falls back to EliteProTech
 async function fetchVideo(youtubeUrl) {
     const apiMethods = [
-        { name: 'EliteProTech', method: () => getEliteProTechVideo(youtubeUrl) },
-        { name: 'Yupra', method: () => getYupraVideo(youtubeUrl) },
-        { name: 'Okatsu', method: () => getOkatsuVideo(youtubeUrl) }
+        { name: 'Primary', method: () => getPrimaryApiVideo(youtubeUrl) },
+        { name: 'EliteProTech', method: () => getEliteProTechVideo(youtubeUrl) }
     ];
 
     for (const apiMethod of apiMethods) {
