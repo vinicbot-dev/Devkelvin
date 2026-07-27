@@ -18,6 +18,7 @@ const path = require('path')
 const { getDevice } = require('@whiskeysockets/baileys')
 const fsp = fs.promises;
 const lolcatjs = require('lolcatjs')
+const { evaluate } = require('mathjs')
 const crypto = require('crypto')
 const speed = require('performance-now')
 const { performance } = require("perf_hooks")
@@ -3221,104 +3222,20 @@ const apiUrl = `${global.mess.siputzx}/api/tools/vcc-generator?type=MasterCard&c
     }
 }
 break
-case "calculate":
-case "calc": {
+case 'calculate':
+case 'calc':
+case 'math': {
+    if (!q) {
+        reply('Send an expression after the command.\nExample: .calculate (12 + 8) * 3 / 2')
+        break
+    }
     try {
-        if (!text) return reply(`📝 *Examples:*\n${prefix}calc 5 + 3\n${prefix}calc 10% of 200\n${prefix}calc 2^3\n${prefix}calc sqrt(16)`);
-
-        // Clean and prepare the expression
-        const expr = text
-            .replace(/×/g, '*')
-            .replace(/÷/g, '/')
-            .replace(/π/g, 'pi')
-            .replace(/π/g, 'pi')
-            .replace(/\^/g, '**') // Convert ^ to ** for exponentiation
-            .replace(/sqrt\(/g, 'Math.sqrt(')
-            .replace(/sin\(/g, 'Math.sin(')
-            .replace(/cos\(/g, 'Math.cos(')
-            .replace(/tan\(/g, 'Math.tan(')
-            .replace(/log\(/g, 'Math.log10(')
-            .replace(/ln\(/g, 'Math.log(')
-            .replace(/abs\(/g, 'Math.abs(')
-            .replace(/%/g, '/100')
-            .replace(/deg/g, 'deg')
-            .replace(/,/g, ';')
-            .trim();
-
-        // Validate expression for safety
-        const safeRegex = /^[0-9+\-*/().\s\^%πesincoqrtanlgabMh\s]+$/i;
-        if (!safeRegex.test(expr)) {
-            return reply('❌ *Invalid characters in expression.*\nOnly numbers, basic operators, and math functions are allowed.');
-        }
-
-        let result;
-        
-        // Handle percentage calculations
-        if (text.includes('%')) {
-            const percentMatch = text.match(/(\d+)%\s*(of)?\s*(\d+)/i);
-            if (percentMatch) {
-                const percent = parseFloat(percentMatch[1]);
-                const number = parseFloat(percentMatch[3]);
-                result = (percent / 100) * number;
-            }
-        }
-        
-        // Handle unit conversions
-        else if (text.includes('to')) {
-            const conversionMatch = text.match(/(\d+)\s*(\w+)\s*to\s*(\w+)/i);
-            if (conversionMatch) {
-                const value = parseFloat(conversionMatch[1]);
-                const fromUnit = conversionMatch[2].toLowerCase();
-                const toUnit = conversionMatch[3].toLowerCase();
-                
-                result = convertUnits(value, fromUnit, toUnit);
-                if (result !== undefined) {
-                    reply(`*Conversion:* ${value} ${fromUnit} = ${result} ${toUnit}`);
-                    return;
-                }
-            }
-        }
-
-        // Evaluate mathematical expression
-        if (result === undefined) {
-            try {
-                // Use Function constructor for safer evaluation
-                result = Function('"use strict"; return (' + expr + ')')();
-                
-                // Check if result is valid
-                if (typeof result !== 'number' || isNaN(result) || !isFinite(result)) {
-                    throw new Error('Invalid result');
-                }
-                
-            } catch (evalError) {
-                console.error('Calculation error:', evalError);
-                return reply('❌ *Could not calculate the expression.*\nPlease check your syntax and try again.');
-            }
-        }
-
-        // Format the result
-        let formattedResult = result;
-        if (Number.isInteger(result)) {
-            formattedResult = result.toString();
-        } else {
-            formattedResult = result.toFixed(6).replace(/\.?0+$/, '');
-        }
-
-        // Create response
-        const calculationResponse = `
-🧮 *CALCULATION RESULT*
-
-*Expression:* ${text}
-*Result:* ${formattedResult}
-
-*Full precision:* ${result}
-        `.trim();
-
-        reply(calculationResponse);
-
-    } catch (error) {
-        console.error('Error in calculate command:', error);
-        reply(mess.error);
+        // let people type 5x5 or 5÷5 as well as 5*5 and 5/5
+        const expression = q.replace(/x/gi, '*').replace(/÷/g, '/')
+        const result = evaluate(expression)
+        reply(`🧮 *${q}* = *${result}*`)
+    } catch (err) {
+        reply("That's not a valid expression. Example: .calculate 25 * 4 - 10")
     }
     
 }
@@ -3358,15 +3275,26 @@ case "owner": {
     
 }
 break
-case "listpc": {
-if (!Access) return reply(mess.owner);
-let anulistp = await store.chats.all().filter(v => v.id.endsWith('.net')).map(v => v.id)
-let teks = `*Private Chat*\nTotal: ${anulistp.length} Chat\n\n`
-for (let i of anulistp) {
-let nama = store.messages[i].array[0].pushName
-teks += `*Name :* ${pushname}\n*User :* @${sender.split('@')[0]}\n*Chat :* https://wa.me/${sender.split('@')[0]}\n\n───────────\n\n`
-}
-reply(teks)
+case 'listpc': {
+    if (!Access) return reply(mess.owner)
+    const allChats = store.chats ? Object.values(store.chats.all()) : []
+    const privateChats = allChats.filter(chat => chat.id?.endsWith('@s.whatsapp.net'))
+
+    if (!privateChats.length) {
+        reply('No private chats found.')
+        break
+    }
+
+    let text = `📋 *Private Chats (${privateChats.length})*\n\n`
+    privateChats.forEach((chat, i) => {
+        const number = chat.id.split('@')[0]
+        const contact = store.contacts?.[chat.id]
+        const name = contact?.name || contact?.notify || contact?.verifiedName || 'Unknown'
+        text += `${i + 1}. ${name} — ${number}\n`
+    })
+
+    reply(text)
+    
 }
 break
 case 'getbisnis':
@@ -5131,35 +5059,126 @@ try {
         }
 }
 break
-case 'bible': {
-const BASE_URL = "https://bible-api.com";
+case 'surahlist':
+case 'listsurah': {
+    await reply('Fetching the list of Surahs... Please wait...');
+    await conn.sendMessage(m.chat, { react: { text: '📖', key: m.key } });
 
     try {
-      let chapterInput = text.split(" ").join("").trim();
-      if (!chapterInput) {
-        throw new Error(`*Please specify the chapter number or name. Example: ${prefix + command} John 3:16*`);
-      }
-      chapterInput = encodeURIComponent(chapterInput);
-      let chapterRes = await fetch(`${BASE_URL}/${chapterInput}`);
-      if (!chapterRes.ok) {
-        throw new Error(`*Please specify the chapter number or name. Example: ${prefix + command} John 3:16*`);
-      }
-      
-      let chapterData = await chapterRes.json();
-      let bibleChapter = `
-*The Holy Bible*\n
-*Chapter ${chapterData.reference}*\n
-Type: ${chapterData.translation_name}\n
-Number of verses: ${chapterData.verses.length}\n
-*Chapter Content:*\n
-${chapterData.text}\n`;
-      
-      reply(bibleChapter);
+        const apiUrl = `${global.api}/surahlist`;
+        const response = await axios.get(apiUrl, { timeout: 15000 });
+
+        if (!response.data?.status || !response.data?.result?.data) {
+            throw new Error('Invalid API response');
+        }
+
+        const surahs = response.data.result.data;
+        let listText = '*List of Surahs (114)*\n\n';
+        surahs.forEach(s => {
+            const num = s.number;
+            const nameEn = s.name.english;
+            const transl = s.name.translation;
+            listText += `${num}. ${nameEn} (${transl})\n`;
+        });
+
+        // Trim trailing newline
+        listText = listText.trim();
+
+        // Send the list
+        await conn.sendMessage(m.chat, {
+            text: listText,
+            contextInfo: {
+                externalAdReply: {
+                    title: `${global.botname} Quran List`,
+                    body: `Powered by Kelvin Tech`,
+                    thumbnail: peler, // Use existing thumbnail
+                    mediaType: 1,
+                    renderLargerThumbnail: false
+                }
+            }
+        }, { quoted: m });
+
+        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
     } catch (error) {
-      reply(mess.error);
+        console.error('Surahlist API Error:', error.message);
+        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+        reply('❌ Failed to fetch the surah list. Please try again later.');
     }
+    
 }
 break
+case 'bible': {
+    if (!text) return reply(`*Bible AI*\n\nAsk a biblical question and get an answer with Bible verses and resources.\n\n*Example:*\n${prefix}bible who is God\n${prefix}bible what is love`);
+
+    const query = text.trim();
+    
+    await reply('Searching the Scriptures... Please wait...');
+    await conn.sendMessage(m.chat, { react: { text: '📖', key: m.key } });
+
+    try {
+        const apiUrl = `${global.api}/ai/bible?q=${encodeURIComponent(query)}`;
+        const response = await axios.get(apiUrl, { timeout: 20000 });
+
+        if (!response.data?.status || !response.data?.result) {
+            throw new Error('Invalid API response');
+        }
+
+        const result = response.data.result;
+        const answer = result.results?.data?.answer || 'No answer found.';
+        const sources = result.results?.data?.sources || [];
+
+        // Format the answer
+        let replyText = `📖 *Bible Answer*\n\n${answer}\n\n`;
+
+        // Add sources if available
+        if (sources.length > 0) {
+            replyText += `*📚 Sources:*\n`;
+            // Separate verses and articles
+            const verses = sources.filter(s => s.type === 'verse');
+            const articles = sources.filter(s => s.type === 'article');
+
+            if (verses.length > 0) {
+                replyText += `\n*📜 Bible Verses:*\n`;
+                verses.slice(0, 5).forEach(v => {
+                    replyText += `• ${v.splitReference?.refLong || v.bcv?.referenceLong || 'Unknown'}\n`;
+                });
+                if (verses.length > 5) replyText += `_...and ${verses.length - 5} more verses_\n`;
+            }
+
+            if (articles.length > 0) {
+                replyText += `\n*📰 Articles:*\n`;
+                articles.slice(0, 3).forEach(a => {
+                    replyText += `• ${a.title || 'Article'}\n`;
+                    replyText += `  ${a.publisher || ''}${a.url ? ` - ${a.url}` : ''}\n`;
+                });
+                if (articles.length > 3) replyText += `_...and ${articles.length - 3} more articles_\n`;
+            }
+        }
+
+        // Send the reply
+        await conn.sendMessage(m.chat, {
+            text: replyText,
+            contextInfo: {
+                externalAdReply: {
+                    title: `${global.botname} Bible AI`,
+                    body: `Powered by Kelvin Tech`,
+                    thumbnail: peler, // Use existing thumbnail
+                    mediaType: 1,
+                    renderLargerThumbnail: false
+                }
+            }
+        }, { quoted: m });
+
+        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+    } catch (error) {
+        console.error('Bible AI Error:', error.message);
+        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+        reply('❌ Failed to answer your Bible question. Please try again later.');
+    }
+    break;
+}
 case "biblelist": {
 try {
         // Liste des livres de la Bible
@@ -7113,159 +7132,147 @@ case 'claude': {
     await claudeAICommand(conn, m.chat, text, m);
     break;
 }
-case 'math':
-case 'simplify': {
-if (!text) return reply(`*Math Simplify*\n\nPlease provide a math expression or question to solve.\n\nExample:\n${prefix}math 2^8\n${prefix}math integral of x^2\n${prefix}simplify (5+3)*2`);
+case "math":
+case "simplify": {
+    if (!text) return reply(`*Math Helper*\n\nPlease provide a math expression or question to solve.\n\nExample:\n${prefix}math 1 + 1\n${prefix}math 2^8\n${prefix}math integral of x^2`);
 
-        const query = text.trim();
-        
-        await reply('🧮 Solving your math problem... Please wait...');
-        await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
+    const query = text.trim();
+    
+    await reply('Solving your math problem... Please wait...');
+    await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
 
-        try {
-            // Guru API for maths-ai
-            const apiUrl = 'https://ktrenqecceeooyrquooc.supabase.co/functions/v1/api-proxy';
-            const requestBody = {
-                apiKey: "guru_x3jr526k5pqbl91wqubhws3y48qj6zbo",
-                action: "maths-ai",
-                payload: {
-                    q: query
-                }
-            };
+    try {
+        // Use the new API from global.api
+        const apiUrl = `${global.api}/education/maths?q=${encodeURIComponent(query)}`;
+        const response = await axios.get(apiUrl, { timeout: 15000 });
 
-            const response = await axios.post(apiUrl, requestBody, {
-                headers: { 'Content-Type': 'application/json' },
-                timeout: 30000
-            });
-
-            const result = response.data;
-
-            if (!result || !result.answer) {
-                throw new Error('Invalid API response');
-            }
-
-            const answer = result.answer;
-            const subject = result.subject || 'mathematics';
-
-            const replyMsg = `🧮 *Math Problem*\n\n` +
-                            `📝 *Question:* ${query}\n\n` +
-                            `✅ *Solution:*\n${answer}\n\n` +
-                            `> ${global.wm || 'JEXPLOIT'}`;
-
-            await conn.sendMessage(m.chat, { text: replyMsg }, { quoted: m });
-            await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
-
-        } catch (error) {
-            console.error('Math API Error:', error.message);
-            if (error.response) {
-                console.error('Math API Response:', error.response.data);
-            }
-            await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            reply('❌ Failed to solve your math problem. Please try again later.');
+        // Check response status
+        if (!response.data?.status) {
+            throw new Error('API returned error status');
         }
+
+        const resultText = response.data.result;
+        if (!resultText) {
+            throw new Error('No result from API');
+        }
+
+        // Send the result directly
+        await conn.sendMessage(m.chat, {
+            text: `*Math Answer*\n\n${resultText}`,
+            contextInfo: {
+                externalAdReply: {
+                    title: `${global.botname} Math`,
+                    body: `Powered by Kelvin Tech`,
+                    thumbnail: peler, // Use existing thumbnail
+                    mediaType: 1,
+                    renderLargerThumbnail: false
+                }
+            }
+        }, { quoted: m });
+
+        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+    } catch (error) {
+        console.error('Math API Error:', error.message);
+        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+        reply('❌ Failed to solve your math problem. Please try again later.');
+    }
+    
 }
 break
 case "physics": {
-if (!text) return reply(`🔭 *Physics Helper*\n\nPlease provide a physics question or concept to explain.\n\nExample:\n${prefix}physics F=ma explained\n${prefix}phys Newton's laws\n${prefix}physics quantum mechanics basics`);
+    if (!text) return reply(`*Physics Helper*\n\nPlease provide a physics question or concept to explain.\n\nExample:\n${prefix}physics What is Newton's first law?\n${prefix}physics F=ma explained`);
 
-        const query = text.trim();
-        
-        await reply('🔬 Solving your physics question... Please wait...');
-        await conn.sendMessage(m.chat, { react: { text: '⚛️', key: m.key } });
+    const query = text.trim();
+    
+    await reply('🔬 Solving your physics question... Please wait...');
+    await conn.sendMessage(m.chat, { react: { text: '⚛️', key: m.key } });
 
-        try {
-            // Guru API for physics-ai
-            const apiUrl = 'https://ktrenqecceeooyrquooc.supabase.co/functions/v1/api-proxy';
-            const requestBody = {
-                apiKey: "guru_x3jr526k5pqbl91wqubhws3y48qj6zbo",
-                action: "physics-ai",
-                payload: {
-                    q: query
-                }
-            };
+    try {
+        // Use the new API from global.api
+        const apiUrl = `${global.api}/education/physics?q=${encodeURIComponent(query)}`;
+        const response = await axios.get(apiUrl, { timeout: 15000 });
 
-            const response = await axios.post(apiUrl, requestBody, {
-                headers: { 'Content-Type': 'application/json' },
-                timeout: 30000
-            });
-
-            const result = response.data;
-
-            if (!result || !result.answer) {
-                throw new Error('Invalid API response');
-            }
-
-            const answer = result.answer;
-            const subject = result.subject || 'physics';
-
-            const replyMsg = `⚛️ *Physics Question*\n\n` +
-                            `📝 *Question:* ${query}\n\n` +
-                            `✅ *Explanation:*\n${answer}\n\n` +
-                            `> ${global.wm || 'JEXPLOIT'}`;
-
-            await conn.sendMessage(m.chat, { text: replyMsg }, { quoted: m });
-            await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
-
-        } catch (error) {
-            console.error('Physics API Error:', error.message);
-            if (error.response) {
-                console.error('Physics API Response:', error.response.data);
-            }
-            await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            reply('❌ Failed to answer your physics question. Please try again later.');
+        // Check response status
+        if (!response.data?.status) {
+            throw new Error('API returned error status');
         }
+
+        const resultText = response.data.result;
+        if (!resultText) {
+            throw new Error('No result from API');
+        }
+
+        // Send the result directly
+        await conn.sendMessage(m.chat, {
+            text: `⚛️ *Physics Answer*\n\n${resultText}`,
+            contextInfo: {
+                externalAdReply: {
+                    title: `${global.botname} Physics`,
+                    body: `Powered by ${global.ownername || 'Kelvin Tech'}`,
+                    thumbnail: peler, // Use existing thumbnail
+                    mediaType: 1,
+                    renderLargerThumbnail: false
+                }
+            }
+        }, { quoted: m });
+
+        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+    } catch (error) {
+        console.error('Physics API Error:', error.message);
+        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+        reply('❌ Failed to answer your physics question. Please try again later.');
+    }
+   
 }
 break
 case "chemistry":
 case "chem": {
-if (!text) return reply(`🧪 *Chemistry Helper*\n\nPlease provide a chemistry question or concept to explain.\n\nExample:\n${prefix}chemistry What is H2O?\n${prefix}chem Periodic table explained\n${prefix}chemistry acid base reaction`);
+    if (!text) return reply(`*Chemistry Helper*\n\nPlease provide a chemistry question or concept to explain.\n\nExample:\n${prefix}chemistry What is H2O?\n${prefix}chem Periodic table explained\n${prefix}chemistry acid base reaction`);
 
-        const query = text.trim();
-        
-        await reply('🧪 Solving your chemistry question... Please wait...');
-        await conn.sendMessage(m.chat, { react: { text: '🧪', key: m.key } });
+    const query = text.trim();
+    
+    await reply('🧪 Solving your chemistry question... Please wait...');
+    await conn.sendMessage(m.chat, { react: { text: '🧪', key: m.key } });
 
-        try {
-            // Guru API for chemistry-ai
-            const apiUrl = 'https://ktrenqecceeooyrquooc.supabase.co/functions/v1/api-proxy';
-            const requestBody = {
-                apiKey: "guru_x3jr526k5pqbl91wqubhws3y48qj6zbo",
-                action: "chemistry-ai",
-                payload: {
-                    q: query
-                }
-            };
+    try {
+        // Use the new API from global.api
+        const apiUrl = `${global.api}/education/chemistry?q=${encodeURIComponent(query)}`;
+        const response = await axios.get(apiUrl, { timeout: 15000 });
 
-            const response = await axios.post(apiUrl, requestBody, {
-                headers: { 'Content-Type': 'application/json' },
-                timeout: 30000
-            });
-
-            const result = response.data;
-
-            if (!result || !result.answer) {
-                throw new Error('Invalid API response');
-            }
-
-            const answer = result.answer;
-            const subject = result.subject || 'chemistry';
-
-            const replyMsg = `🧪 *Chemistry Question*\n\n` +
-                            `📝 *Question:* ${query}\n\n` +
-                            `✅ *Explanation:*\n${answer}\n\n` +
-                            `> ${global.wm || 'JEXPLOIT'}`;
-
-            await conn.sendMessage(m.chat, { text: replyMsg }, { quoted: m });
-            await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
-
-        } catch (error) {
-            console.error('Chemistry API Error:', error.message);
-            if (error.response) {
-                console.error('Chemistry API Response:', error.response.data);
-            }
-            await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            reply('❌ Failed to answer your chemistry question. Please try again later.');
+        // Check response status
+        if (!response.data?.status) {
+            throw new Error('API returned error status');
         }
+
+        const resultText = response.data.result;
+        if (!resultText) {
+            throw new Error('No result from API');
+        }
+
+        // Send the result directly
+        await conn.sendMessage(m.chat, {
+            text: `*Chemistry Answer*\n\n${resultText}`,
+            contextInfo: {
+                externalAdReply: {
+                    title: `${global.botname} Chemistry`,
+                    body: `Powered by Kelvin Tech`,
+                    thumbnail: peler, // Use existing thumbnail
+                    mediaType: 1,
+                    renderLargerThumbnail: false
+                }
+            }
+        }, { quoted: m });
+
+        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+    } catch (error) {
+        console.error('Chemistry API Error:', error.message);
+        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+        reply('❌ Failed to answer your chemistry question. Please try again later.');
+    }
+   
 }
 break
 case 'dictionary': {
