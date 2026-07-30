@@ -2786,12 +2786,11 @@ case "alive": {
     ];
     
     const audioUrls = [
-       'https://files.catbox.moe/ckie6b.m4a',
-        'https://files.catbox.moe/yny58w.mp3',
         'https://files.catbox.moe/zhr5m2.mp3',
-        'https://files.catbox.moe/9qstpk.mp3',
-        'https://files.catbox.moe/4kbmgh.mp3',
-        'https://files.catbox.moe/ycsl7s.mp3'
+        'https://files.catbox.moe/yny58w.mp3',
+        'https://files.catbox.moe/ckie6b.m4a',
+        'https://files.catbox.moe/m1u0zl.opus',
+        'https://files.catbox.moe/cg1edi.mp3'
     ];
     
     const randomImageUrl = imageUrls[Math.floor(Math.random() * imageUrls.length)];
@@ -2834,12 +2833,11 @@ case 'botinfo': {
     ];
     
     const audioUrls = [
-        'https://files.catbox.moe/ckie6b.m4a',
-        'https://files.catbox.moe/yny58w.mp3',
         'https://files.catbox.moe/zhr5m2.mp3',
-        'https://files.catbox.moe/9qstpk.mp3',
-        'https://files.catbox.moe/4kbmgh.mp3',
-        'https://files.catbox.moe/ycsl7s.mp3'
+        'https://files.catbox.moe/yny58w.mp3',
+        'https://files.catbox.moe/ckie6b.m4a',
+        'https://files.catbox.moe/m1u0zl.opus',
+        'https://files.catbox.moe/cg1edi.mp3'
     ];
     
     const randomImageUrl = imageUrls[Math.floor(Math.random() * imageUrls.length)];
