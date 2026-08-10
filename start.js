@@ -5,13 +5,8 @@ const path = require('path');
 const fs = require('fs');
 const moment = require('moment-timezone');
 
-const MEMORY_LIMIT = 800; // Increased MB
-const RESTART_DELAY = 5000; // ms
-const MEMORY_CHECK_INTERVAL = 600000; // 10 minutes
+const RESTART_DELAY = 3000; // ms
 const TIMEZONE = "Africa/Nairobi";
-
-let lastRestart = 0;
-const MIN_RESTART_INTERVAL = 30000; // 30 seconds between restarts
 
 function getLogFileName() {
   return `${moment().tz(TIMEZONE).format('YYYY-MM-DD')}.log`;
@@ -39,13 +34,16 @@ function start() {
 
   const args = [path.join(__dirname, 'index.js'), ...process.argv.slice(2)];
   
-  logMessage('Starting Jexploit Bot...');
+  logMessage('Starting Vesper-Xmd Bot...');
 
   const logFilePath = path.join(__dirname, 'tmp', getLogFileName());
   const errorLogStream = fs.createWriteStream(logFilePath, { flags: 'a' });
 
   let p = spawn(process.argv[0], args, {
     stdio: ['inherit', 'inherit', 'pipe', 'ipc'],
+    env: {
+      ...process.env,
+    }
   });
 
   p.stderr.on('data', (data) => {
@@ -53,48 +51,22 @@ function start() {
     console.error(errorMsg);
     errorLogStream.write(errorMsg);
   });
-  
-  const memoryCheckInterval = setInterval(() => {
-    try {
-      if (!p.pid) return;
-      
-      const memoryUsage = process.memoryUsage().rss / 1024 / 1024;
-      
-      logMessage(`Memory check: ${memoryUsage.toFixed(2)}MB / ${MEMORY_LIMIT}MB`);
-      
-      if (memoryUsage > MEMORY_LIMIT) {
-        logMessage(`⚠️ Memory usage exceeded ${MEMORY_LIMIT}MB. Current: ${memoryUsage.toFixed(2)}MB. Restarting...`);
-        p.kill();
-      }
-    } catch (error) {
-      logMessage(`Memory check failed: ${error.message}`);
-    }
-  }, MEMORY_CHECK_INTERVAL);
 
   p.on('exit', (code) => {
-    clearInterval(memoryCheckInterval);
     logMessage(`Bot process exited with code: ${code}`);
 
-    const now = Date.now();
-    
-    // Only restart on non-zero exit codes with cooldown
-    if (code !== 0 && code !== 1 && (now - lastRestart) > MIN_RESTART_INTERVAL) {
-      lastRestart = now;
+    if (code !== 0 && code !== null) {
       logMessage(`Restarting in ${RESTART_DELAY/1000} seconds...`);
       setTimeout(start, RESTART_DELAY);
-    } else if (code === 0) {
+    } else {
       logMessage('Bot stopped normally. Exiting...');
       errorLogStream.end();
       process.exit(0);
-    } else {
-      logMessage(`Bot exited with code ${code}. Not restarting (cooldown or API error).`);
-      errorLogStream.end();
     }
   });
 
   const handleShutdown = (signal) => {
     logMessage(`Shutting down Jexploit due to ${signal}...`);
-    clearInterval(memoryCheckInterval);
     p.kill();
     errorLogStream.end();
     process.exit(0);
