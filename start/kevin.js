@@ -14,6 +14,7 @@ const os = require('os')
 const fg = require('api-dylux')
 const ffmpeg = require('fluent-ffmpeg');
 const PDFDocument = require('pdfkit')
+const AdmZip = require('adm-zip')
 const path = require('path')
 const { getDevice } = require('@whiskeysockets/baileys')
 const fsp = fs.promises;
@@ -5110,17 +5111,22 @@ case 'bible': {
 const BASE_URL = "https://bible-api.com";
 
     try {
-      let chapterInput = text.split(" ").join("").trim();
+      // NOTE: bible-api.com needs the space between the book name and the
+      // chapter:verse (e.g. "John 3:16") to tell them apart - it was
+      // previously being stripped out here, which broke every lookup.
+      let chapterInput = text.trim();
       if (!chapterInput) {
-        throw new Error(`*Please specify the chapter number or name. Example: ${prefix + command} John 3:16*`);
+        return reply(mess.make.usage(prefix + command, "John 3:16"));
       }
-      chapterInput = encodeURIComponent(chapterInput);
-      let chapterRes = await fetch(`${BASE_URL}/${chapterInput}`);
+      let chapterRes = await fetch(`${BASE_URL}/${encodeURIComponent(chapterInput)}`);
       if (!chapterRes.ok) {
-        throw new Error(`*Please specify the chapter number or name. Example: ${prefix + command} John 3:16*`);
+        return reply(mess.make.error(`Couldn't find *"${chapterInput}"*. Example: ${prefix + command} John 3:16`));
       }
       
       let chapterData = await chapterRes.json();
+      if (!chapterData?.verses?.length) {
+        return reply(mess.make.error(`Couldn't find *"${chapterInput}"*. Example: ${prefix + command} John 3:16`));
+      }
       let bibleChapter = `
 *The Holy Bible*\n
 *Chapter ${chapterData.reference}*\n
@@ -5130,7 +5136,9 @@ Number of verses: ${chapterData.verses.length}\n
 ${chapterData.text}\n`;
       
       reply(bibleChapter);
+      await conn.sendMessage(m.chat, { react: { text: '📖', key: m.key } }).catch(() => {});
     } catch (error) {
+      console.error('Bible API Error:', error.message);
       reply(mess.error);
     }
 }
@@ -5498,7 +5506,7 @@ case "video": {
 
         // Send searching reaction
         await conn.sendMessage(m.chat, {
-            react: { text: '🔍', key: m.key }
+            react: { text: '🎬', key: m.key }
         });
 
         // Check if input is a YouTube URL or search term
@@ -8070,6 +8078,90 @@ console.log('Quoted Key:', m.quoted?.key);
     } catch (err) {
       console.error('Error determining device:', err);
       reply('Error determining device: ' + err.message);
+    }
+}
+break
+case "mediainfo": {
+    if (!m.quoted) return reply(mess.noquoted);
+
+    try {
+        const quoted = m.quoted;
+        const buffer = await quoted.download();
+        if (!buffer || !buffer.length) return reply(mess.nomedia);
+
+        const mimetype = quoted.mimetype || 'unknown';
+        const sizeStr = formatSize(buffer.length);
+        const category = mimetype.startsWith('image/') ? '🖼️ Image'
+            : mimetype.startsWith('video/') ? '🎬 Video'
+            : mimetype.startsWith('audio/') ? '🎵 Audio'
+            : mimetype.includes('webp') ? '🩹 Sticker'
+            : '📄 Document';
+
+        let extra = '';
+        if (mimetype.startsWith('image/')) {
+            try {
+                const img = await jimp.read(buffer);
+                extra = `\n📐 *Dimensions:* ${img.bitmap.width} x ${img.bitmap.height}px`;
+            } catch (dimErr) {
+                // Not a jimp-readable format (e.g. some webp stickers) - just skip dimensions.
+            }
+        }
+
+        const fileName = quoted.fileName || quoted.filename || null;
+
+        const info = `🔍 *Media Info*\n\n`
+            + `${category}\n`
+            + `📦 *MIME type:* ${mimetype}\n`
+            + `💾 *Size:* ${sizeStr}${extra}`
+            + (fileName ? `\n📎 *Filename:* ${fileName}` : '');
+
+        reply(info);
+    } catch (error) {
+        console.error('Mediainfo command error:', error);
+        reply(mess.error);
+    }
+}
+break
+case "backup": {
+    if (!Access) return reply(mess.owner);
+
+    try {
+        await reply(mess.wait);
+
+        const zip = new AdmZip();
+        const candidates = [
+            path.join(__dirname, '..', 'data', 'database.json'),
+            path.join(__dirname, '..', 'data', 'owner.json'),
+            path.join(__dirname, '..', 'data', 'bot.db'),
+            path.join(__dirname, 'lib', 'database', 'store.json'),
+            path.join(__dirname, 'lib', 'database', 'badwords.json'),
+        ];
+
+        let added = 0;
+        for (const filePath of candidates) {
+            if (fs.existsSync(filePath)) {
+                zip.addLocalFile(filePath);
+                added++;
+            }
+        }
+
+        if (!added) {
+            return reply(global.mess.make.error('No backup-able data files were found.'));
+        }
+
+        const zipBuffer = zip.toBuffer();
+        const timestamp = moment(Date.now()).tz(`${timezones}`).format('YYYY-MM-DD_HH-mm');
+
+        await conn.sendMessage(m.chat, {
+            document: zipBuffer,
+            mimetype: 'application/zip',
+            fileName: `${global.botname}-backup-${timestamp}.zip`,
+            caption: global.mess.make.success(`Backed up ${added} file(s).`)
+        }, { quoted: m });
+
+    } catch (error) {
+        console.error('Backup command error:', error);
+        reply(mess.error);
     }
 }
 break
@@ -11185,6 +11277,105 @@ case "kick": {
             : text.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
         await conn.groupParticipantsUpdate(m.chat, [bck], "remove");
         reply(mess.done);
+}
+break
+case "warn": {
+        if (!m.isGroup) return reply(mess.group);
+        if (!m.isAdmin && !Access) return reply(mess.admin);
+        if (!m.isBotAdmin) return reply(mess.botadmin);
+
+        const WARN_LIMIT = 3;
+        let target = m.mentionedJid[0] ? m.mentionedJid[0] : m.quoted ? m.quoted.sender : null;
+        if (!target) return reply(mess.make.usage(prefix + command, '@user [reason]'));
+
+        let reason = args.slice(m.mentionedJid[0] ? 1 : 0).join(' ').trim() || 'No reason given';
+
+        try {
+            let warnings = await db.getGroupSetting(botNumber, m.chat, 'warnings', {});
+            let entry = warnings[target] || { count: 0, reasons: [] };
+            entry.count += 1;
+            entry.reasons.push({ reason, by: m.sender, at: Date.now() });
+            warnings[target] = entry;
+
+            if (entry.count >= WARN_LIMIT) {
+                delete warnings[target];
+                await db.setGroupSetting(botNumber, m.chat, 'warnings', warnings);
+                await conn.groupParticipantsUpdate(m.chat, [target], "remove");
+                await conn.sendMessage(m.chat, {
+                    text: `🚫 *@${target.split('@')[0]} reached ${WARN_LIMIT}/${WARN_LIMIT} warnings and has been removed.*\n\n📝 *Last reason:* ${reason}`,
+                    mentions: [target]
+                }, { quoted: m });
+            } else {
+                await db.setGroupSetting(botNumber, m.chat, 'warnings', warnings);
+                await conn.sendMessage(m.chat, {
+                    text: `⚠️ *Warning issued*\n\n👤 *User:* @${target.split('@')[0]}\n📝 *Reason:* ${reason}\n🔢 *Warnings:* ${entry.count}/${WARN_LIMIT}\n\n_Reaches ${WARN_LIMIT} and they're auto-removed._`,
+                    mentions: [target]
+                }, { quoted: m });
+            }
+        } catch (error) {
+            console.error('Warn command error:', error);
+            reply(mess.error);
+        }
+}
+break
+case "warnings":
+case "listwarn": {
+        if (!m.isGroup) return reply(mess.group);
+
+        let target = m.mentionedJid[0] ? m.mentionedJid[0] : m.quoted ? m.quoted.sender : null;
+
+        try {
+            let warnings = await db.getGroupSetting(botNumber, m.chat, 'warnings', {});
+
+            if (target) {
+                let entry = warnings[target];
+                if (!entry || !entry.count) {
+                    return await conn.sendMessage(m.chat, {
+                        text: `✅ @${target.split('@')[0]} has no warnings.`,
+                        mentions: [target]
+                    }, { quoted: m });
+                }
+                let list = entry.reasons.map((r, i) => `${i + 1}. ${r.reason}`).join('\n');
+                await conn.sendMessage(m.chat, {
+                    text: `⚠️ *Warnings for* @${target.split('@')[0]}\n\n🔢 *Total:* ${entry.count}/3\n\n${list}`,
+                    mentions: [target]
+                }, { quoted: m });
+            } else {
+                let entries = Object.entries(warnings).filter(([, v]) => v && v.count > 0);
+                if (!entries.length) return reply('✅ No one in this group has any warnings.');
+                let list = entries.map(([jid, v], i) => `${i + 1}. @${jid.split('@')[0]} — ${v.count}/3`).join('\n');
+                await conn.sendMessage(m.chat, {
+                    text: `⚠️ *Group Warnings*\n\n${list}`,
+                    mentions: entries.map(([jid]) => jid)
+                }, { quoted: m });
+            }
+        } catch (error) {
+            console.error('Warnings command error:', error);
+            reply(mess.error);
+        }
+}
+break
+case "resetwarn":
+case "unwarn": {
+        if (!m.isGroup) return reply(mess.group);
+        if (!m.isAdmin && !Access) return reply(mess.admin);
+        if (!m.isBotAdmin) return reply(mess.botadmin);
+
+        let target = m.mentionedJid[0] ? m.mentionedJid[0] : m.quoted ? m.quoted.sender : null;
+        if (!target) return reply(mess.make.usage(prefix + command, '@user'));
+
+        try {
+            let warnings = await db.getGroupSetting(botNumber, m.chat, 'warnings', {});
+            delete warnings[target];
+            await db.setGroupSetting(botNumber, m.chat, 'warnings', warnings);
+            await conn.sendMessage(m.chat, {
+                text: global.mess.make.success(`Warnings cleared for @${target.split('@')[0]}.`),
+                mentions: [target]
+            }, { quoted: m });
+        } catch (error) {
+            console.error('Resetwarn command error:', error);
+            reply(mess.error);
+        }
 }
 break
 case "getgrouppp":
