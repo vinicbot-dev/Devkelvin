@@ -34,7 +34,7 @@ function start() {
 
   const args = [path.join(__dirname, 'index.js'), ...process.argv.slice(2)];
   
-  logMessage('Starting Vesper-Xmd Bot...');
+  logMessage('Starting Jexploit Bot...');
 
   const logFilePath = path.join(__dirname, 'tmp', getLogFileName());
   const errorLogStream = fs.createWriteStream(logFilePath, { flags: 'a' });
