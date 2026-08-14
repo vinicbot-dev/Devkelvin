@@ -2074,7 +2074,7 @@ break
 case "pair":
 case "addsession": {
     if (!Access) return reply(mess.owner);
-    if (!text) return reply(`*Usage:* ${prefix}pair <SESSION_ID>\n\nSESSION_ID must start with JEXPLOIT-BOT~, VESPER-BOT~`);
+    if (!text) return reply(`*Usage:* ${prefix}pair <SESSION_ID>\n\nSESSION_ID must start with JEXPLOIT-BOT~, JEXPLOIT-BOT:~,VESPER-BOT~`);
 
     try {
         await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
