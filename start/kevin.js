@@ -4147,7 +4147,7 @@ case 'firetxt': {
     if (!text) return reply(`*Example: ${prefix}firetext Kevin*`);
 
     try {
-        const apiUrl = `https://api.malvin.gleeze.com/api/ephoto360/fireText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const apiUrl = `${global.wow}ephoto360/fireText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
         // ✅ Updated response handling
@@ -4172,12 +4172,12 @@ case 'neontxt': {
     if (!text) return reply(`*Example: ${prefix}neontext Kelvin*`);
 
     try {
-        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/neonText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const apiUrl = `${global.wow}ephoto360/neonText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
         if (response.data?.status === true && response.data?.data?.image_url) {
             await conn.sendMessage(m.chat, {
-                image: { url: response.data.result.image_url },
+                image: { url: response.data.data.image_url },
                 caption: `> ${global.wm}`
             }, { quoted: m });
         } else {
@@ -4197,12 +4197,12 @@ case 'metallictxt': {
     if (!text) return reply(`*Example: ${prefix}metaltext Kevin*`);
 
     try {
-        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/metallicText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const apiUrl = `${global.wow}ephoto360/metallicText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
         if (response.data?.status === true && response.data?.data?.image_url) {
             await conn.sendMessage(m.chat, {
-                image: { url: response.data.result.image_url },
+                image: { url: response.data.data.image_url },
                 caption: `> ${global.wm}`
             }, { quoted: m });
         } else {
@@ -4221,12 +4221,12 @@ case 'snowtxt': {
     if (!text) return reply(`*Example: ${prefix}snowtext Kevin*`);
 
     try {
-        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/snowText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const apiUrl = `${global.wow}ephoto360/snowText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
         if (response.data?.status === true && response.data?.data?.image_url) {
             await conn.sendMessage(m.chat, {
-                image: { url: response.data.result.image_url },
+                image: { url: response.data.data.image_url },
                 caption: `> ${global.wm}`
             }, { quoted: m });
         } else {
@@ -4245,12 +4245,12 @@ case 'icetxt': {
     if (!text) return reply(`*Example: ${prefix}icetext Kevin*`);
 
     try {
-        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/iceText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const apiUrl = `${global.wow}ephoto360/iceText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
         if (response.data?.status === true && response.data?.data?.image_url) {
             await conn.sendMessage(m.chat, {
-                image: { url: response.data.result.image_url },
+                image: { url: response.data.data.image_url },
                 caption: `> ${global.wm}`
             }, { quoted: m });
         } else {
@@ -4270,12 +4270,12 @@ case 'purpletxt': {
     if (!text) return reply(`*Example: ${prefix}purpletext Kevin*`);
 
     try {
-        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/purpleText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const apiUrl = `${global.wow}ephoto360/purpleText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
         if (response.data?.status === true && response.data?.data?.image_url) {
             await conn.sendMessage(m.chat, {
-                image: { url: response.data.result.image_url },
+                image: { url: response.data.data.image_url },
                 caption: `> ${global.wm}`
             }, { quoted: m });
         } else {
@@ -4294,12 +4294,12 @@ case 'lighttxt': {
     if (!text) return reply(`*Example: ${prefix}lighttext Kelvin*`);
 
     try {
-        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/lightText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const apiUrl = `${global.wow}ephoto360/lightText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
         if (response.data?.status === true && response.data?.data?.image_url) {
             await conn.sendMessage(m.chat, {
-                image: { url: response.data.result.image_url },
+                image: { url: response.data.data.image_url },
                 caption: `> ${global.wm}`
             }, { quoted: m });
         } else {
@@ -4318,12 +4318,12 @@ case 'thundertxt': {
     if (!text) return reply(`*Example: ${prefix}thundertext Kelvin*`);
 
     try {
-        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/thunderText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const apiUrl = `${global.wow}ephoto360/thunderText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
         if (response.data?.status === true && response.data?.data?.image_url) {
             await conn.sendMessage(m.chat, {
-                image: { url: response.data.result.image_url },
+                image: { url: response.data.data.image_url },
                 caption: `> ${global.wm}`
             }, { quoted: m });
         } else {
@@ -4342,12 +4342,12 @@ case 'leavestxt': {
     if (!text) return reply(`*Example: ${prefix}leavestext Kevin*`);
 
     try {
-        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/leavesText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const apiUrl = `${global.wow}ephoto360/leavesText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
         if (response.data?.status === true && response.data?.data?.image_url) {
             await conn.sendMessage(m.chat, {
-                image: { url: response.data.result.image_url },
+                image: { url: response.data.data.image_url },
                 caption: `> ${global.wm}`
             }, { quoted: m });
         } else {
@@ -4367,12 +4367,12 @@ case 'hackertxt': {
     if (!text) return reply(`*Example: ${prefix}hackertext Kevin*`);
 
     try {
-        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/hackerText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const apiUrl = `${global.wow}ephoto360/hackerText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
         if (response.data?.status === true && response.data?.data?.image_url) {
             await conn.sendMessage(m.chat, {
-                image: { url: response.data.result.image_url },
+                image: { url: response.data.data.image_url },
                 caption: `> ${global.wm}`
             }, { quoted: m });
         } else {
@@ -4391,12 +4391,12 @@ case 'deviltxt': {
     if (!text) return reply(`*Example: ${prefix}deviltext Kevin*`);
 
     try {
-        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/devilText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const apiUrl = `${global.wow}ephoto360/devilText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
         if (response.data?.status === true && response.data?.data?.image_url) {
             await conn.sendMessage(m.chat, {
-                image: { url: response.data.result.image_url },
+                image: { url: response.data.data.image_url },
                 caption: `> ${global.wm}`
             }, { quoted: m });
         } else {
@@ -4415,12 +4415,12 @@ case 'vintagetxt': {
     if (!text) return reply(`*Example: ${prefix}vintagetext Kevin*`);
 
     try {
-        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/vintageText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const apiUrl = `${global.wow}ephoto360/vintageText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
         if (response.data?.status === true && response.data?.data?.image_url) {
             await conn.sendMessage(m.chat, {
-                image: { url: response.data.result.image_url },
+                image: { url: response.data.data.image_url },
                 caption: `> ${global.wm}`
             }, { quoted: m });
         } else {
@@ -4439,12 +4439,12 @@ case 'wingslog': {
     if (!text) return reply(`Example: ${prefix}wingslogo Kevin`);
 
     try {
-        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/wingsLogo?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const apiUrl = `${global.wow}ephoto360/wingsLogo?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
         if (response.data?.status === true && response.data?.data?.image_url) {
             await conn.sendMessage(m.chat, {
-                image: { url: response.data.result.image_url },
+                image: { url: response.data.data.image_url },
                 caption: `> ${global.wm}`
             }, { quoted: m });
         } else {
@@ -4463,12 +4463,12 @@ case 'painttxt': {
     if (!text) return reply(`*Example: ${prefix}painttext Kelvin*`);
 
     try {
-        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/paintText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const apiUrl = `${global.wow}ephoto360/paintText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
         if (response.data?.status === true && response.data?.data?.image_url) {
             await conn.sendMessage(m.chat, {
-                image: { url: response.data.result.image_url },
+                image: { url: response.data.data.image_url },
                 caption: `> ${global.wm}`
             }, { quoted: m });
         } else {
@@ -4484,12 +4484,12 @@ case 'naruto': {
     if (!text) return reply(`*Example: ${prefix}naruto Kevin*`);
 
     try {
-        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/naruto?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const apiUrl = `${global.wow}ephoto360/naruto?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
         if (response.data?.status === true && response.data?.data?.image_url) {
             await conn.sendMessage(m.chat, {
-                image: { url: response.data.result.image_url },
+                image: { url: response.data.data.image_url },
                 caption: `> ${global.wm}`
             }, { quoted: m });
         } else {
@@ -4507,11 +4507,11 @@ case 'pubglogo': {
     if (!text) return reply(`*Example: ${prefix}pubglogo Kevin*`);
 
     try {
-        const apiUrl = `https://api.malvin.gleeze.com/ephoto360/pubgLogo?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const apiUrl = `${global.wow}ephoto360/pubgLogo?apikey=${global.KevinApi}&name=${encodeURIComponent(text)}`;
         const response = await axios.get(apiUrl);
 
         if (response.data?.status === true && response.data?.data?.image_url) {
-            const resultUrl = response.data.result.image_url;
+            const resultUrl = response.data.data.image_url;
             
             // Check if it's a video (MP4) or image
             if (resultUrl.endsWith('.mp4')) {
@@ -4533,6 +4533,203 @@ case 'pubglogo': {
         reply(`Error: ${error.message}`);
     }
     
+}
+break
+// ===== New Malvin ephoto360 commands =====
+case 'blueneonlogo':
+case 'blueneon': {
+    if (!text) return reply(`*Example: ${prefix}blueneonlogo Kevin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/blueNeonLogo?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate blue neon logo.`);
+        }
+    } catch (error) {
+        console.error('Blue neon logo error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+}
+break
+case 'dotaavatar':
+case 'dota': {
+    if (!text) return reply(`*Example: ${prefix}dotaavatar Kevin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/dotaAvatar?apikey=${global.KevinApi}&name=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate Dota avatar.`);
+        }
+    } catch (error) {
+        console.error('Dota avatar error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+}
+break
+case 'dragonball809':
+case 'dbz': {
+    if (!text) return reply(`*Example: ${prefix}dragonball809 Kevin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/dragonBall809?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate Dragon Ball text.`);
+        }
+    } catch (error) {
+        console.error('Dragon Ball 809 error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+}
+break
+case 'galaxycover': {
+    if (!text) return reply(`*Example: ${prefix}galaxycover Kelvin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/galaxyCover?apikey=${global.KevinApi}&name=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate galaxy cover.`);
+        }
+    } catch (error) {
+        console.error('Galaxy cover error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+}
+break
+case 'galaxyneon': {
+    if (!text) return reply(`*Example: ${prefix}galaxyneon Kevin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/galaxyNeon?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate galaxy neon text.`);
+        }
+    } catch (error) {
+        console.error('Galaxy neon error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+}
+break
+case 'lolavatar':
+case 'lol': {
+    if (!text) return reply(`*Example: ${prefix}lolavatar Kevin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/lolAvatar?apikey=${global.KevinApi}&name=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate LoL avatar.`);
+        }
+    } catch (error) {
+        console.error('LoL avatar error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+}
+break
+case 'neonsignature':
+case 'signature': {
+    if (!text) return reply(`*Example: ${prefix}neonsignature Kevin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/neonSignature?apikey=${global.KevinApi}&signature=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate neon signature.`);
+        }
+    } catch (error) {
+        console.error('Neon signature error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+}
+break
+case 'retroneon':
+case 'retro': {
+    if (!text) return reply(`*Example: ${prefix}retroneon Kevin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/retroNeon?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate retro neon text.`);
+        }
+    } catch (error) {
+        console.error('Retro neon error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+}
+break
+case 'rovwallpaper':
+case 'rov': {
+    if (!text) return reply(`*Example: ${prefix}rovwallpaper Kevin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/rovWallpaper?apikey=${global.KevinApi}&name=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate ROV wallpaper.`);
+        }
+    } catch (error) {
+        console.error('ROV wallpaper error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
 }
 break
 case "underwater": {
@@ -4985,7 +5182,9 @@ case 'wrestlingschedule':
 case "betting":
 case "betodds": {
     try {
-        const apiUrl = 'https://api.malvin.gleeze.com/sports/betting/odds';
+        // global.wow already includes the trailing "api/", but this endpoint
+        // lives one level up (no /api/ in its path), so back that segment out
+        const apiUrl = `${global.wow.replace(/api\/?$/, '')}sports/betting/odds`;
         const response = await axios.get(apiUrl);
         
         if (!response.data?.status || !response.data?.result?.tips) {
