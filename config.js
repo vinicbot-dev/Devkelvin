@@ -73,7 +73,7 @@ global.AI_CHAT = "false"; // Set to "true" to enable AI chatbot by default
 
 // ========= Add modeStatus and versions ========= //
 global.modeStatus = "Public";
-global.versions = "1.6.4";
+global.versions = "1.6.6";
 
 // ========= Setting WM ========= //
 global.packname = '★⃝𝐉𝐄𝐗𝐏𝐋𝐎𝐈𝐓';
@@ -83,6 +83,7 @@ global.wm = '©★⃝𝐉𝐄𝐗𝐏𝐋𝐎𝐈𝐓 is awesome 🔥';
 // === For only developer ============
 global.api = "https://apiskeith2-production-3020.up.railway.app";
 global.KevinApi = "malvin-5xrOWGp0WrpXfOoeV80ffXdkCXC15iDYGNDXNov6";
+global.wow = "https://api.malvin.gleeze.com";  // <-- Malvin API domain
 global.wwe = "https://www.wwe.com/api/news";
 global.wwe1 = "https://www.thesportsdb.com/api/v1/json/3/searchfilename.php?e=wwe";
 global.wwe2 = "https://www.thesportsdb.com/api/v1/json/3/searchevents.php?e=wrestling";
