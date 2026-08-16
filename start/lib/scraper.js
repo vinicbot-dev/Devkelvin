@@ -9,6 +9,7 @@ const randomarray = async (array) => {
 	return array[Math.floor(Math.random() * array.length)]
 }
 const { toAudio } = require('../../start/lib/converter')
+const { downloadVerifiedMedia } = require('../../Jex')
 
 const AXIOS_DEFAULTS = {
     timeout: 60000,
@@ -38,7 +39,7 @@ async function fetchMp3(conn, chatId, message) {
     try {
         const text = message.message?.conversation || message.message?.extendedTextMessage?.text || '';
         if (!text) {
-            await conn.sendMessage(chatId, { text: 'Usage: .song <song name or YouTube link>' }, { quoted: message });
+            await conn.sendMessage(chatId, { text: global.mess.make.usage('.song', '<song name or YouTube link>') }, { quoted: message });
             return;
         }
 
@@ -60,14 +61,14 @@ async function fetchMp3(conn, chatId, message) {
                     videoThumbnail = search.thumbnail;
                 }
             } else {
-                await conn.sendMessage(chatId, { text: '❌ Invalid YouTube URL.' }, { quoted: message });
+                await conn.sendMessage(chatId, { text: global.mess.make.error('Invalid YouTube URL.') }, { quoted: message });
                 return;
             }
         } else {
             // Search for the video first using yt-search to get the URL
             const search = await yts(text);
             if (!search || !search.videos.length) {
-                await conn.sendMessage(chatId, { text: 'No results found.' }, { quoted: message });
+                await conn.sendMessage(chatId, { text: global.mess.notfound }, { quoted: message });
                 return;
             }
             const video = search.videos[0];
@@ -123,7 +124,7 @@ async function fetchMp3(conn, chatId, message) {
     }
 }
 
-// EliteProTech Video API (ytdown)
+// EliteProTech Video API (ytdown) — fallback
 async function getEliteProTechVideo(youtubeUrl) {
     const apiUrl = `https://eliteprotech-apis.zone.id/ytdown?url=${encodeURIComponent(youtubeUrl)}&format=mp4`;
     const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
@@ -136,47 +137,64 @@ async function getEliteProTechVideo(youtubeUrl) {
     throw new Error('EliteProTech returned no download');
 }
 
-// Yupra API
-async function getYupraVideo(youtubeUrl) {
-    const apiUrl = `https://api.yupra.my.id/api/downloader/ytmp4?url=${encodeURIComponent(youtubeUrl)}`;
+// Malvin (savetube) Video API — tried first, fixed at 360p
+async function getMalvinVideo(youtubeUrl, quality = '360') {
+    const apiUrl = `${global.wow}download/savetube?url=${encodeURIComponent(youtubeUrl)}&type=video&quality=${quality}&apikey=${global.KevinApi}`;
     const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
-    if (res?.data?.success && res?.data?.data?.download_url) {
+    if (res?.data?.status && res?.data?.data?.download_url) {
         return {
             download: res.data.data.download_url,
-            title: res.data.data.title,
-            thumbnail: res.data.data.thumbnail
+            title: res.data.data.title
         };
     }
-    throw new Error('Yupra returned no download');
+    throw new Error('Malvin (savetube) returned no download');
 }
 
-// Okatsu API
-async function getOkatsuVideo(youtubeUrl) {
-    const apiUrl = `https://okatsu-rolezapiiz.vercel.app/downloader/ytmp4?url=${encodeURIComponent(youtubeUrl)}`;
+// Old apiskeith.top primary — kept, no longer called (replaced by Malvin below)
+async function getPrimaryApiVideo(youtubeUrl) {
+    const apiUrl = `${global.api}/download/video?url=${encodeURIComponent(youtubeUrl)}`;
     const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
-    if (res?.data?.result?.mp4) {
+    if (res?.data?.status && res?.data?.result) {
         return {
-            download: res.data.result.mp4,
-            title: res.data.result.title
+            download: res.data.result,
+            title: res.data.title // this API doesn't return a title
         };
     }
-    throw new Error('Okatsu returned no download');
+    throw new Error('Primary API returned no download');
 }
-
-// Main fetchVideo function (unchanged - uses ytdown, Yupra, Okatsu)
+// Main fetchVideo function — tries Malvin (savetube, 360p) first, then
+// falls back to EliteProTech. Whichever candidate comes back, we don't
+// trust the API's own "status: true" alone: the link is actually
+// downloaded and confirmed to be real, playable video (via the same
+// downloadVerifiedMedia check used elsewhere in this project) before
+// it's accepted. A provider that reports success but hands back a dead
+// or expired link is treated as a failure and we move to the next one.
 async function fetchVideo(youtubeUrl) {
     const apiMethods = [
-        { name: 'EliteProTech', method: () => getEliteProTechVideo(youtubeUrl) },
-        { name: 'Yupra', method: () => getYupraVideo(youtubeUrl) },
-        { name: 'Okatsu', method: () => getOkatsuVideo(youtubeUrl) }
+        { name: 'Malvin', method: () => getMalvinVideo(youtubeUrl, '360') },
+        { name: 'EliteProTech', method: () => getEliteProTechVideo(youtubeUrl) }
     ];
+
+    // Get video title from yts as fallback
+    let fallbackTitle = 'YouTube Video';
+    try {
+        const search = await yts(youtubeUrl);
+        if (search && search.title) {
+            fallbackTitle = search.title;
+        }
+    } catch (e) {
+        // Ignore yts error
+    }
 
     for (const apiMethod of apiMethods) {
         try {
             console.log(`🔄 Trying ${apiMethod.name} for Video...`);
             const result = await apiMethod.method();
             if (result && result.download) {
-                console.log(`✅ ${apiMethod.name} successful!`);
+                await downloadVerifiedMedia(result.download, 'video');
+                console.log(`✅ ${apiMethod.name} successful and confirmed playable!`);
+                // Ensure title exists
+                result.title = result.title || fallbackTitle;
                 return result;
             }
         } catch (err) {
@@ -184,7 +202,7 @@ async function fetchVideo(youtubeUrl) {
             continue;
         }
     }
-    throw new Error("All Video download APIs failed.");
+    throw new Error("All Video download APIs failed to return playable video.");
 }
 
 function wallpaper(title, page = '1') {
