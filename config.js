@@ -26,8 +26,8 @@ global.botname = "JEXPLOIT";
 
 // ========= Setting Channel ========= //
 global.namachannel = "KEVIN";
-global.idchannel = "120363398454335106@newsletter";
-global.linkchannel = "";
+global.idchannel = "120363405241240098@newsletter";
+global.linkchannel = "https://whatsapp.com/channel/0029Vb725SbIyPtOEG92nA04";
 
 // ========= Setting Status ========= //
 global.antispam = true;
