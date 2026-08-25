@@ -889,6 +889,37 @@ Status: ${currentMode !== 'off' ? '✅ Enabled' : '❌ Disabled'}
     reply('❌ Invalid option! Use: on, off, chat, private, status');
     break;
 }
+case 'antideletestatus': {
+    if (!Access) return reply(mess.owner);
+
+    const mode = args[0]?.toLowerCase();
+
+    if (!mode) {
+        const currentMode = await db.get(botNumber, 'antideletestatus', false);
+        return reply(`*ANTIDELETE-STATUS SETTINGS*
+
+Current Status: ${currentMode ? '✅ Enabled' : '❌ Disabled'}
+
+📌 *Commands:*
+• ${prefix}antideletestatus on - Enable
+• ${prefix}antideletestatus off - Disable
+
+When enabled, a WhatsApp status someone deletes early is recovered and sent to *your own inbox only*, along with who posted it.`);
+    }
+
+    if (mode === 'on') {
+        await db.set(botNumber, 'antideletestatus', true);
+        return reply(`✅ *Successfully enabled antideletestatus*`);
+    }
+
+    if (mode === 'off') {
+        await db.set(botNumber, 'antideletestatus', false);
+        return reply(`✅ *Successfully disabled antideletestatus*`);
+    }
+
+    reply('❌ Invalid option! Use: on, off');
+    break;
+}
 case 'setprefix':
 case 'prefix': {
     if (!Access) return reply(mess.owner);
@@ -1929,6 +1960,7 @@ case "status": {
         mode,
         alwaysonline,
         antidelete,
+        antideletestatus,
         antiedit,
         anticall,
         antilinkdelete,
@@ -1958,6 +1990,7 @@ case "status": {
         db.get(botNumber, 'mode', 'public'),
         db.get(botNumber, 'alwaysonline', false),
         db.get(botNumber, 'antidelete', 'off'),
+        db.get(botNumber, 'antideletestatus', false),
         db.get(botNumber, 'antiedit', 'off'),
         db.get(botNumber, 'anticall', 'off'),
         db.get(botNumber, 'antilink', false),
@@ -1997,6 +2030,7 @@ case "status": {
     settingsMsg += `🔸 *menu style*: ${menuStyleDb}\n`;
     settingsMsg += `🔸 *alwaysonline*: ${getStatus(alwaysonline)}\n`;
     settingsMsg += `🔸 *antidelete*: ${getModeStatus(antidelete)}\n`;
+    settingsMsg += `🔸 *antideletestatus*: ${getStatus(antideletestatus)}\n`;
     settingsMsg += `🔸 *antiedit*: ${getModeStatus(antiedit)}\n`;
     settingsMsg += `🔸 *anticall*: ${getModeStatus(anticall)}\n`;
     settingsMsg += `🔸 *antilink*: ${getStatus(antilinkdelete)} ${antilinkdelete ? `(${antilinkaction})` : ''}\n`;
