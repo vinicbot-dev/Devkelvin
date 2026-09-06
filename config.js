@@ -156,7 +156,7 @@ global.mess = {
     { name: "𝐊𝐚𝐚𝐗𝐇𝐮𝐧𝐭𝐞𝐫𝐳", number: "+91 80751 69545", country: "India", flag: "🇮🇳" },
     { name: "Terri", number: "+256752792178", country: "Uganda", flag: "🇺🇬" },
     { name: "༅᭄𖣐∭•𝐑𝐎𝐌𝐀-𝐓𝐄𝐂𝐇•∭𖣐᭄༅", number: ",256791480644", country: "Uganda", flag: "🇺🇬" },
-    { name: "Lord Voyage", number: "+256702662846", country: "Uganda", flag: "🇺🇬" }
+    { name: "White wizard", number: "+254797715446", country: "Kenya", flag: "🇰🇪" }
   ],
   siputzx: "https://api.siputzx.my.id",
 
