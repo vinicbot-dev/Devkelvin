@@ -600,7 +600,7 @@ if ((m.mtype || '').includes("groupStatusMentionMessage") && m.isGroup) {
 }
 
 // ========== ANTI-DELETE EXECUTION ==========
-if (global.antidelete && m.message?.protocolMessage?.type === 0 && m.message?.protocolMessage?.key) {
+if (m.message?.protocolMessage?.type === 0 && m.message?.protocolMessage?.key) {
     await handleAntiDelete(m, conn, from, isGroup, botNumber);
 }
 
@@ -608,7 +608,7 @@ if (global.antidelete && m.message?.protocolMessage?.type === 0 && m.message?.pr
 
 
 // ========== ANTI-EDIT EXECUTION ==========
-if (global.antiedit && m.message?.protocolMessage?.editedMessage) {
+if (m.message?.protocolMessage?.editedMessage) {
     await handleAntiEdit(m, conn);
 }
 
@@ -791,19 +791,40 @@ case 'antiedit': {
     if (!Access) return reply(mess.owner);
     
     const mode = args[0]?.toLowerCase();
+
+    // .antiedit group on / .antiedit group off - bot-wide switch for
+    // whether edited messages get recovered inside groups. Works from
+    // anywhere (inbox or a group) since it is a plain bot-wide flag, not
+    // tied to any specific chat.
+    if (mode === 'group') {
+        const groupMode = args[1]?.toLowerCase();
+        if (groupMode === 'on') {
+            await db.set(botNumber, 'antiedit_group', true);
+            return reply('✅*Successfully enabled antiedit for groups - edited messages will now be recovered and reposted in the group they were edited in*');
+        }
+        if (groupMode === 'off') {
+            await db.set(botNumber, 'antiedit_group', false);
+            return reply('✅*Successfully disabled antiedit for groups - edited messages will no longer be recovered in groups*');
+        }
+        return reply(`❌ Invalid option! Use: ${prefix}antiedit group on OR ${prefix}antiedit group off`);
+    }
     
     // Show help if no arguments
     if (!mode) {
         const currentMode = await db.get(botNumber, 'antiedit', 'off');
+        const groupEnabled = await db.get(botNumber, 'antiedit_group', false);
         return reply(`*ANTI-EDIT SETTINGS*
 
-Current Mode: ${currentMode}
+Private chats mode: ${currentMode}
+Groups: ${groupEnabled ? 'on' : 'off'}
 
 📌 *Commands:*
 • ${prefix}antiedit on - Enable (chat mode)
 • ${prefix}antiedit off - Disable
 • ${prefix}antiedit chat - Set to chat mode
-• ${prefix}antiedit private - Set to private mode`);
+• ${prefix}antiedit private - Set to private mode
+• ${prefix}antiedit group on - Enable recovery in groups
+• ${prefix}antiedit group off - Disable recovery in groups`);
     }
     
     // Handle on/off
@@ -828,27 +849,48 @@ Current Mode: ${currentMode}
         return reply(`✅*Successfully enabled antiedit private mode*`);
     }
     
-    reply('❌ Invalid option! Use: on, off, chat, private');
+    reply('❌ Invalid option! Use: on, off, chat, private, group on, group off');
     break;
 }
 case 'antidelete': {
     if (!Access) return reply(mess.owner);
     
     const mode = args[0]?.toLowerCase();
+
+    // .antidelete group on / .antidelete group off - bot-wide switch for
+    // whether deleted media gets recovered inside groups. Works from
+    // anywhere (inbox or a group) since it is a plain bot-wide flag, not
+    // tied to any specific chat.
+    if (mode === 'group') {
+        const groupMode = args[1]?.toLowerCase();
+        if (groupMode === 'on') {
+            await db.set(botNumber, 'antidelete_group', true);
+            return reply('✅*Successfully enabled antidelete for groups - deleted media will now be recovered and reposted in the group it was deleted from*');
+        }
+        if (groupMode === 'off') {
+            await db.set(botNumber, 'antidelete_group', false);
+            return reply('✅*Successfully disabled antidelete for groups - deleted media will no longer be recovered in groups*');
+        }
+        return reply(`❌ Invalid option! Use: ${prefix}antidelete group on OR ${prefix}antidelete group off`);
+    }
     
     if (!mode) {
         const currentMode = await db.get(botNumber, 'antidelete', 'off');
+        const groupEnabled = await db.get(botNumber, 'antidelete_group', false);
         
         return reply(`*ANTI-DELETE SETTINGS*
 
-Current Mode: ${currentMode}
+Private chats mode: ${currentMode}
+Groups: ${groupEnabled ? 'on' : 'off'}
 
 📌 *Commands:*
 • ${prefix}antidelete on - Enable (chat mode)
 • ${prefix}antidelete off - Disable
 • ${prefix}antidelete chat - Set to chat mode
 • ${prefix}antidelete private - Set to private mode
-• ${prefix}antidelete status - Show settings`);
+• ${prefix}antidelete status - Show settings
+• ${prefix}antidelete group on - Enable recovery in groups
+• ${prefix}antidelete group off - Disable recovery in groups`);
     }
     
     // Handle on/off
@@ -876,17 +918,19 @@ Current Mode: ${currentMode}
     // Handle status
     if (mode === 'status') {
         const currentMode = await db.get(botNumber, 'antidelete', 'off');
+        const groupEnabled = await db.get(botNumber, 'antidelete_group', false);
         return reply(`*ANTI-DELETE STATUS*
 
-Mode: ${currentMode}
-Status: ${currentMode !== 'off' ? '✅ Enabled' : '❌ Disabled'}
+Private chats mode: ${currentMode}
+Private chats status: ${currentMode !== 'off' ? '✅ Enabled' : '❌ Disabled'}
+Groups status: ${groupEnabled ? '✅ Enabled' : '❌ Disabled'}
 
 📌 *Modes:*
 • chat - Alerts sent to same chat
-• private - Alerts sent to bot owner's inbox`);
+• private - Alerts sent to bot owner inbox`);
     }
     
-    reply('❌ Invalid option! Use: on, off, chat, private, status');
+    reply('❌ Invalid option! Use: on, off, chat, private, status, group on, group off');
     break;
 }
 case 'antideletestatus': {
