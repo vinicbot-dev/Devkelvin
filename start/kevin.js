@@ -5224,11 +5224,33 @@ case 'venue':
     await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
 
+case 'vs':
+case 'headtohead':
+case 'h2h':
+case 'eventsearch': {
+    const vsQuery = args.join(' ');
+    const vsParts = vsQuery.split(/\s+vs\s+/i);
+    if (vsParts.length !== 2 || !vsParts[0].trim() || !vsParts[1].trim()) {
+        await reply(`❌ Please provide two teams separated by "vs". Example: ${prefix}vs Arsenal vs Chelsea`);
+        break;
+    }
+    await sports.searchEvents(vsParts[0].trim(), vsParts[1].trim(), { reply, conn, m });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+}
+
 // ===== LIVE SCORES =====
 case 'livescores':
 case 'livescore':
 case 'live':
     await sports.getLiveScores({ reply, conn, m });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+
+case 'highlights':
+case 'livehighlights':
+case 'matchhighlights':
+    await sports.getLiveScoreHighlights({ reply, conn, m });
     await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
 
@@ -5258,46 +5280,11 @@ case 'wrestlingschedule':
     await sports.getWWESchedule({ reply, conn, m });
     await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
-    
-// ===== BETTING COMMANDS =====
+
 case "betting":
-case "betodds": {
-    try {
-        // global.wow already includes the trailing "api/", but this endpoint
-        // lives one level up (no /api/ in its path), so back that segment out
-        const apiUrl = `${global.wow.replace(/api\/?$/, '')}sports/betting/odds`;
-        const response = await axios.get(apiUrl);
-        
-        if (!response.data?.status || !response.data?.result?.tips) {
-            await reply('Failed to fetch betting odds.');
-            await sendPTT(conn, m.chat, getRandomAudio(), m);
-            return;
-        }
-        
-        const tips = response.data.result.tips;
-        let message = `*🎲 BETTING ODDS 🎲*\n\n`;
-        
-        tips.forEach((match, index) => {
-            message += `${index + 1}. ${match.event}\n`;
-            message += `📅 ${new Date(match.commenceTime).toLocaleString()}\n`;
-            message += `📊 Bookmakers: ${match.bookmakers}\n`;
-            message += `\n📈 Odds:\n`;
-            
-            match.bestOdds.forEach(odd => {
-                message += `   • ${odd.name}: ${odd.price}\n`;
-            });
-            message += `\n─────────────────\n\n`;
-        });
-        
-        await reply(message);
-        await sendPTT(conn, m.chat, getRandomAudio(), m);
-    } catch (error) {
-        console.error('Betting odds error:', error);
-        await reply('❌ Error fetching betting odds. Please try again later.');
-        await sendPTT(conn, m.chat, getRandomAudio(), m);
-    }
-    
-}
+case "betodds":
+    await sports.formatBettingOdds({ reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
 break
 case "quran": {
 try {
