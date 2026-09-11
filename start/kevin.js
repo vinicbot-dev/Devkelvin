@@ -800,10 +800,12 @@ case 'antiedit': {
         const groupMode = args[1]?.toLowerCase();
         if (groupMode === 'on') {
             await db.set(botNumber, 'antiedit_group', true);
+            console.log(`[ANTIEDIT SET] botNumber=${botNumber} antiedit_group=true`);
             return reply('✅*Successfully enabled antiedit for groups - edited messages will now be recovered and reposted in the group they were edited in*');
         }
         if (groupMode === 'off') {
             await db.set(botNumber, 'antiedit_group', false);
+            console.log(`[ANTIEDIT SET] botNumber=${botNumber} antiedit_group=false`);
             return reply('✅*Successfully disabled antiedit for groups - edited messages will no longer be recovered in groups*');
         }
         return reply(`❌ Invalid option! Use: ${prefix}antiedit group on OR ${prefix}antiedit group off`);
@@ -865,10 +867,12 @@ case 'antidelete': {
         const groupMode = args[1]?.toLowerCase();
         if (groupMode === 'on') {
             await db.set(botNumber, 'antidelete_group', true);
+            console.log(`[ANTIDELETE SET] botNumber=${botNumber} antidelete_group=true`);
             return reply('✅*Successfully enabled antidelete for groups - deleted media will now be recovered and reposted in the group it was deleted from*');
         }
         if (groupMode === 'off') {
             await db.set(botNumber, 'antidelete_group', false);
+            console.log(`[ANTIDELETE SET] botNumber=${botNumber} antidelete_group=false`);
             return reply('✅*Successfully disabled antidelete for groups - deleted media will no longer be recovered in groups*');
         }
         return reply(`❌ Invalid option! Use: ${prefix}antidelete group on OR ${prefix}antidelete group off`);
