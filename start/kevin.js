@@ -5224,33 +5224,11 @@ case 'venue':
     await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
 
-case 'vs':
-case 'headtohead':
-case 'h2h':
-case 'eventsearch': {
-    const vsQuery = args.join(' ');
-    const vsParts = vsQuery.split(/\s+vs\s+/i);
-    if (vsParts.length !== 2 || !vsParts[0].trim() || !vsParts[1].trim()) {
-        await reply(`❌ Please provide two teams separated by "vs". Example: ${prefix}vs Arsenal vs Chelsea`);
-        break;
-    }
-    await sports.searchEvents(vsParts[0].trim(), vsParts[1].trim(), { reply, conn, m });
-    await sendPTT(conn, m.chat, getRandomAudio(), m);
-    break;
-}
-
 // ===== LIVE SCORES =====
 case 'livescores':
 case 'livescore':
 case 'live':
     await sports.getLiveScores({ reply, conn, m });
-    await sendPTT(conn, m.chat, getRandomAudio(), m);
-    break;
-
-case 'highlights':
-case 'livehighlights':
-case 'matchhighlights':
-    await sports.getLiveScoreHighlights({ reply, conn, m });
     await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
 
@@ -5280,99 +5258,36 @@ case 'wrestlingschedule':
     await sports.getWWESchedule({ reply, conn, m });
     await sendPTT(conn, m.chat, getRandomAudio(), m);
     break;
-
+    
+// ===== BETTING COMMANDS =====
 case "betting":
 case "betodds":
     await sports.formatBettingOdds({ reply });
     await sendPTT(conn, m.chat, getRandomAudio(), m);
-break
-case "quran": {
-try {
-            const surahNumber = parseInt(text.trim());
-            
-            if (!text || isNaN(surahNumber)) {
-                await conn.sendMessage(m.chat, { text: "Usage: .quran <surah_number>\nExample: .quran 1" });
-                return;
-            }
+    break;
 
-            const url = `https://apis.davidcyril.name.ng/quran?surah=${surahNumber}`;
-            const res = await fetch(url);
-            const data = await res.json();
+// ===== LIVE HIGHLIGHTS =====
+case 'highlights':
+case 'livehighlights':
+case 'matchhighlights':
+    await sports.getLiveScoreHighlights({ reply, conn, m });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
 
-            if (!data.success) {
-                await conn.sendMessage(m.chat, { text: "Could not fetch Surah. Please try another number." });
-                return;
-            }
-
-            const { number, name, type, ayahCount, tafsir, recitation } = data.surah;
-
-            let replyText = `📖 *${name.english}* (${name.arabic})\n`;
-            replyText += `Number: ${number} | Type: ${type} | Ayahs: ${ayahCount}\n\n`;
-            replyText += `Tafsir: ${tafsir.id}`;
-
-            await conn.sendMessage(m.chat, { text: replyText });
-
-            await conn.sendMessage(m.chat, {
-                audio: { url: recitation },
-                mimetype: "audio/mpeg",
-                mp3: true
-            }, { quoted: m });
-
-        } catch (err) {
-            await conn.sendMessage(m.chat, { text: "Error fetching Surah. Try again later." });
-            console.error("Quran command error:", err.message);
-        }
-}
-break
-case 'surahlist':
-case 'listsurah': {
-    await reply('Fetching the list of Surahs... Please wait...');
-    await conn.sendMessage(m.chat, { react: { text: '📖', key: m.key } });
-
-    try {
-        const apiUrl = `${global.api}/surahlist`;
-        const response = await axios.get(apiUrl, { timeout: 15000 });
-
-        if (!response.data?.status || !response.data?.result?.data) {
-            throw new Error('Invalid API response');
-        }
-
-        const surahs = response.data.result.data;
-        let listText = '*List of Surahs (114)*\n\n';
-        surahs.forEach(s => {
-            const num = s.number;
-            const nameEn = s.name.english;
-            const transl = s.name.translation;
-            listText += `${num}. ${nameEn} (${transl})\n`;
-        });
-
-        // Trim trailing newline
-        listText = listText.trim();
-
-        // Send the list
-        await conn.sendMessage(m.chat, {
-            text: listText,
-            contextInfo: {
-                externalAdReply: {
-                    title: `${global.botname} Quran List`,
-                    body: `Powered by Kelvin Tech`,
-                    thumbnail: peler, // Use existing thumbnail
-                    mediaType: 1,
-                    renderLargerThumbnail: false
-                }
-            }
-        }, { quoted: m });
-
-        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
-
-    } catch (error) {
-        console.error('Surahlist API Error:', error.message);
-        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-        reply('❌ Failed to fetch the surah list. Please try again later.');
+// ===== HEAD-TO-HEAD (aliases) =====
+case 'vs':
+case 'headtohead':
+case 'h2h':
+case 'eventsearch': {
+    const vsQuery = args.join(' ');
+    const vsParts = vsQuery.split(/\s+vs\s+/i);
+    if (vsParts.length !== 2 || !vsParts[0].trim() || !vsParts[1].trim()) {
+        await reply(`❌ Please provide two teams separated by "vs". Example: ${prefix}vs Arsenal vs Chelsea`);
+        break;
     }
-    
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
 }
-break
 case 'bible': {
 const BASE_URL = "https://bible-api.com";
 
