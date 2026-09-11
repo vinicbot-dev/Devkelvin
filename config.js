@@ -1,7 +1,5 @@
 /* m
   -! Credits By Kevintech 
-  Thanks to great lonelysaam 
-  Thanks to Malvin King 
   https://wa.me/256742932677
 */
 
@@ -73,7 +71,7 @@ global.AI_CHAT = "false"; // Set to "true" to enable AI chatbot by default
 
 // ========= Add modeStatus and versions ========= //
 global.modeStatus = "Public";
-global.versions = "1.6.8";
+global.versions = "1.7.0";
 
 // ========= Setting WM ========= //
 global.packname = '★⃝𝐉𝐄𝐗𝐏𝐋𝐎𝐈𝐓';
