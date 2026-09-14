@@ -789,11 +789,7 @@ case 'antiedit': {
     if (!Access) return reply(mess.owner);
     
     const mode = args[0]?.toLowerCase();
-
-    // .antiedit group on / .antiedit group off - bot-wide switch for
-    // whether edited messages get recovered inside groups. Works from
-    // anywhere (inbox or a group) since it is a plain bot-wide flag, not
-    // tied to any specific chat.
+    
     if (mode === 'group') {
         const groupMode = args[1]?.toLowerCase();
         if (groupMode === 'on') {
@@ -2805,9 +2801,7 @@ case 'repo': {
     
 }
 break
-case "githubsearch":
-case "ghsearch":
-case "searchgithub": {
+case "githubsearch": {
     if (!text) {
         return reply(`*🔍 GITHUB SEARCH*\n\nUsage: ${prefix}githubsearch <query>\nExample: ${prefix}githubsearch Kevintech-hub`);
     }
@@ -2856,6 +2850,119 @@ case "searchgithub": {
         reply(`❌ Failed to search GitHub: ${error.message}`);
     }
     
+}
+break
+case 'searchrepo':
+case 'findrepo':
+case 'reposearch': {
+    if (!text) {
+        return reply(`*🔍 GITHUB REPO SEARCH*\n\n*Usage:* ${prefix}${command} <owner>/<repo>\n*Example:* ${prefix}${command} Kevintech-hub/Jexploit-Bot`);
+    }
+
+    // Parse owner/repo from user input
+    let owner, repo;
+
+    if (text.includes('/')) {
+        const parts = text.split('/').map(s => s.trim()).filter(Boolean);
+        owner = parts[0];
+        repo = parts[1];
+    } else if (text.includes('github.com')) {
+        // Handle full URL: https://github.com/owner/repo
+        const match = text.match(/github\.com\/([^\/\s]+)\/([^\/\s]+)/i);
+        if (match) {
+            owner = match[1];
+            repo = match[2].replace(/\.git$/, '');
+        }
+    }
+
+    if (!owner || !repo) {
+        return reply(`❌ *Invalid format!*\n\nPlease provide the repo as *owner/repo*.\n*Example:* ${prefix}${command} Kevintech-hub/Jexploit-Bot`);
+    }
+
+    await conn.sendMessage(m.chat, { react: { text: '🔍', key: m.key } });
+
+    try {
+        const apiUrl = `${global.wow}info/github-repo?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}&apikey=${global.KevinApi}`;
+
+        const response = await axios.get(apiUrl, { timeout: 15000 });
+        const data = response.data;
+
+        if (!data?.status || !data?.data) {
+            await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+            return reply(`❌ *Repo not found:* ${owner}/${repo}\n\nDouble-check the spelling or make sure the repo is public.`);
+        }
+
+        const r = data.data;
+
+        const formatNumber = (n) => {
+            if (n === undefined || n === null) return '0';
+            if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+            if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+            return String(n);
+        };
+
+        const formatDate = (iso) => {
+            try {
+                return new Date(iso).toLocaleDateString('en-US', {
+                    year: 'numeric', month: 'short', day: 'numeric'
+                });
+            } catch (_) {
+                return 'N/A';
+            }
+        };
+
+        const repoCard =
+`╭──❖ 「 *GITHUB REPO* 」 ❖──
+│
+│ 📦 *Name:* ${r.full_name || `${owner}/${repo}`}
+│ 📝 *Description:* ${r.description || '_No description_'}
+│ 🔤 *Language:* ${r.language || 'N/A'}
+│ 🔒 *Visibility:* ${r.private ? 'Private' : 'Public'}${r.fork ? ' (Fork)' : ''}
+│
+│ ⭐ *Stars:* ${formatNumber(r.stars)}
+│ 👁️ *Watchers:* ${formatNumber(r.watchers)}
+│ 🍴 *Forks:* ${formatNumber(r.forks)}
+│ 🐛 *Open Issues:* ${formatNumber(r.open_issues)}
+│ 📦 *Size:* ${r.size_kb ? formatNumber(r.size_kb) + ' KB' : 'N/A'}
+│
+│ 🌿 *Default Branch:* ${r.default_branch || 'main'}
+│ 📜 *License:* ${r.license || 'None'}
+│ 📅 *Created:* ${formatDate(r.created_at)}
+│ 🔄 *Updated:* ${formatDate(r.updated_at)}
+│ 🚀 *Last Push:* ${formatDate(r.pushed_at)}
+│
+│ 👤 *Owner:* ${r.owner?.login || owner}
+│ 🔗 *Repo:* ${r.html_url || `https://github.com/${owner}/${repo}`}
+│
+╰─────────────────❖
+
+✨ @${m.sender.split('@')[0]} *Use the link above to check it out!* ✨`;
+
+        // Pick a thumbnail: owner's avatar looks nice
+        const thumbnailUrl = r.owner?.avatar_url || 'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png';
+
+        await conn.sendMessage(m.chat, {
+            text: repoCard,
+            contextInfo: {
+                mentionedJid: [m.sender],
+                externalAdReply: {
+                    title: `🔍 ${r.full_name || `${owner}/${repo}`}`,
+                    body: `⭐ ${formatNumber(r.stars)}  •  🍴 ${formatNumber(r.forks)}  •  👁️ ${formatNumber(r.watchers)}`,
+                    thumbnailUrl: thumbnailUrl,
+                    sourceUrl: r.html_url || `https://github.com/${owner}/${repo}`,
+                    mediaType: 1,
+                    renderLargerThumbnail: true
+                }
+            }
+        }, { quoted: m });
+
+        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+    } catch (error) {
+        console.error('[SEARCHREPO] Error:', error.message);
+        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+        reply(`❌ *Failed to fetch repo info.*\n\n${error.message}`);
+    }
 }
 break
 case "alive": {
@@ -5419,6 +5526,93 @@ try {
         console.error(error);
         reply(mess.error);
     }
+}
+break
+case "quran": {
+try {
+            const surahNumber = parseInt(text.trim());
+            
+            if (!text || isNaN(surahNumber)) {
+                await conn.sendMessage(m.chat, { text: "Usage: .quran <surah_number>\nExample: .quran 1" });
+                return;
+            }
+
+            const url = `https://apis.davidcyril.name.ng/quran?surah=${surahNumber}`;
+            const res = await fetch(url);
+            const data = await res.json();
+
+            if (!data.success) {
+                await conn.sendMessage(m.chat, { text: "Could not fetch Surah. Please try another number." });
+                return;
+            }
+
+            const { number, name, type, ayahCount, tafsir, recitation } = data.surah;
+
+            let replyText = `📖 *${name.english}* (${name.arabic})\n`;
+            replyText += `Number: ${number} | Type: ${type} | Ayahs: ${ayahCount}\n\n`;
+            replyText += `Tafsir: ${tafsir.id}`;
+
+            await conn.sendMessage(m.chat, { text: replyText });
+
+            await conn.sendMessage(m.chat, {
+                audio: { url: recitation },
+                mimetype: "audio/mpeg",
+                mp3: true
+            }, { quoted: m });
+
+        } catch (err) {
+            await conn.sendMessage(m.chat, { text: "Error fetching Surah. Try again later." });
+            console.error("Quran command error:", err.message);
+        }
+}
+break
+case 'surahlist':
+case 'listsurah': {
+    await reply('Fetching the list of Surahs... Please wait...');
+    await conn.sendMessage(m.chat, { react: { text: '📖', key: m.key } });
+
+    try {
+        const apiUrl = `${global.api}/surahlist`;
+        const response = await axios.get(apiUrl, { timeout: 15000 });
+
+        if (!response.data?.status || !response.data?.result?.data) {
+            throw new Error('Invalid API response');
+        }
+
+        const surahs = response.data.result.data;
+        let listText = '*List of Surahs (114)*\n\n';
+        surahs.forEach(s => {
+            const num = s.number;
+            const nameEn = s.name.english;
+            const transl = s.name.translation;
+            listText += `${num}. ${nameEn} (${transl})\n`;
+        });
+
+        // Trim trailing newline
+        listText = listText.trim();
+
+        // Send the list
+        await conn.sendMessage(m.chat, {
+            text: listText,
+            contextInfo: {
+                externalAdReply: {
+                    title: `${global.botname} Quran List`,
+                    body: `Powered by Kelvin Tech`,
+                    thumbnail: peler, // Use existing thumbnail
+                    mediaType: 1,
+                    renderLargerThumbnail: false
+                }
+            }
+        }, { quoted: m });
+
+        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+    } catch (error) {
+        console.error('Surahlist API Error:', error.message);
+        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+        reply('❌ Failed to fetch the surah list. Please try again later.');
+    }
+    
 }
 break
 case 'play3': {
@@ -9009,6 +9203,42 @@ case "ytsearch": {
         console.error("YT Search command failed:", error);
         reply("❌ *An error occurred while fetching YouTube search results.*");
       }
+}
+break
+case "yts2": {
+    const query = args.join(' ');
+    
+    if (!query) return reply("*Please provide a search term. Example: `.yts2 JEXPLOIT-BOT*`");
+    
+    try {
+      const response = await fetch(`${global.siputzx}/api/s/youtube?query=${encodeURIComponent(query)}`);
+      const data = await response.json();
+      
+      if (!data.status || !data.data || data.data.length === 0) {
+        return reply(`❌ No videos found for "${query}"`);
+      }
+      
+      const videos = data.data.slice(0, 5); // Show first 5 results
+      
+      let message = `📺 *YouTube Search Results for "${query}"*\n\n`;
+      
+      videos.forEach((video, index) => {
+        message += `*${index + 1}. ${video.title}*\n`;
+        message += `   👤 Channel: ${video.author?.name || 'Unknown'}\n`;
+        message += `   ⏱️ Duration: ${video.timestamp || 'N/A'}\n`;
+        message += `   👁️ Views: ${video.views?.toLocaleString() || 'N/A'}\n`;
+        message += `   📅 Uploaded: ${video.ago || 'N/A'}\n`;
+        message += `   🔗 Link: ${video.url}\n\n`;
+      });
+      
+      message += `> ${global.wm || ''}`;
+      
+      reply(message);
+      
+    } catch (error) {
+      console.error('YouTube search error:', error);
+      reply("❌ Error searching YouTube. Try again later.");
+    }
 }
 break
 case 'ytplay':
