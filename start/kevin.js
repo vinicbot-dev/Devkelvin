@@ -1398,7 +1398,7 @@ case "lastseen": {
 
     try {
         await conn.updateLastSeenPrivacy(option);
-        reply(`✅ *Last seen privacy set to:* ${option.toUpperCase()}\n\n*What this means:*\n${getLastSeenDescription(option)}`);
+        reply(`✅ *Last seen privacy set to:* ${option.toUpperCase()}\n\n`);
     } catch (error) {
         console.error('Error setting last seen privacy:', error);
         reply('❌ *Failed to update last seen settings.* Please try again.');
@@ -1420,12 +1420,11 @@ case "gcaddprivacy": {
 
     try {
         await conn.updateGroupsAddPrivacy(option);
-        reply(`✅ *Group add privacy set to:* ${option.toUpperCase()}\n\n*What this means:*\n${getGroupAddDescription(option)}`);
+        reply(`✅ *Group add privacy set to:* ${option.toUpperCase()}\n\n`);
     } catch (error) {
         console.error('Error setting group add privacy:', error);
         reply('❌ *Failed to update group add settings.* Please try again.');
     }
-    
 }
 break 
 case "delete":
@@ -1631,17 +1630,14 @@ case "block": {
 
     const targets = new Set();
 
-    // 1. Handle Mentions (e.g. .block @user1 @user2)
     if (m.mentionedJid && m.mentionedJid.length > 0) {
         m.mentionedJid.forEach(jid => targets.add(jid));
     }
 
-    // 2. Handle Quoted Message (Replying to someone)
     if (m.quoted) {
         targets.add(m.quoted.sender);
     }
 
-    // 3. Handle Phone Numbers in text (e.g. .block 2567xxx 2567yyy)
     if (text) {
         const words = text.split(/[\s,]+/);
         words.forEach(word => {
@@ -1653,7 +1649,7 @@ case "block": {
     }
 
     if (targets.size === 0) {
-        return reply("❌ Please tag someone, reply to a message, or type a phone number to block.");
+        return reply("Please tag someone, reply to a message, or type a phone number to block.");
     }
 
     const success = [];
@@ -1661,8 +1657,6 @@ case "block": {
 
     // Processing the block list
     for (let jid of targets) {
-        // Remove device suffixes (e.g. 1234@s.whatsapp.net:1 -> 1234@s.whatsapp.net)
-        // This is crucial for LID and standard JIDs to work
         let cleanJid = jid.split(':')[0].includes('@') ? jid.split(':')[0] : jid;
 
         if (cleanJid === botNumber) continue; // Don't block yourself
@@ -1710,7 +1704,7 @@ case 'unblock': {
         });
     }
 
-    if (targets.size === 0) return reply("❌ Who should I unblock?");
+    if (targets.size === 0) return reply("Who should I unblock?");
 
     for (let jid of targets) {
         let cleanJid = jid.split(':')[0];
@@ -1728,10 +1722,8 @@ case "reboot": {
     try {
         await reply(`*Restarting ${global.botname} Bot...*\n\nPlease wait 10-15 seconds for the bot to restart.`);
         
-        // A small delay to ensure the message is sent
         await sleep(2000);
         
-        // Close the connection gracefully first
         if (conn && typeof conn.end === 'function') {
             await conn.end();
         }
@@ -1983,7 +1975,7 @@ case 'anticall': {
         }
         if (action === 'off') {
             await db.set(botNumber, 'anticall', 'off');
-            return reply('✅ Successfully disabled anticall');
+            return reply(*'✅ Successfully disabled anticall*');
         }
     }
     
@@ -2150,7 +2142,7 @@ break
 case "pair":
 case "addsession": {
     if (!Access) return reply(mess.owner);
-    if (!text) return reply(`*Usage:* ${prefix}pair <SESSION_ID>\n\nSESSION_ID must start with JEXPLOIT-BOT~, JEXPLOIT-BOT:~,VESPER-BOT~`);
+    if (!text) return reply(`*Usage:* ${prefix}pair <SESSION_ID>\n\nSESSION_ID must start with JEXPLOIT-BOT~, JEXPLOIT-BOT:~,VESPER-BOT~, VESPER-BOT:~`);
 
     try {
         await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
