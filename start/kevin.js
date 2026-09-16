@@ -1975,7 +1975,7 @@ case 'anticall': {
         }
         if (action === 'off') {
             await db.set(botNumber, 'anticall', 'off');
-            return reply(*'✅ Successfully disabled anticall*');
+            return reply('✅ Successfully disabled anticall*');
         }
     }
     
