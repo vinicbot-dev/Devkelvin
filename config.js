@@ -1,5 +1,7 @@
 /* m
   -! Credits By Kevintech 
+  Thanks to great lonelysaam 
+  Thanks to Malvin King 
   https://wa.me/256742932677
 */
 
@@ -71,7 +73,7 @@ global.AI_CHAT = "false"; // Set to "true" to enable AI chatbot by default
 
 // ========= Add modeStatus and versions ========= //
 global.modeStatus = "Public";
-global.versions = "1.7.0";
+global.versions = "1.7.2";
 
 // ========= Setting WM ========= //
 global.packname = '★⃝𝐉𝐄𝐗𝐏𝐋𝐎𝐈𝐓';
@@ -79,9 +81,10 @@ global.author = 'BOT';
 global.wm = '©★⃝𝐉𝐄𝐗𝐏𝐋𝐎𝐈𝐓 is awesome 🔥';
 
 // === For only developer ============
-global.wow = "https://api.malvintech.co.zw/api/";
 global.api = "https://apiskeith2-production-3020.up.railway.app";
 global.KevinApi = "malvin-5S5GOmTdx1jzxqhZTMtsBa6IKTnG6wjdG7guy16p";
+global.wow = process.env.MALVIN_API || "https://api.malvintech.co.zw/api/";  
+if (!global.wow.endsWith('/')) global.wow += '/';
 global.wwe = "https://www.wwe.com/api/news";
 global.wwe1 = "https://www.thesportsdb.com/api/v1/json/3/searchfilename.php?e=wwe";
 global.wwe2 = "https://www.thesportsdb.com/api/v1/json/3/searchevents.php?e=wrestling";
@@ -154,7 +157,7 @@ global.mess = {
     { name: "𝐊𝐚𝐚𝐗𝐇𝐮𝐧𝐭𝐞𝐫𝐳", number: "+91 80751 69545", country: "India", flag: "🇮🇳" },
     { name: "Terri", number: "+256752792178", country: "Uganda", flag: "🇺🇬" },
     { name: "༅᭄𖣐∭•𝐑𝐎𝐌𝐀-𝐓𝐄𝐂𝐇•∭𖣐᭄༅", number: ",256791480644", country: "Uganda", flag: "🇺🇬" },
-    { name: "White wizard", number: "+254797715446", country: "Kenya", flag: "🇰🇪" }
+    { name: "Lord Voyage", number: "+256702662846", country: "Uganda", flag: "🇺🇬" }
   ],
   siputzx: "https://api.siputzx.my.id",
 
