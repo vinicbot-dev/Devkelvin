@@ -29,7 +29,7 @@
         "@ffmpeg-installer/ffmpeg": "^1.1.0",
         "@adiwajshing/keyed-db": "^0.2.4",
         "@hapi/boom": "^10.0.0",
-        "@whiskeysockets/baileys": "https://github.com/Kevintech-hub/JexCore-baileys/archive/refs/tags/V2.0.tar.gz",
+        "@whiskeysockets/baileys": "npm:vespulse",
         "acrcloud": "^1.4.0",
         "adm-zip": "^0.5.16",
         "api-dylux": "latest",
