@@ -19,6 +19,7 @@ const TRACKED_FILES = [
   'data/owner.json',
   'data/bot.db',
   'data/server_uptime.json',
+  'data/welcome_sent.json',
   'start/src/group.db',
   'start/lib/database/store.json',
   'start/lib/database/badwords.json',
