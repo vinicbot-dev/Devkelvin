@@ -3003,7 +3003,7 @@ case 'botinfo': {
 │ • Version  : ${global.versions}
 │ • ᴄᴍᴅs    : 100+
 │ • Developer: Kelvin tech
-│ • Runtime  : ${runtime(process.uptime())}
+│ • Runtime  : ${runtime(require('./lib/uptime').seconds())}
 ╰─────────────`;
 
     const imageUrls = [
@@ -3105,7 +3105,7 @@ case "botstats": {
     const start = performance.now();
     const cpus = os.cpus();
     const uptimeSeconds = os.uptime();
-    const muptime = runtime(process.uptime()).trim();
+    const muptime = runtime(require('./lib/uptime').seconds()).trim();
     const uptimeDays = Math.floor(uptimeSeconds / 86400);
     const uptimeHours = Math.floor((uptimeSeconds % 86400) / 3600);
     const uptimeMinutes = Math.floor((uptimeSeconds % 3600) / 60);
@@ -3562,7 +3562,7 @@ case "stats": {
     const latencyEnd = performance.now();
     const ping = `${(latencyEnd - latencyStart).toFixed(2)} ms`;
     
-    const botUptime = runtime(process.uptime());
+    const botUptime = runtime(require('./lib/uptime').seconds());
     const serverUptime = getServerUptime();
     
     const response = `
@@ -5709,39 +5709,55 @@ case "play": {
     await playCommand2(conn, m.chat, m, args, buttonHandler);
     break;
 }
-case "song2": {
-  const query = args.join(" ");
-        if (!query) return reply(`Example: ${prefix}song2 Faded`);
+case 'song2': {
+    if (!text) return reply(`📌 Example: ${prefix + command} Kunsi by Vyroota`);
 
-        try {
-            await reply(`Searching for "${query}"...`);
-            const apiUrl = `https://apis.davidcyril.name.ng/play?query=${encodeURIComponent(query)}`;
-            const response = await axios.get(apiUrl);
-            
-            if (response.data?.status && response.data?.result) {
-                const { title, duration, views, published, download_url } = response.data.result;
-                
-                if (!download_url) {
-                    return reply(`No audio found for "${query}"`);
-                }
-                
-                const caption = `*${title}*\n⏱ ${duration} | 👁 ${views?.toLocaleString()} | 📅 ${published}`;
-                
-                await conn.sendMessage(m.chat, {
-                    audio: { url: download_url },
-                    mimetype: 'audio/mpeg',
-                    fileName: `${title.replace(/[^\w\s]/gi, '')}.mp3`,
-                    ptt: false,
-                    caption: caption
-                }, { quoted: m });
-                
-            } else {
-                reply(`No results found for "${query}"`);
+    await reply("🎵 *Searching and downloading audio...*");
+    await conn.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
+
+    try {
+        const apiUrl = `https://apis.davidcyril.name.ng/song?query=${encodeURIComponent(text)}`;
+        const { data } = await axios.get(apiUrl, {
+            timeout: 30000,
+            headers: {
+                'X-API-Key': global.jex
             }
-        } catch (error) {
-            console.error('Play3 error:', error.message);
-            reply(`Error: ${error.message}`);
+        });
+
+        // Response shape:
+        // { creator, status, result: { title, video_url, thumbnail, duration, views, published, audio: { download_url } } }
+        if (!data?.status || !data?.result?.audio?.download_url) {
+            await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+            return reply(`❌ No audio found for "${text}"`);
         }
+
+        const r = data.result;
+        const downloadUrl = r.audio.download_url;
+        const cleanTitle = (r.title || 'audio').replace(/[<>:"/\\|?*]/g, '_').substring(0, 100);
+
+        // Send thumbnail preview
+        if (r.thumbnail) {
+            await conn.sendMessage(m.chat, {
+                image: { url: r.thumbnail },
+                caption: `🎵 *${r.title}*\n\n⏱ *Duration:* ${r.duration || 'N/A'}\n👁 *Views:* ${r.views ? r.views.toLocaleString() : 'N/A'}\n📅 *Published:* ${r.published || 'N/A'}\n\n📥 *Sending audio, please wait...*`
+            }, { quoted: m });
+        }
+
+        // Send the audio file
+        await conn.sendMessage(m.chat, {
+            audio: { url: downloadUrl },
+            mimetype: 'audio/mpeg',
+            fileName: `${cleanTitle}.mp3`,
+            ptt: false
+        }, { quoted: m });
+
+        await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+
+    } catch (error) {
+        console.error('Song error:', error.message);
+        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+        reply(`Error: ${error.message}`);
+    }
 }
 break 
 case "spotify": {
