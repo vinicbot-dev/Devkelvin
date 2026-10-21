@@ -5709,7 +5709,7 @@ case "play": {
     await playCommand2(conn, m.chat, m, args, buttonHandler);
     break;
 }
-case 'song': {
+case 'song2': {
     if (!text) return reply(`📌 Example: ${prefix + command} Kunsi by Vyroota`);
 
     await reply("🎵 *Searching and downloading audio...*");
