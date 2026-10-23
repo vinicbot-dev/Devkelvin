@@ -1,5 +1,5 @@
 // database.js
-const sqlite3 = require('sqlite3').verbose();
+const SqlJsDatabase = require('./lib/sqljs'); // sql.js (pure JS) - persisted to Postgres by lib/persist.js
 const path = require('path');
 const fs = require('fs');
 
@@ -11,7 +11,7 @@ class SQLiteDatabase {
             fs.mkdirSync(dataDir, { recursive: true });
         }
         
-        this.db = new sqlite3.Database(dbPath);
+        this.db = new SqlJsDatabase(dbPath, null, { pushDelayMs: 3000 });
         this.initialized = this.init(); // Store the init promise
     }
     
