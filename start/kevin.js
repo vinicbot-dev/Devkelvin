@@ -110,6 +110,7 @@ const { handleAutoTyping } = require('./KelvinCmds/autotyping');
 const { handleAIChatbot } = require('./KelvinCmds/chatbot');
 const { handleAutoRecording } = require('./KelvinCmds/autorecord');
 const { handleAntiDelete } = require('./KelvinCmds/antidelete');
+const { handleReplyForward, handleAntiViewOnce, handleSaveMediaCommand } = require('./KelvinCmds/savemedia');
 const { cleaningSession } = require('./lib/botSession'); 
 const {fetchReactionImage} = require('./lib/reaction')
 const { toAudio } = require('./lib/converter');
@@ -652,54 +653,12 @@ if (m.isGroup && !m.key.fromMe && body && body.trim().length > 0) {
     }
 }
 
-// Forward view-once to owner
-if (m.quoted?.viewOnce && Access && body?.trim()) {
-    try {
-        const msg = m.msg?.contextInfo?.quotedMessage || m.quoted?.message;
-        const type = Object.keys(msg)[0];
-        if (/image|video|audio/.test(type)) {
-            let mediaType = 'image';
-            if (type === 'imageMessage') mediaType = 'image';
-            else if (type === 'videoMessage') mediaType = 'video';
-            else if (type === 'audioMessage') mediaType = 'audio';
-            
-            const stream = await downloadContentFromMessage(msg[type], mediaType);
-            let buf = Buffer.from([]);
-            for await (const chunk of stream) buf = Buffer.concat([buf, chunk]);
-            
-            // Get sender's push name (fallback to JID)
-            const senderName = m.pushName || m.sender.split('@')[0];
-            
-            // Build caption with mention
-            const caption = `📥 View-Once from *${senderName}* (@${m.sender.split('@')[0]})`;
-            
-            const messageOptions = {
-                caption: caption,
-                mentions: [m.sender]  
-            };
-            
-            if (type === 'imageMessage') {
-                await conn.sendMessage(botNumber, { image: buf, ...messageOptions });
-            } else if (type === 'videoMessage') {
-                await conn.sendMessage(botNumber, { video: buf, ...messageOptions });
-            } else if (type === 'audioMessage') {
-                await conn.sendMessage(botNumber, { audio: buf, mimetype: 'audio/mpeg', ...messageOptions });
-            }
-            
-            await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
-        }
-    } catch (e) {}
-}
-// Forward status 
-else if (m.quoted?.chat === 'status@broadcast' && Access) {
-    try {
-        // Directly forward status to owner
-        await m.quoted.copyNForward(botNumber, true);
-        await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
-    } catch (e) {
-        console.log('Error forwarding status to owner:', e);
-    }
-}
+// Reply to a Status / View-Once (no command) -> saved to the owner's DM, antidelete style
+await handleReplyForward(conn, m, { Access, body, isCmd, botNumber });
+
+// Auto-save incoming View-Once to the owner's DM (antiviewonce on/off)
+await handleAntiViewOnce(conn, m, botNumber);
+
 switch (command) {
 case 'menu':
 case 'Rober':
@@ -1473,61 +1432,16 @@ if (!Access) return reply(mess.owner);
     conn.sendMessage(m.chat, reactionMessage);
 }
 break
-case "vv2": {
-    if (!Access) return reply(mess.owner);
-    if (!m.quoted) return reply(`*Reply to a ViewOnce Image or Video*`);
-    
-    // Check if quoted message is view once
-    if (m.quoted.mtype !== "viewOnceMessageV2" && !m.quoted.message?.viewOnceMessageV2) {
-        return reply(`*This is not a ViewOnce message!*`);
-    }
-    
-    try {
-        // Get the actual message content
-        let msg = m.quoted.message || m.quoted;
-        
-        // Handle different view once structures
-        let viewOnceMsg = msg.viewOnceMessageV2?.message || 
-                         msg.viewOnceMessage?.message || 
-                         msg;
-        
-        let type = Object.keys(viewOnceMsg)[0];
-        
-        if (!type || !viewOnceMsg[type]) {
-            return reply(`*Could not extract media from ViewOnce message*`);
-        }
-        
-        let media = await downloadContentFromMessage(viewOnceMsg[type], 
-            type == 'imageMessage' ? 'image' : type == 'videoMessage' ? 'video' : 'audio');
-        
-        let buffer = Buffer.from([]);
-        for await (const chunk of media) {
-            buffer = Buffer.concat([buffer, chunk]);
-        }
-        
-        if (/video/.test(type)) {
-            return conn.sendMessage(m.chat, { 
-                video: buffer, 
-                caption: viewOnceMsg[type].caption || "" 
-            }, { quoted: m });
-        } else if (/image/.test(type)) {
-            return conn.sendMessage(m.chat, { 
-                image: buffer, 
-                caption: viewOnceMsg[type].caption || "" 
-            }, { quoted: m });
-        } else if (/audio/.test(type)) {
-            return conn.sendMessage(m.chat, { 
-                audio: buffer, 
-                mimetype: "audio/mpeg", 
-                ptt: true 
-            }, { quoted: m });
-        }
-    } catch (error) {
-        console.error('VV2 error:', error);
-        reply(`*Failed to process ViewOnce message: ${error.message}*`);
-    }
-    break;
+case 'vv': case 'rvo': case 'retrieve': case 'readvo': case 'readviewonce':
+case 'vv2': case 'vvhere':
+case 'save': case 'savestatus': case 'statussave': case 'ssave': case 'sv':
+case 'vvsend': case 'savesend': case 'sendto':
+case 'replysave': case 'replyforward':
+case 'antiviewonce': case 'antivv': case 'autovv':
+case 'autosavestatus': case 'autosavestatuses': {
+    await handleSaveMediaCommand(conn, m, { command, args, Access, botNumber, prefix, reply, mess });
 }
+break
 case 'creategc': 
 case 'creategroup': {
 if (!Access) return reply(mess.owner)
@@ -1569,38 +1483,6 @@ if (!Access) return reply(mess.owner)
 conn.public = true
 await db.set(botNumber, 'mode', 'public');
 reply(`*${global.botname} successfully changed to public mode*.`)
-}
-break
-case 'readviewonce': case 'vv': {
-if (!Access) return reply(mess.owner) 
-    try {
-        if (!m.quoted) return reply('*Please reply to a viewonce Media!*');
-
-        const quotedMessage = m.msg.contextInfo.quotedMessage;
-        if (!quotedMessage) return reply('❌ No media found in the quoted message.');
-
-        if (quotedMessage.imageMessage) {
-            let imageCaption = quotedMessage.imageMessage.caption || '';
-            let imageUrl = await conn.downloadAndSaveMediaMessage(quotedMessage.imageMessage);
-            await conn.sendMessage(m.chat, { image: { url: imageUrl }, caption: imageCaption });
-        }
-
-        if (quotedMessage.videoMessage) {
-            let videoCaption = quotedMessage.videoMessage.caption || '';
-            let videoUrl = await conn.downloadAndSaveMediaMessage(quotedMessage.videoMessage);
-            await conn.sendMessage(m.chat, { video: { url: videoUrl }, caption: videoCaption });
-        }
-
-        if (quotedMessage.audioMessage) {
-            let audioUrl = await conn.downloadAndSaveMediaMessage(quotedMessage.audioMessage);
-            await conn.sendMessage(m.chat, { audio: { url: audioUrl }, mimetype: 'audio/mp4' });
-        }
-
-    } catch (error) {
-        console.error('Error processing vv command:', error);
-        reply('❌ An error occurred while processing your request.');
-    }
-    
 }
 break
 case "listblocked": {
@@ -6506,11 +6388,6 @@ if (!args[0]) return reply('*Please provide a TikTok audio url!*');
       reply(global.mess.error);
     }
 }
-break
-case "savestatus":
-case  "save": {
-await saveStatusMessage(m);
-  }
 break
 case 'apkdl': 
 case 'apk': {
