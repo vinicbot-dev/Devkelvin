@@ -1,13 +1,14 @@
 /*Kelvin Tech*/
 
-const sqlite3 = require('sqlite3').verbose();
+const SqlJsDatabase = require('../lib/sqljs'); // sql.js (pure JS) - persisted to Postgres by lib/persist.js
 const path = require('path');
 
 const dbPath = path.join(__dirname, '../../start/src/group.db');
-const groupDb = new sqlite3.Database(dbPath, (err) => {
+// group activity is written on every group message, so push it to Postgres less eagerly
+const groupDb = new SqlJsDatabase(dbPath, (err) => {
   if (err) console.error('Group database connection error:', err);
   else console.log('[JEXPLOIT] Connected to group database');
-});
+}, { pushDelayMs: 30000 });
 
 // Create table if it doesn't exist
 groupDb.serialize(() => {
