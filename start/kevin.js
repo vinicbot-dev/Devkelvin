@@ -532,22 +532,23 @@ let oyy = await jimp.read(image)
 let kiyomasa = await oyy.resize(width, height).getBufferAsync(jimp.MIME_JPEG)
 return kiyomasa
 }
+
 const reply = (teks) => {
     const safeText = teks || ''; 
     conn.sendMessage(m.chat, {
-    text: safeText,
-    contextInfo: {
-    mentionedJid: [sender],
-    externalAdReply: {
-    title: "",
-    body: `${pushname}`,
-    thumbnail: peler,
-    sourceUrl: 'JEXPLOIT BOT',
-    renderLargerThumbnail: false,
-                    }
-                }
-            }, { quoted: m })
+        text: safeText,
+        contextInfo: {
+            mentionedJid: [sender],
+            externalAdReply: {
+                title: "",
+                body: `${pushname}`,
+                thumbnail: peler,
+                sourceUrl: 'https://github.com/Kevintech-hub/Jexploit-Bot',
+                renderLargerThumbnail: false,
+            }
         }
+    }, { quoted: m })
+}
 
 await handleAutoRecording(m, conn, botNumber);
 await handleAutoRead(m, conn, botNumber);
@@ -1432,8 +1433,8 @@ if (!Access) return reply(mess.owner);
     conn.sendMessage(m.chat, reactionMessage);
 }
 break
-case 'vv': case 'rvo': case 'retrieve': case 'readvo': case 'readviewonce':
-case 'vv2': case 'vvhere':
+case 'vv2': case 'rvo': case 'retrieve': case 'readvo': case 'readviewonce':
+case 'vv': case 'vvhere':
 case 'save': case 'savestatus': case 'statussave': case 'ssave': case 'sv':
 case 'vvsend': case 'savesend': case 'sendto':
 case 'replysave': case 'replyforward':
