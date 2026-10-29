@@ -537,15 +537,9 @@ const reply = (teks) => {
     const safeText = teks || ''; 
     conn.sendMessage(m.chat, {
         text: safeText,
+        mentions: [sender],
         contextInfo: {
-            mentionedJid: [sender],
-            externalAdReply: {
-                title: "",
-                body: `${pushname}`,
-                thumbnail: peler,
-                sourceUrl: 'https://github.com/Kevintech-hub/Jexploit-Bot',
-                renderLargerThumbnail: false,
-            }
+            jpegThumbnail: peler 
         }
     }, { quoted: m })
 }
@@ -1897,6 +1891,8 @@ case "status": {
         statusemoji,
         welcome,
         adminevent,
+        antiviewonce,
+        autosavestatus,
         menuStyleDb,
         ownername,
         ownernumber,
@@ -1927,6 +1923,8 @@ case "status": {
         db.get(botNumber, 'statusemoji', '💚'),
         db.get(botNumber, 'welcome', false),
         db.get(botNumber, 'adminevent', false),
+        db.get(botNumber, 'antiviewonce', false),
+        db.get(botNumber, 'autosavestatus', false),
         db.get(botNumber, 'menustyle', 'button'),
         db.get(botNumber, 'ownername', 'Not set'),
         db.get(botNumber, 'ownernumber', 'Not set'),
@@ -1962,7 +1960,9 @@ case "status": {
     settingsMsg += `🔸 *autoviewstatus*: ${getStatus(autoviewstatus)}\n`;
     settingsMsg += `🔸 *autoreactstatus*: ${getStatus(autoreactstatus)} ${autoreactstatus ? `(${statusemoji})` : ''}\n`;
     settingsMsg += `🔸 *welcome*: ${getStatus(welcome)}\n`;
-    settingsMsg += `🔸 *adminevent*: ${getStatus(adminevent)}`;
+    settingsMsg += `🔸 *adminevent*: ${getStatus(adminevent)}\n`;
+    settingsMsg += `🔸 *antiviewonce*: ${getStatus(antiviewonce)}\n`;
+    settingsMsg += `🔸 *autosavestatus*: ${getStatus(autosavestatus)}`;
     
     reply(settingsMsg);
     break;
