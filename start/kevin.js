@@ -5593,54 +5593,53 @@ case "play": {
     break;
 }
 case 'song2': {
-    if (!text) return reply(`📌 Example: ${prefix + command} Kunsi by Vyroota`);
+const query = args.join(" ").trim();
+        if (!query) return reply(`📌 Example: ${prefix}song Kunsi by Vyroota`);
 
-    await reply("🎵 *Searching and downloading audio...*");
-    await conn.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
+        await conn.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
 
-    try {
-        const apiUrl = `https://apis.davidcyril.name.ng/song?query=${encodeURIComponent(text)}`;
-        const { data } = await axios.get(apiUrl, {
-            timeout: 30000,
-            headers: {
-                'X-API-Key': global.jex
+        try {
+            let videoUrl = query;
+            let videoTitle = "YouTube Audio";
+
+            // Check if it's a direct link or a search query
+            if (!/youtu\.?be/.test(query)) {
+                const { videos } = await yts(query);
+                if (!videos || videos.length === 0) {
+                    await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+                    return reply(`❌ No results found for "${query}"`);
+                }
+                videoUrl = videos[0].url;
+                videoTitle = videos[0].title;
             }
-        });
 
-        // Response shape:
-        // { creator, status, result: { title, video_url, thumbnail, duration, views, published, audio: { download_url } } }
-        if (!data?.status || !data?.result?.audio?.download_url) {
-            await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
-            return reply(`❌ No audio found for "${text}"`);
-        }
+            // Call Keith API using global.api
+            const apiUrl = `${global.api}/download/audio?url=${encodeURIComponent(videoUrl)}`;
+            const { data } = await axios.get(apiUrl, { timeout: 60000 });
 
-        const r = data.result;
-        const downloadUrl = r.audio.download_url;
-        const cleanTitle = (r.title || 'audio').replace(/[<>:"/\\|?*]/g, '_').substring(0, 100);
+            // Handle the API response (checks for status and result string)
+            const audioUrl = data?.result || data?.download_url || data?.url;
 
-        // Send thumbnail preview
-        if (r.thumbnail) {
+            if (!data?.status || !audioUrl) {
+                await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+                return reply(`❌ Failed to fetch audio from API.`);
+            }
+
+            // Send the audio file
             await conn.sendMessage(m.chat, {
-                image: { url: r.thumbnail },
-                caption: `🎵 *${r.title}*\n\n⏱ *Duration:* ${r.duration || 'N/A'}\n👁 *Views:* ${r.views ? r.views.toLocaleString() : 'N/A'}\n📅 *Published:* ${r.published || 'N/A'}\n\n📥 *Sending audio, please wait...*`
+                audio: { url: audioUrl },
+                mimetype: 'audio/mpeg',
+                fileName: `${videoTitle.replace(/[^\w\s]/gi, '')}.mp3`,
+                ptt: false
             }, { quoted: m });
+
+            await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+
+        } catch (error) {
+            console.error('Song error:', error.message);
+            await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+            reply(`Error: ${error.message}`);
         }
-
-        // Send the audio file
-        await conn.sendMessage(m.chat, {
-            audio: { url: downloadUrl },
-            mimetype: 'audio/mpeg',
-            fileName: `${cleanTitle}.mp3`,
-            ptt: false
-        }, { quoted: m });
-
-        await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
-
-    } catch (error) {
-        console.error('Song error:', error.message);
-        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
-        reply(`Error: ${error.message}`);
-    }
 }
 break 
 case "spotify": {
