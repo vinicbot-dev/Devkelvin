@@ -81,7 +81,7 @@ global.author = 'BOT';
 global.wm = '©★⃝𝐉𝐄𝐗𝐏𝐋𝐎𝐈𝐓 is awesome 🔥';
 
 // === For only developer ============
-global.api = "https://apis.keithsite.lol";
+global.api = "https://keithhostdeploysite-22l75uk5-ff0ccc337078.herokuapp.com/";
 global.jex = "dc_live_Sx9CH0DETBzwltL79QrR2y8ZnLx3gHUp";
 global.KevinApi = "malvin-5S5GOmTdx1jzxqhZTMtsBa6IKTnG6wjdG7guy16p";
 global.wow = process.env.MALVIN_API || "https://api.malvintech.co.zw/api/";  
