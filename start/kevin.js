@@ -5593,53 +5593,59 @@ case "play": {
     break;
 }
 case 'song2': {
-const query = args.join(" ").trim();
-        if (!query) return reply(`📌 Example: ${prefix}song Kunsi by Vyroota`);
+    const query = args.join(" ").trim();
+    if (!query) return reply(`📌 *Example: ${prefix}song2 Kunsi by Vyroota*`);
 
-        await conn.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
+    await conn.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
 
-        try {
-            let videoUrl = query;
-            let videoTitle = "YouTube Audio";
-
-            // Check if it's a direct link or a search query
-            if (!/youtu\.?be/.test(query)) {
-                const { videos } = await yts(query);
-                if (!videos || videos.length === 0) {
-                    await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
-                    return reply(`❌ No results found for "${query}"`);
-                }
-                videoUrl = videos[0].url;
-                videoTitle = videos[0].title;
+    try {
+        // NexRay ytplay: accepts a search query OR a YouTube URL directly
+        const apiUrl = `https://api.nexray.eu.cc/downloader/ytplay?q=${encodeURIComponent(query)}`;
+        const { data } = await axios.get(apiUrl, {
+            timeout: 60000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             }
+        });
 
-            // Call Keith API using global.api
-            const apiUrl = `${global.api}/download/audio?url=${encodeURIComponent(videoUrl)}`;
-            const { data } = await axios.get(apiUrl, { timeout: 60000 });
-
-            // Handle the API response (checks for status and result string)
-            const audioUrl = data?.result || data?.download_url || data?.url;
-
-            if (!data?.status || !audioUrl) {
-                await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
-                return reply(`❌ Failed to fetch audio from API.`);
-            }
-
-            // Send the audio file
-            await conn.sendMessage(m.chat, {
-                audio: { url: audioUrl },
-                mimetype: 'audio/mpeg',
-                fileName: `${videoTitle.replace(/[^\w\s]/gi, '')}.mp3`,
-                ptt: false
-            }, { quoted: m });
-
-            await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
-
-        } catch (error) {
-            console.error('Song error:', error.message);
+        // Response shape: { status: true, result: { title, download_url, thumbnail, ... } }
+        if (!data?.status || !data?.result?.download_url) {
             await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
-            reply(`Error: ${error.message}`);
+            return reply(`❌ No results found for "${query}".`);
         }
+
+        const r = data.result;
+        const audioUrl = r.download_url;
+        const videoTitle = r.title || 'YouTube Audio';
+        const safeName = videoTitle.replace(/[^\w\s]/gi, '').trim() || 'audio';
+
+        // Send thumbnail preview with song details
+        if (r.thumbnail) {
+            await conn.sendMessage(m.chat, {
+                image: { url: r.thumbnail },
+                caption: `🎵 *${videoTitle}*\n\n` +
+                         `⏱ *Duration:* ${r.duration || 'Unknown'}\n` +
+                         `👁 *Views:* ${r.views || 'Unknown'}\n` +
+                         `📺 *Channel:* ${r.channel || 'Unknown'}\n\n` +
+                         `⌛ *Sending audio...*`
+            }, { quoted: m });
+        }
+
+        // Send the plain audio file
+        await conn.sendMessage(m.chat, {
+            audio: { url: audioUrl },
+            mimetype: 'audio/mpeg',
+            fileName: `${safeName}.mp3`,
+            ptt: false
+        }, { quoted: m });
+
+        await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+
+    } catch (error) {
+        console.error('Song2 error:', error.message);
+        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+        reply(`Error: ${error.message}`);
+    }
 }
 break 
 case "spotify": {
