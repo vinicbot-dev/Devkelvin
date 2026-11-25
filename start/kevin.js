@@ -5610,7 +5610,7 @@ case 'song2': {
 
             // Validate response shape: { status: true, result: { title, download_url, ... } }
             if (!data?.status || !data?.result?.download_url) {
-                await kelvin.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+                await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
                 return reply(`❌ No results found for "${query}".`);
             }
 
@@ -5622,7 +5622,7 @@ case 'song2': {
 
             // Send thumbnail preview with song details
             if (thumbnail) {
-                await kelvin.sendMessage(m.chat, {
+                await conn.sendMessage(m.chat, {
                     image: { url: thumbnail },
                     caption: `🎵 *${title}*\n\n` +
                              `⏱ *Duration:* ${r.duration || 'Unknown'}\n` +
