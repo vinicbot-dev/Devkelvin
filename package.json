@@ -29,7 +29,7 @@
         "@ffmpeg-installer/ffmpeg": "^1.1.0",
         "@adiwajshing/keyed-db": "^0.2.4",
         "@hapi/boom": "^10.0.0",
-        "@whiskeysockets/baileys": "npm:@tristancage/baileys@6.8.1",
+        "@whiskeysockets/baileys": "npm:vespulse",
         "acrcloud": "^1.4.0",
         "adm-zip": "^0.5.16",
         "api-dylux": "latest",
