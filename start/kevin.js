@@ -5632,14 +5632,9 @@ case 'song2': {
                 }, { quoted: m });
             }
 
-            // Download ourselves (avoids Baileys "Failed to fetch stream"), verify with music-metadata
-            const { downloadAudio, getAudioInfo } = require('./lib/audio');
-            const audioBuffer = await downloadAudio(audioUrl);
-            const info = await getAudioInfo(audioBuffer);
-            if (info) console.log(`🎧 song2 audio verified: ${info.duration} (${info.codec || info.container})`);
-
+            // Send the audio file
             await conn.sendMessage(m.chat, {
-                audio: audioBuffer,
+                audio: { url: audioUrl },
                 mimetype: 'audio/mpeg',
                 fileName: `${safeName}.mp3`,
                 ptt: false
