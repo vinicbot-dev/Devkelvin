@@ -9139,28 +9139,53 @@ case 'ytaudio': {
    
 }
 break
-case 'ytmp3':
 case 'song': {
-      if (!text) return reply('*Please provide a song name!*');
+    const query = args.join(" ").trim();
+    if (!query) return reply(`📌 *Example: ${prefix}song kunsi by Vyroota*`);
+
+    await conn.sendMessage(m.chat, { react: { text: "🎵", key: m.key } });
 
     try {
-      const search = await yts(text);
-      if (!search || search.all.length === 0) return reply('*The song you are looking for was not found.*');
+        let videoUrl = query;
+        let videoTitle = "YouTube Audio";
 
-      const video = search.all[0];
-      const audioResult = await fetchMp3DownloadUrl(video.url);
+        // Resolve search query → YouTube URL via yts
+        if (!/youtu\.?be/.test(query)) {
+            const { videos } = await yts(query);
+            if (!videos || videos.length === 0) {
+                await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+                return reply(`❌ No results found for "${query}"`);
+            }
+            videoUrl = videos[0].url;
+            videoTitle = videos[0].title;
+        }
 
-      await conn.sendMessage(m.chat, {
-        audio: audioResult.buffer,
-        mimetype: 'audio/mpeg',
-        fileName: `${video.title}.mp3`
-      }, { quoted: m });
+        const apiUrl = `${global.api}/download/audio?url=${encodeURIComponent(videoUrl)}`;
+        const { data } = await axios.get(apiUrl, { timeout: 60000 });
+
+        if (!data?.status || !data?.result || typeof data.result !== 'string') {
+            await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+            return reply(`❌ Failed to fetch audio from API.`);
+        }
+
+        const audioUrl = data.result;
+
+        // Send the audio file straight from the API URL
+        await conn.sendMessage(m.chat, {
+            audio: { url: audioUrl },
+            mimetype: 'audio/mpeg',
+            fileName: `${videoTitle.replace(/[^\w\s]/gi, '')}.mp3`,
+            ptt: false
+        }, { quoted: m });
+
+        await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
 
     } catch (error) {
-      console.error('play command failed:', error);
-      reply(`Error: ${error.message}`);
+        console.error('Song error:', error.message);
+        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+        reply(`Error: ${error.message}`);
     }
-  }
+}
 break
 case "imdb":
 case "movie": {
