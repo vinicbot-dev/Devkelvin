@@ -64,6 +64,7 @@ const {
 const {
  fetchMp3DownloadUrl,
  fetchVideoDownloadUrl,
+ downloadVerifiedMedia,
   saveStatusMessage,
   acr,
   handleAntiEdit,
@@ -5774,20 +5775,20 @@ case "video": {
         let videoTitle = "";
         let videoThumbnail = "";
 
-        // Send searching reaction
+        // Searching reaction
         await conn.sendMessage(m.chat, {
             react: { text: '🎬', key: m.key }
         });
 
-        // Check if input is a YouTube URL or search term
-        if (text.includes('youtube.com/watch?v=') || text.includes('youtu.be/')) {
-            // Direct YouTube URL - try to get metadata
-            videoData = await fetchVideoDownloadUrl(text);
+        // YouTube URL or search term?
+        if (text.includes('youtube.com/') || text.includes('youtu.be/')) {
             videoUrl = text;
+            videoData = await fetchVideoDownloadUrl(videoUrl);
         } else {
-            // Search for video
             const search = await yts(text);
-            if (!search || search.all.length === 0) return reply('❌ *No videos found for your query.*\n\nTry different keywords.');
+            if (!search || search.all.length === 0) {
+                return reply('❌ *No videos found for your query.*\n\nTry different keywords.');
+            }
 
             const video = search.all[0];
             videoUrl = video.url;
@@ -5796,16 +5797,16 @@ case "video": {
             videoData = await fetchVideoDownloadUrl(videoUrl);
         }
 
-        // fetchVideoDownloadUrl returns { url, buffer, quality, title } - a verified,
-        // already-downloaded buffer, not a nested "metadata" object.
+        // fetchVideoDownloadUrl returns { url, quality, title }
+        if (!videoData?.url) throw new Error('No video URL returned');
+
         const finalTitle = videoData.title || videoTitle || 'Your video';
-        const finalThumbnail = videoThumbnail;
         const quality = videoData.quality ? `\n🎬 *Quality:* ${videoData.quality}` : '';
 
-        // Send video info with thumbnail
-        if (finalThumbnail) {
+        // Info message with thumbnail (if we have one)
+        if (videoThumbnail) {
             await conn.sendMessage(m.chat, {
-                image: { url: finalThumbnail },
+                image: { url: videoThumbnail },
                 caption: `🎬 *${finalTitle}*${quality}\n\n📥 *Processing video, please wait...*`
             }, { quoted: m });
         } else {
@@ -5814,11 +5815,13 @@ case "video": {
             }, { quoted: m });
         }
 
-        // Send the verified buffer directly - not the raw URL - so what gets
-        // delivered is guaranteed to be the same bytes that were confirmed playable.
+        // Download + verify it's real playable video
+        const media = await downloadVerifiedMedia(videoData.url, 'video');
+
+        // Send the verified buffer
         await conn.sendMessage(m.chat, {
-            video: videoData.buffer,
-            mimetype: videoData.mime || 'video/mp4',
+            video: media.buffer,
+            mimetype: media.mime || 'video/mp4',
             fileName: `${finalTitle.replace(/[^\w\s]/gi, '')}.mp4`,
             caption: `✅ *Video ready!*\n\n🎬 *${finalTitle}*\n\n🎉 *Enjoy watching!*`
         }, { quoted: m });
@@ -5831,14 +5834,11 @@ case "video": {
     } catch (error) {
         console.error('Video command failed:', error);
         reply(`❌ *Error fetching video.*\n\nPlease try again later.`);
-        
-        // Error reaction
+
         await conn.sendMessage(m.chat, {
             react: { text: '❌', key: m.key }
         });
     }
-    
-   
 }
 break;
 case 'checkapikey': {
